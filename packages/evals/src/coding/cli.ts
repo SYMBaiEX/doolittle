@@ -182,12 +182,13 @@ async function readSelectedEvents(
   });
   for await (const line of lines) {
     if (!line.trim()) continue;
-    let event: Record<string, unknown>;
+    let event: unknown;
     try {
-      event = JSON.parse(line) as Record<string, unknown>;
+      event = JSON.parse(line) as unknown;
     } catch {
       continue;
     }
+    if (!event || typeof event !== "object" || !("runId" in event)) continue;
     const runId = event.runId;
     if (typeof runId === "string" && selectedRunIds.has(runId)) {
       events.get(runId)?.push(event);
@@ -196,8 +197,10 @@ async function readSelectedEvents(
   return events;
 }
 
-async function getJson<T>(url: URL): Promise<T> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+async function getJson<T>(url: URL, signal: AbortSignal): Promise<T> {
+  const response = await fetch(url, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+  });
   if (!response.ok) {
     throw new Error(
       `Gateway returned HTTP ${response.status} for ${url.pathname}`,
@@ -230,29 +233,56 @@ function formatDuration(milliseconds: number | undefined): string {
     : `${(milliseconds / 1000).toFixed(1)}s`;
 }
 
-async function main(): Promise<void> {
-  const options = parseArguments(process.argv.slice(2));
-  const executions = await Promise.all(
-    options.invocations.map(async (invocation) => {
-      const envelope = await getJson<RunEnvelope>(
-        new URL(
-          `/chat/runs/${encodeURIComponent(invocation.runId)}`,
-          options.gateway,
-        ),
-      );
-      if (!envelope.run)
-        throw new Error(`Run receipt is missing for ${invocation.runId}.`);
-      if (envelope.run.runId !== invocation.runId) {
-        throw new Error(
-          `Gateway returned a different run receipt for ${invocation.runId}.`,
-        );
-      }
-      return { ...invocation, run: envelope.run };
-    }),
+async function readRunReceipts(
+  options: CodingEvalOptions,
+  signal: AbortSignal,
+) {
+  const executions: Array<
+    CodingEvalInvocation & { run: Record<string, unknown> }
+  > = [];
+  const concurrentRequests = 8;
+  for (
+    let offset = 0;
+    offset < options.invocations.length;
+    offset += concurrentRequests
+  ) {
+    const batch = options.invocations.slice(
+      offset,
+      offset + concurrentRequests,
+    );
+    executions.push(
+      ...(await Promise.all(
+        batch.map(async (invocation) => {
+          const envelope = await getJson<RunEnvelope>(
+            new URL(
+              `/chat/runs/${encodeURIComponent(invocation.runId)}`,
+              options.gateway,
+            ),
+            signal,
+          );
+          if (!envelope.run)
+            throw new Error(`Run receipt is missing for ${invocation.runId}.`);
+          if (envelope.run.runId !== invocation.runId) {
+            throw new Error(
+              `Gateway returned a different run receipt for ${invocation.runId}.`,
+            );
+          }
+          return { ...invocation, run: envelope.run };
+        }),
+      )),
+    );
+  }
+  return executions;
+}
+
+export async function main(args = process.argv.slice(2)): Promise<number> {
+  const options = parseArguments(args);
+  const selectedRunIds = new Set(options.invocations.map(({ runId }) => runId));
+  const controller = new AbortController();
+  const executions = await readRunReceipts(options, controller.signal).finally(
+    () => controller.abort(),
   );
-  const selectedRunIds = new Set(
-    executions.map(({ run }) => String(run.runId)),
-  );
+  // Observe the terminal receipts before scanning their journal evidence.
   const eventsByRun = await readSelectedEvents(options.journal, selectedRunIds);
   const results = executions.map((execution) => ({
     ...execution,
@@ -328,10 +358,16 @@ async function main(): Promise<void> {
     );
   }
 
-  if (totals.fail > 0) process.exitCode = 1;
+  return totals.fail > 0 ? 1 : 0;
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (import.meta.main) {
+  void main()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
+}
