@@ -41,6 +41,7 @@ import {
   extendHistoryPage,
   type HistoryPageState,
   refreshHistoryPage,
+  TRANSCRIPT_PAGE_SIZE,
 } from "./history-pagination";
 import { mergeConversationHistory } from "./history-reconciliation";
 import type {
@@ -55,7 +56,7 @@ import {
   loadStoredChatMessages,
 } from "./transcript-cache";
 
-const HISTORY_PAGE_SIZE = 500;
+const MAX_RECENT_HISTORY_FETCH_SIZE = 500;
 
 type PagedSessionMessagesResponse = SessionMessagesResponse & {
   hasEarlier?: boolean;
@@ -86,10 +87,11 @@ async function fetchHistoryPage(
   sessionId: string,
   owner: string | undefined,
   offset: number,
+  limit: number,
   signal?: AbortSignal,
 ): Promise<{ messages: DisplayMessage[]; page: HistoryPageState }> {
   const response = await desktopRequest<PagedSessionMessagesResponse>(
-    `/sessions/messages?sessionId=${encodeURIComponent(sessionId)}&limit=${HISTORY_PAGE_SIZE}&offset=${offset}`,
+    `/sessions/messages?sessionId=${encodeURIComponent(sessionId)}&limit=${limit}&offset=${offset}`,
     "GET",
     undefined,
     signal,
@@ -154,7 +156,10 @@ function projectChatSessions({
         remoteSession?.title ??
         firstUser?.content.slice(0, 52) ??
         "New conversation",
-      messageCount: localMessages.length,
+      messageCount: Math.max(
+        remoteSession?.messageCount ?? 0,
+        localMessages.length,
+      ),
       endedAt: last?.createdAt,
       participants: [],
       preview: firstUser ? [firstUser.content] : [],
@@ -206,6 +211,8 @@ export function useChatConversationState({
         : { ...stored, [initialId]: [] };
     },
   );
+  const cachedHistoryLength = useRef(0);
+  cachedHistoryLength.current = messages[selectedId]?.length ?? 0;
   const draftSessionId = selectedId || initialId;
   const [conversationDrafts, setConversationDrafts] = useWorkspaceState(
     CHAT_DRAFTS_STATE_KEY,
@@ -569,7 +576,19 @@ export function useChatConversationState({
       return next;
     });
     let settled = false;
-    void fetchHistoryPage(selectedId, selectedOwner, 0, controller.signal)
+    // A cold transcript needs only one screenful. Keep the authoritative tail
+    // deep enough to validate history already present in the offline cache.
+    const pageSize = Math.min(
+      Math.max(TRANSCRIPT_PAGE_SIZE, cachedHistoryLength.current),
+      MAX_RECENT_HISTORY_FETCH_SIZE,
+    );
+    void fetchHistoryPage(
+      selectedId,
+      selectedOwner,
+      0,
+      pageSize,
+      controller.signal,
+    )
       .then(({ messages: history, page }) => {
         if (controller.signal.aborted) return;
         settled = true;
@@ -670,6 +689,7 @@ export function useChatConversationState({
           sessionId,
           owner,
           page.nextOffset,
+          TRANSCRIPT_PAGE_SIZE,
           controller.signal,
         );
         setMessages((current) => {

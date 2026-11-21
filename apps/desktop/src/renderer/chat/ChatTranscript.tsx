@@ -7,7 +7,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useWorkspaceState } from "../session-workspace/chat-workspace-store";
 import { ChatMessage } from "./ChatMessage";
+import { TRANSCRIPT_PAGE_SIZE } from "./history-pagination";
 import { getMessageActions, MessageActions } from "./MessageActions";
 import type {
   BranchMode,
@@ -165,6 +167,58 @@ export function ChatTranscript({
   loadingEarlierHistory = false,
   onLoadEarlier,
 }: ChatTranscriptProps) {
+  const [visibleStartId, setVisibleStartId] = useWorkspaceState<string>(
+    `view.transcript-start.${sessionId}`,
+    "",
+  );
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const [anchorSession, setAnchorSession] = useState<string | null>(null);
+  const [earlierErrorSession, setEarlierErrorSession] = useState<string | null>(
+    null,
+  );
+  const anchoredHistoryPending = anchorSession === sessionId;
+  const historyAnchorRef = useRef<{
+    sessionId: string;
+    messageId: string;
+    fetchesEarlierPage: boolean;
+    row: Element;
+    contentTop: number;
+    focusedTrigger: HTMLButtonElement | null;
+  } | null>(null);
+
+  const recentStart = Math.max(0, messages.length - TRANSCRIPT_PAGE_SIZE);
+  const previousStart = visibleStartId
+    ? messages.findIndex(({ id }) => id === visibleStartId)
+    : -1;
+  const activeStart = activeRequest
+    ? messages.findIndex(
+        (message) =>
+          message.runId === activeRequest ||
+          messageRunId(message) === activeRequest,
+      )
+    : -1;
+  const anchor = historyAnchorRef.current;
+  const prependedPage =
+    anchor?.sessionId === sessionId &&
+    anchor.fetchesEarlierPage &&
+    messages[0]?.id !== anchor.messageId;
+  const firstMessageIndex = prependedPage
+    ? 0
+    : Math.min(
+        recentStart,
+        previousStart < 0 ? recentStart : previousStart,
+        activeStart < 0 ? recentStart : activeStart,
+      );
+  const firstMessageId = messages[firstMessageIndex]?.id ?? "";
+  const hasCachedEarlier = firstMessageIndex > 0;
+  const earlierHistoryError =
+    !hasCachedEarlier && earlierErrorSession === sessionId;
+
+  useLayoutEffect(() => {
+    if (firstMessageId && firstMessageId !== visibleStartId)
+      setVisibleStartId(firstMessageId);
+  }, [firstMessageId, setVisibleStartId, visibleStartId]);
+
   const messageCallbacks = {
     onBranch,
     onCopy,
@@ -183,7 +237,7 @@ export function ChatTranscript({
   const canRetry = Boolean(onRetryMessage);
   const rows = useMemo(
     () =>
-      messages.map((message) => {
+      messages.slice(firstMessageIndex).map((message) => {
         const runId = messageRunId(message);
         return (
           <TranscriptMessageRow
@@ -205,6 +259,7 @@ export function ChatTranscript({
       }),
     [
       messages,
+      firstMessageIndex,
       botName,
       activeRequest,
       backendReady,
@@ -217,28 +272,13 @@ export function ChatTranscript({
       speechSupported,
     ],
   );
-  const transcriptRef = useRef<HTMLDivElement>(null);
-  const [anchorSession, setAnchorSession] = useState<string | null>(null);
-  const [earlierErrorSession, setEarlierErrorSession] = useState<string | null>(
-    null,
-  );
-  const earlierHistoryError = earlierErrorSession === sessionId;
-  const anchoredHistoryPending = anchorSession === sessionId;
-  const historyAnchorRef = useRef<{
-    sessionId: string;
-    messageId: string;
-    row: Element;
-    contentTop: number;
-    focusedTrigger: HTMLButtonElement | null;
-  } | null>(null);
-
   useLayoutEffect(() => {
     const anchor = historyAnchorRef.current;
     const transcript = transcriptRef.current;
     if (!anchor || !transcript) return;
 
     if (anchor.sessionId === sessionId && anchor.row.isConnected) {
-      if (messages[0]?.id !== anchor.messageId) {
+      if (firstMessageId !== anchor.messageId) {
         const contentTop =
           anchor.row.getBoundingClientRect().top + transcript.scrollTop;
         transcript.scrollTop += contentTop - anchor.contentTop;
@@ -258,7 +298,12 @@ export function ChatTranscript({
 
     transcript.style.removeProperty("overflow-anchor");
     historyAnchorRef.current = null;
-  }, [anchoredHistoryPending, loadingEarlierHistory, messages, sessionId]);
+  }, [
+    anchoredHistoryPending,
+    loadingEarlierHistory,
+    firstMessageId,
+    sessionId,
+  ]);
 
   const latestMessage = messages.at(-1);
   const latestRunId = latestMessage ? messageRunId(latestMessage) : undefined;
@@ -316,7 +361,7 @@ export function ChatTranscript({
               </button>
             </div>
           ) : null}
-          {hasEarlierMessages && onLoadEarlier ? (
+          {hasCachedEarlier || (hasEarlierMessages && onLoadEarlier) ? (
             <div className="chat-load-earlier">
               <button
                 aria-busy={
@@ -332,14 +377,14 @@ export function ChatTranscript({
                 onClick={async (event) => {
                   const transcript = transcriptRef.current;
                   const row = transcript?.querySelector("[data-message-role]");
-                  const firstMessage = messages[0];
-                  if (transcript && row && firstMessage) {
+                  if (transcript && row && firstMessageId) {
                     // Apply only the displacement caused by prepended rows.
                     // The reader can keep scrolling while history loads.
                     transcript.style.setProperty("overflow-anchor", "none");
                     historyAnchorRef.current = {
                       sessionId,
-                      messageId: firstMessage.id,
+                      messageId: firstMessageId,
+                      fetchesEarlierPage: !hasCachedEarlier,
                       row,
                       contentTop:
                         row.getBoundingClientRect().top + transcript.scrollTop,
@@ -350,10 +395,18 @@ export function ChatTranscript({
                           : null,
                     };
                   }
-                  setAnchorSession(sessionId);
                   setEarlierErrorSession(null);
+                  if (hasCachedEarlier) {
+                    const earlierIndex = Math.max(
+                      0,
+                      firstMessageIndex - TRANSCRIPT_PAGE_SIZE,
+                    );
+                    setVisibleStartId(messages[earlierIndex].id);
+                    return;
+                  }
+                  setAnchorSession(sessionId);
                   try {
-                    await onLoadEarlier();
+                    await onLoadEarlier?.();
                   } catch {
                     setEarlierErrorSession(sessionId);
                   } finally {

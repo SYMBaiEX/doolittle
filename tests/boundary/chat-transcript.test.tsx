@@ -3,9 +3,13 @@ import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { ChatMessage } from "../../apps/desktop/src/renderer/chat/ChatMessage";
-import { ChatTranscript } from "../../apps/desktop/src/renderer/chat/ChatTranscript";
+import {
+  ChatTranscript,
+  type ChatTranscriptProps,
+} from "../../apps/desktop/src/renderer/chat/ChatTranscript";
 import { getMessageActions } from "../../apps/desktop/src/renderer/chat/MessageActions";
 import type { DisplayMessage } from "../../apps/desktop/src/renderer/chat/models";
+import { ChatWorkspaceProvider } from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
 
 vi.mock(
   import("../../apps/desktop/src/renderer/chat/ChatMessage"),
@@ -21,6 +25,113 @@ const response: DisplayMessage = {
   content: "The current response.",
   createdAt: "2026-11-20T10:00:00Z",
 };
+
+it("opens the recent transcript first and preserves expanded history when a pane remounts", () => {
+  const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const onLoadEarlier = vi.fn();
+  const noop = () => {};
+  const messages: DisplayMessage[] = Array.from(
+    { length: 120 },
+    (_, index) => ({
+      ...response,
+      id: `message-${index}`,
+      content: `Turn ${index}.`,
+    }),
+  );
+  messages[20] = {
+    ...messages[20],
+    role: "user",
+    attachments: [
+      {
+        id: "archive-note",
+        name: "Archived note.txt",
+        kind: "document",
+        mimeType: "text/plain",
+        sizeBytes: 9,
+        sha256: "a".repeat(64),
+      },
+    ],
+  };
+  const props: ChatTranscriptProps = {
+    sessionId: "long-conversation",
+    backendReady: true,
+    activeRequest: null,
+    loading: false,
+    historyError: "",
+    messages,
+    runReceipts: {},
+    progress: "",
+    endRef: createRef<HTMLDivElement>(),
+    forkingMessageId: "",
+    copyStates: {},
+    speakingMessageId: "",
+    speechSupported: false,
+    onBranch: noop,
+    onCopy: noop,
+    onRead: noop,
+    onRetryHistory: noop,
+    onStopReading: noop,
+    onSelectPrompt: noop,
+    hasEarlierMessages: true,
+    onLoadEarlier,
+  };
+  const render = (present: boolean, current = messages) => {
+    act(() => {
+      root.render(
+        <ChatWorkspaceProvider>
+          {present && <ChatTranscript {...props} messages={current} />}
+        </ChatWorkspaceProvider>,
+      );
+    });
+  };
+  const visibleRows = () => container.querySelectorAll("[data-message-role]");
+
+  try {
+    render(true);
+    expect(visibleRows()).toHaveLength(50);
+    expect(visibleRows()[0].textContent).toContain("Turn 70.");
+    expect(visibleRows()[49].textContent).toContain("Turn 119.");
+    const transcript = container.querySelector<HTMLElement>('[role="log"]');
+    const loadEarlier = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Load earlier messages"]',
+    );
+    if (!transcript || !loadEarlier)
+      throw new Error("Earlier history is missing.");
+    let insertedHeight = 0;
+    transcript.scrollTop = 25;
+    const oldFirstRow = visibleRows()[0];
+    vi.spyOn(oldFirstRow, "getBoundingClientRect").mockImplementation(
+      () => new DOMRect(0, 30 + insertedHeight - transcript.scrollTop, 100, 80),
+    );
+    act(() => {
+      loadEarlier.click();
+      insertedHeight = 500;
+    });
+    expect(transcript.scrollTop).toBe(525);
+    expect(onLoadEarlier).not.toHaveBeenCalled();
+    expect(visibleRows()).toHaveLength(100);
+    expect(visibleRows()[50]).toBe(oldFirstRow);
+    expect(visibleRows()[0].textContent).toContain("Archived note.txt");
+
+    render(false);
+    render(true, [
+      ...messages,
+      { ...response, id: "message-new", pending: true, content: "Streaming." },
+    ]);
+    expect(visibleRows()).toHaveLength(101);
+    expect(visibleRows()[0].textContent).toContain("Archived note.txt");
+    expect(visibleRows()[100].textContent).toContain("Streaming.");
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+  }
+});
 
 it("retries the earlier page without replacing the current transcript or losing its scroll position", async () => {
   const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };

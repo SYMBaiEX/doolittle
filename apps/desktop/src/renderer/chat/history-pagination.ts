@@ -1,3 +1,5 @@
+export const TRANSCRIPT_PAGE_SIZE = 50;
+
 export interface HistoryPageState {
   hasEarlier: boolean;
   nextOffset: number;

@@ -319,6 +319,84 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("opens long saved chats from search and pages back without losing the draft", async () => {
+    const desktop = await launchDesktop();
+    const { page } = desktop;
+    try {
+      const firstMessage =
+        "Queueprovenance explains how the archive was signed.";
+      const messages = Array.from({ length: 121 }, (_, index) => ({
+        id: `imported-message-${index}`,
+        role: index % 2 ? "assistant" : "user",
+        text: index === 0 ? firstMessage : `Fixture turn ${index + 1}.`,
+        createdAt: new Date(Date.UTC(2026, 10, 19, 12, index)).toISOString(),
+        ...(index === 0
+          ? {
+              attachments: [
+                {
+                  id: "queue-archive-source",
+                  name: "Queue archive notes.txt",
+                  kind: "document",
+                  mimeType: "text/plain",
+                  sizeBytes: 9,
+                  sha256: "a".repeat(64),
+                },
+              ],
+            }
+          : {}),
+      }));
+      await agentRequest(page, "/sessions/import", "POST", {
+        archive: {
+          schema: "doolittle.session.archive",
+          version: 1,
+          manifest: {
+            exportedAt: "2026-11-19T16:00:00.000Z",
+            messageCount: messages.length,
+            attachmentCount: 1,
+            omissions: [],
+          },
+          source: { application: "Doolittle", sessionId: "long-chat-fixture" },
+          session: { title: "Long saved coding chat" },
+          messages,
+        },
+      });
+      await page.reload();
+      await page.getByRole("button", { name: "Search", exact: true }).click();
+      const search = page.getByRole("dialog", { name: "Command menu" });
+      await search.getByRole("combobox").fill("Queueprovenance");
+      await search
+        .getByRole("option", { name: new RegExp(firstMessage, "u") })
+        .click();
+      const transcript = page.getByRole("log", {
+        name: "Conversation",
+        exact: true,
+      });
+      const rows = transcript.locator("[data-message-role]");
+      await expect(transcript.getByText("Fixture turn 121.")).toBeVisible();
+      await expect(rows).toHaveCount(50);
+
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await composer.fill("Keep this draft while reading older messages.");
+      const earlier = transcript.getByRole("button", {
+        name: "Load earlier messages",
+      });
+      await earlier.click();
+      await expect(rows).toHaveCount(100);
+      await earlier.click();
+      await expect(rows).toHaveCount(121);
+      await expect(transcript.getByText(firstMessage)).toBeVisible();
+      await expect(
+        transcript.getByText("Queue archive notes.txt"),
+      ).toBeVisible();
+      await expect(earlier).toBeHidden();
+      await expect(composer).toHaveValue(
+        "Keep this draft while reading older messages.",
+      );
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("creates an offline bot through the native chooser and sends its first chat", async () => {
     const desktop = await launchDesktop();
     try {
