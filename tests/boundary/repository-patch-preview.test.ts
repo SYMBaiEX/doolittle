@@ -3,8 +3,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { captureHostExecutionBaseline } from "@elizaos/host";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import "../../apps/cli/src/entrypoint/host-execution";
 import type { RepositoryProcessRunner } from "../../packages/agent/src/services/repository/mutations";
 import { RepositoryService } from "../../packages/agent/src/services/repository-service";
 
@@ -35,7 +35,6 @@ beforeEach(async () => {
     "GIT_CONFIG_GLOBAL",
     process.platform === "win32" ? "NUL" : "/dev/null",
   );
-  captureHostExecutionBaseline();
   workspace = await mkdtemp(join(tmpdir(), "doolittle-git-preview-"));
   await git("init", "-b", "main");
   await writeFile(join(workspace, "notes with spaces.txt"), "original\n");
