@@ -411,18 +411,24 @@ test.describe("fresh native desktop", () => {
           () => document.documentElement.scrollWidth <= window.innerWidth,
         ),
       ).toBe(true);
-      await page
-        .getByRole("button", { name: "Open navigation", exact: true })
-        .click();
-      await page
-        .getByRole("dialog", { name: "Navigation and bots" })
+      const openNavigation = page.getByRole("button", {
+        name: "Open navigation",
+        exact: true,
+      });
+      await openNavigation.click();
+      const drawer = page.getByRole("dialog", { name: "Navigation and bots" });
+      const newConversation = drawer
         .getByRole("button", { name: "New conversation", exact: true })
-        .filter({ has: page.locator("svg") })
-        .click();
+        .filter({ has: page.locator("svg") });
+      await newConversation.click();
       await expect(chooser).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(chooser).toBeHidden();
-      await page.getByRole("button", { name: "Close navigation" }).click();
+      await expect(drawer).toBeVisible();
+      await expect(newConversation).toBeFocused();
+      await drawer.getByRole("button", { name: "Close navigation" }).click();
+      await expect(drawer).toBeHidden();
+      await expect(openNavigation).toBeFocused();
       await expect(
         page.getByRole("textbox", { name: /^Message /u }),
       ).toBeVisible();

@@ -1263,7 +1263,9 @@ export function App() {
 
   const handleSidebarKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
-      if (!mobileSidebarOpen || !isMobileSidebarMode) return;
+      // The chooser owns keyboard input as soon as it opens, including the
+      // frame before focus leaves its navigation trigger.
+      if (newChatOpen || !mobileSidebarOpen || !isMobileSidebarMode) return;
 
       if (event.key === "Escape") {
         event.preventDefault();
@@ -1289,7 +1291,7 @@ export function App() {
         first.focus();
       }
     },
-    [isMobileSidebarMode, mobileSidebarOpen, setMobileSidebarOpen],
+    [isMobileSidebarMode, mobileSidebarOpen, newChatOpen, setMobileSidebarOpen],
   );
 
   const handleUtilityKeyDown = useCallback(
