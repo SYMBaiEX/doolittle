@@ -61,7 +61,7 @@ export async function runPostCommandTurn(
       options?.runtimeOverrides,
     );
 
-    return runner.runNativeMessageTurn({
+    return await runner.runNativeMessageTurn({
       input,
       effectiveInput,
       context,
