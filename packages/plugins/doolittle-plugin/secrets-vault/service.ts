@@ -1,8 +1,12 @@
-import { rmSync } from "node:fs";
-import { join } from "node:path";
+import { lstatSync, rmSync } from "node:fs";
+import { basename, join } from "node:path";
 import { DOOLITTLE_SECRETS_VAULT_SERVICE } from "@doolittle/contracts";
 import { readOptionalJson } from "@doolittle/storage";
-import { createVault, type Vault } from "@elizaos/auth/vault";
+import {
+  createVault,
+  resolveDefaultVaultDataDir,
+  type Vault,
+} from "@elizaos/auth/vault";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -56,6 +60,17 @@ function readLegacySecrets(path: string): Record<string, string> | undefined {
   );
 }
 
+function isMissing(path: string): boolean {
+  try {
+    lstatSync(path);
+    return false;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT")
+      return true;
+    throw error;
+  }
+}
+
 /**
  * Persist Eliza's global secrets through the official encrypted Vault package.
  *
@@ -66,14 +81,16 @@ function readLegacySecrets(path: string): Record<string, string> | undefined {
  */
 export function createSecretsVaultPersistenceService(
   storageRootDir: string,
-  vaultFactory: () => Vault = () => createVault({ workDir: storageRootDir }),
+  vaultFactory?: () => Vault,
 ) {
   class SecretsVaultPersistenceService extends ElizaService {
     static serviceType = DOOLITTLE_SECRETS_VAULT_SERVICE;
     capabilityDescription =
       "Durable Eliza global-secret persistence through the official encrypted Vault package.";
 
-    private readonly vault = vaultFactory() as VaultWithClose;
+    private readonly vault = (
+      vaultFactory ? vaultFactory() : createVault({ workDir: storageRootDir })
+    ) as VaultWithClose;
     private readonly legacyStorePath = join(storageRootDir, "secrets.json");
     private unsubscribeFromEliza?: () => void;
 
@@ -109,7 +126,22 @@ export function createSecretsVaultPersistenceService(
       const secrets = (await runtime.getServiceLoadPromise(
         SECRETS_SERVICE_TYPE,
       )) as unknown as ElizaSecretsService;
-      await this.reconcileGlobalSecrets(runtime, secrets);
+      const nativeMetadata = await secrets.list({
+        level: "global",
+        agentId: runtime.agentId,
+        requesterId: runtime.agentId,
+      });
+      if (
+        !nativeMetadata ||
+        typeof nativeMetadata !== "object" ||
+        Array.isArray(nativeMetadata)
+      ) {
+        throw new Error("Eliza global secret inventory is unavailable.");
+      }
+      const nativeKeys = new Set(Object.keys(nativeMetadata));
+      if (nativeKeys.size > 0 || !this.isFreshDefaultVault()) {
+        await this.reconcileGlobalSecrets(runtime, secrets, nativeKeys);
+      }
 
       this.unsubscribeFromEliza = secrets.onAnySecretChanged(
         async (key, value, context) => {
@@ -130,16 +162,24 @@ export function createSecretsVaultPersistenceService(
       );
     }
 
+    private isFreshDefaultVault(): boolean {
+      // A custom vault may store data anywhere. For the SDK vault, keep both
+      // legacy migration paths and let any existing database open normally.
+      return (
+        !vaultFactory &&
+        isMissing(
+          join(storageRootDir, basename(resolveDefaultVaultDataDir())),
+        ) &&
+        isMissing(join(storageRootDir, "vault.json")) &&
+        isMissing(this.legacyStorePath)
+      );
+    }
+
     private async reconcileGlobalSecrets(
       runtime: IAgentRuntime,
       secrets: ElizaSecretsService,
+      nativeKeys: ReadonlySet<string>,
     ): Promise<void> {
-      const nativeMetadata = await secrets.list({
-        level: "global",
-        agentId: runtime.agentId,
-        requesterId: runtime.agentId,
-      });
-      const nativeKeys = new Set(Object.keys(nativeMetadata));
       const vaultKeys = (await this.vault.list()).filter(
         (key) => !key.startsWith(SECRET_CONFIG_KEY_PREFIX),
       );
