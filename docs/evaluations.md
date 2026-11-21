@@ -63,6 +63,11 @@ alone does not attest the executed route.
 
 ## Human review and response capture
 
+Doolittle records run receipts and its evaluation journal by default. Full SDK
+trajectory capture is opt-in. Set `ELIZA_TRAJECTORY_LOGGING=true` before starting
+Doolittle when an evaluation needs raw ElizaOS model and tool traces. Capture can
+store prompt contents and increase profile size, so keep the profile private.
+
 Record explicit human ratings separately:
 
 ```sh

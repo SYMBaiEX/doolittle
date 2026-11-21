@@ -45,6 +45,7 @@ import {
   createRunProgressEvents,
   createRunProgressRuntimeService,
 } from "../../../bootstrap/runtime/index";
+import { PgliteMaintenanceService } from "../../../bootstrap/runtime/pglite-maintenance";
 import { createAwarenessRuntimeService } from "./awareness-service";
 import { createBrowserRuntimeService } from "./browser-service";
 import { createGatewayRuntimeService } from "./gateway-service";
@@ -131,6 +132,7 @@ export function createDoolittleProductPlugin(
       },
       routes: createDoolittleRuntimeRoutes({ services, config }),
       services: [
+        PgliteMaintenanceService,
         createMemoryStorageService(services.sessions, config.dataDir),
         createAwarenessRuntimeService(services),
         ...(workerBot
