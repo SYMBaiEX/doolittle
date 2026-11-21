@@ -72,12 +72,6 @@ export interface CommitRow {
   subject: string;
 }
 
-export interface DiffLine {
-  key: string;
-  text: string;
-  tone: "addition" | "removal" | "header" | "context";
-}
-
 export const EMPTY_SUMMARY: RepositorySummary = {
   isRepository: false,
   ahead: 0,
@@ -142,30 +136,4 @@ export function commitRows(value: unknown): CommitRow[] {
 export function statusLabel(change: RepositoryChange): string {
   if (change.untracked) return "U";
   return `${change.indexStatus.trim()}${change.worktreeStatus.trim()}` || "M";
-}
-
-export function patchLines(patch: string): DiffLine[] {
-  const occurrences = new Map<string, number>();
-  return patch.split(/\r?\n/u).map((text) => {
-    const tone =
-      text.startsWith("@@") ||
-      text.startsWith("diff ") ||
-      text.startsWith("index ") ||
-      text.startsWith("--- ") ||
-      text.startsWith("+++ ")
-        ? "header"
-        : text.startsWith("+")
-          ? "addition"
-          : text.startsWith("-")
-            ? "removal"
-            : "context";
-    const signature = `${tone}:${text}`;
-    const occurrence = (occurrences.get(signature) ?? 0) + 1;
-    occurrences.set(signature, occurrence);
-    return {
-      key: `${signature}:${occurrence}`,
-      text,
-      tone,
-    };
-  });
 }

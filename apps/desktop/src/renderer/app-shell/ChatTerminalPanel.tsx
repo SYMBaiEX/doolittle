@@ -81,6 +81,7 @@ export function ChatTerminalPanel({
   const panelRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const previousWorkspaceRef = useRef(workspacePath);
+  const lastFocusRequest = useRef<number | undefined>(undefined);
   const [geometry, setGeometry] = useState<{
     viewportHeight: number | null;
     chatHeightBudget: number | null;
@@ -207,6 +208,16 @@ export function ChatTerminalPanel({
     previousWorkspaceRef.current = workspacePath;
     setExpanded(false);
   }, [workspacePath]);
+  useEffect(() => {
+    if (
+      !open ||
+      focusRequest === undefined ||
+      focusRequest === lastFocusRequest.current
+    )
+      return;
+    lastFocusRequest.current = focusRequest;
+    if (compact) setExpanded(true);
+  }, [compact, focusRequest, open]);
 
   const effectiveHeight = clampPanelSize(height, heightBounds);
 
@@ -293,7 +304,7 @@ export function ChatTerminalPanel({
             active={active && terminalVisible}
             autoStart
             dismissShortcut={shortcut}
-            focusRequest={compact ? undefined : focusRequest}
+            focusRequest={focusRequest}
             onDismiss={compact ? () => setExpanded(false) : onClose}
             onSendToChat={onSendToChat}
             workspacePath={workspacePath}

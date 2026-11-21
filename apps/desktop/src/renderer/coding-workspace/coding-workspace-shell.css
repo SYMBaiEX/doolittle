@@ -1,0 +1,124 @@
+.coding-workspace-page {
+  container: ide / inline-size;
+  background: var(--bg);
+}
+
+.coding-workspace-page
+  :is(#coding-workspace-surface, #coding-preview-surface)[hidden] {
+  display: none;
+}
+
+.ide-workspace-bar {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 7px;
+  background: var(--surface);
+}
+
+.ide-workspace-identity,
+.ide-repository-status > span,
+.ide-workspace-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.ide-repository-picker {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(55%, 278px);
+  min-height: 32px;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 600;
+}
+
+.ide-repository-picker > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ide-repository-picker svg:last-child {
+  color: var(--muted);
+}
+
+.ide-repository-picker:hover:not(:disabled),
+.ide-workspace-controls button[aria-expanded="true"] {
+  background: var(--surface-hover);
+}
+
+.ide-repository-status {
+  min-width: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  white-space: nowrap;
+}
+
+.ide-repository-changes {
+  margin-inline-start: 2px;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-hover);
+  color: var(--text-soft);
+}
+
+.ide-workspace-controls {
+  gap: 2px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.ide-workspace-controls button[aria-label="Workspace actions"] {
+  order: 1;
+}
+
+.desktop-shell .ide-workspace-bar button:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ide-runtime-notice {
+  border-block-end: 1px solid var(--border);
+  padding: 6px 10px;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  font-size: var(--text-control);
+}
+
+@container ide (max-width: 630px) {
+  .ide-workspace-bar {
+    gap: 3px;
+    padding-inline: 4px;
+  }
+
+  .ide-repository-status,
+  .ide-workspace-controls .ide-refresh-direct {
+    display: none;
+  }
+
+  .ide-repository-picker {
+    max-width: 100%;
+  }
+}
+
+@container ide (max-width: 460px) {
+  .ide-workspace-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ide-workspace-bar > [role="tablist"] {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+}

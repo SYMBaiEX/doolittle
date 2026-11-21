@@ -1,0 +1,146 @@
+.workspace-patch {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 0;
+  flex-direction: column;
+  color: var(--text-soft);
+  background: var(--bg);
+}
+
+.workspace-patch-toolbar {
+  display: flex;
+  min-height: 31px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font: 500 var(--text-meta) / 1.4 var(--font-mono);
+}
+
+.workspace-patch-counts,
+.workspace-patch-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.workspace-patch-actions {
+  margin-inline-start: auto;
+  gap: 2px;
+}
+
+.workspace-patch-actions button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+}
+
+.workspace-patch-actions button:hover,
+.workspace-patch-actions button[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.workspace-patch :is(button, .workspace-patch-scroll):focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.workspace-patch-counts [data-kind="addition"] {
+  color: var(--good);
+}
+
+.workspace-patch-counts [data-kind="removal"] {
+  color: var(--bad);
+}
+
+.workspace-patch-partial {
+  overflow: hidden;
+  color: var(--warn);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-patch-scroll {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.workspace-patch-lines {
+  width: max-content;
+  min-width: 100%;
+  padding-block: 5px 14px;
+}
+
+.workspace-patch-row {
+  display: grid;
+  min-height: 22px;
+  grid-template-columns: 4ch 4ch minmax(0, 1fr);
+  font: 400 calc(var(--text-control) - 1px) / 1.7 var(--font-mono);
+  tab-size: 2;
+  white-space: pre;
+}
+
+.workspace-patch-row code {
+  min-width: 0;
+  padding-inline: 8px 16px;
+  font: inherit;
+}
+
+.workspace-patch-number {
+  padding-inline-end: 5px;
+  border-inline-end: 1px solid
+    color-mix(in srgb, var(--border), transparent 42%);
+  color: var(--muted);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.workspace-patch-row[data-kind="metadata"] {
+  color: var(--muted);
+}
+
+.workspace-patch-row[data-kind="hunk"] {
+  margin-block: 4px 1px;
+  border-block: 1px solid var(--border);
+  color: var(--text-soft);
+  background: var(--surface-raised);
+}
+
+.workspace-patch-row[data-kind="addition"] {
+  color: var(--good);
+  background: var(--good-soft);
+}
+
+.workspace-patch-row[data-kind="removal"] {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.workspace-patch[data-wrap="true"] .workspace-patch-lines {
+  width: 100%;
+}
+
+.workspace-patch[data-wrap="true"] .workspace-patch-row {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (forced-colors: active) {
+  .workspace-patch :is(button, .workspace-patch-scroll):focus-visible,
+  .workspace-patch button[aria-pressed="true"] {
+    outline: 1px solid Highlight;
+  }
+}

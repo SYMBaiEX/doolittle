@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 import type { ComputerOrigin } from "../../apps/desktop/src/renderer/computer-origin";
 import { desktopQueryClient } from "../../apps/desktop/src/renderer/lib";
 import {
+  publishWorkspaceFileSave,
   refreshWorkspaceResources,
   useWorkspaceResource,
   workspaceMutationRequest,
@@ -41,6 +42,59 @@ function Branches({ owner }: { owner: ComputerOrigin }) {
   );
   return <div>{resource.data?.branches.length}</div>;
 }
+
+function File() {
+  const read = useWorkspaceResource<{ content: string }>(
+    "/workspace/read?path=notes.ts",
+    origin,
+  );
+  return <div>{read.data?.content}</div>;
+}
+
+it("publishes the exact saved file, ignores an older read, and accepts a later host edit", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const ok = (content: string) => ({
+    body: JSON.stringify({ path: "notes.ts", content }),
+    status: 200,
+    statusText: "",
+    headers: { "content-type": "application/json" },
+  });
+  let finishOlderRead = () => {};
+  const requestAgent = vi
+    .fn()
+    .mockResolvedValueOnce(ok("initial"))
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOlderRead = () => resolve(ok("old response"));
+        }),
+    )
+    .mockResolvedValueOnce(ok("external edit"));
+  vi.stubGlobal("doolittle", {
+    requestAgent,
+    cancelAgentRequest: vi.fn().mockResolvedValue(undefined),
+  });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<File />));
+    await vi.waitFor(() => expect(container.textContent).toBe("initial"));
+    const stale = refreshWorkspaceResources(origin);
+    await vi.waitFor(() => expect(requestAgent).toHaveBeenCalledTimes(2));
+    await act(async () =>
+      publishWorkspaceFileSave(origin, "notes.ts", "saved"),
+    );
+    finishOlderRead();
+    await stale;
+    await vi.waitFor(() => expect(container.textContent).toBe("saved"));
+    await act(async () => refreshWorkspaceResources(origin));
+    await vi.waitFor(() => expect(container.textContent).toBe("external edit"));
+  } finally {
+    act(() => root.unmount());
+    desktopQueryClient.clear();
+    vi.unstubAllGlobals();
+  }
+});
 
 it("shares repository reads but refreshes stale views only for the updated conversation", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);

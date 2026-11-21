@@ -33,6 +33,22 @@ export interface CodeWorkspaceLayout {
 
 export const CODE_EDITOR_MIN_WIDTH = 320;
 
+/** Reserve the editor first, then the explorer, before docking the right pane. */
+export function codeWorkspaceDockFit(
+  gridWidth: number,
+  explorerVisible: boolean,
+) {
+  const width = gridWidth > 0 ? gridWidth : Number.POSITIVE_INFINITY;
+  const readingWidth = CODE_EDITOR_MIN_WIDTH + 64;
+  const explorerFits = width >= readingWidth + CODE_EXPLORER_WIDTH.min;
+  const reservedExplorer =
+    explorerVisible && explorerFits ? CODE_EXPLORER_WIDTH.min : 0;
+  return {
+    explorer: explorerFits,
+    utility: width >= readingWidth + reservedExplorer + CODE_UTILITY_WIDTH.min,
+  };
+}
+
 type CodeWidthPreferences = Pick<
   CodeWorkspaceLayout,
   "explorerVisible" | "utilityVisible" | "explorerWidth" | "utilityWidth"

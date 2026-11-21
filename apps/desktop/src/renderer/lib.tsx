@@ -55,9 +55,21 @@ function cacheDependency(value: unknown, index: number): string {
 export function apiResourceCacheKey(
   path: string | null,
   dependencies: DependencyList = [],
+  botId?: string,
+  origin?: ComputerOrigin,
 ): string | null {
   if (!path) return null;
-  const dependencyKey = dependencies.map(cacheDependency).join("\u001f");
+  const scopedDependencies =
+    botId || origin
+      ? [
+          ...dependencies,
+          botId,
+          origin?.botId,
+          origin?.originConversationId,
+          origin?.workspacePath,
+        ]
+      : dependencies;
+  const dependencyKey = scopedDependencies.map(cacheDependency).join("\u001f");
   return `doolittle:api:${path}\u001e${dependencyKey}`;
 }
 
@@ -137,23 +149,13 @@ export function useApiResource<T>(
   botId?: string,
   origin?: ComputerOrigin,
   meta?: Record<string, unknown>,
+  enabled = true,
 ) {
-  const key = apiResourceCacheKey(
-    path,
-    botId || origin
-      ? [
-          ...dependencies,
-          botId,
-          origin?.botId,
-          origin?.originConversationId,
-          origin?.workspacePath,
-        ]
-      : dependencies,
-  );
+  const key = apiResourceCacheKey(path, dependencies, botId, origin);
   const query = useQuery<T>(
     {
       queryKey: [key],
-      enabled: key !== null,
+      enabled: enabled && key !== null,
       meta,
       queryFn: ({ signal }) =>
         desktopRequest<T>(
@@ -169,21 +171,22 @@ export function useApiResource<T>(
     desktopQueryClient,
   );
   const hasData = query.data !== undefined;
-  const status: ApiResourceStatus = !key
-    ? "disabled"
-    : query.isFetching
-      ? hasData
-        ? "refreshing"
-        : "loading"
-      : query.isError
-        ? "error"
-        : hasData
-          ? "ready"
-          : "loading";
+  const status: ApiResourceStatus =
+    !key || (!enabled && !hasData)
+      ? "disabled"
+      : query.isFetching
+        ? hasData
+          ? "refreshing"
+          : "loading"
+        : query.isError
+          ? "error"
+          : hasData
+            ? "ready"
+            : "loading";
   const { refetch } = query;
   const reload = useCallback(async () => {
-    if (key) await refetch();
-  }, [key, refetch]);
+    if (key && enabled) await refetch();
+  }, [enabled, key, refetch]);
   return {
     data: query.data ?? null,
     error: query.error ? errorMessage(query.error) : "",

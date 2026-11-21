@@ -1,20 +1,19 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import { FileStack, GitCompareArrows, Search } from "lucide-react";
-import { type FormEvent, type ReactNode, useId } from "react";
+import { type FormEvent, type ReactNode, useId, useMemo } from "react";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import { WorkspaceFileTree } from "../components/WorkspaceFileTree";
+import { UiIcon } from "../components/UiIcon";
+import { WorkspaceFileIcon } from "../components/WorkspaceFileIcon";
+import {
+  type WorkspaceFileStatus,
+  WorkspaceFileTree,
+} from "../components/WorkspaceFileTree";
 import { copyContextText } from "../context-menu-clipboard";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
 import { CODE_EXPLORER_WIDTH } from "../panel-layout";
+import { gitChangeLabel } from "../repository-control";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
 import {
-  CODING_CHANGE_BADGES_CLASS,
-  CODING_CHANGE_BUTTON_CLASS,
-  CODING_CHANGE_BUTTON_SELECTED_CLASS,
-  CODING_CHANGE_CODE_CLASS,
-  CODING_CHANGE_LIST_CLASS,
-  CODING_CHANGE_NAME_CLASS,
-  CODING_CHANGE_PATH_CLASS,
   CODING_EXPLORER_CLASS,
   CODING_EXPLORER_RESIZER_CLASS,
   CODING_EXPLORER_TABS_CLASS,
@@ -39,6 +38,29 @@ import type {
 } from "./models";
 import { fileName, statusLabel } from "./models";
 import { PaneTabs, paneTabId } from "./PaneTabs";
+import "./explorer-chrome.css";
+
+function workspaceStatus(change: RepositoryChange): WorkspaceFileStatus {
+  const code = statusLabel(change);
+  const state = gitChangeLabel({ ...change, status: code });
+  const scope = change.untracked
+    ? ""
+    : change.staged && change.unstaged
+      ? " · Staged and working tree"
+      : change.staged
+        ? " · Staged"
+        : " · Working tree";
+  return {
+    code,
+    label: state + scope,
+    tone:
+      state === "Deleted"
+        ? "removal"
+        : state === "Added" || change.untracked
+          ? "addition"
+          : "changed",
+  };
+}
 
 export function CodingWorkspaceExplorer({
   width,
@@ -61,6 +83,7 @@ export function CodingWorkspaceExplorer({
   onSearchDraftChange,
   onSubmitSearch,
   contextScope = "",
+  workspaceName,
 }: {
   width: number;
   dismissControl?: ReactNode;
@@ -83,8 +106,14 @@ export function CodingWorkspaceExplorer({
   onSubmitSearch: (event: FormEvent<HTMLFormElement>) => void;
   /** Immutable bot/conversation/workspace identity, separate from visible selection. */
   contextScope?: string;
+  workspaceName?: string;
 }) {
   const panelId = `coding-explorer-${useId().replace(/:/gu, "")}`;
+  const statuses = useMemo(
+    () =>
+      new Map(changes.map((change) => [change.path, workspaceStatus(change)])),
+    [changes],
+  );
   return (
     <aside
       aria-label="Workspace explorer"
@@ -117,6 +146,7 @@ export function CodingWorkspaceExplorer({
               id: "changes",
               label: "Changes",
               icon: GitCompareArrows,
+              count: changes.length || undefined,
             },
             { id: "search", label: "Search", icon: Search },
           ]}
@@ -129,7 +159,8 @@ export function CodingWorkspaceExplorer({
 
       <div
         aria-labelledby={paneTabId(panelId, leftPane)}
-        className={CODING_PANE_BODY_CLASS}
+        className={`${CODING_PANE_BODY_CLASS} ide-explorer-panel`}
+        data-pane={leftPane}
         id={panelId}
         role="tabpanel"
       >
@@ -156,9 +187,13 @@ export function CodingWorkspaceExplorer({
               <WorkspaceFileTree
                 contextScope={contextScope}
                 entries={treeEntries}
+                filterable
                 onOpenFile={onOpenPath}
+                onRefresh={treeResource.reload}
                 selectedPath={selectedPath}
+                statuses={statuses}
                 truncated={treeResource.data?.truncated}
+                workspaceName={workspaceName}
               />
             ) : (
               <EmptyBlock title="Workspace is empty">
@@ -188,59 +223,65 @@ export function CodingWorkspaceExplorer({
                 retry={changesResource.reload}
               />
             ) : changes.length ? (
-              <div className={CODING_CHANGE_LIST_CLASS}>
-                {changes.map((change) => (
-                  <ContextActionMenu
-                    key={change.path}
-                    label={`Changed file: ${change.path}`}
-                    scopeKey={`${contextScope}:${change.path}`}
-                    items={[
-                      {
-                        id: "open-diff",
-                        label: "Open diff",
-                        onSelect: () => {
-                          onOpenPath(change.path, "diff");
+              <div className="ide-change-files">
+                {changes.map((change) => {
+                  const name = fileName(change.path);
+                  const directory = change.path.slice(0, -(name.length + 1));
+                  const status = statuses.get(change.path);
+                  return (
+                    <ContextActionMenu
+                      key={change.path}
+                      label={`Changed file: ${change.path}`}
+                      scopeKey={`${contextScope}:${change.path}`}
+                      items={[
+                        {
+                          id: "open-diff",
+                          label: "Open diff",
+                          onSelect: () => {
+                            onOpenPath(change.path, "diff");
+                          },
                         },
-                      },
-                      {
-                        id: "open-file",
-                        label: "Open file",
-                        onSelect: () => {
-                          onOpenPath(change.path, "file");
+                        {
+                          id: "open-file",
+                          label: "Open file",
+                          onSelect: () => {
+                            onOpenPath(change.path, "file");
+                          },
                         },
-                      },
-                      {
-                        id: "copy-path",
-                        label: "Copy relative path",
-                        separatorBefore: true,
-                        onSelect: () => copyContextText(change.path),
-                      },
-                    ]}
-                  >
-                    <button
-                      className={`${CODING_CHANGE_BUTTON_CLASS} ${selectedPath === change.path ? CODING_CHANGE_BUTTON_SELECTED_CLASS : ""}`}
-                      onClick={() => onOpenPath(change.path, "diff")}
-                      title={change.path}
-                      type="button"
+                        {
+                          id: "copy-path",
+                          label: "Copy relative path",
+                          separatorBefore: true,
+                          onSelect: () => copyContextText(change.path),
+                        },
+                      ]}
                     >
-                      <span className={CODING_CHANGE_CODE_CLASS}>
-                        {statusLabel(change)}
-                      </span>
-                      <span>
-                        <strong className={CODING_CHANGE_NAME_CLASS}>
-                          {fileName(change.path)}
-                        </strong>
-                        <small className={CODING_CHANGE_PATH_CLASS}>
-                          {change.path}
-                        </small>
-                      </span>
-                      <span className={CODING_CHANGE_BADGES_CLASS}>
-                        {change.staged ? <i>staged</i> : null}
-                        {change.unstaged ? <i>working</i> : null}
-                      </span>
-                    </button>
-                  </ContextActionMenu>
-                ))}
+                      <button
+                        aria-current={
+                          selectedPath === change.path ? "true" : undefined
+                        }
+                        aria-description={status?.label}
+                        className="ide-change-file"
+                        onClick={() => onOpenPath(change.path, "diff")}
+                        title={`${change.path}${status ? ` · ${status.label}` : ""}`}
+                        type="button"
+                      >
+                        <WorkspaceFileIcon path={change.path} />
+                        <span className="ide-change-description">
+                          <strong>{name}</strong>
+                          {directory ? <small>{directory}</small> : null}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className="workspace-tree-status"
+                          data-tone={status?.tone}
+                        >
+                          {status?.code}
+                        </span>
+                      </button>
+                    </ContextActionMenu>
+                  );
+                })}
               </div>
             ) : (
               <EmptyBlock title="Working tree clean">
@@ -276,13 +317,18 @@ export function CodingWorkspaceExplorer({
                     value={searchDraft}
                   />
                 </label>
-                <button className="primary-button" type="submit">
-                  Find
+                <button
+                  aria-label="Find in workspace"
+                  className="ide-search-submit"
+                  title="Find in workspace"
+                  type="submit"
+                >
+                  <UiIcon icon={Search} size="xs" />
                 </button>
               </form>
               {!searchQuery ? (
-                <EmptyBlock title="Search the workspace">
-                  Find matching lines across files without leaving the desktop.
+                <EmptyBlock title="Search across files">
+                  Enter text to find matching lines.
                 </EmptyBlock>
               ) : searchResource.loading ? (
                 <LoadingBlock label={`Searching for “${searchQuery}”…`} />

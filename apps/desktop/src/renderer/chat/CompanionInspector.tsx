@@ -1,6 +1,6 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { InspectorFrame, StateSurface } from "@doolittle/ui";
-import { PanelRight, X } from "lucide-react";
+import { FolderOpen, X } from "lucide-react";
 import { lazy, Suspense, useId } from "react";
 import { BotActions } from "../bots/BotActions";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
@@ -14,6 +14,7 @@ import {
   TAB_LABELS,
   type ThreadWorkbenchFullView,
 } from "../thread-workbench/models";
+import "../thread-workbench/workspace-inspector.css";
 
 const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("../components/ThreadWorkbenchRail");
@@ -74,7 +75,7 @@ export function CompanionInspector({
     <InspectorFrame
       id={`${id}-inspector`}
       title="Conversation inspector"
-      className={`relative flex h-full min-h-0 w-[var(--inspector-width,320px)] ${width !== undefined || resize ? "max-w-none" : "max-w-[40vw]"} flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : ""}`}
+      className={`workspace-inspector workspace-inspector--chat relative flex h-full min-h-0 w-[var(--inspector-width,320px)] ${width !== undefined || resize ? "max-w-none" : "max-w-[40vw]"} flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : ""}`}
       style={
         !fullWidth && (width !== undefined || resize)
           ? { width: width ?? resize?.value }
@@ -92,29 +93,25 @@ export function CompanionInspector({
           value={resize.value}
         />
       ) : null}
-      <header className="chat-inspector-heading">
-        <span>
-          <UiIcon icon={PanelRight} size="sm" />
-          <span className="grid min-w-0 gap-0.5">
-            <h2>Conversation context</h2>
-            <span
-              className="truncate text-[length:var(--text-meta)] text-[var(--muted)]"
-              title={`${bot?.name ?? "Selected agent"} · ${title} · ${workspaceLabel}`}
-            >
-              {bot?.name ?? "Selected agent"} · {workspaceLabel}
-            </span>
-          </span>
-        </span>
+      <header className="workspace-inspector-heading">
+        <div className="workspace-inspector-label">
+          <h2>Conversation context</h2>
+          <small className="workspace-inspector-branch" title={workspaceLabel}>
+            <UiIcon icon={FolderOpen} size="xs" />
+            <span>{workspaceLabel}</span>
+          </small>
+        </div>
         <button
           aria-label="Close inspector"
-          className="chat-header-action"
+          className="workspace-inspector-icon"
           onClick={onClose}
+          title="Close inspector"
           type="button"
         >
           <UiIcon icon={X} size="sm" />
         </button>
       </header>
-      <div className="shrink-0 border-b border-[var(--border)]">
+      <div className="workspace-inspector-tabs">
         <PanelTabs
           id={id}
           label="Conversation context views"
@@ -125,7 +122,7 @@ export function CompanionInspector({
       </div>
       <section
         aria-labelledby={panelTabId(id, tab)}
-        className="min-h-0 flex-1 overflow-y-auto"
+        className={`workspace-inspector-body${tab === "details" ? " workspace-inspector-scroll" : ""}`}
         id={`${id}-panel`}
         role="tabpanel"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: Details needs a reading focus target when it contains no interactive controls.
@@ -133,7 +130,7 @@ export function CompanionInspector({
       >
         {tab === "details" ? (
           <>
-            <dl className="chat-inspector-details">
+            <dl className="workspace-inspector-details">
               <div>
                 <dt>Conversation</dt>
                 <dd>{title}</dd>
@@ -146,7 +143,7 @@ export function CompanionInspector({
                       ? "Agent details unavailable"
                       : "No confirmed agent")}
                   {bot ? (
-                    <span className="chat-inspector-agent-status">
+                    <span className="workspace-inspector-flag">
                       {bot.state}
                     </span>
                   ) : null}
@@ -173,7 +170,11 @@ export function CompanionInspector({
                 <dd title={workspacePath || undefined}>{workspaceLabel}</dd>
               </div>
             </dl>
-            {bot ? <BotActions bot={bot} /> : null}
+            {bot ? (
+              <div className="workspace-inspector-agent-actions">
+                <BotActions bot={bot} />
+              </div>
+            ) : null}
           </>
         ) : (
           <Suspense

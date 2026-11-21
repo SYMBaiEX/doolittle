@@ -6,6 +6,7 @@ import {
 } from "@doolittle/ui";
 import {
   Bot,
+  ChevronRight,
   FileText,
   GitCompareArrows,
   MessageSquarePlus,
@@ -20,12 +21,17 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
 import type { CodeLanguage } from "../code-language";
-import type { CodeEditorStateSnapshot } from "../components/CodeEditor";
+import type {
+  CodeEditorStateSnapshot,
+  CodeEditorViewState,
+} from "../components/CodeEditor";
 import { UiIcon } from "../components/UiIcon";
+import { WorkspacePatchView } from "../components/WorkspacePatchView";
 import { copyContextText } from "../context-menu-clipboard";
 import type {
   DesktopAcpPhase,
@@ -39,16 +45,10 @@ import {
   CODING_ACP_TASK_LABEL_CLASS,
   CODING_ACP_TASK_OUTPUT_CLASS,
   CODING_ACP_TASK_ROW_CLASS,
-  CODING_DIFF_LINE_CLASS,
   CODING_EDITOR_CLASS,
   CODING_EDITOR_SURFACE_CLASS,
-  CODING_INLINE_STATE_CLASS,
-  CODING_INLINE_WARN_CLASS,
   CODING_PANE_CLASS,
-  CODING_PATCH_CLASS,
-  CODING_SOURCE_CLASS,
   codingActionNoticeTone,
-  codingDiffLineTone,
 } from "./layout";
 import type {
   ActionNotice,
@@ -57,36 +57,14 @@ import type {
   RepositoryPatchResponse,
   WorkspaceReadResponse,
 } from "./models";
-import { fileName, patchLines, statusLabel } from "./models";
+import { fileName, statusLabel } from "./models";
+import {
+  editorDocumentTabId,
+  type OpenEditorDocument,
+  OpenEditorTabs,
+} from "./OpenEditorTabs";
 import { paneTabId } from "./PaneTabs";
-
-const EDITOR_PANEL_ID = "coding-editor-panel";
-const ACP_TASK_ID = "coding-acp-task";
-
-const EDITOR_TABS = [
-  {
-    id: "file",
-    buttonId: paneTabId(EDITOR_PANEL_ID, "file"),
-    panelId: EDITOR_PANEL_ID,
-    label: (
-      <>
-        <UiIcon icon={FileText} size="xs" />
-        <span className="@max-[450px]/code:sr-only">File</span>
-      </>
-    ),
-  },
-  {
-    id: "diff",
-    buttonId: paneTabId(EDITOR_PANEL_ID, "diff"),
-    panelId: EDITOR_PANEL_ID,
-    label: (
-      <>
-        <UiIcon icon={GitCompareArrows} size="xs" />
-        <span className="@max-[450px]/code:sr-only">Diff</span>
-      </>
-    ),
-  },
-] as const;
+import "./editor-chrome.css";
 
 const EDITOR_CONTROL_CLASS =
   "inline-flex min-h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-xs)] border border-transparent px-1.5 font-[var(--font-sans)] text-[length:var(--text-meta)] font-medium text-[var(--text-soft)] enabled:hover:bg-[var(--surface-hover)] enabled:hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45";
@@ -124,10 +102,14 @@ export interface CodingWorkspaceAcpViewModel {
 }
 
 export function CodingWorkspaceEditor({
+  active = true,
   editorPane,
   editingLocked,
   onEditorPaneChange,
   selectedPath,
+  openDocuments,
+  onOpenDocument,
+  onCloseDocument,
   selectedLanguage,
   selectedChange,
   stagedPatch,
@@ -154,10 +136,14 @@ export function CodingWorkspaceEditor({
   onSubmitAcpTask,
   onSendSelectedContext,
 }: {
+  active?: boolean;
   editorPane: EditorPane;
   editingLocked: boolean;
   onEditorPaneChange: (value: EditorPane) => void;
   selectedPath: string;
+  openDocuments: readonly OpenEditorDocument[];
+  onOpenDocument: (path: string) => boolean;
+  onCloseDocument: (path: string) => boolean;
   selectedLanguage: CodeLanguage;
   selectedChange: RepositoryChange | undefined;
   stagedPatch: boolean;
@@ -184,6 +170,24 @@ export function CodingWorkspaceEditor({
   onSubmitAcpTask: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onSendSelectedContext: () => void;
 }) {
+  const instanceId = useId();
+  const editorPanelId = `${instanceId}-editor-panel`;
+  const acpTaskId = `${instanceId}-acp-task`;
+  const acpTaskInputId = `${acpTaskId}-input`;
+  const editorTabs = [
+    { id: "file", icon: FileText, label: "File" },
+    { id: "diff", icon: GitCompareArrows, label: "Diff" },
+  ].map(({ id, icon, label }) => ({
+    id: id as EditorPane,
+    buttonId: paneTabId(editorPanelId, id),
+    panelId: editorPanelId,
+    label: (
+      <>
+        <UiIcon icon={icon} size="xs" />
+        <span className="@max-[450px]/code:sr-only">{label}</span>
+      </>
+    ),
+  }));
   const documentScope = JSON.stringify([
     botId,
     originConversationId,
@@ -191,12 +195,24 @@ export function CodingWorkspaceEditor({
     selectedPath,
   ]);
   const scopeKey = JSON.stringify([documentScope, editorPane, stagedPatch]);
+  const viewStates = useRef(new Map<string, CodeEditorViewState>());
   const [cursor, setCursor] = useState({ scope: "", label: "" });
   const acpTaskInputRef = useRef<HTMLInputElement>(null);
   const acpTaskToggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (acpTaskOpen) acpTaskInputRef.current?.focus({ preventScroll: true });
-  }, [acpTaskOpen]);
+    if (active && acpTaskOpen)
+      acpTaskInputRef.current?.focus({ preventScroll: true });
+  }, [active, acpTaskOpen]);
+  useEffect(() => {
+    const openScopes = new Set(
+      openDocuments.map(({ path }) =>
+        JSON.stringify([botId, originConversationId, workspacePath, path]),
+      ),
+    );
+    for (const key of viewStates.current.keys()) {
+      if (!openScopes.has(key)) viewStates.current.delete(key);
+    }
+  }, [botId, openDocuments, originConversationId, workspacePath]);
   const showCursor = editorPane === "file" && cursor.scope === documentScope;
   const name = fileName(selectedPath);
   const directory = selectedPath.slice(0, -name.length).replace(/\/$/u, "");
@@ -281,8 +297,17 @@ export function CodingWorkspaceEditor({
   }
   return (
     <main className={`${CODING_PANE_CLASS} ${CODING_EDITOR_CLASS}`}>
+      <OpenEditorTabs
+        disabled={editingLocked}
+        documents={openDocuments}
+        onClose={onCloseDocument}
+        onOpen={onOpenDocument}
+        panelId={editorPanelId}
+        scopeKey={JSON.stringify([botId, originConversationId, workspacePath])}
+        selectedPath={selectedPath}
+      />
       <ContextActionMenu
-        className="coding-editor-toolbar flex min-h-9 min-w-0 shrink-0 items-center gap-1 border-[var(--border)] border-b bg-[var(--surface)] px-1.5"
+        className="coding-editor-toolbar ide-editor-toolbar"
         label="More editor actions"
         scopeKey={scopeKey}
         items={editorActions}
@@ -296,30 +321,18 @@ export function CodingWorkspaceEditor({
           </button>
         }
       >
-        <div
-          className="flex min-w-0 flex-1 items-center gap-1.5 pl-1"
-          title={selectedPath || undefined}
-        >
-          <strong className="shrink truncate font-[var(--font-mono)] text-[length:var(--text-control)] font-semibold text-[var(--text)]">
-            {name || "Editor"}
-          </strong>
-          {fileDirty ? (
-            <span
-              className="size-1.5 shrink-0 rounded-full bg-[var(--warn)]"
-              role="status"
-            >
-              <span className="sr-only">Unsaved edits</span>
-            </span>
-          ) : null}
+        <div className="ide-editor-path" title={selectedPath || undefined}>
           {directory ? (
-            <span className="min-w-0 truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] @max-[620px]/code:hidden">
-              {directory}
-            </span>
+            <>
+              <span className="ide-editor-folder">{directory}</span>
+              <UiIcon icon={ChevronRight} size="xs" />
+            </>
           ) : null}
+          <strong>{name || "No file open"}</strong>
         </div>
         <PanelTabList
           className="shrink-0 gap-0.5 px-0.5 py-0"
-          items={EDITOR_TABS}
+          items={editorTabs}
           label="Editor views"
           onSelect={onEditorPaneChange}
           selected={editorPane}
@@ -390,6 +403,19 @@ export function CodingWorkspaceEditor({
           {fileNotice.message}
         </p>
       ) : null}
+      {active &&
+      editorPane === "file" &&
+      fileResource.error &&
+      (fileResource.data || fileDirty) ? (
+        <div className="ide-editor-read-warning" role="status">
+          <span>
+            Could not refresh this file. The editor buffer is available.
+          </span>
+          <button type="button" onClick={fileResource.reload}>
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       <section
         aria-label={
@@ -397,19 +423,24 @@ export function CodingWorkspaceEditor({
             ? `${editorPane === "file" ? "File editor" : "Git diff"}: ${selectedPath}`
             : "File editor"
         }
-        aria-labelledby={paneTabId(EDITOR_PANEL_ID, editorPane)}
-        className={CODING_EDITOR_SURFACE_CLASS}
-        id={EDITOR_PANEL_ID}
+        aria-labelledby={[
+          selectedPath ? editorDocumentTabId(editorPanelId, selectedPath) : "",
+          paneTabId(editorPanelId, editorPane),
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        className={`${CODING_EDITOR_SURFACE_CLASS} ide-editor-viewport`}
+        id={editorPanelId}
         role="tabpanel"
       >
         {!selectedPath ? (
-          <EmptyBlock title="Choose a file">
-            Select a workspace file or changed file to inspect it here.
+          <EmptyBlock title="Open a file">
+            Select a file in the explorer or open a diff under Changes.
           </EmptyBlock>
         ) : editorPane === "file" ? (
-          fileResource.loading ? (
+          fileResource.loading && !fileDirty ? (
             <LoadingBlock label={`Opening ${name}…`} />
-          ) : fileResource.error ? (
+          ) : fileResource.error && !fileResource.data && !fileDirty ? (
             <ErrorBlock
               error={fileResource.error}
               retry={fileResource.reload}
@@ -419,6 +450,7 @@ export function CodingWorkspaceEditor({
               fallback={<LoadingBlock label={`Loading editor ${name}…`} />}
             >
               <CodeEditor
+                active={active}
                 botId={botId}
                 originConversationId={originConversationId}
                 disabled={editingLocked || savingFile}
@@ -438,6 +470,7 @@ export function CodingWorkspaceEditor({
                 onSave={onSave}
                 path={selectedPath}
                 value={draftContent}
+                viewState={{ key: documentScope, cache: viewStates.current }}
                 workspacePath={workspacePath}
               />
             </Suspense>
@@ -454,27 +487,11 @@ export function CodingWorkspaceEditor({
             retry={patchResource.reload}
           />
         ) : patchResource.data?.patch?.patch ? (
-          <>
-            {patchResource.data.patch.truncated ? (
-              <div
-                className={`${CODING_INLINE_STATE_CLASS} ${CODING_INLINE_WARN_CLASS}`}
-              >
-                This large patch was truncated by the runtime.
-              </div>
-            ) : null}
-            <pre className={`${CODING_SOURCE_CLASS} ${CODING_PATCH_CLASS}`}>
-              <code>
-                {patchLines(patchResource.data.patch.patch).map((line) => (
-                  <span
-                    className={`${CODING_DIFF_LINE_CLASS} ${codingDiffLineTone(line.tone)}`}
-                    key={line.key}
-                  >
-                    {line.text || " "}
-                  </span>
-                ))}
-              </code>
-            </pre>
-          </>
+          <WorkspacePatchView
+            patch={patchResource.data.patch.patch}
+            path={selectedPath}
+            truncated={patchResource.data.patch.truncated}
+          />
         ) : (
           <EmptyBlock title="No patch output">
             The {stagedPatch ? "staged" : "working-tree"} version of this file
@@ -486,14 +503,14 @@ export function CodingWorkspaceEditor({
       {acpTaskOpen ? (
         <form
           aria-label="ACP editor task"
-          id={ACP_TASK_ID}
+          id={acpTaskId}
           className={CODING_ACP_TASK_CLASS}
           onSubmit={(event) => void onSubmitAcpTask(event)}
         >
           <div className={CODING_ACP_TASK_ROW_CLASS}>
             <label
               className={CODING_ACP_TASK_LABEL_CLASS}
-              htmlFor="coding-acp-task-input"
+              htmlFor={acpTaskInputId}
             >
               <span>ACP task</span>
               <small>
@@ -502,7 +519,7 @@ export function CodingWorkspaceEditor({
             </label>
             <input
               disabled={editingLocked || acpEditor.promptBusy}
-              id="coding-acp-task-input"
+              id={acpTaskInputId}
               onChange={(event) => onAcpTaskDraftChange(event.target.value)}
               placeholder="Inspect, edit, test, or explain…"
               ref={acpTaskInputRef}
@@ -667,7 +684,7 @@ export function CodingWorkspaceEditor({
             </button>
           ) : null}
           <button
-            aria-controls={acpTaskOpen ? ACP_TASK_ID : undefined}
+            aria-controls={acpTaskOpen ? acpTaskId : undefined}
             aria-expanded={acpTaskOpen}
             aria-label="ACP task"
             className={`${EDITOR_CONTROL_CLASS} aria-expanded:bg-[var(--surface-hover)] aria-expanded:text-[var(--text)]`}

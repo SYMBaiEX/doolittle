@@ -28,11 +28,22 @@ afterEach(() => {
   desktopQueryClient.clear();
   vi.mocked(desktopRequest).mockReset();
 });
-function View({ bot, enabled = true }: { bot: string; enabled?: boolean }) {
+function View({
+  bot,
+  enabled = true,
+  parked = false,
+}: {
+  bot: string;
+  enabled?: boolean;
+  parked?: boolean;
+}) {
   const resource = useApiResource<{ owner: string }>(
     enabled ? "/api/status" : null,
     [],
     bot,
+    undefined,
+    undefined,
+    !parked,
   );
   return (
     <div>
@@ -44,6 +55,18 @@ function View({ bot, enabled = true }: { bot: string; enabled?: boolean }) {
     </div>
   );
 }
+
+it("keeps rendered IDE reads while parked and skips their refetches", async () => {
+  vi.mocked(desktopRequest).mockResolvedValueOnce({ owner: "editor contents" });
+  const { element, root } = mount();
+  act(() => root.render(<View bot="a" />));
+  await flush();
+  act(() => root.render(<View bot="a" parked />));
+  act(() => element.querySelector("button")?.click());
+  await act(() => desktopQueryClient.invalidateQueries());
+  expect(element.textContent).toContain("editor contents");
+  expect(desktopRequest).toHaveBeenCalledOnce();
+});
 function Catalog() {
   const resource = useDesktopBotCatalog("ready", 0);
   return <output>{resource.data?.bots.length ?? 0}</output>;

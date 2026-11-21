@@ -30,6 +30,26 @@ import {
 } from "../support/desktop-core";
 import { themeContrastFixture } from "../support/theme-contrast";
 
+function runFixtureGit(workspace: string, ...args: string[]) {
+  return execFileSync(
+    "git",
+    [
+      "-C",
+      workspace,
+      "-c",
+      "user.name=SYMBaiEX",
+      "-c",
+      "user.email=solsymbaiex@gmail.com",
+      "-c",
+      "commit.gpgsign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      ...args,
+    ],
+    { encoding: "utf8" },
+  );
+}
+
 async function expectQuietFocus(control: Locator) {
   await control.focus();
   const style = await control.evaluate((node) => ({
@@ -84,7 +104,9 @@ test.describe("fresh native desktop", () => {
   });
 
   test("uses the same panel navigation for chat context, workspace and scheduled work", async () => {
-    const desktop = await launchDesktop();
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
     try {
       const { page } = desktop;
       const navigation = page.getByRole("navigation", {
@@ -1251,6 +1273,222 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("keeps IDE buffers, chat drafts, and the workspace shell through view changes", async () => {
+    test.setTimeout(90_000);
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
+    const { app, page, workspace } = desktop;
+    const first = "src/engine.ts";
+    const second = "src/helpers.ts";
+    const changed = "README.md";
+    const firstBase = "export const originalEngine = true;\n";
+    const secondBase = "export const originalHelper = true;\n";
+    const firstEdit = "export const retainedEngine = true;";
+    const secondEdit = "export const retainedHelper = true;";
+    const chatDraft = "Keep this implementation plan in my chat.";
+
+    try {
+      mkdirSync(join(workspace, "src"));
+      writeFileSync(join(workspace, first), firstBase);
+      writeFileSync(join(workspace, second), secondBase);
+      writeFileSync(join(workspace, changed), "BeforeWorkspaceReview\n");
+      runFixtureGit(workspace, "init", "-qb", "main");
+      runFixtureGit(workspace, "add", "--", first, second, changed);
+      runFixtureGit(workspace, "commit", "-qm", "Create IDE retention fixture");
+      writeFileSync(join(workspace, changed), "AfterWorkspaceReview\n");
+
+      const projectId = await makeProject(page, "IDE retention", workspace);
+      await installProjectDialog(app, workspace);
+      const sessionId = await openProjectChat(page, projectId);
+      await app.evaluate(
+        ({ dialog }, files) => {
+          const original = dialog.showMessageBox;
+          const originalSync = dialog.showMessageBoxSync;
+          dialog.showMessageBox = (async (...args: unknown[]) => {
+            const options = args.at(-1) as Electron.MessageBoxOptions;
+            const save = options.buttons?.indexOf("Save changes") ?? -1;
+            if (
+              options.title === "Save workspace file?" &&
+              files.includes(options.message ?? "") &&
+              save >= 0
+            ) {
+              return { response: save, checkboxChecked: false };
+            }
+            return Reflect.apply(original, dialog, args);
+          }) as typeof dialog.showMessageBox;
+          // The isolated fixture can close cleanly after a failed assertion
+          // even if its test edits are still unsaved.
+          dialog.showMessageBoxSync = ((...args: unknown[]) => {
+            const options = args.at(-1) as Electron.MessageBoxSyncOptions;
+            const leave = options.buttons?.indexOf("Leave") ?? -1;
+            if (options.title === "Unsaved coding changes" && leave >= 0)
+              return leave;
+            return Reflect.apply(originalSync, dialog, args);
+          }) as typeof dialog.showMessageBoxSync;
+        },
+        [first, second],
+      );
+
+      const viewSwitcher = page.getByRole("group", { name: "Workbench view" });
+      const chat = viewSwitcher.getByRole("button", { name: "Agent View" });
+      const ideView = viewSwitcher.getByRole("button", { name: "IDE View" });
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const ide = page.locator('[data-view="code"]');
+      const tree = ide.getByRole("tree", { name: "Workspace files" });
+      const sourceFolder = tree.getByRole("treeitem", {
+        name: "src",
+        exact: true,
+      });
+      const tabs = ide.getByRole("tablist", { name: "Open editors" });
+      const editInput = (path: string) =>
+        ide.getByRole("textbox", { name: `Edit ${path}` });
+      const editorText = ide.locator(".monaco-editor .view-lines");
+      const edit = async (path: string, content: string, marker: string) => {
+        await editInput(path).focus();
+        await page.keyboard.press("ControlOrMeta+a");
+        await page.keyboard.insertText(content);
+        await expect(editorText).toContainText(marker);
+      };
+      const terminal = page.getByRole("region", {
+        name: "Chat terminal panel",
+      });
+      const terminalTab = terminal.getByRole("tab", { selected: true });
+      const writeShellProof = async (file: string, command: string) => {
+        await terminal.locator(".xterm-helper-textarea").focus();
+        await page.keyboard.insertText(command);
+        await page.keyboard.press("Enter");
+        const proof = join(workspace, file);
+        await expect
+          .poll(() => (existsSync(proof) ? readFileSync(proof, "utf8") : ""))
+          .toContain("retained-shell");
+        return readFileSync(proof, "utf8");
+      };
+
+      await expect(composer).toBeEditable();
+      await composer.fill(chatDraft);
+      await ideView.click();
+      await expect(ide).toBeVisible();
+      await sourceFolder.focus();
+      await sourceFolder.press("ArrowRight");
+      await expect(sourceFolder).toHaveAttribute("aria-expanded", "true");
+      await tree
+        .getByRole("treeitem", { name: "engine.ts", exact: true })
+        .click();
+      await expect(editorText).toContainText("originalEngine");
+      await edit(first, firstEdit, "retainedEngine");
+
+      await tree
+        .getByRole("treeitem", { name: "helpers.ts", exact: true })
+        .click();
+      await expect(editorText).toContainText("originalHelper");
+      await edit(second, secondEdit, "retainedHelper");
+      const engineTab = tabs.getByRole("tab", { name: /engine\.ts/u });
+      const helperTab = tabs.getByRole("tab", { name: /helpers\.ts/u });
+      await expect(engineTab).toBeVisible();
+      await expect(helperTab).toHaveAttribute("aria-selected", "true");
+      expect(readFileSync(join(workspace, first), "utf8")).toBe(firstBase);
+      expect(readFileSync(join(workspace, second), "utf8")).toBe(secondBase);
+
+      await ide
+        .getByRole("button", { name: "Terminal", exact: true })
+        .press("Enter");
+      await expect(terminal).toBeVisible();
+      await expect(
+        terminal.getByRole("button", { name: "Interrupt foreground process" }),
+      ).toBeEnabled();
+      const tabId = await terminalTab.getAttribute("id");
+      expect(tabId).toBeTruthy();
+      const proofCommand = (file: string) =>
+        `printf '%s\\n' "$$" "$PWD" "$DOOLITTLE_IDE_FIXTURE" > "${file}"`;
+      const before = await writeShellProof(
+        "terminal-before.txt",
+        `DOOLITTLE_IDE_FIXTURE=retained-shell; ${proofCommand("terminal-before.txt")}`,
+      );
+      expect(before.trim().split("\n")).toEqual([
+        expect.stringMatching(/^\d+$/u),
+        workspace,
+        "retained-shell",
+      ]);
+
+      await chat.click();
+      await expect(composer).toHaveValue(chatDraft);
+      await expect(terminalTab).toHaveAttribute("id", tabId ?? "");
+      await page
+        .getByRole("button", { name: "Open settings", exact: true })
+        .click();
+      await expect(page.locator('[data-view="settings"]')).toBeVisible();
+      await expect(terminal).toBeHidden();
+      await page.getByRole("button", { name: /^Back to /u }).click();
+      await expect(composer).toHaveValue(chatDraft);
+      await ideView.click();
+      await expect(ide).toBeVisible();
+      await expect(helperTab).toHaveAttribute("aria-selected", "true");
+      await expect(editorText).toContainText("retainedHelper");
+      await expect(sourceFolder).toHaveAttribute("aria-expanded", "true");
+      await expect(engineTab).toHaveAccessibleName(/Unsaved edits/u);
+      await expect(helperTab).toHaveAccessibleName(/Unsaved edits/u);
+      expect(readFileSync(join(workspace, first), "utf8")).toBe(firstBase);
+      expect(readFileSync(join(workspace, second), "utf8")).toBe(secondBase);
+      await expect(terminalTab).toHaveAttribute("id", tabId ?? "");
+      expect(
+        await writeShellProof(
+          "terminal-after.txt",
+          proofCommand("terminal-after.txt"),
+        ),
+      ).toBe(before);
+      expect(
+        await page.evaluate(() => window.doolittle.ui?.getSelection()),
+      ).toMatchObject({ sessionId, projectId });
+
+      await terminal.getByRole("button", { name: /^Hide terminal\b/u }).click();
+      await expect(terminal).toBeHidden();
+      await engineTab.click();
+      await expect(editorText).toContainText("retainedEngine");
+      await editInput(first).press("ControlOrMeta+s");
+      await expect
+        .poll(() => readFileSync(join(workspace, first), "utf8"))
+        .toBe(firstEdit);
+      await helperTab.click();
+      await expect(editorText).toContainText("retainedHelper");
+      await editInput(second).press("ControlOrMeta+s");
+      await expect
+        .poll(() => readFileSync(join(workspace, second), "utf8"))
+        .toBe(secondEdit);
+
+      await ide.getByRole("button", { name: "Tools", exact: true }).click();
+      const tools = ide.getByRole("complementary", { name: "Workspace tools" });
+      await tools.getByRole("tab", { name: /^Changes(?:\s+\d+)?$/u }).click();
+      const changes = tools.getByRole("region", { name: "Changed files" });
+      await changes.getByRole("button", { name: /README\.md/u }).click();
+      const patch = ide.getByRole("region", { name: "File patch" });
+      await expect(patch).toContainText("BeforeWorkspaceReview");
+      await expect(patch).toContainText("AfterWorkspaceReview");
+      const wrap = ide.getByRole("button", { name: "Wrap lines", exact: true });
+      await wrap.click();
+      await expect(wrap).toHaveAttribute("aria-pressed", "true");
+
+      await app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setContentSize(540, 740);
+      });
+      await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(540);
+      await ide.getByRole("button", { name: "Explorer", exact: true }).click();
+      await expect(
+        ide.getByRole("complementary", { name: "Workspace explorer" }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(tree).toBeHidden();
+      await expect(patch).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("remembers the exact bot and project grant across chats, reload and restart", async () => {
     const desktop = await launchDesktop();
     try {
@@ -1282,34 +1520,18 @@ test.describe("fresh native desktop", () => {
   });
 
   test("requires native approval for Git discard and worktree creation", async () => {
-    const desktop = await launchDesktop();
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
     const { app, page, workspace } = desktop;
     const file = "approval-fixture.txt";
     const path = join(workspace, file);
     const worktreePath = ".doolittle/worktrees/approval-fixture";
-    const git = (...args: string[]) =>
-      execFileSync(
-        "git",
-        [
-          "-C",
-          workspace,
-          "-c",
-          "user.name=SYMBaiEX",
-          "-c",
-          "user.email=solsymbaiex@gmail.com",
-          "-c",
-          "commit.gpgsign=false",
-          "-c",
-          "core.hooksPath=/dev/null",
-          ...args,
-        ],
-        { encoding: "utf8" },
-      );
     try {
-      git("init", "-qb", "main");
+      runFixtureGit(workspace, "init", "-qb", "main");
       writeFileSync(path, "original content\n");
-      git("add", "--", file);
-      git("commit", "-qm", "Create fixture");
+      runFixtureGit(workspace, "add", "--", file);
+      runFixtureGit(workspace, "commit", "-qm", "Create fixture");
       writeFileSync(path, "unsaved to git\n");
       const projectId = await makeProject(page, "Approval fixture", workspace);
       await installProjectDialog(app, workspace);
@@ -1344,8 +1566,11 @@ test.describe("fresh native desktop", () => {
       );
       await page.getByRole("button", { name: "IDE View" }).click();
       await page.getByRole("button", { name: "Tools", exact: true }).click();
-      const gitTab = page.getByRole("tab", { name: /^Git(?:\s+\d+)?$/u });
-      await gitTab.click();
+      const tools = page.getByRole("complementary", {
+        name: "Workspace tools",
+      });
+      await tools.getByRole("tab", { name: /^Changes(?:\s+\d+)?$/u }).click();
+      await tools.getByText("Git controls", { exact: true }).click();
       const discard = page.getByRole("button", {
         name: `Discard ${file}`,
         exact: true,
@@ -1358,8 +1583,10 @@ test.describe("fresh native desktop", () => {
       await expect
         .poll(() => readFileSync(path, "utf8"))
         .toBe("original content\n");
-      expect(git("status", "--porcelain", "--", file)).toBe("");
-      await page.getByRole("tab", { name: /^Trees(?:\s+\d+)?$/u }).click();
+      expect(
+        runFixtureGit(workspace, "status", "--porcelain", "--", file),
+      ).toBe("");
+      await tools.getByRole("tab", { name: /^Worktrees(?:\s+\d+)?$/u }).click();
       const environments = page.getByRole("region", {
         name: "Local execution environments",
       });

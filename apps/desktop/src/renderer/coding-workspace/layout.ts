@@ -32,9 +32,6 @@ export function codingGridClass(
 export const CODING_REPO_HEADER_CLASS =
   "coding-repo-header grid shrink-0 gap-1 border-[var(--border)] border-b";
 
-export const CODING_REPO_STATE_CLASS =
-  "coding-repo-state flex min-w-0 max-w-full flex-wrap items-center gap-2 text-[length:var(--text-meta)] text-[var(--muted)]";
-
 export const CODING_LAYOUT_BUTTON_CLASS =
   "grid size-9 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-transparent text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-pressed:border-[var(--border)] aria-pressed:bg-[var(--surface-raised)] aria-pressed:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-50 max-[760px]:size-11";
 
@@ -43,9 +40,6 @@ export const CODING_GLOBAL_NOTICE_CLASS =
 
 export const CODING_INLINE_STATE_CLASS =
   "coding-inline-state rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.75 py-2 text-[13px] text-[var(--text-soft)]";
-
-export const CODING_INLINE_WARN_CLASS =
-  "warn border-[color-mix(in_srgb,var(--warn)_25%,var(--border))] bg-[var(--warn-soft)] text-[var(--warn)]";
 
 export const CODING_PANE_CLASS =
   "coding-pane relative flex min-h-0 min-w-0 flex-col bg-[var(--surface)]";
@@ -127,25 +121,6 @@ export function codingActionNoticeTone(tone: string): string {
     return "warn border-[color-mix(in_srgb,var(--warn)_25%,var(--border))] bg-[var(--warn-soft)] text-[var(--warn)]";
   if (tone === "bad")
     return "bad border-[color-mix(in_srgb,var(--bad)_25%,var(--border))] bg-[var(--bad-soft)] text-[var(--bad)]";
-  return "";
-}
-
-export const CODING_SOURCE_CLASS =
-  "coding-source m-0 min-h-full min-w-0 border-0 bg-transparent pt-3 pr-4 pb-8 pl-10 font-[var(--font-mono)] text-xs leading-[var(--line-body)] text-[var(--text-soft)] [tab-size:2] whitespace-pre-wrap break-words outline-offset-[-3px]";
-
-export const CODING_PATCH_CLASS =
-  "coding-patch text-[color-mix(in_srgb,var(--text-soft)_94%,var(--accent))]";
-
-export const CODING_DIFF_LINE_CLASS =
-  "coding-diff-line -mx-2 block min-h-[1.68em] px-2";
-
-export function codingDiffLineTone(tone: string): string {
-  if (tone === "addition")
-    return "addition bg-[color-mix(in_srgb,var(--good)_7%,transparent)] text-[color-mix(in_srgb,var(--good)_74%,var(--text))]";
-  if (tone === "removal")
-    return "removal bg-[color-mix(in_srgb,var(--bad)_7%,transparent)] text-[color-mix(in_srgb,var(--bad)_76%,var(--text))]";
-  if (tone === "header")
-    return "header bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_66%,var(--text-soft))]";
   return "";
 }
 

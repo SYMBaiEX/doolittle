@@ -1,3 +1,4 @@
+import { FileCode2, MessageSquarePlus } from "lucide-react";
 import { lazy, Suspense } from "react";
 import type { CodeLanguage } from "../code-language";
 import { type ApiResource, asString, ErrorBlock, LoadingBlock } from "../lib";
@@ -14,6 +15,7 @@ import {
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
 import { compactWorkspacePath } from "../workspace-path";
 import type { CodeEditorStateSnapshot } from "./CodeEditor";
+import { UiIcon } from "./UiIcon";
 import { WorkspaceFileTree } from "./WorkspaceFileTree";
 
 const CodeEditor = lazy(async () => {
@@ -91,21 +93,26 @@ export function ThreadWorkbenchFilesPanel({
           <div className={WORKBENCH_CODE_PREVIEW_CLASS}>
             {selectedPath ? (
               <>
-                <div>
-                  <code title={selectedPath}>
+                <header className="workspace-inspector-evidence-heading">
+                  <UiIcon icon={FileCode2} size="sm" />
+                  <strong title={selectedPath}>
                     {compactWorkspacePath(selectedPath, 3)}
-                  </code>
-                  <span>{selectedLanguage.label}</span>
-                  <div>
-                    <button
-                      disabled={!file.data?.content}
-                      onClick={onInsertFileContext}
-                      type="button"
-                    >
-                      Add to chat
-                    </button>
-                  </div>
-                </div>
+                  </strong>
+                  <small title={selectedLanguage.label}>
+                    {selectedLanguage.label}
+                  </small>
+                  <button
+                    className="workspace-inspector-action"
+                    disabled={
+                      !file.data?.content || file.loading || Boolean(file.error)
+                    }
+                    onClick={onInsertFileContext}
+                    type="button"
+                  >
+                    <UiIcon icon={MessageSquarePlus} size="sm" />
+                    Add to chat
+                  </button>
+                </header>
                 {file.loading ? (
                   <LoadingBlock label="Reading file…" />
                 ) : file.error ? (
@@ -149,9 +156,7 @@ export function ThreadWorkbenchFilesPanel({
                   &lt;/&gt;
                 </span>
                 <strong>Select a file</strong>
-                <p>
-                  Expand the repository tree to inspect a syntax-aware preview.
-                </p>
+                <p>Choose a file from the tree to preview it.</p>
               </div>
             )}
           </div>

@@ -4,49 +4,38 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
-import { Button } from "@doolittle/ui";
+import {
+  ChevronRight,
+  Copy,
+  GitCompareArrows,
+  MessageSquarePlus,
+  SquareTerminal,
+} from "lucide-react";
 import { GitControlPanel } from "../components/GitControlPanel";
+import { UiIcon } from "../components/UiIcon";
+import { WorkspacePatchView } from "../components/WorkspacePatchView";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   asArray,
   asRecord,
   asString,
-  Badge,
   displayTimestamp,
   ErrorBlock,
   LoadingBlock,
 } from "../lib";
-import type { RepositoryControlChange } from "../repository-control";
 import {
   bounded,
   commandOutput,
   contextBlock,
 } from "../thread-workbench-controller";
+import { ChangeFileList } from "./ChangeFileList";
 import {
-  WORKBENCH_CHANGES_BODY_CLASS,
   WORKBENCH_CHECKPOINT_DETAILS_CLASS,
   WORKBENCH_CHECKPOINT_LIST_CLASS,
   WORKBENCH_CHECKPOINTS_BODY_CLASS,
-  WORKBENCH_CHECKPOINTS_CLASS,
-  WORKBENCH_COMMAND_BUTTON_CLASS,
-  WORKBENCH_COMMAND_LIST_CLASS,
-  WORKBENCH_DIFF_PREVIEW_CLASS,
-  WORKBENCH_EMPTY_CLASS,
-  WORKBENCH_LIST_BUTTON_CLASS,
-  WORKBENCH_LIST_BUTTON_SELECTED_CLASS,
-  WORKBENCH_LIST_CLASS,
-  WORKBENCH_PANE_STACK_CLASS,
-  WORKBENCH_SPLIT_CLASS,
-  WORKBENCH_TERMINAL_BODY_CLASS,
-  WORKBENCH_TERMINAL_CLASS,
-  WORKBENCH_TERMINAL_PREVIEW_CLASS,
   WORKBENCH_TEXT_BUTTON_CLASS,
-  workbenchChangeTone,
 } from "./layout";
-import {
-  compactRailLabel,
-  statusTone,
-  type WorkbenchController,
-} from "./models";
+import type { WorkbenchController } from "./models";
 import { ResourceState } from "./ResourceState";
 
 type ChangesPanelController = Pick<
@@ -118,7 +107,7 @@ export function ChangesPanel({
   ) {
     return (
       <div
-        className={WORKBENCH_CHANGES_BODY_CLASS}
+        className="workspace-inspector-scroll"
         data-thread-workbench-panel="changes"
       >
         {summary?.loading ? (
@@ -128,68 +117,82 @@ export function ChangesPanel({
         ) : (
           <section
             aria-label="Repository availability"
-            className={WORKBENCH_PANE_STACK_CLASS}
+            className="workspace-inspector-section"
           >
-            <h3>
+            <header className="workspace-inspector-section-title">
+              <h3>
+                {repositorySummary?.isRepository === false
+                  ? "No Git repository"
+                  : "Repository status unavailable"}
+              </h3>
+            </header>
+            <p className="workspace-inspector-empty">
               {repositorySummary?.isRepository === false
-                ? "No Git repository"
-                : "Repository status unavailable"}
-            </h3>
-            <p className="text-[length:var(--text-control)] text-[var(--muted)]">
-              {repositorySummary?.isRepository === false
-                ? "Open a Git repository using the workspace selector, then refresh. Files and terminal remain available in this workspace."
+                ? "Choose a Git repository to inspect changes."
                 : "Refresh the repository status before using Git controls."}
             </p>
-            <Button onClick={refreshGit} type="button" variant="secondary">
-              Refresh repository
-            </Button>
           </section>
         )}
       </div>
     );
   }
+  const selectedPatch = patch.data?.patch;
+  const patchText = selectedPatch?.patch ?? "";
   return (
     <div
-      className={WORKBENCH_CHANGES_BODY_CLASS}
+      className="workspace-inspector-evidence"
       data-thread-workbench-panel="changes"
     >
-      <div className={WORKBENCH_PANE_STACK_CLASS}>
-        <GitControlPanel
-          active={Boolean(repositorySummary?.isRepository)}
-          branches={asArray(branches.data?.branches) as RepositoryBranch[]}
-          changes={changeEntries as RepositoryControlChange[]}
-          conflicts={asArray(conflicts.data?.conflicts) as RepositoryConflict[]}
-          mutate={mutateRepository}
-          onRefresh={refreshGit}
-          remotes={asArray(remotes.data?.remotes) as RepositoryRemote[]}
-          stashes={asArray(stashes.data?.stashes) as RepositoryStash[]}
-          variant="compact"
-          worktrees={
-            asArray(worktrees.data?.worktrees) as Array<{
-              path: string;
-              branch?: string;
-              current?: boolean;
-              prunable?: boolean;
-            }>
-          }
+      <div className="workspace-inspector-evidence-list workspace-inspector-scroll">
+        <ResourceState
+          error={changes.error}
+          loading={changes.loading}
+          retry={changes.reload}
         />
+        {!changes.loading && !changes.error ? (
+          <ChangeFileList
+            changes={changeEntries}
+            currentPath={currentChange}
+            onSelect={setSelectedChange}
+          />
+        ) : null}
+        <details className="workspace-inspector-disclosure">
+          <summary>
+            <UiIcon icon={ChevronRight} size="sm" />
+            Git controls
+          </summary>
+          <GitControlPanel
+            active
+            branches={asArray(branches.data?.branches) as RepositoryBranch[]}
+            changes={changeEntries}
+            conflicts={
+              asArray(conflicts.data?.conflicts) as RepositoryConflict[]
+            }
+            mutate={mutateRepository}
+            onRefresh={refreshGit}
+            remotes={asArray(remotes.data?.remotes) as RepositoryRemote[]}
+            stashes={asArray(stashes.data?.stashes) as RepositoryStash[]}
+            variant="compact"
+            worktrees={
+              asArray(worktrees.data?.worktrees) as Array<{
+                path: string;
+                branch?: string;
+                current?: boolean;
+                prunable?: boolean;
+              }>
+            }
+          />
+        </details>
         <details
-          className={WORKBENCH_CHECKPOINTS_CLASS}
+          className="workspace-inspector-disclosure"
           data-thread-workbench="checkpoints"
         >
           <summary>
-            <span>
-              <strong>Checkpoints</strong>
-              <small>Local Git snapshots</small>
-            </span>
-            <Badge>
-              {asArray(checkpoints.data?.checkpoints).length || "None"}
-            </Badge>
+            <UiIcon icon={ChevronRight} size="sm" />
+            Checkpoints
+            <small>{asArray(checkpoints.data?.checkpoints).length}</small>
           </summary>
           <div className={WORKBENCH_CHECKPOINTS_BODY_CLASS}>
-            <small>
-              Restore requires confirmation and never restarts Doolittle.
-            </small>
             {checkpoints.data?.support?.supported ? (
               <button
                 className={WORKBENCH_TEXT_BUTTON_CLASS}
@@ -244,83 +247,61 @@ export function ChangesPanel({
           </div>
         </details>
       </div>
-      <ResourceState
-        error={changes.error}
-        loading={changes.loading}
-        retry={changes.reload}
-      />
-      {!changes.loading && !changes.error ? (
-        <div className={WORKBENCH_SPLIT_CLASS}>
-          <div className={WORKBENCH_LIST_CLASS}>
-            {changeEntries.map((entry) => (
-              <button
-                aria-current={currentChange === entry.path}
-                className={`${WORKBENCH_LIST_BUTTON_CLASS} ${
-                  currentChange === entry.path
-                    ? WORKBENCH_LIST_BUTTON_SELECTED_CLASS
-                    : ""
-                }`}
-                key={entry.path}
-                onClick={() => setSelectedChange(entry.path)}
-                title={entry.path}
-                type="button"
-              >
-                <span
-                  aria-hidden="true"
-                  className={workbenchChangeTone(
-                    entry.untracked
-                      ? "untracked"
-                      : entry.staged
-                        ? "staged"
-                        : "modified",
-                  )}
-                >
-                  {entry.untracked ? "U" : entry.staged ? "S" : "M"}
-                </span>
-                <span>{entry.path}</span>
-                <small>{entry.status}</small>
-              </button>
-            ))}
-            {!changeEntries.length ? (
-              <p className={WORKBENCH_EMPTY_CLASS}>Working tree is clean.</p>
-            ) : null}
-          </div>
-          {currentChange ? (
-            <div className={WORKBENCH_DIFF_PREVIEW_CLASS}>
-              <div>
-                <code title={currentChange}>
-                  {compactRailLabel(currentChange)}
-                </code>
-                <button
-                  disabled={!patch.data?.patch?.patch}
-                  onClick={() =>
-                    insert(
-                      "Diff context added",
-                      contextBlock(
-                        "diff",
-                        currentChange,
-                        asString(patch.data?.patch?.patch),
-                      ),
-                    )
-                  }
-                  type="button"
-                >
-                  Add diff
-                </button>
-              </div>
-              {patch.loading ? (
-                <LoadingBlock label="Reading diff…" />
-              ) : patch.error ? (
-                <ErrorBlock error={patch.error} retry={patch.reload} />
-              ) : (
-                <pre>{bounded(asString(patch.data?.patch?.patch), 5_000)}</pre>
-              )}
-            </div>
-          ) : null}
-        </div>
+      {currentChange && !changes.loading && !changes.error ? (
+        <section
+          aria-label="Selected diff"
+          className="workspace-inspector-evidence-preview"
+        >
+          <header className="workspace-inspector-evidence-heading">
+            <UiIcon icon={GitCompareArrows} size="sm" />
+            <strong title={currentChange}>{currentChange}</strong>
+            <button
+              className="workspace-inspector-action"
+              disabled={!patchText || patch.loading || Boolean(patch.error)}
+              onClick={() =>
+                insert(
+                  "Diff context added",
+                  contextBlock("diff", currentChange, patchText),
+                )
+              }
+              title="Add diff to chat"
+              type="button"
+            >
+              <UiIcon icon={MessageSquarePlus} size="sm" />
+              Add diff
+            </button>
+          </header>
+          {patch.loading ? (
+            <LoadingBlock label="Reading diff…" />
+          ) : patch.error ? (
+            <ErrorBlock error={patch.error} retry={patch.reload} />
+          ) : patchText ? (
+            <WorkspacePatchView
+              path={currentChange}
+              patch={patchText}
+              truncated={selectedPatch?.truncated}
+            />
+          ) : (
+            <p className="workspace-inspector-empty">No textual diff.</p>
+          )}
+        </section>
       ) : null}
     </div>
   );
+}
+
+const MAX_COMMAND_PREVIEW = 40_000;
+
+function commandStatus(entry: Record<string, unknown>): {
+  label: string;
+  tone?: "good" | "bad";
+} {
+  const code = entry.exitCode;
+  if (entry.timedOut === true) return { label: "Timed out", tone: "bad" };
+  if (typeof code === "number" && Number.isInteger(code)) {
+    return { label: `Exit ${code}`, tone: code === 0 ? "good" : "bad" };
+  }
+  return { label: asString(entry.status) || "Recorded" };
 }
 
 export function TerminalPanel({
@@ -340,7 +321,7 @@ export function TerminalPanel({
     : "";
   return (
     <div
-      className={WORKBENCH_TERMINAL_BODY_CLASS}
+      className="workspace-inspector-evidence"
       data-thread-workbench-panel="terminal"
     >
       <ResourceState
@@ -349,39 +330,78 @@ export function TerminalPanel({
         retry={terminal.reload}
       />
       {!terminal.loading && !terminal.error ? (
-        <div className={WORKBENCH_TERMINAL_CLASS}>
-          <div className={WORKBENCH_COMMAND_LIST_CLASS}>
-            {commandEntries.map((entry, index) => {
-              const id = asString(entry.id, `terminal-${index}`);
-              const selected = currentCommand === entry;
-              return (
+        <>
+          <section
+            aria-label="Command history"
+            className="workspace-inspector-evidence-list workspace-inspector-scroll"
+          >
+            <header className="workspace-inspector-section-title">
+              <h3>Command history</h3>
+              <span>{commandEntries.length}</span>
+            </header>
+            {commandEntries.length ? (
+              <ul className="workspace-inspector-list">
+                {commandEntries.map((entry, index) => {
+                  const id = asString(entry.id, `terminal-${index}`);
+                  const command = asString(entry.command, "Command");
+                  const status = commandStatus(entry);
+                  return (
+                    <li key={id}>
+                      <button
+                        aria-current={
+                          currentCommand === entry ? "true" : undefined
+                        }
+                        className="workspace-inspector-row workspace-inspector-command"
+                        onClick={() => setSelectedCommand(id)}
+                        title={command}
+                        type="button"
+                      >
+                        <UiIcon icon={SquareTerminal} size="sm" />
+                        <span className="workspace-inspector-label">
+                          <strong>{command}</strong>
+                          {entry.startedAt ? (
+                            <time dateTime={asString(entry.startedAt)}>
+                              {displayTimestamp(asString(entry.startedAt))}
+                            </time>
+                          ) : null}
+                        </span>
+                        <span
+                          className="workspace-inspector-flag"
+                          data-tone={status.tone}
+                        >
+                          {status.label}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="workspace-inspector-empty">
+                No terminal history yet.
+              </p>
+            )}
+          </section>
+          {currentCommand ? (
+            <section
+              aria-label="Recorded output"
+              className="workspace-inspector-evidence-preview"
+            >
+              <header className="workspace-inspector-evidence-heading">
+                <UiIcon icon={SquareTerminal} size="sm" />
+                <strong>Output</strong>
                 <button
-                  aria-current={selected}
-                  className={`${WORKBENCH_COMMAND_BUTTON_CLASS} ${
-                    selected ? WORKBENCH_LIST_BUTTON_SELECTED_CLASS : ""
-                  }`}
-                  key={id}
-                  onClick={() => setSelectedCommand(id)}
+                  aria-label="Copy command output"
+                  className="workspace-inspector-icon"
+                  disabled={!selectedCommandOutput}
+                  onClick={() => void copyContextText(selectedCommandOutput)}
+                  title="Copy command output"
                   type="button"
                 >
-                  <span>$ {asString(entry.command, "command")}</span>
-                  <small>
-                    {asString(entry.status, "completed")}
-                    {entry.startedAt
-                      ? ` · ${displayTimestamp(asString(entry.startedAt))}`
-                      : ""}
-                  </small>
+                  <UiIcon icon={Copy} size="sm" />
                 </button>
-              );
-            })}
-          </div>
-          {currentCommand ? (
-            <div className={WORKBENCH_TERMINAL_PREVIEW_CLASS}>
-              <div>
-                <Badge tone={statusTone(asString(currentCommand.status))}>
-                  {asString(currentCommand.status, "recorded")}
-                </Badge>
                 <button
+                  className="workspace-inspector-action"
                   disabled={!selectedCommandOutput}
                   onClick={() =>
                     insert(
@@ -393,17 +413,32 @@ export function TerminalPanel({
                       ),
                     )
                   }
+                  title="Add output to chat"
                   type="button"
                 >
+                  <UiIcon icon={MessageSquarePlus} size="sm" />
                   Add output
                 </button>
-              </div>
-              <pre>{bounded(selectedCommandOutput, 5_000)}</pre>
-            </div>
-          ) : (
-            <p className={WORKBENCH_EMPTY_CLASS}>No terminal history yet.</p>
-          )}
-        </div>
+              </header>
+              {selectedCommandOutput ? (
+                <section
+                  aria-label="Command output"
+                  className="workspace-inspector-console workspace-inspector-scroll"
+                  // biome-ignore lint/a11y/noNoninteractiveTabindex: Recorded output must be keyboard-scrollable.
+                  tabIndex={0}
+                >
+                  <pre>
+                    {bounded(selectedCommandOutput, MAX_COMMAND_PREVIEW)}
+                  </pre>
+                </section>
+              ) : (
+                <p className="workspace-inspector-empty">
+                  This command produced no output.
+                </p>
+              )}
+            </section>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

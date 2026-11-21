@@ -12,6 +12,7 @@ import {
 import { useThreadWorkbenchRailController } from "../../apps/desktop/src/renderer/thread-workbench-controller";
 
 const resources = vi.hoisted(() => ({
+  changes: null as { changes: unknown[] } | null,
   reads: [] as Array<{ path: string | null; botId?: string; origin?: unknown }>,
   reload: vi.fn(),
 }));
@@ -24,7 +25,12 @@ vi.mock("../../apps/desktop/src/renderer/lib", async (original) => ({
     origin?: unknown,
   ) => {
     resources.reads.push({ path, botId, origin });
-    return { data: null, loading: false, error: "", reload: resources.reload };
+    return {
+      data: path === "/repo/changes" ? resources.changes : null,
+      loading: false,
+      error: "",
+      reload: resources.reload,
+    };
   },
 }));
 vi.mock("../../apps/desktop/src/renderer/desktop-acp-client", () => ({
@@ -121,6 +127,7 @@ it("opens an opaque group chat at capacity and keeps the previous draft", () => 
     act(() => root.unmount());
     container.remove();
     window.localStorage.clear();
+    resources.changes = null;
     environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
   }
 });
@@ -153,6 +160,23 @@ describe("retained resource panel ownership", () => {
     vi.restoreAllMocks();
   });
   const render = (next: Props) => act(() => root.render(<Probe {...next} />));
+
+  it("falls back to a current changed file when the selected diff disappears", () => {
+    resources.changes = {
+      changes: [{ path: "current.ts" }, { path: "removed.ts" }],
+    };
+    render({ ...props, selectedTab: "changes" });
+    act(() => controller.setSelectedChange("removed.ts"));
+    expect(controller.currentChange).toBe("removed.ts");
+
+    resources.reads.length = 0;
+    resources.changes = { changes: [{ path: "current.ts" }] };
+    render({ ...props, selectedTab: "changes" });
+    expect(controller.currentChange).toBe("current.ts");
+    expect(
+      resources.reads.some(({ path }) => path?.includes("removed.ts")),
+    ).toBe(false);
+  });
 
   it("keeps selections through panel switching, close/reopen and remount", () => {
     render(props);

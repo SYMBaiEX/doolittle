@@ -10,6 +10,7 @@ export interface CodingWorkspaceFocusState {
   editorPane: EditorPane;
   utilityPane: UtilityPane;
   selectedPath: string;
+  openDocumentPaths?: string[];
   searchDraft: string;
   searchQuery: string;
   acpTaskOpen: boolean;

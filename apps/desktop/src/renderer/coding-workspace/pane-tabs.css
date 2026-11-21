@@ -1,0 +1,60 @@
+.ide-pane-tabs {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  flex: 1;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 2px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.ide-pane-tabs .ide-pane-tab {
+  display: inline-flex;
+  min-height: 34px;
+  flex: 0 0 auto;
+  justify-content: center;
+  gap: 4px;
+  padding-inline: 7px;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ide-pane-tabs .ide-pane-tab:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.ide-pane-tabs .ide-pane-tab[aria-selected="true"] {
+  box-shadow: inset 0 -1px var(--text-soft);
+  color: var(--text);
+  font-weight: 650;
+}
+
+.ide-pane-tabs .ide-pane-tab:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ide-pane-tab-count {
+  color: var(--muted);
+  font-size: calc(var(--text-meta) - 1px);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .ide-pane-tabs .ide-pane-tab {
+    min-height: 40px;
+  }
+}
+
+@media (forced-colors: active) {
+  .ide-pane-tabs .ide-pane-tab[aria-selected="true"] {
+    border-block-end: 1px solid Highlight;
+  }
+}

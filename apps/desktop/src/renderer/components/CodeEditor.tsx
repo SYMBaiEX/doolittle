@@ -129,7 +129,10 @@ export interface CodeEditorStateSnapshot {
   visibleRanges: CodeEditorVisibleRange[];
 }
 
+export type CodeEditorViewState = monaco.editor.ICodeEditorViewState;
+
 export function CodeEditor({
+  active = true,
   ariaLabel,
   compact = false,
   disabled,
@@ -142,7 +145,9 @@ export function CodeEditor({
   workspacePath,
   botId,
   originConversationId,
+  viewState,
 }: {
+  active?: boolean;
   ariaLabel?: string;
   compact?: boolean;
   disabled: boolean;
@@ -155,6 +160,8 @@ export function CodeEditor({
   workspacePath?: string;
   botId?: string;
   originConversationId?: string;
+  /** A per-workspace cache indexed by the immutable document identity. */
+  viewState?: { key: string; cache: Map<string, CodeEditorViewState> };
 }) {
   const modelInstanceId = useId();
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -177,6 +184,8 @@ export function CodeEditor({
   valueRef.current = value;
   disabledRef.current = disabled;
   const supportSignature = projectSupportSignature(value);
+  const viewStateCache = viewState?.cache;
+  const viewStateKey = viewState?.key;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -240,6 +249,10 @@ export function CodeEditor({
       tabSize: 2,
       wordWrap: "off",
     });
+    const previousViewState = viewStateKey
+      ? viewStateCache?.get(viewStateKey)
+      : undefined;
+    if (previousViewState) editor.restoreViewState(previousViewState);
 
     let stateFrame = 0;
     const emitState = () => {
@@ -303,6 +316,9 @@ export function CodeEditor({
     scheduleState();
 
     return () => {
+      const latestViewState = viewStateKey ? editor.saveViewState() : null;
+      if (viewStateKey && latestViewState)
+        viewStateCache?.set(viewStateKey, latestViewState);
       if (stateFrame) cancelAnimationFrame(stateFrame);
       changeDisposable.dispose();
       for (const disposable of stateDisposables) disposable.dispose();
@@ -322,6 +338,8 @@ export function CodeEditor({
     modelInstanceId,
     botId,
     originConversationId,
+    viewStateCache,
+    viewStateKey,
   ]);
 
   useEffect(() => {
@@ -358,6 +376,7 @@ export function CodeEditor({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh is an explicit retry/revision nonce for the same project request.
   useEffect(() => {
+    if (!active) return;
     if (
       !workspacePath ||
       !path ||
@@ -442,6 +461,7 @@ export function CodeEditor({
       }
     };
   }, [
+    active,
     language.id,
     path,
     projectSupportRefresh,
@@ -453,13 +473,14 @@ export function CodeEditor({
 
   useEffect(() => {
     if (
+      !active ||
       !workspacePath ||
       !path ||
       (language.id !== "typescript" && language.id !== "javascript")
     ) {
       return;
     }
-    let active = true;
+    let current = true;
     let checking = false;
     const checkRevision = async () => {
       if (checking || document.visibilityState === "hidden") return;
@@ -472,7 +493,7 @@ export function CodeEditor({
           entryPath: path,
         });
         if (
-          active &&
+          current &&
           projectRevisionRef.current &&
           revision !== projectRevisionRef.current
         ) {
@@ -496,11 +517,11 @@ export function CodeEditor({
     const timer = window.setInterval(() => void checkRevision(), 2_500);
     window.addEventListener("focus", checkRevision);
     return () => {
-      active = false;
+      current = false;
       window.clearInterval(timer);
       window.removeEventListener("focus", checkRevision);
     };
-  }, [language.id, path, workspacePath, botId, originConversationId]);
+  }, [active, language.id, path, workspacePath, botId, originConversationId]);
 
   useEffect(
     () => () => {

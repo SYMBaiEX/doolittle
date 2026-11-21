@@ -413,6 +413,7 @@ export function App() {
   const [ideNavigationExpanded, setIdeNavigationExpanded] = useState(false);
   const [parkedEditor, setParkedEditor] =
     useState<DesktopNavigationEntry | null>(null);
+  const parkedEditorRef = useRef<DesktopNavigationEntry | null>(null);
   const [navigationHistory, setNavigationHistory] = useState(() =>
     createDesktopNavigationHistory(route),
   );
@@ -426,6 +427,7 @@ export function App() {
   const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
   const [chatTerminalMounted, setChatTerminalMounted] = useState(false);
   const [terminalOrigin, setTerminalOrigin] = useState<ComputerOrigin>();
+  const [terminalFocusRequest, setTerminalFocusRequest] = useState(0);
   const terminalOpenIntent = useRef(createTerminalOpenIntent());
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
@@ -870,6 +872,23 @@ export function App() {
     else openUtilities();
   }, [closeUtilities, openUtilities, utilityOpen]);
 
+  const terminalConversation = scopeForSession(selectedSession);
+  const visibleTerminalOrigin =
+    renderedView === "code"
+      ? computerOrigin
+      : renderedView === "chat" &&
+          !viewingGroups &&
+          terminalConversation.kind === "confirmed"
+        ? {
+            botId: terminalConversation.conversation.botId,
+            originConversationId: selectedSession,
+            workspacePath: terminalConversation.conversation.workspacePath,
+          }
+        : undefined;
+  const terminalVisible =
+    chatTerminalOpen &&
+    Boolean(terminalOrigin && visibleTerminalOrigin) &&
+    sameComputerOrigin(terminalOrigin, visibleTerminalOrigin);
   const terminalContextKey = JSON.stringify([
     selectedSession,
     view,
@@ -895,6 +914,17 @@ export function App() {
   }, []);
 
   const openChatTerminal = useCallback(() => {
+    if (terminalVisible) {
+      setTerminalFocusRequest((request) => request + 1);
+      return;
+    }
+    if (renderedView !== "code" && (renderedView !== "chat" || viewingGroups)) {
+      pushToast({
+        tone: "info",
+        title: "Open Chat or IDE View to use the terminal",
+      });
+      return;
+    }
     const owner = sessionBotId(
       selectedSession,
       sessions,
@@ -982,6 +1012,7 @@ export function App() {
         setMobileSidebarOpen(false);
         setChatTerminalMounted(true);
         setChatTerminalOpen(true);
+        setTerminalFocusRequest((request) => request + 1);
       },
       () => {
         pushToast({
@@ -1007,38 +1038,23 @@ export function App() {
     scopeForSession,
     recordConversationScope,
     terminalContextKey,
+    terminalVisible,
+    renderedView,
+    viewingGroups,
     pushToast,
   ]);
 
   const toggleChatTerminal = useCallback(() => {
-    if (chatTerminalOpen || terminalOpenIntent.current.isPending())
+    if (terminalVisible || terminalOpenIntent.current.isPending())
       closeChatTerminal();
     else openChatTerminal();
-  }, [chatTerminalOpen, closeChatTerminal, openChatTerminal]);
+  }, [terminalVisible, closeChatTerminal, openChatTerminal]);
 
   useEffect(() => {
     if (chatTerminalOpen || !chatTerminalMounted) return;
     const timer = window.setTimeout(() => setChatTerminalMounted(false), 210);
     return () => window.clearTimeout(timer);
   }, [chatTerminalMounted, chatTerminalOpen]);
-
-  const confirmViewChange = useCallback((next: View) => {
-    if (
-      primaryViewForView(routeRef.current.view) === "code" &&
-      primaryViewForView(next) !== "code" &&
-      !confirmDirtyNavigation({
-        dirty: codeWorkspaceDirty.current,
-        confirm: () =>
-          window.confirm(
-            "This coding workspace has unsaved edits. Leave and discard them?",
-          ),
-        discard: () => undefined,
-      })
-    ) {
-      return false;
-    }
-    return true;
-  }, []);
 
   const applyViewTransition = useCallback(
     (
@@ -1048,8 +1064,8 @@ export function App() {
         computerOrigin: suppliedOrigin,
       }: { skipDirtyCheck?: boolean; computerOrigin?: ComputerOrigin } = {},
     ) => {
-      if (!skipDirtyCheck && !confirmViewChange(next)) return false;
       const previous = routeRef.current;
+      const parked = parkedEditorRef.current;
       const computer = renderedViewForView(next) === "code";
       const wasComputer = renderedViewForView(previous.view) === "code";
       let origin = computer ? suppliedOrigin : undefined;
@@ -1080,11 +1096,11 @@ export function App() {
       );
       const previousEditorOrigin = wasComputer
         ? previous.computerOrigin
-        : parkedEditor?.computerOrigin;
+        : parked?.computerOrigin;
       if (
         !skipDirtyCheck &&
         computer &&
-        (wasComputer || parkedEditor) &&
+        (wasComputer || parked) &&
         !sameComputerOrigin(previousEditorOrigin, origin) &&
         !confirmDirtyNavigation({
           dirty: codeWorkspaceDirty.current,
@@ -1101,7 +1117,15 @@ export function App() {
         routeRef.current = nextRoute;
         setRoute(nextRoute);
       }
-      if (computer && parkedEditor) setParkedEditor(null);
+      // Navigation parks the mounted editor for its exact workspace owner.
+      // A different owner replaces it only after the dirty check above.
+      if (wasComputer && !computer && previous.computerOrigin?.workspacePath) {
+        parkedEditorRef.current = previous;
+        setParkedEditor(previous);
+      } else if (computer && parked) {
+        parkedEditorRef.current = null;
+        setParkedEditor(null);
+      }
       void warmDesktopRoute(next, backend.phase, workspace.currentPath).catch(
         () => undefined,
       );
@@ -1112,7 +1136,6 @@ export function App() {
     [
       backend.phase,
       closeUtilities,
-      confirmViewChange,
       utilityModalMode,
       workspace.currentPath,
       setMobileSidebarOpen,
@@ -1122,7 +1145,6 @@ export function App() {
       defaultBotId,
       scopeForSession,
       setCodeWorkspaceDirty,
-      parkedEditor,
     ],
   );
 
@@ -1222,16 +1244,20 @@ export function App() {
       const current = routeRef.current;
       if (next === "ide") {
         const origin = scopeForSession(selectedSession);
-        void openComputerView(
-          "code",
+        const ownedOrigin =
           origin.kind === "confirmed"
             ? {
                 botId: origin.conversation.botId,
                 originConversationId: selectedSession,
                 workspacePath: origin.conversation.workspacePath,
               }
-            : undefined,
-        );
+            : undefined;
+        const parked = parkedEditorRef.current;
+        const target =
+          ownedOrigin && sameComputerOrigin(ownedOrigin, parked?.computerOrigin)
+            ? (parked?.view ?? "code")
+            : "code";
+        void openComputerView(target, ownedOrigin);
         return;
       }
       if (renderedViewForView(current.view) !== "code") {
@@ -1245,8 +1271,7 @@ export function App() {
       }
       // Keep the exact editor owner mounted, while its requests and shortcuts
       // are suspended. A later editor for a different origin still checks dirtiness.
-      if (setView("chat", { skipDirtyCheck: true })) {
-        setParkedEditor(current);
+      if (setView("chat")) {
         if (origin.originConversationId !== selectedSession)
           setSelectedSession(origin.originConversationId);
       }
@@ -1465,7 +1490,6 @@ export function App() {
     transitionToProjectScope,
   } = useWorkspaceProjectNavigation({
     backendReady: backend.phase === "ready",
-    confirmViewChange,
     createSessionId: newConversationId,
     setCodeEditingLocked,
     pathsEqual,
@@ -1533,7 +1557,6 @@ export function App() {
       return;
     const bot = newChatBot;
     if (!bot) return;
-    if (!confirmViewChange("chat")) return;
     const id = newConversationId();
     const scope = newChatScope;
     const navigationAtChoice = { ...newChatNavigationRef.current };
@@ -1658,7 +1681,6 @@ export function App() {
     setView,
     botCreationOpen,
     botCreationDirty,
-    confirmViewChange,
   ]);
 
   const openBot = useCallback(
@@ -1834,8 +1856,6 @@ export function App() {
     ) => {
       if (newChatBusyRef.current)
         throw new Error("A chat is already being opened.");
-      if (destination === "chat" && !confirmViewChange("chat"))
-        throw new Error("Navigation canceled; the current chat was kept.");
       const navigationAtChoice = { ...newChatNavigationRef.current };
       const botId = sessionBotId(
         sourceSessionId,
@@ -1934,7 +1954,6 @@ export function App() {
     },
     [
       selectedSession,
-      confirmViewChange,
       sessions,
       localBotBindings,
       defaultBotId,
@@ -2044,7 +2063,6 @@ export function App() {
       return (await openComputerView("code", origin)) ? origin : undefined;
     },
     openScopedContextChat: async (resolution, onActivated) => {
-      if (!confirmViewChange("chat")) return false;
       const selection = { ...newChatNavigationRef.current };
       const saved = sessions.find(
         (session) => session.sessionId === resolution.sessionId,
@@ -2654,6 +2672,7 @@ export function App() {
       backend={backend}
       chatChromeHost={chatChromeHost}
       chatRouteActive={chatRouteActive}
+      terminalOpen={terminalVisible}
       codeEditingLocked={codeEditingLocked}
       navigation={{
         chooseRepositoryForConversation: (
@@ -2861,7 +2880,7 @@ export function App() {
             searchPlaceholder="Search commands, projects, chats, and files…"
             sessionsCount={sessions.length}
             sidebarSessions={sidebarSessions}
-            terminalOpen={chatTerminalOpen}
+            terminalOpen={terminalVisible}
             title="Command menu"
             workspacePath={workspace.currentPath}
           />
@@ -3156,7 +3175,8 @@ export function App() {
             <ChatTerminalPanel
               active={backend.phase === "ready"}
               height={chatTerminalHeight}
-              open={chatTerminalOpen}
+              open={terminalVisible}
+              focusRequest={terminalFocusRequest}
               onClose={closeChatTerminal}
               onResize={setChatTerminalHeight}
               onSendToChat={(text) => {

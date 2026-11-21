@@ -1,6 +1,8 @@
+import { PanelTabList } from "@doolittle/ui";
 import type { LucideIcon } from "lucide-react";
-import { PanelTabs, panelTabId } from "../components/PanelTabs";
+import { panelTabId } from "../components/PanelTabs";
 import { UiIcon } from "../components/UiIcon";
+import "./pane-tabs.css";
 
 export { panelTabId as paneTabId };
 
@@ -23,18 +25,19 @@ export function PaneTabs<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <PanelTabs
-      id={panelId}
+    <PanelTabList
+      className="coding-tabs ide-pane-tabs"
       label={label}
       items={options.map((option) => ({
         id: option.id,
+        buttonId: panelTabId(panelId, option.id),
         panelId,
         label: (
           <>
             {option.icon ? <UiIcon icon={option.icon} size="xs" /> : null}
             <span className="coding-tab-label">{option.label}</span>
             {option.count === undefined ? null : (
-              <span className="text-xs text-[var(--muted)] tabular-nums">
+              <span className="ide-pane-tab-count" aria-hidden="true">
                 {option.count}
               </span>
             )}
@@ -44,7 +47,7 @@ export function PaneTabs<T extends string>({
       }))}
       selected={value}
       onSelect={onChange}
-      variant="pane"
+      tabClassName="ide-pane-tab"
     />
   );
 }

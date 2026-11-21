@@ -1,24 +1,27 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import {
+  ChevronDown,
   FolderOpen,
   GitBranch,
   Maximize2,
+  MoreHorizontal,
   PanelLeft,
   PanelRight,
   RefreshCw,
+  Terminal,
 } from "lucide-react";
 import { PanelTabs } from "../components/PanelTabs";
 import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import { workspaceName } from "../desktop-navigation";
-import { Badge, ErrorBlock } from "../lib";
+import { ErrorBlock } from "../lib";
 import {
   CODING_GLOBAL_NOTICE_CLASS,
   CODING_LAYOUT_BUTTON_CLASS,
   CODING_REPO_HEADER_CLASS,
-  CODING_REPO_STATE_CLASS,
 } from "./layout";
 import type { RepositorySummary } from "./models";
+import "./coding-workspace-shell.css";
 
 export type CodeSurface = "workspace" | "preview";
 const SURFACES = [
@@ -31,6 +34,7 @@ export function CodingWorkspaceHeader({
   explorerVisible,
   surface,
   utilityVisible,
+  terminalOpen,
   zenMode,
   summary,
   hasSummary,
@@ -41,6 +45,7 @@ export function CodingWorkspaceHeader({
   onRefresh,
   onToggleExplorer,
   onToggleUtility,
+  onOpenTerminal,
   onToggleZen,
   onRetrySummary,
   onSurfaceChange,
@@ -49,6 +54,7 @@ export function CodingWorkspaceHeader({
   explorerVisible: boolean;
   surface: CodeSurface;
   utilityVisible: boolean;
+  terminalOpen: boolean;
   zenMode: boolean;
   summary: RepositorySummary;
   hasSummary: boolean;
@@ -59,6 +65,7 @@ export function CodingWorkspaceHeader({
   onRefresh: () => void;
   onToggleExplorer: () => void;
   onToggleUtility: () => void;
+  onOpenTerminal: () => void;
   onToggleZen: () => void;
   onRetrySummary: () => void;
   onSurfaceChange: (surface: CodeSurface) => void;
@@ -100,148 +107,141 @@ export function CodingWorkspaceHeader({
   ].filter((tool) => surface === "workspace" || !tool.pane);
   return (
     <>
-      <ContextActionMenu
-        label="Code workspace"
-        scopeKey={summary.root ?? ""}
-        items={[
-          {
-            id: "change-repository",
-            label: "Change repository",
-            disabled: !active,
-            onSelect: onChangeRepository,
-          },
-          {
-            id: "refresh",
-            label: "Refresh workspace",
-            disabled: !active,
-            onSelect: onRefresh,
-          },
-          {
-            id: "code",
-            label: "Show code",
-            separatorBefore: true,
-            onSelect: () => onSurfaceChange("workspace"),
-          },
-          {
-            id: "preview",
-            label: "Show preview",
-            onSelect: () => onSurfaceChange("preview"),
-          },
-          {
-            id: "explorer",
-            label: explorerVisible ? "Hide explorer" : "Show explorer",
-            disabled: surface !== "workspace",
-            shortcut: "⌘/Ctrl B",
-            onSelect: onToggleExplorer,
-          },
-          {
-            id: "utility",
-            label: utilityVisible ? "Hide utility rail" : "Show utility rail",
-            disabled: surface !== "workspace",
-            shortcut: "⌘/Ctrl J",
-            onSelect: onToggleUtility,
-          },
-          {
-            id: "focus",
-            label: zenMode ? "Leave focus mode" : "Enter focus mode",
-            shortcut: "⌘/Ctrl Shift Z",
-            onSelect: onToggleZen,
-          },
-          {
-            id: "copy-path",
-            label: "Copy workspace path",
-            separatorBefore: true,
-            disabled: !summary.root,
-            onSelect: () => copyContextText(summary.root ?? ""),
-          },
-          {
-            id: "copy-branch",
-            label: "Copy branch name",
-            disabled: !repositoryReady || !summary.branch,
-            onSelect: () => copyContextText(summary.branch ?? ""),
-          },
-        ]}
-      >
-        <header className={CODING_REPO_HEADER_CLASS}>
-          <h1 className="sr-only">
-            {path ? workspaceName(path) : "Workspace"}
-          </h1>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 px-1">
-            <PanelTabs
-              id="code-surface"
-              label="Workspace views"
-              items={SURFACES}
-              selected={surface}
-              onSelect={onSurfaceChange}
-            />
-            <div
-              className={`${CODING_REPO_STATE_CLASS} shrink min-w-0 justify-center px-1.5 max-[720px]:hidden`}
+      <header className={CODING_REPO_HEADER_CLASS}>
+        <h1 className="sr-only">{path ? workspaceName(path) : "Workspace"}</h1>
+        <div className="ide-workspace-bar">
+          <div className="ide-workspace-identity">
+            <button
+              aria-label="Change repository"
+              className="ide-repository-picker"
+              disabled={!active}
+              onClick={onChangeRepository}
+              title={path || "Choose a workspace folder"}
+              type="button"
             >
+              <UiIcon icon={FolderOpen} />
+              <span>{path ? workspaceName(path) : "Workspace"}</span>
+              <UiIcon icon={ChevronDown} size="xs" />
+            </button>
+            <div className="ide-repository-status">
               {repositoryReady ? (
-                <>
-                  <span
-                    className="inline-flex min-w-0 items-center gap-1.5"
-                    title={summary.head}
-                  >
-                    <UiIcon icon={GitBranch} size="xs" />
-                    <span className="truncate font-mono">
-                      {summary.branch ?? "Detached HEAD"}
-                    </span>
+                <span
+                  title={[summary.branch, divergence, summary.head]
+                    .filter(Boolean)
+                    .join(" · ")}
+                >
+                  <UiIcon icon={GitBranch} size="xs" />
+                  <span className="truncate">
+                    {summary.branch ?? "Detached HEAD"}
                   </span>
-                  <Badge tone={summary.dirty ? "warn" : "good"}>
-                    {summary.dirty
-                      ? `${summary.changedFiles} changed`
-                      : "Clean"}
-                  </Badge>
-                  {divergence ? <span>{divergence}</span> : null}
-                </>
+                  {summary.dirty ? (
+                    <span
+                      className="ide-repository-changes"
+                      title={`${summary.changedFiles} changed files`}
+                    >
+                      {summary.changedFiles}
+                    </span>
+                  ) : null}
+                </span>
               ) : summaryLoading ? (
-                <span role="status">Syncing workspace…</span>
-              ) : hasSummary && !summary.isRepository && !summaryError ? (
-                <Badge>No Git repository</Badge>
+                <span role="status">Loading repository…</span>
+              ) : hasSummary && !hasRepository && !summaryError ? (
+                <span>Local folder</span>
               ) : null}
             </div>
-            <fieldset className="m-0 ml-auto flex min-w-0 shrink-0 items-center gap-1 border-0 px-1 py-0">
-              <legend className="sr-only">Workspace controls</legend>
+          </div>
+
+          <PanelTabs
+            id="code-surface"
+            label="Workspace views"
+            items={SURFACES}
+            selected={surface}
+            onSelect={onSurfaceChange}
+          />
+
+          <fieldset className="ide-workspace-controls">
+            <legend className="sr-only">Workspace controls</legend>
+            {tools.map((tool) => (
               <button
-                aria-label="Change repository"
-                className="secondary-button inline-flex min-h-9 shrink-0 items-center gap-1.5 px-2 text-xs max-[760px]:min-h-11 max-[760px]:min-w-11"
-                disabled={!active}
-                onClick={onChangeRepository}
-                title="Open a new chat and IDE in another folder"
-                type="button"
-              >
-                <UiIcon icon={FolderOpen} size="sm" />
-                <span className="max-[760px]:sr-only">Change repository</span>
-              </button>
-              <button
-                aria-label="Refresh workspace"
+                aria-label={tool.label}
+                aria-pressed={tool.pressed}
                 className={CODING_LAYOUT_BUTTON_CLASS}
-                disabled={!active}
-                onClick={onRefresh}
-                title="Refresh workspace"
+                data-code-pane-toggle={tool.pane}
+                key={tool.label}
+                onClick={tool.onClick}
+                title={tool.hint}
                 type="button"
               >
-                <UiIcon icon={RefreshCw} size="sm" />
+                <UiIcon icon={tool.icon} />
               </button>
-              {tools.map((tool) => (
+            ))}
+            <button
+              aria-label="Terminal"
+              aria-expanded={terminalOpen}
+              className={CODING_LAYOUT_BUTTON_CLASS}
+              disabled={!active}
+              onClick={onOpenTerminal}
+              title={terminalOpen ? "Focus terminal" : "Open terminal"}
+              type="button"
+            >
+              <UiIcon icon={Terminal} />
+            </button>
+            <ContextActionMenu
+              label="Code workspace"
+              scopeKey={path}
+              items={[
+                {
+                  id: "refresh",
+                  label: "Refresh workspace",
+                  disabled: !active,
+                  onSelect: onRefresh,
+                },
+                {
+                  id: "change-repository",
+                  label: "Change repository",
+                  disabled: !active,
+                  onSelect: onChangeRepository,
+                },
+                {
+                  id: "copy-path",
+                  label: "Copy workspace path",
+                  separatorBefore: true,
+                  disabled: !path,
+                  onSelect: () => void copyContextText(path),
+                },
+                {
+                  id: "copy-branch",
+                  label: "Copy branch name",
+                  disabled: !repositoryReady || !summary.branch,
+                  onSelect: () => void copyContextText(summary.branch ?? ""),
+                },
+              ]}
+              trigger={
                 <button
-                  aria-label={tool.label}
-                  aria-pressed={tool.pressed}
+                  aria-label="Workspace actions"
                   className={CODING_LAYOUT_BUTTON_CLASS}
-                  data-code-pane-toggle={tool.pane}
-                  key={tool.label}
-                  onClick={tool.onClick}
-                  title={tool.hint}
+                  title="Workspace actions"
                   type="button"
                 >
-                  <UiIcon icon={tool.icon} size="sm" />
+                  <UiIcon icon={MoreHorizontal} />
                 </button>
-              ))}
-            </fieldset>
-          </div>
-        </header>
-      </ContextActionMenu>
+              }
+            >
+              {null}
+            </ContextActionMenu>
+            <button
+              aria-label="Refresh workspace"
+              className={`ide-refresh-direct ${CODING_LAYOUT_BUTTON_CLASS}`}
+              disabled={!active}
+              onClick={onRefresh}
+              title="Refresh workspace"
+              type="button"
+            >
+              <UiIcon icon={RefreshCw} />
+            </button>
+          </fieldset>
+        </div>
+      </header>
 
       {summaryError ? (
         <div className={CODING_GLOBAL_NOTICE_CLASS}>

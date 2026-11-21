@@ -132,8 +132,6 @@ interface UseWorkspaceProjectNavigationOptions {
     sessionId: string,
     projectId: string | null,
   ) => void;
-  /** Checks whether a view may be left without committing the route change. */
-  readonly confirmViewChange: (view: View) => boolean;
   /** Returns whether the route change was committed (for example, after a dirty-edit prompt). */
   readonly setView: (
     view: View,
@@ -180,7 +178,6 @@ export function useWorkspaceProjectNavigation({
   setProjectScope,
   setSelectedSession,
   captureSessionProject,
-  confirmViewChange,
   setView,
   setWorkspace,
   workspace,
@@ -415,9 +412,8 @@ export function useWorkspaceProjectNavigation({
         !pathsEqual(project?.primaryPath, workspace.currentPath);
       const workspaceSwitchWasPreflighted = needsWorkspaceSwitch;
       if (workspaceSwitchWasPreflighted) {
-        const approved = nextView
-          ? confirmViewChange(nextView)
-          : (confirmWorkspaceChange?.() ?? true);
+        const approved =
+          nextView === "chat" || (confirmWorkspaceChange?.() ?? true);
         if (!approved) {
           coordinator.clearPending(transition);
           return Promise.resolve(false);
@@ -483,7 +479,6 @@ export function useWorkspaceProjectNavigation({
     [
       activateProjectWorkspace,
       captureSessionProject,
-      confirmViewChange,
       confirmWorkspaceChange,
       coordinator,
       pathsEqual,

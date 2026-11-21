@@ -112,6 +112,7 @@ export interface DesktopRouteContentProps {
   codeEditingLocked: boolean;
   chatChromeHost: HTMLElement | null;
   chatRouteActive?: boolean;
+  terminalOpen?: boolean;
   routeVisible?: boolean;
   workspacePath: string;
   computerOrigin?: ComputerOrigin;
@@ -129,6 +130,7 @@ export function DesktopRouteContent({
   backend,
   chatChromeHost,
   chatRouteActive = true,
+  terminalOpen = false,
   routeVisible = true,
   codeEditingLocked,
   navigation,
@@ -301,6 +303,7 @@ export function DesktopRouteContent({
         return (
           <Route
             active={active}
+            visible={routeVisible}
             canCreateWorktree={Boolean(
               bots.find((bot) =>
                 computerOrigin.botId === "default"
@@ -335,6 +338,7 @@ export function DesktopRouteContent({
               chooseRepository(dirty, path)
             }
             onOpenChatTerminal={navigation.openChatTerminal}
+            terminalOpen={terminalOpen}
             onDirtyChange={onCodeWorkspaceDirtyChange}
             onSendToChat={navigation.openChatWithContext}
             projectScope={projectScope}

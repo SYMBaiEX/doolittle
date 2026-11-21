@@ -14,6 +14,7 @@ import {
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
 } from "../../apps/desktop/src/renderer/panel-layout";
+import { codeWorkspaceDockFit } from "../../apps/desktop/src/renderer/workspace-layout-state";
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -25,6 +26,24 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 describe("panel layout persistence", () => {
+  it("keeps the editor usable while docking each IDE side pane when its width fits", () => {
+    expect(codeWorkspaceDockFit(540, true)).toEqual({
+      explorer: false,
+      utility: false,
+    });
+    expect(codeWorkspaceDockFit(700, true)).toEqual({
+      explorer: true,
+      utility: false,
+    });
+    expect(codeWorkspaceDockFit(700, false)).toEqual({
+      explorer: true,
+      utility: true,
+    });
+    expect(codeWorkspaceDockFit(900, true)).toEqual({
+      explorer: true,
+      utility: true,
+    });
+  });
   it("expands automatically borrowed navigation by closing Activity, without changing saved preference", () => {
     const input = {
       isMobileSidebarMode: false,

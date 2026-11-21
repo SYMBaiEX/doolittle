@@ -1,4 +1,4 @@
-import { Globe2 } from "lucide-react";
+import { ArrowUpRight, ChevronRight, Globe2, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { UiIcon } from "../components/UiIcon";
 import {
@@ -21,22 +21,15 @@ import {
   WORKBENCH_EMPTY_CLASS,
   WORKBENCH_LIST_BUTTON_CLASS,
   WORKBENCH_LIST_CLASS,
-  WORKBENCH_ORBIT_MARK_CLASS,
   WORKBENCH_PANEL_CLASS,
-  WORKBENCH_PANEL_HEADING_CLASS,
-  WORKBENCH_PANEL_TITLE_CLASS,
   WORKBENCH_PLAN_CARD_CLASS,
   WORKBENCH_PLAN_LIST_CLASS,
-  WORKBENCH_PREVIEW_COPY_CLASS,
-  WORKBENCH_PREVIEW_ORBIT_CLASS,
-  WORKBENCH_PREVIEW_STATUS_CLASS,
   WORKBENCH_QUICK_NAV_CLASS,
   WORKBENCH_SCROLL_BODY_CLASS,
   WORKBENCH_SETTINGS_CLASS,
   WORKBENCH_SETTINGS_GRID_CLASS,
   WORKBENCH_SETTINGS_ITEM_CLASS,
   WORKBENCH_SETTINGS_NAV_CLASS,
-  WORKBENCH_TEXT_BUTTON_CLASS,
 } from "./layout";
 import {
   branchHeadLabel,
@@ -114,19 +107,36 @@ function PlansPanel({ controller }: { controller: PlansPanelController }) {
               .map((step) => asString(step))
               .filter(Boolean);
             return (
-              <article className={WORKBENCH_PLAN_CARD_CLASS} key={id}>
-                <div>
-                  <strong>{asString(plan.title, "Untitled plan")}</strong>
+              <details
+                className={`${WORKBENCH_PLAN_CARD_CLASS} workspace-inspector-disclosure`}
+                key={id}
+              >
+                <summary>
+                  <UiIcon icon={ChevronRight} size="sm" />
+                  <strong title={asString(plan.title)}>
+                    {asString(plan.title, "Untitled plan")}
+                  </strong>
                   <Badge tone={statusTone(status)}>{status}</Badge>
+                </summary>
+                <div className="workspace-inspector-plan-content">
+                  {plan.objective ? <p>{asString(plan.objective)}</p> : null}
+                  {steps.length ? (
+                    <ol>
+                      {steps.map((step, index) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: Runtime steps are ordered text with no IDs, and may repeat.
+                        <li key={`${step}-${index}`}>{step}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <small>No steps recorded.</small>
+                  )}
+                  {plan.updatedAt ? (
+                    <time dateTime={asString(plan.updatedAt)}>
+                      {displayTimestamp(asString(plan.updatedAt))}
+                    </time>
+                  ) : null}
                 </div>
-                <p>{asString(plan.objective, "No objective recorded.")}</p>
-                <small>
-                  {steps.length} {steps.length === 1 ? "step" : "steps"}
-                  {plan.updatedAt
-                    ? ` · ${displayTimestamp(asString(plan.updatedAt))}`
-                    : ""}
-                </small>
-              </article>
+              </details>
             );
           })}
           {!planEntries.length ? (
@@ -266,7 +276,7 @@ function BriefPanel({
           </section>
 
           <section className={WORKBENCH_BRIEF_LIST_CLASS}>
-            <h3>Task and approval pressure</h3>
+            <h3>Tasks and approvals</h3>
             {delegatedTaskEntries.length ? (
               <div className={WORKBENCH_LIST_CLASS}>
                 {delegatedTaskEntries.slice(0, 6).map((entry, index) => {
@@ -347,13 +357,13 @@ function BriefPanel({
           </section>
 
           <section className={WORKBENCH_BRIEF_LIST_CLASS}>
-            <h3>Automation + terminal pressure</h3>
+            <h3>Runs and commands</h3>
             <div className={WORKBENCH_LIST_CLASS}>
               <article className={WORKBENCH_BRIEF_STAT_CLASS}>
                 <span>Codegen</span>
                 <strong>{`${activeRunCount} active · ${failedRunCount} failed`}</strong>
                 <small>
-                  {runEntries.length} recent run(s),{" "}
+                  {runEntries.length} recent,{" "}
                   {asNumber(codegen.data?.summary?.total)} total
                 </small>
               </article>
@@ -446,7 +456,7 @@ function SettingsPanel({
             </article>
           </section>
           <section>
-            <h3>Runtime settings snapshot</h3>
+            <h3>Runtime settings</h3>
             <div className={WORKBENCH_SETTINGS_GRID_CLASS}>
               {settingEntries.length ? (
                 settingEntries.map((setting) => (
@@ -496,7 +506,7 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
   const previewMode =
     asString(previewRecord.mode) ||
     asString(previewRecord.captureMode) ||
-    "Available";
+    "Status unavailable";
   return (
     <div
       className={WORKBENCH_SCROLL_BODY_CLASS}
@@ -508,21 +518,17 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
         retry={preview.reload}
       />
       {!preview.loading && !preview.error ? (
-        <div className={WORKBENCH_PREVIEW_STATUS_CLASS}>
-          <div className={WORKBENCH_PREVIEW_ORBIT_CLASS} aria-hidden="true">
-            <i />
-            <span className={WORKBENCH_ORBIT_MARK_CLASS}>
-              <UiIcon icon={Globe2} size="sm" />
-            </span>
-          </div>
-          <Badge tone="good">{previewMode}</Badge>
-          <strong>Local preview tools are connected</strong>
-          <p className={WORKBENCH_PREVIEW_COPY_CLASS}>
-            Inspect, capture, compare, and analyze your running app without
-            leaving the thread.
-          </p>
+        <section
+          aria-label="Browser preview status"
+          className="workspace-inspector-section"
+        >
+          <header className="workspace-inspector-section-title">
+            <UiIcon icon={Globe2} size="sm" />
+            <h3>Browser status</h3>
+            <Badge>{previewMode}</Badge>
+          </header>
           {Object.keys(previewRecord).length ? (
-            <dl>
+            <dl className="workspace-inspector-details">
               {Object.entries(previewRecord)
                 .filter(([, value]) =>
                   ["string", "number", "boolean"].includes(typeof value),
@@ -535,8 +541,12 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
                   </div>
                 ))}
             </dl>
-          ) : null}
-        </div>
+          ) : (
+            <p className="workspace-inspector-empty">
+              The runtime has not reported a preview.
+            </p>
+          )}
+        </section>
       ) : null}
     </div>
   );
@@ -554,7 +564,7 @@ export function WorkbenchPanels({
   const previewMode =
     asString(previewRecord.mode) ||
     asString(previewRecord.captureMode) ||
-    "Available";
+    "Status unavailable";
   const selectedFullView = FULL_VIEW[model.selectedTab];
   const panelMeta = workbenchPanelMeta(model.selectedTab, {
     approvals: controller.approvalEntries.length,
@@ -569,32 +579,30 @@ export function WorkbenchPanels({
 
   return (
     <section className={WORKBENCH_PANEL_CLASS} data-thread-workbench="panel">
-      <div className={WORKBENCH_PANEL_HEADING_CLASS}>
-        <div>
-          <span className={WORKBENCH_PANEL_TITLE_CLASS}>
-            {TAB_LABELS[model.selectedTab]}
-          </span>
-          <small>{panelMeta}</small>
-        </div>
-        <div>
+      <header className="workspace-inspector-evidence-heading thread-workbench-panel-heading">
+        <strong>{TAB_LABELS[model.selectedTab]}</strong>
+        <small title={panelMeta}>{panelMeta}</small>
+        <button
+          aria-label="Refresh panel"
+          className="workspace-inspector-icon"
+          onClick={controller.refreshCurrent}
+          title="Refresh panel"
+          type="button"
+        >
+          <UiIcon icon={RefreshCw} size="sm" />
+        </button>
+        {selectedFullView ? (
           <button
-            className={WORKBENCH_TEXT_BUTTON_CLASS}
+            aria-label="Open full view"
+            className="workspace-inspector-icon"
+            onClick={() => onOpenFullView(selectedFullView)}
+            title="Open full view"
             type="button"
-            onClick={controller.refreshCurrent}
           >
-            Refresh
+            <UiIcon icon={ArrowUpRight} size="sm" />
           </button>
-          {selectedFullView ? (
-            <button
-              className={WORKBENCH_TEXT_BUTTON_CLASS}
-              onClick={() => onOpenFullView(selectedFullView)}
-              type="button"
-            >
-              Open full view
-            </button>
-          ) : null}
-        </div>
-      </div>
+        ) : null}
+      </header>
 
       {model.selectedTab === "files" ? (
         <FilesPanel

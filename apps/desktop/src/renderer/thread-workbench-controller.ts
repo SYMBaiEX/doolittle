@@ -440,7 +440,11 @@ export function useThreadWorkbenchRailController({
     () => detectCodeLanguage(currentFile),
     [currentFile],
   );
-  const currentChange = selectedChange || changeEntries[0]?.path;
+  const currentChange = changeEntries.some(
+    ({ path }) => path === selectedChange,
+  )
+    ? selectedChange
+    : changeEntries[0]?.path;
   const currentCommand =
     commandEntries.find(
       (entry, index) =>

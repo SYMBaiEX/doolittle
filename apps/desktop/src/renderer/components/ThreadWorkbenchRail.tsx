@@ -29,7 +29,7 @@ export function ThreadWorkbenchRail({
     onInsertContext,
   });
   return (
-    <div className="thread-workbench flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="thread-workbench flex min-h-0 flex-1 flex-col overflow-hidden">
       <WorkbenchPanels
         {...{ botId, controller, onOpenFullView, sessionId, workspacePath }}
       />
