@@ -39,6 +39,7 @@ export async function prepareNativeTurnSetup(input: {
   effectiveInput: ChatTurnRequest;
   context: AgentExecutionContext;
   preparedTurn?: PreparedTurnState;
+  signal?: AbortSignal;
 }): Promise<NativeTurnSetup> {
   const { turn, scheduleProfileObservation } =
     input.preparedTurn ?? prepareTurnState(input.input, input.context);
@@ -55,13 +56,11 @@ export async function prepareNativeTurnSetup(input: {
   )
     ? "doolittle"
     : "eliza-message-service";
-  await startTrackedTurn(
-    input.input,
-    input.context,
-    turn,
-    messagePolicy,
-    routingOwner,
-  );
+  await startTrackedTurn(input.input, input.context, turn, {
+    effectiveAgentPolicy: messagePolicy,
+    nativeUserMemoryOwner: routingOwner,
+    signal: input.signal,
+  });
   const modelSettings = turn.settings?.model ?? {};
   recordEvaluationTraceEvent(input.context, {
     category: "turn",

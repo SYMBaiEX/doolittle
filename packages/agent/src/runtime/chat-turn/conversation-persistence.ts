@@ -15,7 +15,7 @@ export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const NATIVE_MEMORY_PAGE_SIZE = 500;
+const NATIVE_MEMORY_PAGE_SIZE = 2000;
 const hydratedNativeRooms = new WeakMap<object, Set<string>>();
 
 function nativeHydrationKey(turn: TurnState): string {
@@ -212,19 +212,7 @@ function canDeleteMemory(
   return typeof runtime.deleteMemory === "function";
 }
 
-function canReadMemories(
-  runtime: AgentExecutionContext["runtime"],
-): runtime is AgentExecutionContext["runtime"] & {
-  getMemories(params: {
-    roomId: UUID;
-    tableName: string;
-    limit: number;
-    offset: number;
-    orderBy: string;
-    orderDirection: "asc" | "desc";
-    includeEmbedding: boolean;
-  }): Promise<Memory[]>;
-} {
+function canReadMemories(runtime: AgentExecutionContext["runtime"]): boolean {
   return typeof runtime.getMemories === "function";
 }
 
@@ -255,44 +243,49 @@ function assertCompleteNativeMemoryMutationCapability(
 async function nativeMemoriesInRoom(
   context: AgentExecutionContext,
   roomId: UUID,
+  signal?: AbortSignal,
 ): Promise<Memory[]> {
   if (!canReadMemories(context.runtime)) return [];
   const memories: Memory[] = [];
-  const seenPages = new Set<string>();
-  let offset = 0;
+  let cursor: { createdAt: number; id: UUID } | undefined;
 
   for (;;) {
+    signal?.throwIfAborted();
     const page = await context.runtime.getMemories({
       roomId,
       tableName: "messages",
       limit: NATIVE_MEMORY_PAGE_SIZE,
-      offset,
+      ...(cursor ? { cursor } : {}),
       orderBy: "createdAt",
       orderDirection: "desc",
       includeEmbedding: false,
     });
-    if (!page.length) break;
+    signal?.throwIfAborted();
+    if (!page.length) return memories;
 
-    // A non-conforming adapter that ignores offset must not turn recovery into
-    // an infinite loop. Memory IDs are authoritative page identities here.
-    const pageKey = page
-      .map((memory) => String(memory.id ?? ""))
-      .join("\u0000");
-    if (seenPages.has(pageKey)) break;
-    seenPages.add(pageKey);
+    // Preserve the SDK's (createdAt, id) order including same-millisecond rows.
+    // Reject a stalled or partial scan before it could replace the read model.
+    const first = page[0];
+    if (
+      cursor &&
+      (first.createdAt === undefined ||
+        first.createdAt > cursor.createdAt ||
+        (first.createdAt === cursor.createdAt &&
+          (!first.id || first.id >= cursor.id)))
+    ) {
+      throw new Error("Native conversation history did not advance.");
+    }
     memories.push(...page);
-    if (page.length < NATIVE_MEMORY_PAGE_SIZE) break;
-    offset += page.length;
+    if (page.length < NATIVE_MEMORY_PAGE_SIZE) return memories;
+    const last = page.at(-1);
+    if (
+      !last?.id ||
+      last.createdAt === undefined ||
+      !Number.isFinite(last.createdAt)
+    )
+      throw new Error("Native conversation history cursor is unavailable.");
+    cursor = { createdAt: last.createdAt, id: last.id };
   }
-
-  return memories;
-}
-
-async function nativeConversationMemories(
-  context: AgentExecutionContext,
-  turn: TurnState,
-): Promise<Memory[]> {
-  return (await nativeMemoriesInRoom(context, turn.roomId as UUID)).reverse();
 }
 
 /**
@@ -617,9 +610,10 @@ function unchangedProjection(
 async function hydrateNativeRoomFromProjection(
   context: AgentExecutionContext,
   turn: TurnState,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (
-    typeof context.runtime.getMemories !== "function" ||
+    !canReadMemories(context.runtime) ||
     typeof context.runtime.createMemory !== "function"
   ) {
     return;
@@ -627,13 +621,19 @@ async function hydrateNativeRoomFromProjection(
   if (isNativeRoomHydrated(context, turn)) return;
   // Fetch the whole authoritative transcript before replacing the projection.
   // Replacing from a suffix would silently delete older cache rows.
-  const nativeMessages = await nativeConversationMemories(context, turn);
-  const conversationMemories = nativeMessages.filter(
-    (memory) =>
-      memory.id &&
-      contentText(memory.content) &&
-      isConversationMemory(context, memory),
+  const nativeMessages = await nativeMemoriesInRoom(
+    context,
+    turn.roomId as UUID,
+    signal,
   );
+  const conversationMemories = nativeMessages
+    .reverse()
+    .filter(
+      (memory) =>
+        memory.id &&
+        contentText(memory.content) &&
+        isConversationMemory(context, memory),
+    );
   if (conversationMemories.length > 0) {
     const existing = context.services.sessions.messagesBySession(
       turn.sessionId,
@@ -715,8 +715,15 @@ export async function persistUserTurnMemory(input: {
   text: string;
   attachments?: StoredMessageAttachment[];
   nativeOwner?: NativeUserMemoryOwner;
+  signal?: AbortSignal;
 }): Promise<void> {
-  await hydrateNativeRoomFromProjection(input.context, input.turn);
+  input.signal?.throwIfAborted();
+  await hydrateNativeRoomFromProjection(
+    input.context,
+    input.turn,
+    input.signal,
+  );
+  input.signal?.throwIfAborted();
   const memory: Memory = {
     id: input.turn.messageId as UUID,
     agentId: input.context.runtime.agentId,

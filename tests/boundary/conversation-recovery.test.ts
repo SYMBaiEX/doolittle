@@ -81,13 +81,13 @@ function fixture(failure: Failure) {
     async getMemories(input: {
       roomId: string;
       limit: number;
-      offset: number;
+      offset?: number;
     }) {
       return native
         .prepare(
           "SELECT payload FROM memories WHERE room_id = ? ORDER BY json_extract(payload, '$.createdAt') DESC LIMIT ? OFFSET ?",
         )
-        .all(input.roomId, input.limit, input.offset)
+        .all(input.roomId, input.limit, input.offset ?? 0)
         .map((row) => JSON.parse(String(row.payload)) as Memory);
     },
     async createMemory(memory: Memory) {

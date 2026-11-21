@@ -57,6 +57,7 @@ export async function runPostCommandTurn(
       effectiveInput,
       context,
       preparedTurn: prepared,
+      signal: options.abortSignal,
     });
     perf.mark("persist-user-turn");
     const settingsDuring = applyRuntimeOverrides(

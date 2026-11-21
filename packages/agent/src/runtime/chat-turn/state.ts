@@ -127,13 +127,17 @@ export async function startTrackedTurn(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
   turn: TurnState,
-  effectiveAgentPolicy?: {
-    runDepth: RunDepth;
-    maxIterations: number;
-    toolProgressMode: ToolProgressMode;
+  options: {
+    effectiveAgentPolicy?: {
+      runDepth: RunDepth;
+      maxIterations: number;
+      toolProgressMode: ToolProgressMode;
+    };
+    nativeUserMemoryOwner?: NativeUserMemoryOwner;
+    signal?: AbortSignal;
   },
-  nativeUserMemoryOwner: NativeUserMemoryOwner = "doolittle",
 ): Promise<void> {
+  const { effectiveAgentPolicy, nativeUserMemoryOwner, signal } = options;
   const modelSettings = turn.settings?.model ?? {};
   await persistUserTurnMemory({
     context,
@@ -142,6 +146,7 @@ export async function startTrackedTurn(
     text: input.message,
     attachments: input.attachmentDescriptors,
     nativeOwner: nativeUserMemoryOwner,
+    signal,
   });
   recordEvaluationTraceEvent(context, {
     category: "turn",
