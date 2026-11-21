@@ -1,17 +1,22 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readRegularFile } from "@doolittle/storage";
 import type { PackageJsonSummary } from "./types";
 
-export function readPackageJsonSummary(
+const PACKAGE_JSON_BYTE_LIMIT = 2 * 1024 * 1024;
+
+export async function readPackageJsonSummary(
   projectPath: string,
-): PackageJsonSummary {
-  const packageJsonPath = join(projectPath, "package.json");
-  if (!existsSync(packageJsonPath)) {
-    return { workspacePatterns: [], scripts: [] };
-  }
+  signal?: AbortSignal,
+): Promise<PackageJsonSummary> {
+  signal?.throwIfAborted();
 
   try {
-    const parsed = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+    const bytes = await readRegularFile(
+      join(projectPath, "package.json"),
+      PACKAGE_JSON_BYTE_LIMIT,
+      { signal },
+    );
+    const parsed = JSON.parse(bytes.toString("utf8")) as {
       name?: unknown;
       packageManager?: unknown;
       workspaces?: unknown;
@@ -49,6 +54,7 @@ export function readPackageJsonSummary(
           : [],
     };
   } catch {
+    signal?.throwIfAborted();
     return { workspacePatterns: [], scripts: [] };
   }
 }

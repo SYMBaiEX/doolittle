@@ -1,19 +1,33 @@
-import { existsSync } from "node:fs";
+import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { runTextProcess } from "../process-execution";
 import type { LocalProjectInspection } from "./types";
 
 export async function inspectGitState(
   projectPath: string,
+  signal?: AbortSignal,
 ): Promise<LocalProjectInspection["git"]> {
-  const gitDirectory = join(projectPath, ".git");
-  if (!existsSync(gitDirectory)) {
+  signal?.throwIfAborted();
+  try {
+    await access(join(projectPath, ".git"));
+  } catch {
+    signal?.throwIfAborted();
     return { available: false };
   }
 
   const [status, recentCommit] = await Promise.all([
-    readGitStatus(projectPath),
-    readRecentCommit(projectPath),
+    readGitText(
+      projectPath,
+      ["status", "--short", "--branch"],
+      "git-status",
+      signal,
+    ),
+    readGitText(
+      projectPath,
+      ["log", "-1", "--pretty=format:%h%x20%s"],
+      "git-log",
+      signal,
+    ),
   ]);
 
   return {
@@ -23,34 +37,26 @@ export async function inspectGitState(
   };
 }
 
-async function readGitStatus(projectPath: string): Promise<string | undefined> {
-  try {
-    const { stdout, exitCode } = await runTextProcess(
-      "git",
-      ["-C", projectPath, "status", "--short", "--branch"],
-      { toolName: "doolittle.project-inspection.git-status" },
-    );
-    if (exitCode !== 0) return undefined;
-    const status = stdout.trim();
-    return status || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-async function readRecentCommit(
+async function readGitText(
   projectPath: string,
+  args: string[],
+  operation: "git-status" | "git-log",
+  signal?: AbortSignal,
 ): Promise<string | undefined> {
+  signal?.throwIfAborted();
   try {
     const { stdout, exitCode } = await runTextProcess(
       "git",
-      ["-C", projectPath, "log", "-1", "--pretty=format:%h%x20%s"],
-      { toolName: "doolittle.project-inspection.git-log" },
+      ["-C", projectPath, ...args],
+      {
+        toolName: `doolittle.project-inspection.${operation}`,
+        abortSignal: signal,
+      },
     );
-    if (exitCode !== 0) return undefined;
-    const recentCommit = stdout.trim();
-    return recentCommit || undefined;
-  } catch {
+    signal?.throwIfAborted();
+    return exitCode === 0 ? stdout.trim() || undefined : undefined;
+  } catch (error) {
+    if (signal?.aborted) throw error;
     return undefined;
   }
 }

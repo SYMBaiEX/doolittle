@@ -1,5 +1,8 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { readdir } from "node:fs/promises";
+import { basename, join } from "node:path";
+import { readRegularFile } from "@doolittle/storage";
+import { isWorkspacePathVisible } from "../workspace-service/policy";
+import { iterateWorkspaceTree } from "../workspace-service/tree";
 
 const PROJECT_KIND_MARKERS = [
   ["package.json", "JavaScript/TypeScript package"],
@@ -34,14 +37,6 @@ const PROMINENT_ROOTS = [
   "src",
 ] as const;
 
-const IGNORED_TOP_ENTRIES = new Set([
-  ".git",
-  ".next",
-  ".playwright-cli",
-  "node_modules",
-  "dist",
-]);
-
 const NOTABLE_FILE_NAMES = [
   "package.json",
   "main.ts",
@@ -60,67 +55,40 @@ const NOTABLE_FILE_NAMES = [
   "README.md",
 ] as const;
 
-export function detectProjectKind(projectPath: string): string {
+const PROJECT_README_BYTE_LIMIT = 1024 * 1024;
+
+function detectProjectKind(entries: Set<string>): string {
   const detected = PROJECT_KIND_MARKERS.filter(([file]) =>
-    existsSync(join(projectPath, file)),
+    entries.has(file),
   ).map(([, label]) => label);
   return detected.length > 0 ? detected.join(", ") : "project directory";
 }
 
-export function readProjectReadme(projectPath: string): string | undefined {
+export async function readProjectReadme(
+  projectPath: string,
+  maxLines: number,
+  signal?: AbortSignal,
+): Promise<string | undefined> {
   for (const candidate of README_CANDIDATES) {
-    const target = join(projectPath, candidate);
-    if (!existsSync(target)) {
-      continue;
-    }
-
+    signal?.throwIfAborted();
     try {
-      const preview = readFileSync(target, "utf8")
+      const bytes = await readRegularFile(
+        join(projectPath, candidate),
+        PROJECT_README_BYTE_LIMIT,
+        { signal },
+      );
+      const preview = bytes
+        .toString("utf8")
         .split(/\r?\n/u)
         .map((line) => line.trim())
         .filter(Boolean)
-        .slice(0, 120)
+        .slice(0, Math.min(120, maxLines))
         .join("\n");
-      if (preview) {
-        return preview;
-      }
-    } catch {
-      return undefined;
+      if (preview) return preview;
+    } catch (error) {
+      signal?.throwIfAborted();
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") return undefined;
     }
-  }
-
-  return undefined;
-}
-
-function listFiles(
-  rootPath: string,
-  currentPath: string,
-  depth: number,
-): string[] {
-  if (depth < 0) {
-    return [];
-  }
-
-  try {
-    return readdirSync(currentPath)
-      .filter(
-        (entry) =>
-          !entry.startsWith(".") &&
-          entry !== "node_modules" &&
-          entry !== "_generated",
-      )
-      .flatMap((entry) => {
-        const targetPath = join(currentPath, entry);
-        try {
-          return statSync(targetPath).isDirectory()
-            ? listFiles(rootPath, targetPath, depth - 1)
-            : [relative(rootPath, targetPath)];
-        } catch {
-          return [];
-        }
-      });
-  } catch {
-    return [];
   }
 }
 
@@ -135,52 +103,68 @@ function notableFileScore(path: string): number {
   );
 }
 
-export function collectNotableFiles(projectPath: string): string[] {
-  const rootFiles = NOTABLE_FILE_NAMES.filter((fileName) =>
-    existsSync(join(projectPath, fileName)),
-  );
-  const roots = PROMINENT_ROOTS.filter((rootName) =>
-    existsSync(join(projectPath, rootName)),
-  );
-  const perRoot = roots.flatMap((rootName) =>
-    listFiles(projectPath, join(projectPath, rootName), 2)
-      .sort((left, right) => {
-        const scoreDifference =
-          notableFileScore(left) - notableFileScore(right);
-        return scoreDifference || left.localeCompare(right);
-      })
-      .slice(0, 3),
-  );
-
-  return [...new Set([...rootFiles, ...perRoot])].slice(0, 32);
-}
-
-export function collectKeyFolders(projectPath: string): string[] {
-  const roots = PROMINENT_ROOTS.filter((rootName) =>
-    existsSync(join(projectPath, rootName)),
-  );
-  const keyFolders: string[] = [...roots];
-
-  for (const rootName of roots) {
-    const rootPath = join(projectPath, rootName);
-    try {
-      const children = readdirSync(rootPath)
-        .filter((entry) => !entry.startsWith("."))
-        .sort((left, right) => left.localeCompare(right))
-        .slice(0, 4)
-        .map((entry) => `${rootName}/${entry}`);
-      keyFolders.push(...children);
-    } catch {
-      // Best effort only.
+async function inspectProminentRoot(
+  projectPath: string,
+  rootName: string,
+  signal?: AbortSignal,
+): Promise<{ children: string[]; files: string[] }> {
+  const children: string[] = [];
+  const bestFiles: Array<{ path: string; score: number }> = [];
+  try {
+    for await (const entry of iterateWorkspaceTree(projectPath, 2, {
+      startDir: join(projectPath, rootName),
+      requireCanonicalDirectories: true,
+      signal,
+      includeName: (name) => !name.startsWith(".") && name !== "_generated",
+    })) {
+      if (entry.depth === 0 && children.length < 4) {
+        children.push(entry.path);
+      }
+      if (entry.type !== "file") continue;
+      const score = notableFileScore(entry.path);
+      const position = bestFiles.findIndex(
+        (candidate) =>
+          score < candidate.score ||
+          (score === candidate.score &&
+            entry.path.localeCompare(candidate.path) < 0),
+      );
+      if (position >= 0) {
+        bestFiles.splice(position, 0, { path: entry.path, score });
+        bestFiles.length = Math.min(bestFiles.length, 3);
+      } else if (bestFiles.length < 3) {
+        bestFiles.push({ path: entry.path, score });
+      }
     }
+  } catch {
+    signal?.throwIfAborted();
+    // Unavailable or concurrently removed project subdirectories remain optional.
   }
-
-  return [...new Set(keyFolders)].slice(0, 20);
+  return { children, files: bestFiles.map(({ path }) => path) };
 }
 
-export function listTopEntries(projectPath: string, limit: number): string[] {
-  return readdirSync(projectPath)
-    .filter((entry) => !IGNORED_TOP_ENTRIES.has(entry))
+export async function inspectProjectLayout(
+  projectPath: string,
+  limit: number,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const entries = (await readdir(projectPath, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() || entry.isFile())
+    .filter((entry) => isWorkspacePathVisible(entry.name));
+  signal?.throwIfAborted();
+  const names = new Set(entries.map(({ name }) => name));
+  const files = new Set(
+    entries.filter((entry) => entry.isFile()).map(({ name }) => name),
+  );
+  const directories = new Set(
+    entries.filter((entry) => entry.isDirectory()).map(({ name }) => name),
+  );
+  const roots = PROMINENT_ROOTS.filter((name) => directories.has(name));
+  const details = await Promise.all(
+    roots.map((name) => inspectProminentRoot(projectPath, name, signal)),
+  );
+  signal?.throwIfAborted();
+  const topEntries = [...names]
     .sort((left, right) => {
       const leftHidden = left.startsWith(".");
       const rightHidden = right.startsWith(".");
@@ -190,4 +174,16 @@ export function listTopEntries(projectPath: string, limit: number): string[] {
       return left.localeCompare(right);
     })
     .slice(0, limit);
+  return {
+    type: detectProjectKind(names),
+    topEntries,
+    keyFolders: [
+      ...roots,
+      ...details.flatMap(({ children }) => children),
+    ].slice(0, 20),
+    notableFiles: [
+      ...NOTABLE_FILE_NAMES.filter((name) => files.has(name)),
+      ...details.flatMap(({ files }) => files),
+    ].slice(0, 32),
+  };
 }

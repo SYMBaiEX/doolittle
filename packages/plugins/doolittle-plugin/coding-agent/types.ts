@@ -84,6 +84,7 @@ export type InspectLocalProject = (
   options?: {
     topEntriesLimit?: number;
     readmeLines?: number;
+    signal?: AbortSignal;
   },
 ) => Promise<LocalProjectInspection>;
 

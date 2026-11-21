@@ -92,8 +92,16 @@ export function createCodingAgentServiceClass(
       return this.shell.run(command);
     }
 
-    inspectProject(targetPath?: string) {
-      return options.inspectProject(targetPath ?? this.workspace.root());
+    inspectProject(
+      targetPath?: string,
+      inspectionOptions?: Parameters<
+        CodingAgentPluginOptions["inspectProject"]
+      >[1],
+    ) {
+      return options.inspectProject(
+        targetPath ?? this.workspace.root(),
+        inspectionOptions,
+      );
     }
 
     findCodebases(query: string) {

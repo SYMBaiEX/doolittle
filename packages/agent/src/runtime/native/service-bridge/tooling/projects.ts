@@ -2,6 +2,7 @@ import type {
   LocalProjectInspection,
   LocalProjectTarget,
 } from "../../../../services/project-inspection/index";
+import { getScopedTurnAbortSignal } from "../../../turn-runtime-scope";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeCodingAgent } from "./native-services";
 
@@ -10,7 +11,9 @@ export async function inspectNativeProject(
   projectPath?: string,
 ): Promise<LocalProjectInspection> {
   const service = requireNativeCodingAgent(runtime);
-  return (await service.inspectProject(projectPath)) as LocalProjectInspection;
+  return (await service.inspectProject(projectPath, {
+    signal: getScopedTurnAbortSignal(runtime),
+  })) as LocalProjectInspection;
 }
 
 export async function findNativeLocalCodebases(

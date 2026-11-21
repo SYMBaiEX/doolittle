@@ -54,7 +54,7 @@ export async function loadHotExecutionPlugins(
       shell: {
         run: (command) => services.terminal.run(command),
       },
-      inspectProject: (targetPath) => inspectLocalProject(targetPath),
+      inspectProject: inspectLocalProject,
       findCodebases: (query, workspaceRoot) =>
         findLocalCodebases(query, workspaceRoot),
       resolveProjectTarget: (inputPath, workspaceRoot) =>
