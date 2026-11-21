@@ -11,7 +11,7 @@ import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
 
 import { resolveSandboxPaths, SandboxOwnershipLease } from "./ownership";
 import { collectProcessEnv, resolveExecutionCommand } from "./runtime";
-import { SandboxStore } from "./sandbox-store";
+import { resolveSandboxTemplate, SandboxStore } from "./sandbox-store";
 import {
   DOOLITTLE_SANDBOX_IMAGE,
   type E2BExecutionResult,
@@ -50,6 +50,10 @@ export class LocalSandboxService extends ElizaService {
   ) => SandboxManagerLike;
   private readonly ownershipLease: SandboxOwnershipLease;
   private acceptingOperations = false;
+  private preparation?: Promise<void>;
+  private orphanCleanupManager?: SandboxManagerLike;
+  private orphanSweepUnverified = false;
+  private implicitCreation?: Promise<string>;
 
   constructor(
     runtime?: IAgentRuntime,
@@ -69,26 +73,17 @@ export class LocalSandboxService extends ElizaService {
     options: LocalSandboxServiceOptions = {},
   ): Promise<LocalSandboxService> {
     const service = new LocalSandboxService(runtime, options);
-    service.ownershipLease.acquire();
-    try {
-      await service.cleanupOrphans();
-      service.acceptingOperations = true;
-      return service;
-    } catch (error) {
-      try {
-        service.ownershipLease.release();
-      } catch (releaseError) {
-        throw new AggregateError(
-          [error, releaseError],
-          "Sandbox startup and ownership release both failed",
-        );
-      }
-      throw error;
-    }
+    service.acceptingOperations = true;
+    return service;
   }
 
   async stop(): Promise<void> {
     this.acceptingOperations = false;
+    // Preparation can still be inspecting or cleaning the owned namespace.
+    // Let it finish before releasing the lease or closing any sandbox handles.
+    await this.preparation?.catch(() => undefined);
+    await this.stopOrphanCleanupManager();
+    if (this.orphanSweepUnverified) await this.cleanupOrphans();
     const handles = [...this.handles.values()];
     for (const handle of handles) {
       handle.closing = true;
@@ -108,8 +103,10 @@ export class LocalSandboxService extends ElizaService {
 
   async createSandbox(options: E2BSandboxOptions = {}): Promise<string> {
     this.assertAcceptingOperations();
-    // The store validates templates before creating a workspace or manager.
-    const record = this.sandboxStore.createSandbox(options);
+    const template = resolveSandboxTemplate(options.template);
+    await this.prepareForUse();
+    this.assertAcceptingOperations();
+    const record = this.sandboxStore.createSandbox(template, options.metadata);
     const containerPrefix = `${this.containerPrefix}-${record.id}`;
     let manager: SandboxManagerLike;
     try {
@@ -134,24 +131,22 @@ export class LocalSandboxService extends ElizaService {
     try {
       handle.ready = manager.start();
       await handle.ready;
-      return record.id;
     } catch (error) {
-      handle.closing = true;
       try {
-        await this.stopManagerVerified(manager, record.id);
+        await this.closeHandle(handle);
       } catch (stopError) {
-        handle.ready = Promise.resolve();
-        handle.cleanupPending = true;
-        this.sandboxStore.deactivateSandbox(record.id);
         throw new AggregateError(
           [error, stopError],
           `Failed to start or clean up sandbox: ${record.id}`,
         );
       }
-      this.handles.delete(record.id);
-      this.sandboxStore.removeSandbox(record.id);
       throw error;
     }
+    // Shutdown owns this handle once it starts draining. Do not return an ID
+    // for a container the caller can no longer use.
+    this.assertAcceptingOperations();
+    if (handle.closing) throw new SandboxClosingError(record.id);
+    return record.id;
   }
 
   async killSandbox(id?: string): Promise<void> {
@@ -205,23 +200,71 @@ export class LocalSandboxService extends ElizaService {
     return this.sandboxStore.getActiveSandboxId();
   }
 
+  private prepareForUse(): Promise<void> {
+    // Eliza's standard SandboxManager checks the container engine synchronously.
+    // Keep it off service startup and retry only when sandbox use is requested.
+    this.preparation ??= this.prepareNamespace().catch((error: unknown) => {
+      this.preparation = undefined;
+      throw error;
+    });
+    return this.preparation;
+  }
+
+  private async prepareNamespace(): Promise<void> {
+    if (!this.ownershipLease.held) this.ownershipLease.acquire();
+    try {
+      if (this.orphanCleanupManager) await this.stopOrphanCleanupManager();
+      await this.cleanupOrphans();
+    } catch (error) {
+      if (this.orphanCleanupManager || this.orphanSweepUnverified) throw error;
+      try {
+        this.ownershipLease.release();
+      } catch (releaseError) {
+        throw new AggregateError(
+          [error, releaseError],
+          "Sandbox preparation and ownership release both failed",
+        );
+      }
+      throw error;
+    }
+  }
+
   private async cleanupOrphans(): Promise<void> {
     const cleanupManager = this.createManager(
       this.containerPrefix,
       this.sandboxStore.rootDir,
     );
+    this.orphanCleanupManager = cleanupManager;
+    // SDK start sweeps existing containers before it acquires a container ID.
+    // Stopping this manager cannot verify a sweep that failed before that ID.
+    this.orphanSweepUnverified = true;
     try {
       await cleanupManager.start();
     } catch (error) {
-      await this.stopManagerVerified(cleanupManager, "startup-cleanup");
+      try {
+        await this.stopOrphanCleanupManager();
+      } catch (stopError) {
+        throw new AggregateError(
+          [error, stopError],
+          "Sandbox preparation and cleanup both failed",
+        );
+      }
       throw error;
     }
-    await this.stopManagerVerified(cleanupManager, "startup-cleanup");
+    this.orphanSweepUnverified = false;
+    await this.stopOrphanCleanupManager();
     this.sandboxStore.cleanupRoot();
   }
 
+  private async stopOrphanCleanupManager(): Promise<void> {
+    const manager = this.orphanCleanupManager;
+    if (!manager) return;
+    await this.stopManagerVerified(manager, "startup-cleanup");
+    this.orphanCleanupManager = undefined;
+  }
+
   private assertAcceptingOperations(): void {
-    if (!this.acceptingOperations || !this.ownershipLease.held) {
+    if (!this.acceptingOperations) {
       throw new SandboxOwnershipError(
         "Local sandbox service is not accepting operations",
         this.ownershipLease.lockPath,
@@ -237,7 +280,7 @@ export class LocalSandboxService extends ElizaService {
     this.sandboxStore.deactivateSandbox(handle.record.id);
     handle.closePromise = (async () => {
       try {
-        await handle.ready;
+        await handle.ready.catch(() => undefined);
         await handle.queue;
         if (handle.cleanupPending) {
           const recoveryManager = this.createManager(
@@ -312,7 +355,10 @@ export class LocalSandboxService extends ElizaService {
       return activeHandle;
     }
 
-    const createdId = await this.createSandbox();
+    this.implicitCreation ??= this.createSandbox().finally(() => {
+      this.implicitCreation = undefined;
+    });
+    const createdId = await this.implicitCreation;
     const createdHandle = this.handles.get(createdId);
     if (!createdHandle) {
       throw new Error(`Sandbox manager not found: ${createdId}`);

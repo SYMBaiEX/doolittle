@@ -1,11 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
-import type {
-  E2BSandboxOptions,
-  E2BSandboxRecord,
-  SupportedSandboxTemplate,
-} from "./types";
+import type { E2BSandboxRecord, SupportedSandboxTemplate } from "./types";
 import { SandboxNotFoundError, UnsupportedSandboxTemplateError } from "./types";
 
 function nowIso(): string {
@@ -18,6 +14,14 @@ function createSandboxId(): string {
     : `sandbox-${Date.now()}`;
 }
 
+export function resolveSandboxTemplate(
+  template?: string,
+): SupportedSandboxTemplate {
+  if (template === undefined || template === "node-js") return "node-js";
+  if (template === "python") return "python";
+  throw new UnsupportedSandboxTemplateError(template);
+}
+
 export class SandboxStore {
   private readonly sandboxes = new Map<string, E2BSandboxRecord>();
   private activeSandboxId?: string;
@@ -26,14 +30,16 @@ export class SandboxStore {
     mkdirSync(this.rootDir, { recursive: true });
   }
 
-  createSandbox(options: E2BSandboxOptions = {}): E2BSandboxRecord {
-    const template = this.resolveTemplate(options.template);
+  createSandbox(
+    template: SupportedSandboxTemplate,
+    metadata: Record<string, string> = {},
+  ): E2BSandboxRecord {
     const id = createSandboxId();
     const record = {
       id,
       path: join(this.rootDir, id),
       template,
-      metadata: options.metadata ?? {},
+      metadata,
       createdAt: nowIso(),
     };
     mkdirSync(record.path, { recursive: true });
@@ -89,15 +95,5 @@ export class SandboxStore {
     mkdirSync(this.rootDir, { recursive: true });
     this.sandboxes.clear();
     this.activeSandboxId = undefined;
-  }
-
-  private resolveTemplate(template?: string): SupportedSandboxTemplate {
-    if (template === undefined || template === "node-js") {
-      return "node-js";
-    }
-    if (template === "python") {
-      return "python";
-    }
-    throw new UnsupportedSandboxTemplateError(template);
   }
 }

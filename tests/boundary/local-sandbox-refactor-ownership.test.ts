@@ -78,16 +78,16 @@ it("rejects a second live owner before cleanup touches its workspace", async () 
     undefined,
     serviceOptions(rootDir, firstFactory),
   );
+  await service.createSandbox();
   const protectedFile = join(rootDir, "keep.txt");
   writeFileSync(protectedFile, "owned work");
   const secondFactory = vi.fn(() => fakeManager());
-  await expect(
-    LocalSandboxService.start(undefined, {
-      ...serviceOptions(rootDir, secondFactory),
-      processId: 41002,
-      nonceFactory: () => "second-nonce",
-    }),
-  ).rejects.toMatchObject({
+  const second = await LocalSandboxService.start(undefined, {
+    ...serviceOptions(rootDir, secondFactory),
+    processId: 41002,
+    nonceFactory: () => "second-nonce",
+  });
+  await expect(second.createSandbox()).rejects.toMatchObject({
     code: "SANDBOX_OWNERSHIP_CONFLICT",
     ownerPid: 41001,
     lockPath,
@@ -116,6 +116,9 @@ it("recovers a stale owner before verified orphan cleanup and removes its recove
     undefined,
     serviceOptions(rootDir, factory),
   );
+  expect(factory).not.toHaveBeenCalled();
+  expect(existsSync(orphanFile)).toBe(true);
+  await service.createSandbox();
   expect(factory).toHaveBeenCalledWith({
     mode: "standard",
     image: "eliza-sandbox:bookworm-slim",
@@ -181,6 +184,7 @@ it("refuses to release a replacement owner with the same PID but a different non
     undefined,
     serviceOptions(rootDir, () => fakeManager()),
   );
+  await service.createSandbox();
   writeFileSync(lockPath, "41001\nreplacement-nonce\n");
   await expect(service.stop()).rejects.toMatchObject({
     code: "SANDBOX_OWNERSHIP_CONFLICT",
@@ -196,9 +200,11 @@ it("preserves malformed ownership records rather than attempting unsafe cleanup"
   const { rootDir, lockPath } = fixture();
   writeFileSync(lockPath, "not an owner record");
   const factory = vi.fn(() => fakeManager());
-  await expect(
-    LocalSandboxService.start(undefined, serviceOptions(rootDir, factory)),
-  ).rejects.toMatchObject({
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, factory),
+  );
+  await expect(service.createSandbox()).rejects.toMatchObject({
     code: "SANDBOX_OWNERSHIP_CONFLICT",
     message: expect.stringContaining("refusing unsafe recovery"),
   });
@@ -211,9 +217,11 @@ it("preserves a competing recovery lease instead of claiming the stale owner loc
   writeFileSync(lockPath, "41000\nstale-nonce\n");
   writeFileSync(`${lockPath}.recovery`, "41002\nrecovering-nonce\n");
   const factory = vi.fn(() => fakeManager());
-  await expect(
-    LocalSandboxService.start(undefined, serviceOptions(rootDir, factory)),
-  ).rejects.toMatchObject({
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, factory),
+  );
+  await expect(service.createSandbox()).rejects.toMatchObject({
     code: "SANDBOX_OWNERSHIP_CONFLICT",
     lockPath: `${lockPath}.recovery`,
   });
@@ -222,4 +230,199 @@ it("preserves a competing recovery lease instead of claiming the stale owner loc
     "41002\nrecovering-nonce\n",
   );
   expect(factory).not.toHaveBeenCalled();
+});
+
+it("keeps the runtime usable with a missing engine and retries only on sandbox use", async () => {
+  const { rootDir, lockPath } = fixture();
+  const unavailable = fakeManager();
+  unavailable.start.mockRejectedValue(
+    new Error("Container engine unavailable"),
+  );
+  const cleanup = fakeManager();
+  const sandbox = fakeManager();
+  const factory = vi
+    .fn(() => sandbox)
+    .mockReturnValueOnce(unavailable)
+    .mockReturnValueOnce(cleanup);
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, factory),
+  );
+  expect(service.listSandboxes()).toEqual([]);
+  await expect(
+    service.createSandbox({ template: "invalid" }),
+  ).rejects.toMatchObject({ code: "UNSUPPORTED_SANDBOX_TEMPLATE" });
+  expect(factory).not.toHaveBeenCalled();
+  expect(existsSync(lockPath)).toBe(false);
+
+  await expect(service.createSandbox()).rejects.toThrow("engine unavailable");
+  expect(service.listSandboxes()).toEqual([]);
+  expect(existsSync(lockPath)).toBe(true);
+
+  const sandboxId = await service.createSandbox({ template: "python" });
+  expect(service.listSandboxes()).toMatchObject([
+    { id: sandboxId, template: "python" },
+  ]);
+  expect(cleanup.stop).toHaveBeenCalledOnce();
+  expect(sandbox.start).toHaveBeenCalledOnce();
+  await service.stop();
+});
+
+it("retains the namespace and workspace if cleanup cannot be verified", async () => {
+  const { rootDir, lockPath } = fixture();
+  const cleanup = fakeManager();
+  const stop = cleanup.stop.getMockImplementation();
+  cleanup.stop.mockRejectedValue(new Error("Cleanup transport failed"));
+  const factory = vi.fn(() => cleanup);
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, factory),
+  );
+  const orphan = join(rootDir, "orphan.txt");
+  writeFileSync(orphan, "retain");
+
+  await expect(service.createSandbox()).rejects.toThrow(
+    "Cleanup transport failed",
+  );
+  expect(existsSync(lockPath)).toBe(true);
+  expect(readFileSync(orphan, "utf8")).toBe("retain");
+  expect(service.listSandboxes()).toEqual([]);
+  await expect(service.stop()).rejects.toThrow("Cleanup transport failed");
+  expect(existsSync(lockPath)).toBe(true);
+  expect(factory).toHaveBeenCalledOnce();
+
+  cleanup.stop.mockImplementation(async () => {
+    await stop?.();
+  });
+  await service.stop();
+  expect(existsSync(lockPath)).toBe(false);
+  expect(readFileSync(orphan, "utf8")).toBe("retain");
+});
+
+it("requires a new orphan sweep when SDK startup failed before acquiring a container ID", async () => {
+  const { rootDir, lockPath } = fixture();
+  const failedSweep = fakeManager();
+  failedSweep.start.mockRejectedValue(new Error("Orphan sweep failed"));
+  const recovered = fakeManager();
+  const factory = vi.fn(() => recovered).mockReturnValueOnce(failedSweep);
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, factory),
+  );
+  const orphan = join(rootDir, "orphan.txt");
+  writeFileSync(orphan, "retain");
+
+  await expect(service.createSandbox()).rejects.toThrow("Orphan sweep failed");
+  expect(failedSweep.stop).toHaveBeenCalledOnce();
+  expect(existsSync(lockPath)).toBe(true);
+  expect(readFileSync(orphan, "utf8")).toBe("retain");
+  await service.stop();
+  expect(recovered.start).toHaveBeenCalledOnce();
+  expect(recovered.stop).toHaveBeenCalledOnce();
+  expect(existsSync(lockPath)).toBe(false);
+  expect(existsSync(orphan)).toBe(false);
+});
+
+it("uses one lazily created sandbox for concurrent implicit execution requests", async () => {
+  const { rootDir } = fixture();
+  const cleanup = fakeManager();
+  const sandbox = {
+    ...fakeManager(),
+    run: vi.fn(async () => ({
+      exitCode: 0,
+      stdout: "isolated",
+      stderr: "",
+      durationMs: 0,
+      executedInSandbox: true,
+    })),
+  };
+  const factory = vi.fn(() => sandbox);
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(
+      rootDir,
+      factory.mockReturnValueOnce({ ...sandbox, ...cleanup }),
+    ),
+  );
+  const [first, second] = await Promise.all([
+    service.executeCode("print('first')"),
+    service.executeCode("print('second')"),
+  ]);
+  expect(first.success).toBe(true);
+  expect(second.success).toBe(true);
+  expect(first.sandboxId).toBe(second.sandboxId);
+  expect(service.listSandboxes()).toHaveLength(1);
+  expect(factory).toHaveBeenCalledTimes(2);
+  expect(sandbox.run).toHaveBeenCalledTimes(2);
+  await service.stop();
+});
+
+it("shares slow engine preparation and preserves ownership until shutdown drains it", async () => {
+  const { rootDir, lockPath } = fixture();
+  const cleanup = fakeManager();
+  let release: () => void = () => undefined;
+  cleanup.start.mockReturnValue(
+    new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  );
+  const factory = vi.fn(() => cleanup);
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, factory),
+  );
+  expect(factory).not.toHaveBeenCalled();
+
+  const first = service.createSandbox();
+  const second = service.createSandbox();
+  const failed = Promise.all(
+    [first, second].map((request) =>
+      expect(request).rejects.toMatchObject({
+        code: "SANDBOX_OWNERSHIP_CONFLICT",
+      }),
+    ),
+  );
+  const shutdown = service.stop();
+  expect(factory).toHaveBeenCalledOnce();
+  expect(existsSync(lockPath)).toBe(true);
+  release();
+  await failed;
+  await shutdown;
+  expect(existsSync(lockPath)).toBe(false);
+  expect(service.listSandboxes()).toEqual([]);
+});
+
+it("drains a container start that crosses shutdown without returning its ID", async () => {
+  const { rootDir, lockPath } = fixture();
+  const cleanup = fakeManager();
+  const sandbox = fakeManager();
+  let release: () => void = () => undefined;
+  const delayedStart = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markStarting: () => void = () => undefined;
+  const starting = new Promise<void>((resolve) => {
+    markStarting = resolve;
+  });
+  const start = sandbox.start.getMockImplementation();
+  sandbox.start.mockImplementation(async () => {
+    markStarting();
+    await delayedStart;
+    await start?.();
+  });
+  const service = await LocalSandboxService.start(
+    undefined,
+    serviceOptions(rootDir, vi.fn(() => sandbox).mockReturnValueOnce(cleanup)),
+  );
+  const request = expect(service.createSandbox()).rejects.toMatchObject({
+    code: "SANDBOX_OWNERSHIP_CONFLICT",
+  });
+  await starting;
+  const shutdown = service.stop();
+  release();
+  await request;
+  await shutdown;
+  expect(sandbox.stop).toHaveBeenCalledOnce();
+  expect(service.listSandboxes()).toEqual([]);
+  expect(existsSync(lockPath)).toBe(false);
 });
