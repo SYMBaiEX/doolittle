@@ -59,6 +59,7 @@ export interface UiRuntimeRegistry {
   assertRunOwner(botId: string, runId: string): Promise<void>;
   conversations: { getRun(runId: string): SavedRun | null };
   backendFor(botId: string): Promise<RuntimeBackend>;
+  readyBackendFor(botId: string): RuntimeBackend | null;
 }
 
 export interface NativeUiBackendOptions {
@@ -344,9 +345,10 @@ export class NativeUiBackend implements UiHostBackend {
       const states = new Map<string, UiRunState>();
       if (["ready", "busy", "waiting"].includes(bot.state)) {
         try {
-          const backend = await this.options.registry.backendFor(bot.id);
-          const state = backend.getState();
-          if (state.phase === "ready" && state.url) {
+          const state = this.options.registry
+            .readyBackendFor(bot.id)
+            ?.getState();
+          if (state?.phase === "ready" && state.url) {
             const sessions = await this.json(`${state.url}/sessions?limit=200`);
             if (
               sessions.status >= 200 &&

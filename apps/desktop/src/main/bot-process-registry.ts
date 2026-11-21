@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
-import { readStoredProject } from "@doolittle/agent/services/session/project-reader";
 import type {
   BotCatalogResponse,
   BotDefinition,
@@ -9,10 +8,7 @@ import type {
   UpdateBotInput,
 } from "@doolittle/contracts/bots";
 import { isActiveRunStatus } from "@doolittle/contracts/run";
-import {
-  invokeClaudeCodeCliPrint,
-  resolveClaudeCliModel,
-} from "@doolittle/plugin-claude-code";
+import type { invokeClaudeCodeCliPrint } from "@doolittle/plugin-claude-code";
 import type {
   BackendLaunchTarget,
   BackendManager,
@@ -106,7 +102,7 @@ export class BotProcessRegistry {
   private readonly activationStates = new Map<string, "starting" | "error">();
   private readonly tokenResolver: TokenResolver;
   private readonly subscriptionStatus: SubscriptionStatusReader;
-  private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
+  private readonly invokeClaudeCli: BotProcessRegistryOptions["invokeClaudeCli"];
   private readonly runtimeFetch: typeof fetch;
   private readonly admission?: DesktopExecutionAdmission;
   private readonly usesSharedEngine: boolean;
@@ -163,7 +159,7 @@ export class BotProcessRegistry {
         );
         return getSubscriptionStatus();
       });
-    this.invokeClaudeCli = options.invokeClaudeCli ?? invokeClaudeCodeCliPrint;
+    this.invokeClaudeCli = options.invokeClaudeCli;
     this.runtimeFetch = options.runtimeFetch ?? fetch;
     this.admission = options.admission;
     this.usesSharedEngine = !options.createBackend;
@@ -251,10 +247,13 @@ export class BotProcessRegistry {
   }> {
     if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(projectId))
       throw new Error("Project ID is invalid.");
-    if (this.defaultBackend.getState().phase !== "ready")
-      throw new Error("The lead runtime is not ready.");
     // Native project consent is client-owned state, independent of a busy
     // engine's HTTP listener. Read the same committed store without writing it.
+    const { readStoredProject } = await import(
+      "@doolittle/agent/services/session/project-reader"
+    );
+    if (this.defaultBackend.getState().phase !== "ready")
+      throw new Error("The lead runtime is not ready.");
     const project = readStoredProject(
       this.defaultBackend.getRuntimeDataDirectory(),
       projectId,
@@ -1288,6 +1287,9 @@ export class BotProcessRegistry {
             this.subscriptionStatus,
           );
           if (signal.aborted) throw new Error("Host request was cancelled.");
+          const { invokeClaudeCodeCliPrint, resolveClaudeCliModel } =
+            await import("@doolittle/plugin-claude-code");
+          if (signal.aborted) throw new Error("Host request was cancelled.");
           const payload = request.payload;
           if (!payload || typeof payload !== "object" || Array.isArray(payload))
             throw new Error("Invalid Claude request.");
@@ -1310,7 +1312,7 @@ export class BotProcessRegistry {
             throw new Error("Invalid Claude request.");
           }
           const scope = await resolveWorkspace(input.sessionId);
-          return this.invokeClaudeCli({
+          return (this.invokeClaudeCli ?? invokeClaudeCodeCliPrint)({
             prompt: input.prompt,
             model: input.model,
             systemPrompt: input.systemPrompt as string | undefined,

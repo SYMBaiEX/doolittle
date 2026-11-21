@@ -20,10 +20,6 @@ import {
   attributeBotSessionResponse,
 } from "./bot-session-routing";
 import {
-  resolveEditorProjectContext,
-  resolveEditorProjectRevision,
-} from "./editor-project-context";
-import {
   parseApiPath,
   validateAgentTransportRequest,
 } from "./ipc/agent-api-policy";
@@ -527,6 +523,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         request.originConversationId === undefined
           ? {}
           : validateComputerOwnerScope(request);
+      // Keep the compiler off startup. Recheck live ownership after loading it.
+      const { resolveEditorProjectContext } = await import(
+        "./editor-project-context"
+      );
       await authorizeComputerRequest(
         scope,
         { backend, bots, admission },
@@ -546,6 +546,9 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         request.originConversationId === undefined
           ? {}
           : validateComputerOwnerScope(request);
+      const { resolveEditorProjectRevision } = await import(
+        "./editor-project-context"
+      );
       await authorizeComputerRequest(
         scope,
         { backend, bots, admission },
@@ -659,6 +662,12 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       const passiveRunRead =
         request.method === "GET" &&
         (pathname === "/chat/runs" || pathname.startsWith("/chat/runs/"));
+      const passiveNamedSessionList =
+        request.method === "GET" &&
+        pathname === "/sessions" &&
+        botId !== "default" &&
+        bots !== undefined &&
+        !bots.get(botId).isDefault;
       const directWrite = isWorkspaceTransportMutation(request.method, pathname)
         ? await authorizeComputerRequest(
             validateComputerOwnerScope({
@@ -677,13 +686,15 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         : undefined;
       try {
         const targetBackend = bots
-          ? passiveRunRead
+          ? passiveRunRead || passiveNamedSessionList
             ? bots.readyBackendFor(botId)
             : await bots.backendFor(botId)
           : backend;
         if (!targetBackend) {
           throw new Error(
-            "The local runtime is not live; run receipt is unavailable.",
+            passiveNamedSessionList
+              ? "The local runtime is not live; conversation inventory is unavailable."
+              : "The local runtime is not live; run receipt is unavailable.",
           );
         }
         const controller = new AbortController();

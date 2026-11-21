@@ -248,6 +248,8 @@ export interface BackendLaunchTarget {
 }
 
 export interface BackendManagerOptions {
+  /** Optional launch prerequisites shared by the initial start and restarts. */
+  beforeSpawn?: Promise<void>;
   /** The desktop's single runtime host owns named agent worker isolates. */
   sharedEngine?: boolean;
   /** An exact worker environment, never merged with desktop process.env. */
@@ -466,6 +468,8 @@ export class BackendManager extends RuntimeEndpoint {
       phase: "booting",
       message: "Starting the private Doolittle runtime…",
     });
+    if (this.options.beforeSpawn) await this.options.beforeSpawn;
+    if (this.stopping || !runtimeStartsAllowed()) return this.getState();
     const deadline = Date.now() + STARTUP_TIMEOUT_MS;
 
     let recentOutput = "";

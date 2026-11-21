@@ -89,6 +89,7 @@ let mainWindow: BrowserWindow | null = null;
 let backend: BackendManager | null = null;
 let bots: BotProcessRegistry | null = null;
 let browserRenderBridge: BrowserRenderBridge | null = null;
+let browserRenderStartup: Promise<void> | undefined;
 let workspaceState: WorkspaceStateManager | null = null;
 let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
 let disposeIpc: (() => void) | null = null;
@@ -744,39 +745,11 @@ if (ownsSingleInstance)
     const target = selectBackendLaunchTarget({
       isPackaged: app.isPackaged,
       packagedRuntime,
-      sourceRuntime: app.isPackaged
-        ? null
-        : sourceRuntimeTarget(
-            sourceRepoRoot ??
-              findRepoRoot([
-                app.getAppPath(),
-                process.cwd(),
-                mainBundleDirectory,
-              ]),
-          ),
+      sourceRuntime: sourceRepoRoot
+        ? sourceRuntimeTarget(sourceRepoRoot)
+        : null,
     });
     const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
-    try {
-      browserRenderBridge = await startBrowserRenderBridge({
-        isManagedAppUrl: (url) =>
-          isActiveManagedRenderUrl(
-            url,
-            () =>
-              backend?.getState() ?? {
-                phase: "booting",
-                message: "Runtime unavailable",
-              },
-            () => backend?.getWorkspaceDirectory() ?? "",
-          ),
-      });
-      target.environment = {
-        ...target.environment,
-        ...browserRenderBridge.environment,
-      };
-    } catch {
-      // Text capture remains available; never report native rendering as ready.
-      console.warn("Private rendered-page capture is unavailable.");
-    }
     const chatAttachmentLifecycles = new Map<string, ChatAttachmentLifecycle>();
     const attachmentLifecycleFor = (botId = "default") => {
       const dataDirectory = bots?.dataDirectory(botId) ?? runtimeDataDir;
@@ -826,12 +799,36 @@ if (ownsSingleInstance)
     const executionAdmission = new DesktopExecutionAdmission(
       readExecutionCapacity(),
     );
+    // Native renderer IPC can start while the independent capture server binds.
+    // The runtime still receives the capture endpoint before any worker starts.
+    browserRenderStartup = startBrowserRenderBridge({
+      isManagedAppUrl: (url) =>
+        isActiveManagedRenderUrl(
+          url,
+          () =>
+            backend?.getState() ?? {
+              phase: "booting",
+              message: "Runtime unavailable",
+            },
+          () => backend?.getWorkspaceDirectory() ?? "",
+        ),
+    }).then(
+      (bridge) => {
+        browserRenderBridge = bridge;
+        target.environment = { ...target.environment, ...bridge.environment };
+      },
+      () => {
+        // Text capture remains available when native rendering is unavailable.
+        console.warn("Private rendered-page capture is unavailable.");
+      },
+    );
     backend = new BackendManager(
       target,
       runtimeDataDir,
       workspaceState.getState().currentPath || fallbackWorkspace,
       fetch,
       {
+        beforeSpawn: browserRenderStartup,
         sharedEngine: true,
         hostRpcBotId: "default",
         ...createWorkerHostBridge({
@@ -1028,7 +1025,6 @@ if (ownsSingleInstance)
       },
     });
     await uiInterfaces.start();
-    if (!corruptUiHost) uiBackend.start();
     let uiWorkspace = workspaceState.getState().currentPath;
     disposeUiWorkspace = workspaceState.subscribe((state) => {
       if (state.currentPath === uiWorkspace) return;
@@ -1037,7 +1033,6 @@ if (ownsSingleInstance)
       uiInterfaces?.workspaceChanged();
     });
     installApplicationMenu();
-    installTray();
     disposeIpc = registerIpc({
       ipcMain,
       backend,
@@ -1102,6 +1097,15 @@ if (ownsSingleInstance)
     mainWindow = createWindow();
     uiInterfaces.attachWindow(mainWindow);
     desktopInitialized = true;
+    setImmediate(() => {
+      if (quitting) return;
+      if (!corruptUiHost) uiBackend?.start();
+      try {
+        installTray();
+      } catch {
+        console.warn("The Doolittle tray is unavailable.");
+      }
+    });
     if (secondInstanceRequested) showMainWindow();
     app.on("activate", () => {
       mainWindow = ensureDesktopWindow(mainWindow, createWindow);
@@ -1128,6 +1132,7 @@ const handleDesktopQuit = createDesktopQuitHandler({
     quitting = value;
   },
   afterStopped: async () => {
+    await browserRenderStartup;
     await browserRenderBridge?.dispose();
     browserRenderBridge = null;
     tray?.destroy();
