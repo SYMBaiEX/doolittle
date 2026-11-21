@@ -205,3 +205,64 @@ it("publishes all interrupted receipts and orphaned journals in one recovery wri
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+it("reopens terminal receipts without rewriting the durable journal", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-terminal-"));
+  try {
+    const runs = new RunControllerService(dataDir);
+    runs.startTurn({
+      sessionId: "finished",
+      runId: "finished",
+      roomId: "finished",
+      source: "desktop",
+      message: "Finished work",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "verbose",
+    });
+    runs.appendTaskEvent("finished", "response.created", {});
+    runs.finishTurn("finished", "complete");
+    const terminal = runs.appendTaskEvent(
+      "finished",
+      "response.completed",
+      {},
+      true,
+    );
+    runs.dispose();
+
+    const publish = vi.fn();
+    const restored = new RunControllerStore(dataDir, { writer: publish });
+    expect(restored.getByRunId("finished")?.status).toBe("complete");
+    expect(restored.getTerminalEvent("finished")).toEqual(terminal);
+    restored.dispose();
+    expect(publish).not.toHaveBeenCalled();
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("writes a normalized journal once when legacy entries are discarded", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-sanitize-"));
+  try {
+    const file = join(dataDir, "run-receipts.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        receipts: [null],
+        events: { empty: [], invalid: [null], malformed: false },
+      }),
+    );
+    const publish = vi.fn();
+    const restored = new RunControllerStore(dataDir, { writer: publish });
+    expect(publish).toHaveBeenCalledExactlyOnceWith(file, {
+      version: 2,
+      receipts: [],
+      events: {},
+    });
+    restored.dispose();
+    expect(publish).toHaveBeenCalledOnce();
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});

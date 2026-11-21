@@ -273,6 +273,16 @@ export class RunControllerStore {
     ) {
       return;
     }
+    // The parsed document is private to this store. Publish again only when
+    // recovery or normalization actually changes the durable representation.
+    this.persistenceDirty =
+      !("version" in parsed) ||
+      parsed.version !== 2 ||
+      Object.keys(parsed).length !== 3 ||
+      !("events" in parsed) ||
+      !parsed.events ||
+      typeof parsed.events !== "object" ||
+      Array.isArray(parsed.events);
     const restoredAt = new Date().toISOString();
     if (
       "events" in parsed &&
@@ -280,35 +290,48 @@ export class RunControllerStore {
       typeof parsed.events === "object"
     ) {
       for (const [runId, events] of Object.entries(parsed.events)) {
-        if (!Array.isArray(events)) continue;
+        if (!Array.isArray(events)) {
+          this.persistenceDirty = true;
+          continue;
+        }
         const validEvents = events
           .filter(isTaskRunEvent)
-          .slice(-RunControllerStore.MAX_EVENTS_PER_RUN)
-          .map(cloneTaskEvent);
-        if (validEvents.length > 0) {
-          const journal: TaskRunJournal = {
-            events: validEvents,
-            bytes: Buffer.byteLength(JSON.stringify(validEvents), "utf8"),
-            lastId: validEvents.at(-1)?.id ?? 0,
-            // Preserve the recorded order of older or externally edited journals.
-            ordered: validEvents.every(
-              (event, index) =>
-                index === 0 || event.id > validEvents[index - 1].id,
-            ),
-            terminalEvent: validEvents.find((event) => event.terminal),
-          };
-          this.trimJournal(journal);
-          this.eventJournals.set(runId, journal);
+          .slice(-RunControllerStore.MAX_EVENTS_PER_RUN);
+        if (!validEvents.length) {
+          this.persistenceDirty = true;
+          continue;
         }
+        const journal: TaskRunJournal = {
+          events: validEvents,
+          bytes: Buffer.byteLength(JSON.stringify(validEvents), "utf8"),
+          lastId: validEvents.at(-1)?.id ?? 0,
+          // Preserve the recorded order of older or externally edited journals.
+          ordered: validEvents.every(
+            (event, index) =>
+              index === 0 || event.id > validEvents[index - 1].id,
+          ),
+          terminalEvent: validEvents.find((event) => event.terminal),
+        };
+        this.trimJournal(journal);
+        if (journal.events.length !== events.length) {
+          this.persistenceDirty = true;
+        }
+        this.eventJournals.set(runId, journal);
       }
     }
-    for (const receipt of parsed.receipts
+    const receipts = parsed.receipts
       .filter(isRunReceiptEnvelope)
-      .slice(-RunControllerStore.MAX_RECEIPTS)) {
+      .slice(-RunControllerStore.MAX_RECEIPTS);
+    if (receipts.length !== parsed.receipts.length)
+      this.persistenceDirty = true;
+    for (const receipt of receipts) {
+      if (!receipt.endedAt || this.receipts.has(receipt.runId)) {
+        this.persistenceDirty = true;
+      }
       const restored = receipt.endedAt
-        ? structuredClone(receipt)
+        ? receipt
         : {
-            ...structuredClone(receipt),
+            ...receipt,
             status: "error" as const,
             terminalReason: "error" as const,
             statusDetail: "Interrupted by runtime restart",
@@ -355,7 +378,6 @@ export class RunControllerStore {
       );
     }
     // Recovery publishes once, after every receipt and journal is restored.
-    this.persistenceDirty = true;
     this.flushPersistence();
   }
 
