@@ -2,8 +2,48 @@ import type { UUID } from "@elizaos/core";
 import type { AgentExecutionContext } from "../chat";
 import type { TurnState } from "./state";
 
-const ensuredConnectionCache = new WeakMap<object, Set<string>>();
-const ensuredParticipantCache = new WeakMap<object, Set<string>>();
+const MAX_INITIALIZED_PER_RUNTIME = 1_024;
+type InitializationCache = WeakMap<object, Map<string, Promise<void> | true>>;
+const ensuredConnectionCache: InitializationCache = new WeakMap();
+const ensuredParticipantCache: InitializationCache = new WeakMap();
+
+function ensureOnce(
+  cache: InitializationCache,
+  runtime: object,
+  identity: string,
+  initialize: () => Promise<void>,
+): Promise<void> | undefined {
+  let entries = cache.get(runtime);
+  if (!entries) {
+    entries = new Map();
+    cache.set(runtime, entries);
+  }
+  const memo = entries;
+  const entry = memo.get(identity);
+  if (entry === true) return;
+  if (entry) return entry;
+
+  const pending = Promise.resolve()
+    .then(initialize)
+    .then(
+      () => {
+        memo.set(identity, true);
+        if (memo.size <= MAX_INITIALIZED_PER_RUNTIME) return;
+        // Pending initializations always stay joinable. Evict only completed work.
+        for (const [key, initialized] of memo) {
+          if (initialized !== true) continue;
+          memo.delete(key);
+          break;
+        }
+      },
+      (error) => {
+        memo.delete(identity);
+        throw error;
+      },
+    );
+  memo.set(identity, pending);
+  return pending;
+}
 
 export async function ensureTurnConnection(
   context: AgentExecutionContext,
@@ -13,39 +53,30 @@ export async function ensureTurnConnection(
     return;
   }
 
-  const runtimeKey = context.runtime as object;
-  const connectionKey = [
+  const runtime = context.runtime;
+  const connectionKey = JSON.stringify([
     input.entityId,
     input.roomId,
     input.worldId,
     input.source,
     input.channelId,
     input.messageServerId,
-  ].join(":");
-  const ensuredConnections =
-    ensuredConnectionCache.get(runtimeKey) ?? new Set<string>();
-  if (!ensuredConnections.has(connectionKey)) {
-    await context.runtime.ensureConnection(input);
-    ensuredConnections.add(connectionKey);
-    ensuredConnectionCache.set(runtimeKey, ensuredConnections);
-  }
+  ]);
+  await ensureOnce(ensuredConnectionCache, runtime, connectionKey, () =>
+    runtime.ensureConnection(input),
+  );
 
   if (typeof context.runtime.ensureParticipantInRoom !== "function") {
     return;
   }
 
-  const participantKey = `${context.runtime.agentId}:${String(input.roomId)}`;
-  const ensuredParticipants =
-    ensuredParticipantCache.get(runtimeKey) ?? new Set<string>();
-  if (ensuredParticipants.has(participantKey)) {
-    return;
-  }
-  await context.runtime.ensureParticipantInRoom(
-    context.runtime.agentId as UUID,
-    input.roomId as UUID,
+  const participantKey = `${runtime.agentId}:${String(input.roomId)}`;
+  await ensureOnce(ensuredParticipantCache, runtime, participantKey, () =>
+    runtime.ensureParticipantInRoom(
+      runtime.agentId as UUID,
+      input.roomId as UUID,
+    ),
   );
-  ensuredParticipants.add(participantKey);
-  ensuredParticipantCache.set(runtimeKey, ensuredParticipants);
 }
 
 export async function ensureLocalInteractiveSettingsState(
