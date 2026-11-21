@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { launchDesktop } from "../support/desktop-core";
+import { agentRequest, launchDesktop } from "../support/desktop-core";
 
 const executable = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 if (!executable)
   throw new Error("Use the provenance-checking packaged test runner.");
 
 test.describe("packaged desktop smoke", () => {
-  test("boots preload, runs private scratch terminal and completes offline chat", async () => {
+  test("boots, runs a private terminal, and retains offline chat across restart", async () => {
     test.setTimeout(150_000);
     const desktop = await launchDesktop(executable);
     try {
@@ -69,6 +69,25 @@ test.describe("packaged desktop smoke", () => {
           .getByLabel("Conversation detail")
           .getByText("model provider is unavailable", { exact: false }),
       ).toBeVisible({ timeout: 60_000 });
+
+      const identityPath = "/runtime/bot-identity";
+      type WorkerIdentity = { agentId: string; runtimeInstanceId: string };
+      const identity = await agentRequest<WorkerIdentity>(page, identityPath);
+      const historyPath = "/sessions/search?query=Fresh+packaged+offline+hello";
+      const history = await agentRequest<{ hits: unknown[] }>(
+        page,
+        historyPath,
+      );
+      expect(history.hits.length).toBeGreaterThan(0);
+
+      await desktop.restart();
+      const reopened = await agentRequest<WorkerIdentity>(
+        desktop.page,
+        identityPath,
+      );
+      expect(reopened.agentId).toBe(identity.agentId);
+      expect(reopened.runtimeInstanceId).not.toBe(identity.runtimeInstanceId);
+      expect(await agentRequest(desktop.page, historyPath)).toEqual(history);
     } finally {
       await desktop.dispose();
     }

@@ -38,6 +38,7 @@ it("keeps startup probes, product routes, plugin priority, and webhook authority
   }));
   registerHttpPluginRoutes(context.runtime, {
     name: "fixture-routes",
+    description: "Fixture plugin route precedence",
     routes: [
       ...createDoolittleRuntimeRoutes(context),
       {

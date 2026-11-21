@@ -21,13 +21,21 @@ function makeCache() {
   return cache;
 }
 
+function deferredSnapshot() {
+  let resolve: (snapshot: unknown) => void = () => undefined;
+  const promise = new Promise<unknown>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => getSnapshot.mockReset());
 
 it("only loads the ownership inventory on demand and shares concurrent reads", async () => {
   const cache = makeCache();
   expect(getSnapshot).not.toHaveBeenCalled();
 
-  const pending = Promise.withResolvers<unknown>();
+  const pending = deferredSnapshot();
   const inventory = { profile: "current" };
   getSnapshot.mockReturnValueOnce(pending.promise);
   const first = cache.snapshot();
@@ -46,7 +54,7 @@ it("retries failed reads and ignores an old inventory after reconfiguration", as
   getSnapshot.mockRejectedValueOnce(new Error("temporary failure"));
   await expect(cache.snapshot()).rejects.toThrow("temporary failure");
 
-  const old = Promise.withResolvers<unknown>();
+  const old = deferredSnapshot();
   const updated = { profile: "updated" };
   getSnapshot.mockReturnValueOnce(old.promise).mockResolvedValueOnce(updated);
   const inFlight = cache.snapshot();
