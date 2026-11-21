@@ -1,4 +1,4 @@
-import electronUpdater, { type AppUpdater } from "electron-updater";
+import type { AppUpdater } from "electron-updater";
 import type { DesktopUpdateState } from "../shared/contracts";
 
 // electron-updater remains CommonJS. Its documented named import does not load
@@ -12,16 +12,25 @@ export type UpdateProvider = Pick<
 export type ConfigurableUpdateProvider = UpdateProvider &
   Pick<AppUpdater, "autoDownload" | "autoInstallOnAppQuit" | "setFeedURL">;
 
+type LoadUpdateProvider = () => Promise<UpdateProvider>;
+
 export class DesktopUpdateController {
   private state: DesktopUpdateState;
   private listeners = new Set<(state: DesktopUpdateState) => void>();
   private installRequested = false;
+  private provider: UpdateProvider | null = null;
+  private providerLoad?: Promise<UpdateProvider>;
 
-  constructor(provider: UpdateProvider | null, unavailableDetail: string) {
-    this.state = provider
+  constructor(
+    private readonly loadProvider: LoadUpdateProvider | null,
+    unavailableDetail: string,
+  ) {
+    this.state = loadProvider
       ? { phase: "idle", message: "Check for updates when you are ready." }
       : { phase: "unavailable", message: unavailableDetail };
-    if (!provider) return;
+  }
+
+  private attach(provider: UpdateProvider): UpdateProvider {
     provider.on("checking-for-update", () =>
       this.set({ phase: "checking", message: "Checking for updates…" }),
     );
@@ -57,9 +66,9 @@ export class DesktopUpdateController {
       });
     });
     this.provider = provider;
+    return provider;
   }
 
-  private provider: UpdateProvider | null = null;
   getState = (): DesktopUpdateState => this.state;
   subscribe(listener: (state: DesktopUpdateState) => void): () => void {
     this.listeners.add(listener);
@@ -70,20 +79,37 @@ export class DesktopUpdateController {
     for (const listener of this.listeners) listener(state);
   }
   async check(): Promise<DesktopUpdateState> {
-    if (!this.provider) return this.state;
-    await this.provider.checkForUpdates();
+    if (!this.loadProvider) return this.state;
+    if (!this.provider && !this.providerLoad) {
+      this.providerLoad = Promise.resolve()
+        .then(this.loadProvider)
+        .then((provider) => this.attach(provider))
+        .catch((error: unknown) => {
+          this.set({
+            phase: "error",
+            message:
+              error instanceof Error ? error.message : "Update check failed.",
+          });
+          throw error;
+        })
+        .finally(() => {
+          this.providerLoad = undefined;
+        });
+    }
+    const provider = this.provider ?? (await this.providerLoad);
+    await provider?.checkForUpdates();
     return this.state;
   }
   async download(): Promise<DesktopUpdateState> {
-    if (!this.provider) return this.state;
-    if (this.state.phase !== "available")
+    if (!this.loadProvider) return this.state;
+    if (!this.provider || this.state.phase !== "available")
       throw new Error("No update is ready to download.");
     await this.provider.downloadUpdate();
     return this.state;
   }
   install(): void {
-    if (!this.provider) throw new Error(this.state.message);
-    if (this.state.phase !== "downloaded")
+    if (!this.loadProvider) throw new Error(this.state.message);
+    if (!this.provider || this.state.phase !== "downloaded")
       throw new Error("No downloaded update is ready to install.");
     if (this.installRequested) return;
     this.installRequested = true;
@@ -112,15 +138,16 @@ export function configureUpdateProvider(
 // from app-update.yml. A generic feed remains available for private distributions.
 export function configuredUpdater(
   platform: NodeJS.Platform = process.platform,
-  resolveProvider: () => ConfigurableUpdateProvider = () =>
-    electronUpdater.autoUpdater,
-): UpdateProvider | null {
+): LoadUpdateProvider | null {
   // electron-updater validates Linux artifacts only against hashes delivered
   // by the same unsigned metadata channel. Until the release feed has an
   // independently pinned signature, keep Linux updates explicit/manual.
   if (platform === "linux") return null;
-  return configureUpdateProvider(
-    resolveProvider(),
-    process.env.DOOLITTLE_UPDATE_FEED_URL?.trim() || undefined,
-  );
+  return async () => {
+    const { default: electronUpdater } = await import("electron-updater");
+    return configureUpdateProvider(
+      electronUpdater.autoUpdater,
+      process.env.DOOLITTLE_UPDATE_FEED_URL?.trim() || undefined,
+    );
+  };
 }
