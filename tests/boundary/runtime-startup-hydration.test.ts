@@ -113,6 +113,40 @@ it("loads configured connectors during tool warmup and starts them after the gat
   expect(order).toEqual(["tools", "gateway", "connector"]);
 });
 
+it("settles a connector import before allowing a retry after the gateway fails", async () => {
+  const importing = deferred();
+  const imported = deferred();
+  const ensureGateway = vi.fn<() => void>().mockImplementationOnce(() => {
+    throw new Error("gateway unavailable");
+  });
+  const registerMessagingPlugin = vi.fn(async () => undefined);
+  const startup = fixture({
+    ensureGateway,
+    registerMessagingPlugin,
+    loadMessagingPlugins: async () => {
+      importing.resolve();
+      await imported.promise;
+      return [connector];
+    },
+  });
+  const first = startup.ensureDeferredHydration();
+  const failed = expect(first).rejects.toThrow(
+    "Startup services could not be warmed",
+  );
+  try {
+    await importing.promise;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(startup.ensureDeferredHydration()).toBe(first);
+    expect(registerMessagingPlugin).not.toHaveBeenCalled();
+  } finally {
+    imported.resolve();
+    await failed;
+  }
+  await startup.ensureDeferredHydration();
+  expect(ensureGateway).toHaveBeenCalledTimes(2);
+  expect(registerMessagingPlugin).toHaveBeenCalledExactlyOnceWith(connector);
+});
+
 it("cancels a waiting turn while preserving the shared startup attempt and its failure state", async () => {
   const loading = deferred();
   const loadTurnPlugins = vi.fn(async () => {

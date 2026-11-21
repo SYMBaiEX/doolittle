@@ -173,16 +173,19 @@ export function createDeferredHydrator(params: {
     // Import configured connectors while tools warm up. Start live ingress
     // only after the gateway and turn tools can handle incoming messages.
     const results = await Promise.allSettled([
-      Promise.all([gatewayReady, warmMessagingPlugins(gatewayReady)]),
+      gatewayReady,
+      warmMessagingPlugins(gatewayReady),
       turnToolsReady.then(() => warmSessionMaintenance(reason)),
       ...supportServices.map((service) =>
         turnToolsReady.then(() => params.services[service]),
       ),
     ]);
-    const failures = results
-      .filter((result) => result.status === "rejected")
-      .map((result) => result.reason);
-    if (failures.length > 0) {
+    const failures = new Set(
+      results
+        .filter((result) => result.status === "rejected")
+        .map((result) => result.reason),
+    );
+    if (failures.size > 0) {
       throw new AggregateError(
         failures,
         "Startup services could not be warmed.",
