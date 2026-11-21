@@ -41,10 +41,11 @@ const budgets = [
     expectedMs: 90_000,
   },
   {
-    budget: "default",
+    budget: "default with verbose output",
     configuredMs: undefined,
     sdkLimit: undefined,
     expectedMs: 120_000,
+    verbose: true,
   },
   {
     budget: "saved 30 second",
@@ -72,12 +73,16 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
     workspacePath: root,
   };
   resolveScope.mockResolvedValue(scope);
+  const stdout = budget.verbose
+    ? `${"✓ test passed\n".repeat(12_000)}${root}`
+    : root;
+  const stderr = budget.verbose ? "build diagnostic\n".repeat(4_000) : "";
   const record = {
     id: "",
     command: "pwd",
     exitCode: 0,
-    stdout: root,
-    stderr: "",
+    stdout,
+    stderr,
     cwd: root,
     timeoutMs: expectedMs,
     durationMs: 1,
@@ -138,6 +143,9 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
         executedIn: root,
         exitCode: 0,
         maxDurationMs: expectedMs,
+        stdout,
+        stderr,
+        truncated: false,
       }),
     );
     if (!result) throw new Error("SDK terminal result was not returned");

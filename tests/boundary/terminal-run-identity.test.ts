@@ -6,6 +6,8 @@ import {
   DOOLITTLE_SHELL_SERVICE,
   MAX_COMMAND_TIMEOUT_MS,
 } from "@doolittle/contracts";
+import { MAX_TERMINAL_CAPTURE_BYTES } from "@elizaos/agent/api/terminal-output-contract";
+import { MAX_SHELL_STDIO_BYTES } from "@elizaos/agent/services/shell-stdio-budget";
 import { expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 import { handleOperationsRoutes } from "../../packages/agent/src/server/routes/operations";
@@ -24,19 +26,18 @@ it("binds SDK run identities to command, timeout and workspace and replays their
     const gate = new Promise<void>((done) => {
       release = done;
     });
+    let output = { stdout: "VERIFIED", stderr: "", exitCode: 0 };
     const run = vi.fn(async () => {
       await gate;
       return {
-        exitCode: 0,
-        stdout: "VERIFIED",
-        stderr: "",
+        ...output,
         timedOut: false,
         durationMs: 1,
       };
     });
     const backend: ExecutionBackend = {
       name: "local",
-      capabilities: () => ({ ownedCancellation: false }),
+      capabilities: () => ({ ownedCancellation: true }),
       run,
       preview: (command, { cwd, timeoutMs }) => ({
         backend: "local",
@@ -104,13 +105,13 @@ it("binds SDK run identities to command, timeout and workspace and replays their
       },
     } as unknown as AppContext;
     const url = new URL("http://127.0.0.1/api/terminal/run");
-    const request = (timeoutMs: number) =>
+    const request = (timeoutMs: number, requestedRunId = runId) =>
       new Request(url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           "x-eliza-terminal-token": "fixture-terminal-capability",
-          "x-eliza-terminal-run-id": runId,
+          "x-eliza-terminal-run-id": requestedRunId,
         },
         body: JSON.stringify({
           command: "verify",
@@ -137,6 +138,55 @@ it("binds SDK run identities to command, timeout and workspace and replays their
     );
     expect(invalid?.status).toBe(400);
     expect(run).toHaveBeenCalledTimes(1);
+
+    for (const { status, ...capture } of [
+      {
+        status: 413,
+        stdout: "x".repeat(MAX_TERMINAL_CAPTURE_BYTES),
+        stderr: "one byte or more",
+        exitCode: 0,
+      },
+      { status: 422, stdout: "\ufffd", stderr: "", exitCode: 0 },
+      {
+        status: 413,
+        stdout: "",
+        stderr: `[shell-router] stdio exceeded ${MAX_SHELL_STDIO_BYTES} bytes`,
+        exitCode: -1,
+      },
+    ]) {
+      output = capture;
+      const id = `run-${randomUUID()}`;
+      const result = await handleOperationsRoutes(
+        context,
+        request(1000, id),
+        url,
+        { captureOutputRequired: true },
+      );
+      expect(result?.status).toBe(status);
+      const body = await result?.json();
+      expect(body).toMatchObject({
+        runId: id,
+        acceptance: "accepted",
+        executionStatus: "completed",
+        exitCode: capture.exitCode,
+      });
+      expect(body).not.toHaveProperty("stdout");
+      expect(body).not.toHaveProperty("stderr");
+      expect(historyStore.read().commands.at(-1)).toMatchObject({
+        id,
+        exitCode: capture.exitCode,
+      });
+      const replay = await handleOperationsRoutes(
+        context,
+        request(1000, id),
+        url,
+        {
+          captureOutputRequired: true,
+        },
+      );
+      expect(replay?.status).toBe(status);
+    }
+    expect(run).toHaveBeenCalledTimes(4);
   } finally {
     vi.unstubAllEnvs();
     rmSync(root, { recursive: true, force: true });

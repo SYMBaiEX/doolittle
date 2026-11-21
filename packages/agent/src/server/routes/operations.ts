@@ -4,7 +4,12 @@ import {
   MAX_COMMAND_TIMEOUT_MS,
   MIN_COMMAND_TIMEOUT_MS,
 } from "@doolittle/contracts/execution";
+import {
+  capturedTerminalOutputIsSafe,
+  MAX_TERMINAL_CAPTURE_BYTES,
+} from "@elizaos/agent/api/terminal-output-contract";
 import { resolveTerminalRunLimits } from "@elizaos/agent/api/terminal-run-limits";
+import { MAX_SHELL_STDIO_BYTES } from "@elizaos/agent/services/shell-stdio-budget";
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { getNativeResearchControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
 import {
@@ -34,7 +39,6 @@ const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
 const MAX_COMMAND_LENGTH = 4_096;
 const MAX_TERMINAL_STREAM_BYTES = 2_000_000;
-const MAX_SDK_TERMINAL_CAPTURE_BYTES = 128 * 1024;
 const LOG_LEVELS = new Set([
   "trace",
   "debug",
@@ -189,26 +193,49 @@ function boundedTerminalResult<T extends { stdout: string; stderr: string }>(
   };
 }
 
-function sdkTerminalRunResult(
+function sdkTerminalRunResponse(
   result: Awaited<ReturnType<AppContext["services"]["terminal"]["run"]>>,
-) {
-  const stdoutBytes = new TextEncoder().encode(result.stdout).byteLength;
-  const stderrBytes = new TextEncoder().encode(result.stderr).byteLength;
-  const stdoutLimit = Math.min(stdoutBytes, MAX_SDK_TERMINAL_CAPTURE_BYTES);
-  const stderrLimit = Math.max(0, MAX_SDK_TERMINAL_CAPTURE_BYTES - stdoutLimit);
-  return {
-    ok: true,
+): Response {
+  const receipt = {
     runId: result.id,
-    command: result.command,
     exitCode: result.exitCode,
-    stdout: takeUtf8Prefix(result.stdout, stdoutLimit),
-    stderr: takeUtf8Prefix(result.stderr, stderrLimit),
     timedOut: result.timedOut === true || result.exitCode === 124,
-    truncated: stdoutBytes + stderrBytes > MAX_SDK_TERMINAL_CAPTURE_BYTES,
+  };
+  const bytes =
+    Buffer.byteLength(result.stdout, "utf8") +
+    Buffer.byteLength(result.stderr, "utf8");
+  // The router kills a flooding child and returns a prefix plus this marker.
+  // Trimming the stored stdout/stderr can hide the original byte count.
+  const routerOverflow =
+    result.exitCode === -1 &&
+    result.stderr.endsWith(
+      `[shell-router] stdio exceeded ${MAX_SHELL_STDIO_BYTES} bytes`,
+    );
+  const tooLarge = bytes > MAX_TERMINAL_CAPTURE_BYTES || routerOverflow;
+  if (tooLarge || !capturedTerminalOutputIsSafe(result.stdout, result.stderr)) {
+    return json(
+      {
+        ...receipt,
+        acceptance: "accepted",
+        executionStatus: "completed",
+        error: tooLarge
+          ? `Terminal output exceeded the ${MAX_TERMINAL_CAPTURE_BYTES}-byte complete-capture limit.`
+          : "Terminal output was not valid safe text.",
+      },
+      tooLarge ? 413 : 422,
+    );
+  }
+  return json({
+    ...receipt,
+    ok: true,
+    command: result.command,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    truncated: false,
     maxDurationMs: result.timeoutMs,
     durationMs: result.durationMs,
     cwd: result.cwd,
-  };
+  });
 }
 
 function boundedInteger(
@@ -457,7 +484,7 @@ export async function handleOperationsRoutes(
       return json({ ok: true });
     }
     try {
-      return json(sdkTerminalRunResult(await run));
+      return sdkTerminalRunResponse(await run);
     } catch (error) {
       const unavailable = terminalExecutionError(error);
       if (unavailable) return unavailable;
