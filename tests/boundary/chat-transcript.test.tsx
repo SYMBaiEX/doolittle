@@ -2,9 +2,18 @@
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import { ChatMessage } from "../../apps/desktop/src/renderer/chat/ChatMessage";
 import { ChatTranscript } from "../../apps/desktop/src/renderer/chat/ChatTranscript";
 import { getMessageActions } from "../../apps/desktop/src/renderer/chat/MessageActions";
 import type { DisplayMessage } from "../../apps/desktop/src/renderer/chat/models";
+
+vi.mock(
+  import("../../apps/desktop/src/renderer/chat/ChatMessage"),
+  async (importOriginal) => {
+    const actual = await importOriginal();
+    return { ...actual, ChatMessage: vi.fn(actual.ChatMessage) };
+  },
+);
 
 const response: DisplayMessage = {
   id: "assistant:run",
@@ -136,4 +145,84 @@ it("keeps retry available when a failed response cannot be forked", () => {
     expect.objectContaining({ id: response.id }),
     "retry",
   );
+});
+
+it("updates the streaming row while settled rows retain current actions", () => {
+  const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settled: DisplayMessage = {
+    id: "previous",
+    role: "user",
+    content: "An earlier prompt.",
+    createdAt: response.createdAt,
+  };
+  const pending = { ...response, pending: true, content: "" };
+  const firstCopy = vi.fn();
+  const currentCopy = vi.fn();
+  const messageRender = vi.mocked(ChatMessage);
+  const props = {
+    sessionId: "conversation-a",
+    backendReady: true,
+    activeRequest: "run",
+    loading: false,
+    historyError: "",
+    runReceipts: {},
+    progress: "",
+    endRef: createRef<HTMLDivElement>(),
+    forkingMessageId: "",
+    copyStates: {},
+    speakingMessageId: "",
+    speechSupported: false,
+  };
+  const render = (
+    messages: DisplayMessage[],
+    copy: (message: DisplayMessage) => void,
+  ) => {
+    act(() => {
+      root.render(
+        <ChatTranscript
+          {...props}
+          messages={messages}
+          onBranch={() => {}}
+          onCopy={(message) => copy(message)}
+          onRead={() => {}}
+          onRetryHistory={() => {}}
+          onRetryMessage={() => {}}
+          onStopReading={() => {}}
+          onSelectPrompt={() => {}}
+        />,
+      );
+    });
+  };
+
+  try {
+    const messages = [settled, pending];
+    render(messages, firstCopy);
+    messageRender.mockClear();
+    render(messages, currentCopy);
+    expect(messageRender).not.toHaveBeenCalled();
+
+    render(
+      [settled, { ...pending, content: "New streamed text." }],
+      currentCopy,
+    );
+    expect(messageRender).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("New streamed text.");
+
+    const copy = container.querySelector<HTMLButtonElement>(
+      '[data-message-role="user"] button[aria-label="Copy message"]',
+    );
+    if (!copy) throw new Error("Original message controls are missing.");
+    act(() => copy.click());
+    expect(currentCopy).toHaveBeenCalledWith(settled);
+    expect(firstCopy).not.toHaveBeenCalled();
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+  }
 });

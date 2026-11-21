@@ -1,5 +1,12 @@
 import { ContextActionMenu, StateSurface } from "@doolittle/ui";
-import { memo, type RefObject, useLayoutEffect, useRef, useState } from "react";
+import {
+  memo,
+  type RefObject,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ChatMessage } from "./ChatMessage";
 import { getMessageActions, MessageActions } from "./MessageActions";
 import type {
@@ -39,19 +46,26 @@ export interface ChatTranscriptProps {
   onLoadEarlier?: () => Promise<void> | void;
 }
 
+type MessageCallbacks = Pick<
+  ChatTranscriptProps,
+  | "onBranch"
+  | "onCopy"
+  | "onRead"
+  | "onRetryMessage"
+  | "onStopReading"
+  | "onPromote"
+>;
+
 interface TranscriptMessageRowProps {
   botName?: string;
   activeRequest: string | null;
   backendReady: boolean;
+  callbacks: RefObject<MessageCallbacks>;
+  canPromote: boolean;
+  canRetry: boolean;
   copyState?: CopyState;
   forkingMessageId: string;
   message: DisplayMessage;
-  onBranch: (message: DisplayMessage, mode: BranchMode) => void;
-  onCopy: (message: DisplayMessage) => void;
-  onRead: (message: DisplayMessage) => void;
-  onRetryMessage?: (message: DisplayMessage) => void;
-  onStopReading: () => void;
-  onPromote?: (message: DisplayMessage) => void;
   receipt: RunReceiptStore[string] | undefined;
   speakingMessageId: string;
   speechSupported: boolean;
@@ -61,15 +75,12 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   botName,
   activeRequest,
   backendReady,
+  callbacks,
+  canPromote,
+  canRetry,
   copyState,
   forkingMessageId,
   message,
-  onBranch,
-  onCopy,
-  onRead,
-  onStopReading,
-  onPromote,
-  onRetryMessage,
   receipt,
   speakingMessageId,
   speechSupported,
@@ -80,11 +91,13 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
     copyState,
     forkingMessageId,
     message,
-    onBranch,
-    onCopy,
-    onRead,
-    onStopReading,
-    onPromote,
+    onBranch: (value, mode) => callbacks.current.onBranch(value, mode),
+    onCopy: (value) => callbacks.current.onCopy(value),
+    onRead: (value) => callbacks.current.onRead(value),
+    onStopReading: () => callbacks.current.onStopReading(),
+    onPromote: canPromote
+      ? (value) => callbacks.current.onPromote?.(value)
+      : undefined,
     speakingMessageId,
     speechSupported,
   });
@@ -100,7 +113,11 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
         botName={botName}
         actions={<MessageActions copyState={copyState} items={actions} />}
         message={message}
-        onRetry={onRetryMessage ? () => onRetryMessage(message) : undefined}
+        onRetry={
+          canRetry
+            ? () => callbacks.current.onRetryMessage?.(message)
+            : undefined
+        }
         receipt={receipt}
         retryDisabled={
           !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
@@ -148,6 +165,58 @@ export function ChatTranscript({
   loadingEarlierHistory = false,
   onLoadEarlier,
 }: ChatTranscriptProps) {
+  const messageCallbacks = {
+    onBranch,
+    onCopy,
+    onRead,
+    onRetryMessage,
+    onStopReading,
+    onPromote,
+  };
+  const callbacks = useRef(messageCallbacks);
+  useLayoutEffect(() => {
+    // Row controls dispatch against the committed conversation, even when an
+    // unchanged message skipped rendering during a draft or stream update.
+    callbacks.current = messageCallbacks;
+  });
+  const canPromote = Boolean(onPromote);
+  const canRetry = Boolean(onRetryMessage);
+  const rows = useMemo(
+    () =>
+      messages.map((message) => {
+        const runId = messageRunId(message);
+        return (
+          <TranscriptMessageRow
+            botName={botName}
+            activeRequest={activeRequest}
+            backendReady={backendReady}
+            callbacks={callbacks}
+            canPromote={canPromote}
+            canRetry={canRetry}
+            copyState={copyStates[message.id]}
+            forkingMessageId={forkingMessageId}
+            key={message.id}
+            message={message}
+            receipt={runId ? runReceipts[runId] : undefined}
+            speakingMessageId={speakingMessageId}
+            speechSupported={speechSupported}
+          />
+        );
+      }),
+    [
+      messages,
+      botName,
+      activeRequest,
+      backendReady,
+      canPromote,
+      canRetry,
+      copyStates,
+      forkingMessageId,
+      runReceipts,
+      speakingMessageId,
+      speechSupported,
+    ],
+  );
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [anchorSession, setAnchorSession] = useState<string | null>(null);
   const [earlierErrorSession, setEarlierErrorSession] = useState<string | null>(
@@ -306,29 +375,7 @@ export function ChatTranscript({
               ) : null}
             </div>
           ) : null}
-          {messages.map((message) => {
-            const runId = messageRunId(message);
-            return (
-              <TranscriptMessageRow
-                botName={botName}
-                activeRequest={activeRequest}
-                backendReady={backendReady}
-                copyState={copyStates[message.id]}
-                forkingMessageId={forkingMessageId}
-                key={message.id}
-                message={message}
-                onBranch={onBranch}
-                onCopy={onCopy}
-                onPromote={onPromote}
-                onRead={onRead}
-                onRetryMessage={onRetryMessage}
-                onStopReading={onStopReading}
-                receipt={runId ? runReceipts[runId] : undefined}
-                speakingMessageId={speakingMessageId}
-                speechSupported={speechSupported}
-              />
-            );
-          })}
+          {rows}
         </>
       ) : (
         <Welcome
