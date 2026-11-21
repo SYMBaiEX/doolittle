@@ -176,17 +176,30 @@ async function confirmProcessAbsent(
 ): Promise<string | undefined> {
   const deadline = Date.now() + timeoutMs;
   while (true) {
+    let inspectionFailure: string | undefined;
     try {
       process.kill(id, 0);
     } catch (error) {
       if (processAbsent(error)) return undefined;
-      return `Process termination could not be inspected: ${boundedErrorMessage(error)}`;
+      inspectionFailure = `Process termination could not be inspected: ${boundedErrorMessage(error)}`;
+      // Darwin can briefly return EPERM for a group just after signaling it.
+      // Keep inspecting within the same deadline and require ESRCH to confirm.
+      if (
+        process.platform !== "darwin" ||
+        id >= 0 ||
+        (error as NodeJS.ErrnoException | undefined)?.code !== "EPERM"
+      ) {
+        return inspectionFailure;
+      }
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
-      return "The owned process or process group still exists after teardown.";
+      return (
+        inspectionFailure ??
+        "The owned process or process group still exists after teardown."
+      );
     }
-    await waitForTeardown(Math.min(25, remaining));
+    await waitForTeardown(Math.min(inspectionFailure ? 5 : 25, remaining));
   }
 }
 
