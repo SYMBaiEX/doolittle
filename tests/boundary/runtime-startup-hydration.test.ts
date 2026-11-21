@@ -78,6 +78,41 @@ it("makes shared turn tools available while a messaging connector starts", async
   );
 });
 
+it("loads configured connectors during tool warmup and starts them after the gateway", async () => {
+  const loaded = deferred();
+  const ready = deferred();
+  const order: string[] = [];
+  const startup = fixture({
+    loadTurnPlugins: async () => {
+      await ready.promise;
+      return [tools];
+    },
+    loadMessagingPlugins: async () => {
+      loaded.resolve();
+      return [connector];
+    },
+    registerTurnPlugin: async () => {
+      order.push("tools");
+    },
+    ensureGateway: () => {
+      order.push("gateway");
+    },
+    registerMessagingPlugin: async () => {
+      order.push("connector");
+    },
+  });
+
+  const warmup = startup.ensureDeferredHydration();
+  try {
+    await loaded.promise;
+    expect(order).toEqual([]);
+  } finally {
+    ready.resolve();
+    await warmup;
+  }
+  expect(order).toEqual(["tools", "gateway", "connector"]);
+});
+
 it("cancels a waiting turn while preserving the shared startup attempt and its failure state", async () => {
   const loading = deferred();
   const loadTurnPlugins = vi.fn(async () => {

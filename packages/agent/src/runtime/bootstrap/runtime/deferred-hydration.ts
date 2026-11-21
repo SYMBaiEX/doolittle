@@ -40,7 +40,7 @@ export function createDeferredHydrator(params: {
     let pending: Promise<void> | undefined;
     let settled = false;
 
-    return (): Promise<void> => {
+    return (registrationReady?: Promise<void>): Promise<void> => {
       if (settled) return Promise.resolve();
       if (pending) return pending;
       pending = Promise.resolve()
@@ -59,6 +59,7 @@ export function createDeferredHydrator(params: {
             return;
           }
 
+          await registrationReady;
           const unavailable: string[] = [];
           for (const plugin of plugins) {
             const attempt = attempts.get(plugin) ?? {
@@ -166,17 +167,16 @@ export function createDeferredHydrator(params: {
   }
 
   async function hydrate(reason?: string): Promise<void> {
-    // Finish core turn-tool registration before a connector can receive a turn.
-    await ensureTurnPlugins();
+    const turnToolsReady = ensureTurnPlugins();
+    const gatewayReady = turnToolsReady.then(() => params.ensureGateway());
 
+    // Import configured connectors while tools warm up. Start live ingress
+    // only after the gateway and turn tools can handle incoming messages.
     const results = await Promise.allSettled([
-      Promise.resolve().then(() => {
-        params.ensureGateway();
-        return warmMessagingPlugins();
-      }),
-      warmSessionMaintenance(reason),
+      Promise.all([gatewayReady, warmMessagingPlugins(gatewayReady)]),
+      turnToolsReady.then(() => warmSessionMaintenance(reason)),
       ...supportServices.map((service) =>
-        Promise.resolve().then(() => params.services[service]),
+        turnToolsReady.then(() => params.services[service]),
       ),
     ]);
     const failures = results
