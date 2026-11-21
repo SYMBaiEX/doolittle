@@ -1,58 +1,25 @@
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
-import { getLinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
+import {
+  getLinkedProviderAccountsSnapshot,
+  type LinkedProviderAccountsSnapshot,
+  localExecutableExists,
+} from "@doolittle/agent/runtime/native/account-auth";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { bootstrapColor as color, paint } from "../core/output";
 import type { BootstrapDependencyProbe } from "../types";
 
-export interface DependencyProbeEnvironment {
-  spawnSync: typeof spawnSync;
-  existsSync: typeof existsSync;
-  platform: typeof platform;
-  arch: typeof arch;
-  release: typeof release;
-  hostname: typeof hostname;
-  getLinkedProviderAccountsSnapshot: typeof getLinkedProviderAccountsSnapshot;
-}
-
-const defaultDependencyProbeEnvironment: DependencyProbeEnvironment = {
-  spawnSync,
-  existsSync,
-  platform,
-  arch,
-  release,
-  hostname,
-  getLinkedProviderAccountsSnapshot,
-};
-
-function commandExists(
-  command: string,
-  environment: DependencyProbeEnvironment,
-): boolean {
-  const result = environment.spawnSync("sh", ["-lc", `command -v ${command}`], {
-    stdio: "ignore",
-  });
-  return result.status === 0;
-}
-
-function hasPackage(
-  root: string,
-  path: string,
-  environment: DependencyProbeEnvironment,
-): boolean {
-  return environment.existsSync(join(root, "node_modules", ...path.split("/")));
-}
-
 export function getDependencyProbes(
   root: string,
   existingEnv: Map<string, string>,
-  environment: DependencyProbeEnvironment = defaultDependencyProbeEnvironment,
+  accounts: LinkedProviderAccountsSnapshot = getLinkedProviderAccountsSnapshot(
+    undefined,
+    ["codex", "claude-code"],
+  ),
 ): BootstrapDependencyProbe[] {
   const browserCommand =
     existingEnv.get("DOOLITTLE_BROWSER_COMMAND") || "lightpanda";
-  const accounts = environment.getLinkedProviderAccountsSnapshot();
   const codexNativeReady =
     accounts.codex.nativeReady === true || accounts.codex.reusable === true;
   const claudeNativeReady =
@@ -63,57 +30,57 @@ export function getDependencyProbes(
       key: "host",
       label: "Host system",
       installed: true,
-      detail: `${environment.platform()} ${environment.release()} · ${environment.arch()} · ${environment.hostname()}`,
+      detail: `${platform()} ${release()} · ${arch()} · ${hostname()}`,
       recommendation:
-        environment.platform() === "darwin"
+        platform() === "darwin"
           ? "macOS detected. I will favor zsh-friendly paths and local app-style defaults."
           : undefined,
     },
     {
       key: "nub",
       label: "Nub toolkit",
-      installed: commandExists("nub", environment),
+      installed: localExecutableExists("nub"),
       detail:
         "Required for dependency management, TypeScript entrypoints, and repository scripts.",
     },
     {
       key: "git",
       label: "Git",
-      installed: commandExists("git", environment),
+      installed: localExecutableExists("git"),
       detail: "Used by repository workflows, codegen, and status tooling.",
     },
     {
       key: "docker",
       label: "Docker",
-      installed: commandExists("docker", environment),
+      installed: localExecutableExists("docker"),
       detail: "Container execution backend.",
       recommendation: "Install Docker Desktop or switch execution to Local.",
     },
     {
       key: "podman",
       label: "Podman",
-      installed: commandExists("podman", environment),
+      installed: localExecutableExists("podman"),
       detail: "Rootless container execution backend.",
       recommendation: "Install Podman or choose a different body.",
     },
     {
       key: "ssh",
       label: "SSH",
-      installed: commandExists("ssh", environment),
+      installed: localExecutableExists("ssh"),
       detail: "Remote execution backend.",
       recommendation: "Install OpenSSH or stay local.",
     },
     {
       key: "daytona",
       label: "Daytona",
-      installed: commandExists("daytona", environment),
+      installed: localExecutableExists("daytona"),
       detail: "Cloud workspace backend.",
       recommendation: "Install Daytona CLI before choosing the Daytona body.",
     },
     {
       key: "modal",
       label: "Modal",
-      installed: commandExists("modal", environment),
+      installed: localExecutableExists("modal"),
       detail: "Elastic cloud backend.",
       recommendation: "Install and authenticate the Modal CLI first.",
     },
@@ -121,8 +88,8 @@ export function getDependencyProbes(
       key: "lightpanda",
       label: "Lightpanda vision",
       installed:
-        commandExists(browserCommand, environment) ||
-        hasPackage(root, "lightpanda", environment),
+        localExecutableExists(browserCommand) ||
+        existsSync(join(root, "node_modules", "lightpanda")),
       detail: "Preferred browser automation path.",
       recommendation:
         "Install Lightpanda or choose Basic HTTP eyes during onboarding.",
@@ -130,7 +97,7 @@ export function getDependencyProbes(
     {
       key: "ffmpeg",
       label: "FFmpeg",
-      installed: commandExists("ffmpeg", environment),
+      installed: localExecutableExists("ffmpeg"),
       detail: "Helpful for richer media/audio workflows.",
       recommendation:
         "Install FFmpeg if you want stronger local media processing.",

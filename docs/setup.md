@@ -36,14 +36,12 @@ For an existing toolchain, install the exact dependency graph directly:
 
 ```sh
 nub run deps:install -- --frozen-lockfile --ignore-scripts
-cp .env.example .env
 nub run bootstrap
 ```
 
-Copy `.env.example` only when `.env` does not exist. The dependency command
-verifies the checked SDK archives, unpacks their workspaces, and installs the
-lockfile. Dependency lifecycle scripts are deliberately disabled; normal
-installation does not fetch or rebuild upstream ElizaOS source.
+Bootstrap creates `.env` from `.env.example` when needed and keeps any existing
+configuration. The dependency command verifies the checked SDK archives,
+unpacks their workspaces, and installs the lockfile with lifecycle scripts disabled.
 
 Inspect bootstrap prerequisites without applying onboarding changes:
 

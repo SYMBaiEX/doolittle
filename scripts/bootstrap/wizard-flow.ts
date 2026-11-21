@@ -41,8 +41,12 @@ export async function runWizard(
   }
 
   context.banner();
-  const dependencyProbes = getDependencyProbes(context.root, existingEnv);
   let linkedAccounts = getLinkedProviderAccountsSnapshot();
+  const dependencyProbes = getDependencyProbes(
+    context.root,
+    existingEnv,
+    linkedAccounts,
+  );
   printDependencyProbes(context, dependencyProbes);
   const rl: PromptHandle = context.getWizardScreen()
     ? null

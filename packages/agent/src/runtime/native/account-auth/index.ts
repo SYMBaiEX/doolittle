@@ -38,6 +38,8 @@ import type {
   LinkedProviderName,
 } from "./types";
 
+export { commandExists as localExecutableExists } from "./shared";
+
 export type {
   CliAuthStatus,
   LinkedClaudeCodeCredentials,

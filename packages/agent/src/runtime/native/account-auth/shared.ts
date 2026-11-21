@@ -1,7 +1,7 @@
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { accessSync, constants, existsSync } from "node:fs";
+import { accessSync, constants, existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, isAbsolute, join } from "node:path";
+import { basename, delimiter, extname, join } from "node:path";
 import { readOptionalJson } from "@doolittle/storage";
 import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
 import { sanitizeSpawnEnv, writeJsonAtomicSync } from "@elizaos/core";
@@ -21,27 +21,34 @@ export function resolveHome(homePath?: string): string {
 }
 
 export function commandExists(command: string): boolean {
-  const candidates =
-    isAbsolute(command) || command.includes("/")
-      ? [command]
-      : (process.env.PATH ?? "")
-          .split(delimiter)
+  if (!command) return false;
+
+  const names =
+    process.platform === "win32" && !extname(command)
+      ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT")
+          .split(";")
           .filter(Boolean)
-          .flatMap((entry) =>
-            process.platform === "win32"
-              ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT")
-                  .split(";")
-                  .map((extension) => join(entry, `${command}${extension}`))
-              : [join(entry, command)],
-          );
-  return candidates.some((candidate) => {
-    try {
-      accessSync(candidate, constants.X_OK);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+          .map((extension) => `${command}${extension}`)
+      : [command];
+  const directories =
+    basename(command) === command
+      ? (process.env.PATH ?? "").split(delimiter).filter(Boolean)
+      : [""];
+
+  return directories.some((directory) =>
+    names.some((name) => {
+      const candidate = directory ? join(directory, name) : name;
+      try {
+        if (!statSync(candidate, { throwIfNoEntry: false })?.isFile()) {
+          return false;
+        }
+        accessSync(candidate, constants.X_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
 }
 
 export function readCommandText(
