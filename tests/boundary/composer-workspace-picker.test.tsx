@@ -81,6 +81,12 @@ it("keeps a confirmed local root visible when the saved project moves", async ()
     expect(picker.trigger().getAttribute("aria-label")).toBe(
       "Choose workspace. Current workspace This computer · Coding.",
     );
+    expect(
+      picker.trigger().querySelector(".composer-route-label")?.textContent,
+    ).toBe("Coding");
+    expect(
+      picker.trigger().querySelector(".composer-route-mode")?.textContent,
+    ).toBe("Local");
     expect(picker.trigger().title).toBe("/original/coding");
     await act(async () => picker.trigger().click());
     expect(menuButton("Coding").title).toBe("/saved/coding");

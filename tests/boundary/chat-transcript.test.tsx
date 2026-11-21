@@ -258,7 +258,7 @@ it("keeps retry available when a failed response cannot be forked", () => {
   );
 });
 
-it("updates the streaming row while settled rows retain current actions", () => {
+it("updates the streaming row while settled rows retain current actions", async () => {
   const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
   environment.IS_REACT_ACT_ENVIRONMENT = true;
@@ -324,13 +324,36 @@ it("updates the streaming row while settled rows retain current actions", () => 
     expect(messageRender).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("New streamed text.");
 
-    const copy = container.querySelector<HTMLButtonElement>(
-      '[data-message-role="user"] button[aria-label="Copy message"]',
+    const prompt = container.querySelector<HTMLElement>(
+      'article[data-message-role="user"]',
+    );
+    const authorId = prompt?.getAttribute("aria-labelledby")?.split(" ")[0];
+    expect(authorId && document.getElementById(authorId)?.textContent).toBe(
+      "You",
+    );
+    const copy = prompt?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Copy message"]',
     );
     if (!copy) throw new Error("Original message controls are missing.");
     act(() => copy.click());
     expect(currentCopy).toHaveBeenCalledWith(settled);
     expect(firstCopy).not.toHaveBeenCalled();
+
+    const more = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="More message actions"]',
+    );
+    if (!more) throw new Error("The message menu is missing.");
+    await act(async () => more.click());
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    const menu = document.querySelector('[role="menu"]');
+    const edit = [...(menu?.querySelectorAll('[role="menuitem"]') ?? [])].find(
+      (item) => item.textContent === "Edit in a new branch",
+    );
+    expect(edit?.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      menu?.querySelector('[role="menuitem"]:not([aria-disabled])')
+        ?.textContent,
+    ).toBe("Copy message");
   } finally {
     act(() => root.unmount());
     container.remove();

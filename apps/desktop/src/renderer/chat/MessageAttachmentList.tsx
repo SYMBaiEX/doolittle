@@ -1,9 +1,19 @@
 import { Button, ContextActionMenu } from "@doolittle/ui";
-import { FileText, Image, MoreHorizontal } from "lucide-react";
-import type { ManagedAttachmentDescriptor } from "../../shared/contracts";
+import { FileText, Film, Image, MoreHorizontal, Music2 } from "lucide-react";
+import type {
+  ManagedAttachmentDescriptor,
+  ManagedAttachmentKind,
+} from "../../shared/contracts";
 import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import { attachmentSize } from "./models";
+
+const attachmentIcons = {
+  audio: Music2,
+  document: FileText,
+  image: Image,
+  video: Film,
+} satisfies Record<ManagedAttachmentKind, typeof FileText>;
 
 export function MessageAttachmentList({
   attachments,
@@ -36,7 +46,9 @@ export function MessageAttachmentList({
             trigger={
               <Button
                 aria-label={`Actions for attachment ${attachment.name}`}
-                className="!size-10 !min-h-10 !min-w-10 !p-0 max-[760px]:!size-11 max-[760px]:!min-h-11 max-[760px]:!min-w-11"
+                className="chat-turn-action"
+                size="sm"
+                title="Attachment actions"
                 type="button"
                 variant="ghost"
               >
@@ -45,13 +57,10 @@ export function MessageAttachmentList({
             }
           >
             <span aria-hidden="true" className="chat-message-attachment-icon">
-              <UiIcon
-                icon={attachment.kind === "image" ? Image : FileText}
-                size="sm"
-              />
+              <UiIcon icon={attachmentIcons[attachment.kind]} size="sm" />
             </span>
             <span className="chat-message-attachment-copy">
-              <strong>{attachment.name}</strong>
+              <strong title={attachment.name}>{attachment.name}</strong>
               <small>
                 {attachment.kind} · {attachmentSize(attachment.sizeBytes)}
               </small>

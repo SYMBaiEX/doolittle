@@ -8,8 +8,8 @@
   transition-property: none;
 }
 .chat-header-action:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
 }
 /* Dropdown triggers use their existing edge/background, never a second frame. */
 .desktop-shell
@@ -74,46 +74,9 @@
   color: var(--text);
   font-weight: 500;
 }
-.chat-workspace .chat-messages {
-  padding-top: 24px;
-  scroll-padding-block: 24px 92px;
-}
-.chat-workspace .chat-message {
-  margin-bottom: 24px;
-}
-.chat-workspace .chat-message.user .chat-message-body {
-  background: color-mix(
-    in srgb,
-    var(--surface-soft) 88%,
-    var(--surface-raised)
-  );
-}
-.chat-workspace .chat-composer {
-  border-radius: max(20px, var(--radius-lg));
-  border-color: var(--material-edge);
-  background: var(--material-floating);
-  padding: 10px 12px 8px;
-  box-shadow:
-    0 2px 4px color-mix(in srgb, var(--shadow) 3%, transparent),
-    0 8px 24px color-mix(in srgb, var(--shadow) 7%, transparent);
-}
-.chat-workspace .chat-composer-dock {
-  padding-bottom: 20px;
-}
-.chat-workspace .chat-welcome h1 {
-  line-height: 1.18;
-  letter-spacing: -0.035em;
-}
 .chat-workspace .thinking::before {
   /* Execution facts already have labels; never make nearby text pulse. */
   animation: none;
-}
-.chat-workspace .chat-progress {
-  border-radius: var(--radius-floating);
-  border-left-width: 1px;
-  border-color: var(--material-edge);
-  background: var(--surface-raised);
-  box-shadow: none;
 }
 .chat-workbench-pane {
   transform-origin: right center;
@@ -189,18 +152,6 @@
   }
   .chat-history-notice button {
     min-height: var(--touch-height, 44px);
-  }
-  .chat-workspace .chat-composer {
-    padding: 8px;
-  }
-  .chat-workspace .chat-composer-dock {
-    padding-bottom: 10px;
-  }
-  .chat-workspace .chat-messages {
-    padding-top: 16px;
-  }
-  .chat-workspace .chat-message {
-    margin-bottom: 20px;
   }
   .chat-workbench-pane {
     transform-origin: bottom center;

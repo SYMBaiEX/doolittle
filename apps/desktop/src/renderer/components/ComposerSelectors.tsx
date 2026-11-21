@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Cpu,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -286,10 +287,7 @@ export function ComposerModelSelector({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <div
-        className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0`}
-        ref={rootRef}
-      >
+      <div className={COMPOSER_SELECTOR_ROOT_CLASS} ref={rootRef}>
         <PopoverTrigger asChild>
           <button
             aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}${activeEffort ? `, ${activeEffort} reasoning effort` : ""}.`}
@@ -302,6 +300,7 @@ export function ComposerModelSelector({
             title="Choose provider and model"
             type="button"
           >
+            <UiIcon className="composer-model-glyph" icon={Cpu} size="sm" />
             <span className={COMPOSER_MODEL_NAME_CLASS}>
               {runtime?.model ?? "Choose model"}
             </span>

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Folder,
   FolderOpen,
+  LockKeyhole,
   type LucideIcon,
   Monitor,
   Search,
@@ -157,8 +158,23 @@ export function ComposerProjectSelector({
             title={target.kind === "local" ? target.path : label}
             type="button"
           >
-            <ProjectGlyph icon={target.kind === "local" ? Monitor : Folder} />
-            <span>{label}</span>
+            <ProjectGlyph
+              icon={
+                target.kind === "local"
+                  ? Monitor
+                  : target.kind === "private"
+                    ? LockKeyhole
+                    : Folder
+              }
+            />
+            <span className="composer-route-label">
+              {target.kind === "local" ? target.name : label}
+            </span>
+            {target.kind === "local" ? (
+              <span aria-hidden="true" className="composer-route-mode">
+                Local
+              </span>
+            ) : null}
             <UiIcon icon={ChevronDown} size="xs" />
           </button>
         </PopoverTrigger>
@@ -195,8 +211,7 @@ export function ComposerProjectSelector({
           >
             <header className={COMPOSER_POPOVER_HEADER_CLASS}>
               <span className="min-w-0">
-                <strong>Chat workspace</strong>
-                <small>Your current chat keeps its workspace.</small>
+                <strong>New chat workspace</strong>
                 {target.kind === "local" ? (
                   <small className="truncate" title={target.path}>
                     {target.path}
@@ -273,7 +288,7 @@ export function ComposerProjectSelector({
                   onClick={() => select("unscoped")}
                   type="button"
                 >
-                  <ProjectGlyph />
+                  <ProjectGlyph icon={LockKeyhole} />
                   <span>
                     <strong>Private workspace</strong>
                     <small>Use Doolittle’s own folder.</small>

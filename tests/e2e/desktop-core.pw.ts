@@ -13,6 +13,7 @@ import { expect, type Locator, test } from "@playwright/test";
 import type { BotConversationScope } from "../../apps/desktop/src/shared/contracts";
 import { stableRuntimeUuid } from "../../packages/agent/src/runtime/stable-runtime-uuid";
 import { GatewaySessionService } from "../../packages/agent/src/services/gateway-session-service";
+import { RunControllerService } from "../../packages/agent/src/services/run-controller-service";
 import { SessionMessageStore } from "../../packages/agent/src/services/session/messages";
 import { ProjectStore } from "../../packages/agent/src/services/session/projects/store";
 import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
@@ -845,8 +846,235 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("renders saved coding responses and lets operators inspect and copy their evidence", async () => {
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
+    const title = "Fixture coding review";
+    const sessionId = randomUUID();
+    const runId = randomUUID();
+    const roomId = stableRuntimeUuid(sessionId);
+    const code = [
+      "export function describeBuild(): string {",
+      `  return "${"Fixture code should retain its exact source when copied. ".repeat(4).trimEnd()}";`,
+      "}",
+    ].join("\n");
+    const diff = [
+      "@@ -1 +1 @@",
+      '-export const stage = "before";',
+      '+export const stage = "after";',
+    ].join("\n");
+    const toolCall = {
+      type: "tool_call",
+      messageId: "fixture-tool-message",
+      toolCall: {
+        id: "fixture-command",
+        name: "TERMINAL_SHELL",
+        status: "running",
+        arguments: { command: "printf 'Fixture output\\n'" },
+      },
+    };
+    const toolResult = {
+      type: "tool_result",
+      toolCallId: toolCall.toolCall.id,
+      result: {
+        stdout: "Fixture output\n",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 125,
+      },
+    };
+
+    try {
+      const { defaultBotId } = await agentRequest<{ defaultBotId: string }>(
+        desktop.page,
+        "/bots",
+      );
+      await agentRequest(
+        desktop.page,
+        `/bots/${encodeURIComponent(defaultBotId)}/conversations`,
+        "POST",
+        { sessionId },
+      );
+      await desktop.close();
+      const runtime = join(desktop.profile, "runtime");
+      const database = createSessionDatabase(runtime);
+      const runs = new RunControllerService(runtime);
+      try {
+        const messages = new SessionMessageStore(database, new EventEmitter());
+        const createdAt = Date.now();
+        const text = [
+          "## Build review",
+          "The `describeBuild` function documents the release stage.",
+          `\`\`\`typescript filename="src/main.ts"\n${code}\n\`\`\``,
+          `\`\`\`diff\n${diff}\n\`\`\``,
+          "| Check | Status |\n| --- | --- |\n| Build | Passing |",
+          JSON.stringify(toolCall),
+          JSON.stringify(toolResult),
+        ].join("\n\n");
+        const turns = [
+          { id: randomUUID(), role: "user", text: "Review the build." },
+          { id: randomUUID(), role: "assistant", text },
+          { id: randomUUID(), role: "user", text: "Apply the status edit." },
+          {
+            id: `assistant:${runId}`,
+            role: "assistant",
+            text: "Updated the status in `src/main.ts`.",
+          },
+        ] as const;
+        turns.forEach((turn, index) => {
+          messages.storeMessage({
+            ...turn,
+            sessionId,
+            roomId,
+            entityId: `fixture-${turn.role}`,
+            createdAt: new Date(createdAt + index).toISOString(),
+          });
+        });
+        database
+          .query(
+            "INSERT INTO session_metadata (session_id, title, updated_at) VALUES (?1, ?2, ?3)",
+          )
+          .run(sessionId, title, new Date(createdAt).toISOString());
+
+        const stopObserving = runs.onUpdate((event) => {
+          runs.appendTaskEvent(runId, "agent.run", event);
+        });
+        runs.startTurn({
+          sessionId,
+          runId,
+          roomId,
+          source: "desktop",
+          message: "Apply the status edit.",
+          runDepth: "standard",
+          configuredMaxIterations: 45,
+          progressMode: "verbose",
+        });
+        runs.noteActionStarted(sessionId, "WRITE_FILE");
+        runs.recordLocalMutation(sessionId, {
+          action: "WRITE_FILE",
+          requestedPath: "src/main.ts",
+          resolvedPath: "src/main.ts",
+          success: true,
+          bytes: 40,
+        });
+        runs.noteActionCompleted(sessionId, "WRITE_FILE");
+        runs.finishTurn(sessionId, "complete");
+        stopObserving();
+        runs.appendTaskEvent(runId, "response.completed", {}, true);
+      } finally {
+        database.close();
+        runs.dispose();
+      }
+
+      await desktop.restart();
+      const { page } = desktop;
+      const savedRuns = await agentRequest<{ runs: Array<{ runId: string }> }>(
+        page,
+        "/chat/runs?include_updates=true",
+      );
+      expect(savedRuns.runs).toContainEqual(
+        expect.objectContaining({ runId, sessionId, status: "complete" }),
+      );
+      const savedSessions = await agentRequest<{
+        sessions: Array<{ sessionId: string; title: string }>;
+      }>(page, "/sessions");
+      expect(savedSessions.sessions).toContainEqual(
+        expect.objectContaining({ sessionId, title }),
+      );
+      const clipboardWrites = await page.evaluateHandle(() => {
+        const writes: string[] = [];
+        // Verify the renderer clipboard payload without replacing the user's clipboard.
+        Object.defineProperty(navigator.clipboard, "writeText", {
+          value: async (value: string) => {
+            writes.push(value);
+          },
+        });
+        return writes;
+      });
+      await page
+        .getByRole("navigation", { name: "Chat history" })
+        .getByRole("button", { name: title, exact: true })
+        .click();
+      const transcript = page.getByRole("log", { name: "Conversation" });
+      await expect(
+        transcript.getByRole("heading", { name: "Build review" }),
+      ).toBeVisible();
+      await expect(transcript.getByRole("table")).toContainText("Passing");
+      const prompt = transcript
+        .locator(".chat-transcript-entry")
+        .filter({ hasText: "Review the build." });
+      const messageActions = prompt.getByRole("button", {
+        name: "More message actions",
+      });
+      await expect(messageActions).toBeVisible();
+      await messageActions.press("Enter");
+      await expect(
+        page.getByRole("menuitem", { name: "Edit in a new branch" }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(messageActions).toBeFocused();
+
+      const source = transcript.getByRole("figure", { name: "src/main.ts" });
+      await expect(
+        source.getByText("TypeScript", { exact: true }),
+      ).toBeVisible();
+      const wrap = source.getByRole("button", { name: "Wrap lines" });
+      const scrollRegion = source.getByRole("region", {
+        name: "src/main.ts code",
+      });
+      const overflow = () =>
+        scrollRegion.evaluate((node) => node.scrollWidth - node.clientWidth);
+      await expect.poll(overflow).toBeGreaterThan(0);
+      await expect(wrap).toHaveAttribute("aria-pressed", "false");
+      await wrap.click();
+      await expect(wrap).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(overflow).toBeLessThanOrEqual(1);
+      await source.getByRole("button", { name: "Copy code" }).click();
+      await expect.poll(() => clipboardWrites.jsonValue()).toEqual([code]);
+      const diffBlock = transcript.getByRole("figure", { name: "Diff" });
+      await expect(
+        diffBlock.locator('[data-code-change="added"]'),
+      ).toContainText('+export const stage = "after";');
+      await expect(
+        diffBlock.locator('[data-code-change="removed"]'),
+      ).toContainText('-export const stage = "before";');
+      await diffBlock.getByRole("button", { name: "Copy code" }).click();
+      await expect
+        .poll(() => clipboardWrites.jsonValue())
+        .toEqual([code, diff]);
+
+      const toolActivity = transcript.getByRole("button", {
+        name: /Tool activity/u,
+      });
+      await toolActivity.click();
+      const commandStep = transcript.getByRole("button", {
+        name: "Show Shell command details",
+      });
+      await expect(commandStep).toContainText("Exit 0");
+      await expect(commandStep).toContainText("125 ms");
+      await commandStep.click();
+      await expect(
+        transcript.getByText("Fixture output", { exact: true }),
+      ).toBeVisible();
+      await transcript.getByRole("button", { name: "Copy output" }).click();
+      await expect
+        .poll(() => clipboardWrites.jsonValue())
+        .toEqual([code, diff, toolResult.result.stdout]);
+
+      await transcript.getByRole("button", { name: /Run complete/u }).click();
+      await expect(
+        transcript.getByRole("region", { name: "Changed files" }),
+      ).toContainText("src/main.ts");
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("codes in the folder chosen from This computer and keeps private chats separate", async () => {
-    const desktop = await launchDesktop();
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
     const { app, page, workspace } = desktop;
     const projectRoot = join(workspace, "local-coding");
     const file = "local-file.txt";
@@ -854,6 +1082,7 @@ test.describe("fresh native desktop", () => {
     const after = "Edited in the approved folder\n";
     const terminalProof = join(projectRoot, "command-root.txt");
     const draft = "Keep this draft in the local coding chat.";
+    const nextLine = "Check the test coverage too.";
     const readScopedFile = (
       scope: Pick<
         BotConversationScope,
@@ -977,6 +1206,10 @@ test.describe("fresh native desktop", () => {
         .getAttribute("id");
       if (!localPanelId) throw new Error("Expected a linked local chat tab");
       await composer.fill(draft);
+      await composer.press("End");
+      await composer.press("Shift+Enter");
+      await composer.pressSequentially(nextLine);
+      await expect(composer).toHaveValue(`${draft}\n${nextLine}`);
 
       await localPicker.click();
       await picker.getByRole("button", { name: /^Private workspace/u }).click();
@@ -1012,7 +1245,7 @@ test.describe("fresh native desktop", () => {
         .locator(`[aria-controls="${localPanelId}"]`)
         .click();
       await expect(localPicker).toBeVisible();
-      await expect(composer).toHaveValue(draft);
+      await expect(composer).toHaveValue(`${draft}\n${nextLine}`);
     } finally {
       await desktop.dispose();
     }
@@ -1332,7 +1565,9 @@ test.describe("fresh native desktop", () => {
   });
   test("switches expressive themes without losing chat state or readability", async () => {
     test.setTimeout(120_000);
-    const desktop = await launchDesktop();
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
     try {
       let page = desktop.page;
       const composer = () => page.getByRole("textbox", { name: /^Message /u });

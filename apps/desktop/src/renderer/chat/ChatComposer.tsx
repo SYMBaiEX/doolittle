@@ -4,12 +4,12 @@ import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
 import {
   ArrowUp,
-  ChevronDown,
+  CircleGauge,
+  Ellipsis,
   FileText,
   ListEnd,
   LoaderCircle,
   Paperclip,
-  Plus,
   Square,
   X,
 } from "lucide-react";
@@ -22,7 +22,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   BackendState,
   CommandCatalogItem,
@@ -53,13 +53,7 @@ import {
   PROMPT_LIBRARY_CHANGE_EVENT,
   PROMPT_LIBRARY_STORAGE_KEY,
 } from "../conversation-persistence";
-import {
-  asArray,
-  asRecord,
-  desktopRequest,
-  errorMessage,
-  useApiResource,
-} from "../lib";
+import { asArray, asRecord, useApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import { ContextCapsuleIcon, contextCapsuleLabel } from "./ContextCapsuleIcon";
 import type { ChatMemoryMatchState } from "./models";
@@ -71,6 +65,7 @@ import {
 } from "./reusable-completion";
 
 import { pendingApprovalsForSession } from "./session-approvals";
+import "./composer-design.css";
 
 /** Border-box approval allowance from actual chrome, never empty-track slack. */
 export function chatApprovalHeightBudget(
@@ -379,8 +374,6 @@ export function ChatComposer({
   const isCancellingActive = Boolean(
     activeRequest && cancellingRequest === activeRequest,
   );
-  const [skills, setSkills] = useState(() => buildSkillCatalogEntries([]));
-  const [skillsError, setSkillsError] = useState("");
   const [promptEntries, setPromptEntries] = useState(() =>
     typeof window === "undefined" ? [] : loadPromptLibrary(window.localStorage),
   );
@@ -410,34 +403,24 @@ export function ChatComposer({
     };
   }, []);
 
-  useEffect(() => {
-    if (backend.phase !== "ready" || !workspacePath) {
-      setSkills([]);
-      setSkillsError("");
-      return;
-    }
-    let cancelled = false;
-    void desktopRequest<{ skills?: unknown }>("/skills")
-      .then((response) => {
-        if (cancelled) return;
-        setSkills(
-          buildSkillCatalogEntries(asArray(response.skills).map(asRecord)),
-        );
-        setSkillsError("");
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setSkills([]);
-        setSkillsError(`Skills unavailable: ${errorMessage(error)}`);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [backend.phase, workspacePath]);
-
-  const reusableSuggestions = commandMenuDismissed
-    ? []
-    : reusableCompletions(draft, promptEntries, skills, activeProject?.id);
+  const reusableRequested = draft.trimStart().startsWith("$");
+  const skillCatalog = useApiResource<{ skills?: unknown }>(
+    reusableRequested && backend.phase === "ready" && workspacePath
+      ? "/skills"
+      : null,
+    [workspacePath],
+  );
+  const skills = useMemo(
+    () =>
+      buildSkillCatalogEntries(
+        asArray(skillCatalog.data?.skills).map(asRecord),
+      ),
+    [skillCatalog.data],
+  );
+  const reusableSuggestions =
+    commandMenuDismissed || !reusableRequested
+      ? []
+      : reusableCompletions(draft, promptEntries, skills, activeProject?.id);
 
   const commandMenuOpen = commandSuggestions.length > 0;
   const reusableMenuOpen = reusableSuggestions.length > 0;
@@ -451,6 +434,7 @@ export function ChatComposer({
       (selectedContext &&
         (selectedContextTone !== "neutral" || selectedContext.overThreshold)),
   );
+  const canInspectContext = hasMemoryMatches || hasContextDetails;
   const showOperationalStatus = Boolean(
     activeRequest ||
       backend.phase !== "ready" ||
@@ -544,9 +528,9 @@ export function ChatComposer({
     ) : null;
 
   useEffect(() => {
-    if (hasMemoryMatches || hasContextDetails) return;
+    if (canInspectContext) return;
     setDetailsOpen(false);
-  }, [hasContextDetails, hasMemoryMatches]);
+  }, [canInspectContext]);
 
   return (
     <ComposerFrame
@@ -562,19 +546,65 @@ export function ChatComposer({
             } as CSSProperties)
       }
     >
-      {workspaceNotice}
-      <InlineApprovalPanel
-        active={approvalsEnabled}
-        approvals={approvals}
-        botId={approvalBotId}
-        compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
-        resource={approvalResource}
-        roomId={selectedId}
-      />
+      <div className="chat-composer-notices">
+        {workspaceNotice}
+        <InlineApprovalPanel
+          active={approvalsEnabled}
+          approvals={approvals}
+          botId={approvalBotId}
+          compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
+          resource={approvalResource}
+          roomId={selectedId}
+        />
+      </div>
+      {showOperationalStatus ? (
+        <div className="chat-composer-status" role="status">
+          <StatusBadge
+            className="chat-status-badge"
+            label={operationalLabel}
+            pulse={
+              Boolean(activeRequest) &&
+              pendingApprovals === 0 &&
+              (!bot ||
+                bot.isDefault ||
+                bot.state === "ready" ||
+                bot.state === "busy")
+            }
+            tone={
+              bot?.state === "error"
+                ? "danger"
+                : bot?.state === "waiting" || pendingApprovals > 0
+                  ? "warning"
+                  : bot?.state === "stopped" || bot?.state === "archived"
+                    ? "muted"
+                    : activeRequest || bot?.state === "busy"
+                      ? "processing"
+                      : backend.phase === "booting"
+                        ? "warning"
+                        : backend.phase === "degraded"
+                          ? "danger"
+                          : "muted"
+            }
+            withDot
+          />
+          {runningTasks > 0 ? (
+            <small>
+              {runningTasks} runtime task{runningTasks === 1 ? "" : "s"} active
+            </small>
+          ) : null}
+          {pendingApprovals > 0 ? (
+            <small className="warning">
+              {pendingApprovals} runtime approval
+              {pendingApprovals === 1 ? "" : "s"}
+            </small>
+          ) : null}
+        </div>
+      ) : null}
       {queuedMessages.length > 0 ? (
         <div className="chat-message-queue" ref={queueRef}>
           <div className="chat-message-queue-heading">
             <strong>
+              <UiIcon icon={ListEnd} size="xs" />
               {queuedMessages.length} queued{" "}
               {queuedMessages.length === 1 ? "message" : "messages"}
             </strong>
@@ -595,7 +625,7 @@ export function ChatComposer({
           </div>
           {queueStatus ? (
             <div className="flex flex-wrap items-center justify-between gap-x-2">
-              <span className="text-sm text-[var(--text-soft)]" role="status">
+              <span className="chat-queue-status" role="status">
                 {queueStatus}
               </span>
               {onOpenQueueHead ? (
@@ -608,10 +638,13 @@ export function ChatComposer({
           <ol aria-label="Queued messages">
             {queuedMessages.map((message, index) => (
               <li key={message.id}>
-                <span>{index + 1}</span>
+                <span aria-hidden="true">{index + 1}</span>
                 <p title={message.content}>{message.content}</p>
                 {message.attachments.length > 0 ? (
-                  <small>{message.attachments.length} files</small>
+                  <small>
+                    {message.attachments.length}{" "}
+                    {message.attachments.length === 1 ? "file" : "files"}
+                  </small>
                 ) : null}
                 {message.id === queueDispatchingId ? (
                   <small role="status">Delivery in progress</small>
@@ -659,8 +692,14 @@ export function ChatComposer({
             </li>
           ))}
           <li className="chat-file-context-summary">
-            {attachedFiles.length} / {MAX_MESSAGE_ATTACHMENTS} files ·{" "}
-            {attachmentSize(attachmentTotalBytes)} / 50 MB
+            <span
+              title={`${MAX_MESSAGE_ATTACHMENTS} files or 50 MB per message`}
+            >
+              {attachedFiles.length}{" "}
+              {attachedFiles.length === 1 ? "file" : "files"}
+              {" · "}
+              {attachmentSize(attachmentTotalBytes)}
+            </span>
           </li>
         </ul>
       ) : null}
@@ -669,7 +708,10 @@ export function ChatComposer({
           <span className="chat-context-capsule__icon" aria-hidden="true">
             <ContextCapsuleIcon kind={chatContextCapsule.kind} />
           </span>
-          <span className="chat-context-capsule__label">
+          <span
+            className="chat-context-capsule__label"
+            title={chatContextCapsule.path}
+          >
             {contextCapsuleLabel(chatContextCapsule.kind)} ·{" "}
             {chatContextCapsule.path}
           </span>
@@ -687,7 +729,7 @@ export function ChatComposer({
         </div>
       ) : null}
       {attachmentNotice ? (
-        <p className="px-2 text-sm text-[var(--text-soft)]" role="status">
+        <p className="chat-attachment-notice" role="status">
           {attachmentNotice}
         </p>
       ) : null}
@@ -797,9 +839,9 @@ export function ChatComposer({
           {commandCatalog.error}
         </div>
       ) : null}
-      {draft.trimStart().startsWith("$") && skillsError ? (
+      {reusableRequested && skillCatalog.error ? (
         <div className="chat-command-catalog-error" role="alert">
-          {skillsError}
+          Skills unavailable: {skillCatalog.error}
         </div>
       ) : null}
       <div className="chat-composer-main">
@@ -835,7 +877,12 @@ export function ChatComposer({
             setCommandSelection(0);
           }}
           onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-            if (event.nativeEvent.isComposing) return;
+            if (
+              event.defaultPrevented ||
+              event.nativeEvent.isComposing ||
+              event.nativeEvent.keyCode === 229
+            )
+              return;
             if (
               completionCount > 0 &&
               !event.shiftKey &&
@@ -900,7 +947,7 @@ export function ChatComposer({
           placeholder={
             canDraft
               ? activeProject
-                ? `Message ${activeProject.name}…`
+                ? `What should we work on in ${activeProject.name}?`
                 : `Message ${bot?.name ?? "Doolittle"}…`
               : "Waiting for the local runtime…"
           }
@@ -924,7 +971,15 @@ export function ChatComposer({
             type="button"
             variant="secondary"
           >
-            <UiIcon icon={Paperclip} size="xs" />
+            <UiIcon
+              icon={attachmentImporting ? LoaderCircle : Paperclip}
+              size="sm"
+              className={
+                attachmentImporting
+                  ? "animate-spin motion-reduce:animate-none"
+                  : undefined
+              }
+            />
           </ElizaButton>
           <span aria-live="polite" className="sr-only" role="status">
             {attachmentImporting ? "Importing file context…" : ""}
@@ -944,9 +999,9 @@ export function ChatComposer({
               aria-label="More composer tools"
               className="chat-composer-icon-button"
             >
-              <UiIcon icon={Plus} size="sm" />
+              <UiIcon icon={Ellipsis} size="md" />
             </summary>
-            <div className="chat-composer-tool-menu absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)] [@container_session_(max-height:640px)]:static [@container_session_(max-height:640px)]:my-2 [@container_session_(max-height:640px)]:min-w-0 [@container_session_(max-height:640px)]:flex-wrap">
+            <div className="chat-composer-tool-menu">
               <VoiceComposerButton
                 disabled={backend.phase !== "ready"}
                 presentationActive={approvalsVisible}
@@ -964,9 +1019,9 @@ export function ChatComposer({
             </div>
           </details>
         </div>
-        <div className="chat-composer-footer-right">
+        <div className="chat-composer-config">
           <div
-            className="chat-composer-routing flex items-center justify-end gap-1.5"
+            className="chat-composer-routing"
             data-has-project={workspaceSelector ? "true" : undefined}
           >
             {workspaceSelector}
@@ -979,140 +1034,108 @@ export function ChatComposer({
               runtime={runtime}
             />
           </div>
-          {showOperationalStatus ? (
-            <div className="chat-composer-status">
-              <StatusBadge
-                className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
-                label={operationalLabel}
-                pulse={
-                  Boolean(activeRequest) &&
-                  pendingApprovals === 0 &&
-                  (!bot ||
-                    bot.isDefault ||
-                    bot.state === "ready" ||
-                    bot.state === "busy")
-                }
-                tone={
-                  bot?.state === "error"
-                    ? "danger"
-                    : bot?.state === "waiting" || pendingApprovals > 0
-                      ? "warning"
-                      : bot?.state === "stopped" || bot?.state === "archived"
-                        ? "muted"
-                        : activeRequest || bot?.state === "busy"
-                          ? "processing"
-                          : backend.phase === "booting"
-                            ? "warning"
-                            : backend.phase === "degraded"
-                              ? "danger"
-                              : "muted"
-                }
-                withDot
-              />
-              {runningTasks > 0 ? (
-                <small>
-                  {runningTasks} runtime task{runningTasks === 1 ? "" : "s"}{" "}
-                  active
-                </small>
-              ) : null}
-              {pendingApprovals > 0 ? (
-                <small className="warning">
-                  {pendingApprovals} runtime approval
-                  {pendingApprovals === 1 ? "" : "s"}
-                </small>
-              ) : null}
-            </div>
-          ) : null}
-          {hasMemoryMatches || hasContextDetails ? (
+          {canInspectContext ? (
             <ElizaButton
               aria-controls={controlId("chat-composer-details")}
               aria-label={detailsLabel}
               aria-expanded={detailsOpen}
-              className="chat-composer-meta-toggle !min-h-10 rounded-[var(--radius-md)] !border-transparent !bg-transparent px-2 py-1 text-[length:var(--text-control)] text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[720px]:!min-h-11"
+              className="chat-composer-meta-toggle chat-composer-icon-button"
               onClick={() => setDetailsOpen((current) => !current)}
               size="sm"
+              title={detailsLabel}
               type="button"
-              variant="secondary"
+              variant="ghost"
             >
+              <UiIcon icon={CircleGauge} size="sm" />
               <span className="chat-composer-meta-toggle__label">
                 {detailsLabel}
               </span>
-              <UiIcon
-                className={detailsOpen ? "rotate-180" : undefined}
-                icon={ChevronDown}
-                size="xs"
-              />
             </ElizaButton>
           ) : null}
-          <div className="chat-composer-dispatch">
-            {activeRequest && canQueue && !isCancellingActive ? (
-              <ElizaButton
-                aria-label="Queue message"
-                className="chat-composer-icon-button chat-composer-queue"
-                title="Queue message (Enter)"
-                type="submit"
-                variant="ghost"
-              >
-                <UiIcon icon={ListEnd} size="sm" />
-              </ElizaButton>
-            ) : null}
+        </div>
+        <div className="chat-composer-dispatch">
+          {activeRequest && canQueue && !isCancellingActive ? (
             <ElizaButton
-              aria-label={
-                isCancellingActive
-                  ? "Stopping response"
-                  : activeRequest
-                    ? "Stop response"
-                    : "Send message"
-              }
-              aria-keyshortcuts={
-                activeRequest && !isCancellingActive ? "Escape" : undefined
-              }
-              className="chat-composer-submit"
-              data-mode={activeRequest ? "stop" : "send"}
-              disabled={isCancellingActive || (!activeRequest && !canSubmit)}
-              onClick={
-                activeRequest ? () => onCancelRequest(activeRequest) : undefined
-              }
-              size="icon-sm"
-              title={
-                activeRequest
-                  ? "Stop response (Escape)"
-                  : "Send message (Enter)"
-              }
-              type={activeRequest ? "button" : "submit"}
-              variant="default"
+              aria-label="Queue message"
+              aria-keyshortcuts="Enter"
+              className="chat-composer-queue"
+              title="Queue message (Enter)"
+              type="submit"
+              variant="ghost"
             >
-              <UiIcon
-                className={
-                  isCancellingActive
-                    ? "animate-spin motion-reduce:animate-none"
-                    : undefined
-                }
-                icon={
-                  isCancellingActive
-                    ? LoaderCircle
-                    : activeRequest
-                      ? Square
-                      : ArrowUp
-                }
-                size="sm"
-              />
+              <UiIcon icon={ListEnd} size="sm" />
+              <span className="chat-composer-action-label">Queue</span>
             </ElizaButton>
-          </div>
+          ) : null}
+          <ElizaButton
+            aria-label={
+              isCancellingActive
+                ? "Stopping response"
+                : activeRequest
+                  ? "Stop response"
+                  : "Send message"
+            }
+            aria-keyshortcuts={
+              isCancellingActive
+                ? undefined
+                : activeRequest
+                  ? "Escape"
+                  : "Enter"
+            }
+            className="chat-composer-submit"
+            data-mode={activeRequest ? "stop" : "send"}
+            disabled={isCancellingActive || (!activeRequest && !canSubmit)}
+            onClick={
+              activeRequest ? () => onCancelRequest(activeRequest) : undefined
+            }
+            size="sm"
+            title={
+              activeRequest ? "Stop response (Escape)" : "Send message (Enter)"
+            }
+            type={activeRequest ? "button" : "submit"}
+            variant="default"
+          >
+            <UiIcon
+              className={
+                isCancellingActive
+                  ? "animate-spin motion-reduce:animate-none"
+                  : undefined
+              }
+              icon={
+                isCancellingActive
+                  ? LoaderCircle
+                  : activeRequest
+                    ? Square
+                    : ArrowUp
+              }
+              size="sm"
+            />
+            <span className="chat-composer-action-label">
+              {isCancellingActive
+                ? "Stopping…"
+                : activeRequest
+                  ? "Stop"
+                  : "Send"}
+            </span>
+            {!activeRequest && canSubmit ? (
+              <span aria-hidden="true" className="chat-composer-submit-key">
+                ↵
+              </span>
+            ) : null}
+          </ElizaButton>
         </div>
       </div>
-      <small
-        className="chat-composer-hint"
-        id={controlId("chat-composer-hint")}
-      >
+      <small className="sr-only" id={controlId("chat-composer-hint")}>
         {isCancellingActive
           ? "Stopping response"
           : activeRequest
-            ? "Enter to queue · Escape to stop"
-            : "Enter to send"}{" "}
-        · Shift Enter for a new line
+            ? canQueue
+              ? "Enter to queue. Escape to stop."
+              : "Escape to stop."
+            : "Enter to send."}{" "}
+        Shift Enter for a new line.
       </small>
-      {detailsOpen && (hasMemoryMatches || hasContextDetails) ? (
+      {detailsOpen && canInspectContext ? (
         <div
           className="chat-composer-details"
           id={controlId("chat-composer-details")}
@@ -1161,18 +1184,8 @@ export function ChatComposer({
                 : selectedUsageError
             }
           >
-            <span className="chat-status-runtime flex min-w-0 items-center gap-1.5 whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&_small]:max-w-[170px] [&_small]:overflow-hidden [&_small]:text-ellipsis">
-              <small>Runtime</small>
-              <small>{modelRouteLabel}</small>
-            </span>
-            <span className="chat-context-track" aria-hidden="true">
-              <i
-                className="chat-context-fill"
-                style={{ width: `${selectedContextPercent}%` }}
-              />
-            </span>
-            <span>
-              <strong>Context</strong>
+            <span className="chat-context-meter-heading">
+              <strong>Context usage</strong>
               <small>
                 {selectedContext
                   ? `${contextPressureLabel(selectedContext)} · ${fileName(
@@ -1185,6 +1198,17 @@ export function ChatComposer({
                       : "Not measured"}
               </small>
             </span>
+            {selectedContext ? (
+              <span className="chat-context-track" aria-hidden="true">
+                <i
+                  className="chat-context-fill"
+                  style={{ width: `${selectedContextPercent}%` }}
+                />
+              </span>
+            ) : null}
+            <small className="chat-context-route" title={modelRouteLabel}>
+              {modelRouteLabel}
+            </small>
           </div>
         </div>
       ) : null}

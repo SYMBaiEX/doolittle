@@ -4,6 +4,7 @@ import {
   useSurfacePresence,
 } from "@doolittle/ui";
 import { useMediaQuery } from "@doolittle/ui/environment";
+import { ArrowDown, LockKeyhole } from "lucide-react";
 import {
   type FormEvent,
   lazy,
@@ -29,6 +30,7 @@ import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFall
 import { BotRuntimeNotice } from "./bots/BotRuntimeNotice";
 import type { KnowledgePromotionSource } from "./bots/KnowledgePromotionDialog";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
+import { ChatNotice } from "./chat/ChatNotice";
 import {
   CompanionInspector,
   type InspectorTab,
@@ -52,7 +54,6 @@ import {
   observeInspectorGeometry,
   saveInspectorWidth,
 } from "./chat/inspector-layout";
-import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 import "./chat/chat-surface.css";
 import type { ChatWorkspaceTarget } from "./chat/ChatComposer";
 import {
@@ -73,6 +74,7 @@ import type {
 import { composeChatContextMessage } from "./chat-context-handoff";
 import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
+import { UiIcon } from "./components/UiIcon";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import { newConversationId } from "./conversation-id";
 import {
@@ -1558,7 +1560,10 @@ export function ChatSessionPanel({
   // History recovery stays in the active layout until its outcome is known.
   // Only presentation changes; the composer and transcript keep their identity.
   const isEmptyConversation =
-    isNewConversation && loadingHistory !== selectedId && !historyError;
+    isNewConversation &&
+    !readOnlyChat &&
+    loadingHistory !== selectedId &&
+    !historyError;
   const composerDockRef = useRef<HTMLDivElement>(null);
   const inspectorPresence = useSurfacePresence(inspectorVisible);
   useLiquidLayout(
@@ -1577,12 +1582,20 @@ export function ChatSessionPanel({
         "aria-label": "Thread workbench",
         role: "region" as const,
       };
+  const hasDispatchNotice =
+    Boolean(activeRequest && runConnection) ||
+    Boolean(dispatchFeedback[selectedId]) ||
+    dispatchPending[selectedId] ||
+    runHydration !== "ready" ||
+    workspaceBindingBlocked ||
+    (!botReady && (!currentBot || !activeRequest));
+  const promotionNotice = promotionFeedback[selectedId];
 
   if (coordinator) return null;
 
   return (
     <div
-      className={`${CHAT_WORKSPACE_CLASS} ${
+      className={`chat-workspace ${
         inspectorPresence.present ? "inspector-open" : "inspector-closed"
       }${inspectorVisible && isNarrowWorkbench ? " inspector-sheet" : ""}`}
       ref={workspaceRef}
@@ -1676,37 +1689,28 @@ export function ChatSessionPanel({
               onClick={jumpToLatestMessages}
               type="button"
             >
-              {unreadMessageCount} new{" "}
-              {unreadMessageCount === 1 ? "message" : "messages"}
-              <span aria-hidden="true"> · Jump to latest</span>
+              <UiIcon icon={ArrowDown} />
+              <span>Jump to latest</span>
+              <span className="chat-jump-count">{unreadMessageCount} new</span>
             </button>
           ) : null}
-          {promotionFeedback[selectedId] ? (
-            <div
-              className="chat-storage-warning"
-              role={promotionFeedback[selectedId]?.error ? "alert" : "status"}
-            >
-              {promotionFeedback[selectedId]?.error ??
-                promotionFeedback[selectedId]?.message}
-            </div>
-          ) : null}
-          {storageWarning ? (
-            <div
-              aria-live="polite"
-              className="chat-storage-warning"
-              role="status"
-            >
-              {storageWarning}
-            </div>
-          ) : null}
-          {visibleRunHydrationWarnings.length > 0 ? (
-            <div
-              className="chat-storage-warning"
-              role="status"
-              title={visibleRunHydrationWarnings.join("\n")}
-            >
-              Some agent history is unavailable. Other conversations remain
-              usable.
+          {promotionNotice ||
+          storageWarning ||
+          visibleRunHydrationWarnings.length ? (
+            <div className="chat-panel-notices">
+              {promotionNotice ? (
+                <ChatNotice tone={promotionNotice.error ? "error" : "neutral"}>
+                  {promotionNotice.error ?? promotionNotice.message}
+                </ChatNotice>
+              ) : null}
+              {storageWarning ? (
+                <ChatNotice tone="warning">{storageWarning}</ChatNotice>
+              ) : null}
+              {visibleRunHydrationWarnings.length ? (
+                <ChatNotice tone="warning">
+                  Some agent history could not be loaded.
+                </ChatNotice>
+              ) : null}
             </div>
           ) : null}
           <div aria-live="polite" className="sr-only" role="status">
@@ -1714,14 +1718,13 @@ export function ChatSessionPanel({
           </div>
         </div>
         {readOnlyChat ? (
-          <p className="chat-storage-warning" role="status">
+          <p className="chat-read-only" role="status">
+            <UiIcon icon={LockKeyhole} />
             Read-only conversation history
           </p>
         ) : null}
         <div
-          className={
-            readOnlyChat ? "chat-composer-dock hidden" : "chat-composer-dock"
-          }
+          className="chat-composer-dock"
           hidden={readOnlyChat}
           inert={readOnlyChat}
           ref={composerDockRef}
@@ -1731,114 +1734,93 @@ export function ChatSessionPanel({
             approvalBotId={currentBotId}
             approvalsVisible={approvalsVisible}
             workspaceNotice={
-              <>
-                {activeRequest && runConnection ? (
-                  <div className="chat-bot-start-notice">
-                    <span role="status">
-                      {runConnection === "reconnecting"
-                        ? "Waiting for the response stream to reconnect…"
-                        : "Response stream disconnected. The run may still be active."}
-                    </span>
-                    <button
-                      className="secondary-button shrink-0"
-                      disabled={runConnection === "reconnecting"}
-                      onClick={() => void reconnectRequest(activeRequest)}
-                      type="button"
+              hasDispatchNotice ? (
+                <div className="chat-dispatch-notices">
+                  {activeRequest && runConnection ? (
+                    <ChatNotice
+                      action={{
+                        label: "Reconnect",
+                        invoke: () => void reconnectRequest(activeRequest),
+                        disabled: runConnection === "reconnecting",
+                      }}
+                      tone="warning"
                     >
-                      Reconnect
-                    </button>
-                  </div>
-                ) : null}
-                {dispatchFeedback[selectedId] ? (
-                  <p
-                    role="alert"
-                    className="m-0 pb-2 text-sm text-[var(--text)]"
-                  >
-                    {dispatchFeedback[selectedId]}
-                  </p>
-                ) : null}
-                {dispatchPending[selectedId] ? (
-                  <p
-                    role="status"
-                    className="m-0 pb-2 text-sm text-[var(--muted)]"
-                  >
-                    Confirming this conversation’s owner…
-                  </p>
-                ) : null}
-                {runHydration !== "ready" ? (
-                  <div
-                    className="flex items-center justify-between gap-2 pb-2 text-[length:var(--text-control)] text-[var(--muted)]"
-                    role="status"
-                  >
-                    <span>
+                      {runConnection === "reconnecting"
+                        ? "Reconnecting to the response…"
+                        : "Response stream disconnected. The run may still be active."}
+                    </ChatNotice>
+                  ) : null}
+                  {dispatchFeedback[selectedId] ? (
+                    <ChatNotice tone="error">
+                      {dispatchFeedback[selectedId]}
+                    </ChatNotice>
+                  ) : null}
+                  {dispatchPending[selectedId] ? (
+                    <ChatNotice>
+                      Confirming this conversation’s owner…
+                    </ChatNotice>
+                  ) : null}
+                  {runHydration !== "ready" ? (
+                    <ChatNotice
+                      action={
+                        runHydration === "unavailable"
+                          ? {
+                              label: "Retry run list",
+                              invoke: retryRunHydration,
+                            }
+                          : undefined
+                      }
+                      tone={
+                        runHydration === "unavailable" ? "warning" : "neutral"
+                      }
+                    >
                       {runHydration === "checking"
                         ? "Checking active runs before sending…"
-                        : "Active run recovery is unavailable. Retry before sending; your draft is retained."}
-                    </span>
-                    {runHydration === "unavailable" ? (
-                      <button
-                        className="secondary-button"
-                        onClick={retryRunHydration}
-                        type="button"
-                      >
-                        Retry run list
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-                {workspaceBindingBlocked ? (
-                  <div
-                    className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[length:var(--text-control)] text-[var(--text-soft)]"
-                    role="status"
-                  >
-                    <span>
+                        : "Active runs could not be recovered. Retry before sending."}
+                    </ChatNotice>
+                  ) : null}
+                  {workspaceBindingBlocked ? (
+                    <ChatNotice
+                      action={
+                        foreignProject && onActivateSessionProject
+                          ? {
+                              label: "Activate workspace",
+                              invoke: () =>
+                                onActivateSessionProject(
+                                  selectedId,
+                                  foreignProject.id,
+                                ),
+                            }
+                          : {
+                              label: "Resolve repository",
+                              invoke: () => {
+                                if (onChooseRepository)
+                                  void onChooseRepository(selectedId);
+                                else onOpenProjectManager?.();
+                              },
+                            }
+                      }
+                      tone="warning"
+                    >
                       {foreignProject
-                        ? `This session belongs to ${foreignProject.name}. Activate its workspace before sending. Existing runs continue in their original workspace.`
-                        : selectedScope?.kind === "unknown"
-                          ? "This chat has no confirmed workspace. History and draft are retained. Start a new chat to work in a project."
-                          : "Choose this project from New chat to confirm access before sending. Your draft is retained."}
-                    </span>
-                    {foreignProject && onActivateSessionProject ? (
-                      <button
-                        className="secondary-button shrink-0"
-                        onClick={() =>
-                          onActivateSessionProject(
-                            selectedId,
-                            foreignProject.id,
-                          )
-                        }
-                        type="button"
-                      >
-                        Activate workspace
-                      </button>
-                    ) : (
-                      <button
-                        className="secondary-button shrink-0"
-                        onClick={() =>
-                          onChooseRepository
-                            ? void onChooseRepository(selectedId)
-                            : onOpenProjectManager?.()
-                        }
-                        type="button"
-                      >
-                        Resolve repository
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-                {!botReady && currentBot && !activeRequest ? (
-                  <BotRuntimeNotice bot={currentBot} onStart={onActivateBot} />
-                ) : null}
-                {!botReady && !currentBot ? (
-                  <p
-                    className="border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--bad)]"
-                    role="alert"
-                  >
-                    This conversation’s bot is unavailable. Refresh the bot list
-                    to continue.
-                  </p>
-                ) : null}
-              </>
+                        ? `Activate ${foreignProject.name} to send in this conversation.`
+                        : "Confirm this conversation’s workspace before sending."}
+                    </ChatNotice>
+                  ) : null}
+                  {!botReady && currentBot && !activeRequest ? (
+                    <BotRuntimeNotice
+                      bot={currentBot}
+                      onStart={onActivateBot}
+                    />
+                  ) : null}
+                  {!botReady && !currentBot ? (
+                    <ChatNotice tone="error">
+                      This conversation’s bot is unavailable. Refresh the bot
+                      list to continue.
+                    </ChatNotice>
+                  ) : null}
+                </div>
+              ) : null
             }
             workspaceTarget={workspaceTarget}
             projects={projects}

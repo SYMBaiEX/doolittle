@@ -110,14 +110,15 @@ export function Welcome({
           ) : projectName ? (
             "What should we build?"
           ) : (
-            "What’s on your mind?"
+            "What are we working on?"
           )}
         </h1>
-        <p>
-          {projectName
-            ? `${botName} can help with ${projectName}, or anything else you’re working on.`
-            : `Talk to ${botName}. Start wherever you like.`}
-        </p>
+        {projectName ? (
+          <p>
+            {botName} in{" "}
+            <span className="welcome-workspace-name">{projectName}</span>
+          </p>
+        ) : null}
       </div>
       {illustrated ? (
         <div className="welcome-art" aria-hidden="true">
@@ -133,7 +134,7 @@ export function Welcome({
         </div>
       ) : null}
       <details className="chat-starter-ideas" open={illustrated || undefined}>
-        <summary>Ideas to get started</summary>
+        <summary>Starter prompts</summary>
         <ul
           aria-label="Conversation starters"
           className="starter-grid chat-welcome-starters"
@@ -153,7 +154,7 @@ export function Welcome({
                   <UiIcon className="welcome-card-icon" icon={icon} size="sm" />
                 )}
                 <strong>{prompt}</strong>
-                <small>{detail}</small>
+                {illustrated ? <small>{detail}</small> : null}
                 <UiIcon
                   icon={ArrowUpRight}
                   size="sm"

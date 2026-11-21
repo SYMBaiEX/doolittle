@@ -1,15 +1,5 @@
 import { type ContextAction, Button as ElizaButton } from "@doolittle/ui";
-import {
-  BookmarkPlus,
-  Check,
-  Copy,
-  GitFork,
-  type LucideIcon,
-  Pencil,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { UiIcon } from "../components/UiIcon";
 import type { BranchMode, CopyState, DisplayMessage } from "./models";
 
@@ -18,7 +8,6 @@ interface MessageActionsProps {
   backendReady: boolean;
   activeRequest: string | null;
   forkingMessageId: string;
-  copyState?: CopyState;
   speechSupported: boolean;
   speakingMessageId: string;
   onBranch: (message: DisplayMessage, mode: BranchMode) => void;
@@ -28,19 +17,11 @@ interface MessageActionsProps {
   onPromote?: (message: DisplayMessage) => void;
 }
 
-interface MessageAction extends ContextAction {
-  icon: LucideIcon;
-  buttonLabel?: string;
-  title?: string;
-  tone?: "success" | "error";
-}
-
 export function getMessageActions({
   message,
   backendReady,
   activeRequest,
   forkingMessageId,
-  copyState,
   speechSupported,
   speakingMessageId,
   onBranch,
@@ -48,7 +29,7 @@ export function getMessageActions({
   onRead,
   onStopReading,
   onPromote,
-}: MessageActionsProps): MessageAction[] {
+}: MessageActionsProps): ContextAction[] {
   const branchDisabled =
     !backendReady ||
     Boolean(activeRequest || forkingMessageId || message.pending) ||
@@ -56,30 +37,18 @@ export function getMessageActions({
   const branch = (mode: BranchMode) => () => {
     if (!branchDisabled) onBranch(message, mode);
   };
-  const items: MessageAction[] = [
+  const items: ContextAction[] = [
     {
       id: "copy",
       label: "Copy message",
-      buttonLabel: copyState === "failed" ? "Copy failed" : undefined,
-      icon: copyState === "copied" ? Check : Copy,
-      title: copyState === "copied" ? "Copied" : undefined,
-      tone:
-        copyState === "copied"
-          ? "success"
-          : copyState === "failed"
-            ? "error"
-            : undefined,
       onSelect: () => onCopy(message),
     },
     {
       id: "fork",
-      icon: GitFork,
-      label: "Fork from this message",
-      buttonLabel: "Fork conversation from this message",
-      title:
+      label:
         forkingMessageId === message.id
           ? "Creating branch…"
-          : "Continue in a new branch from this message",
+          : "Fork from this message",
       disabled: branchDisabled || Boolean(message.error),
       onSelect: branch("fork"),
     },
@@ -87,18 +56,14 @@ export function getMessageActions({
   if (message.role === "user") {
     items.push({
       id: "edit",
-      icon: Pencil,
       label: "Edit in a new branch",
-      buttonLabel: "Edit this message in a new branch",
       disabled: branchDisabled,
       onSelect: branch("edit"),
     });
   } else if (!message.pending) {
     items.push({
       id: "retry",
-      icon: RotateCcw,
       label: "Retry in a new branch",
-      buttonLabel: "Retry this response in a new branch",
       disabled: branchDisabled,
       onSelect: branch("retry"),
     });
@@ -108,11 +73,11 @@ export function getMessageActions({
     const speechDisabled = !speechSupported || !message.content.trim();
     items.push({
       id: "read",
-      icon: speaking ? VolumeX : Volume2,
-      label: speaking ? "Stop reading response" : "Read response aloud",
-      buttonLabel: speechSupported
-        ? undefined
-        : "Read aloud is unavailable on this device",
+      label: speaking
+        ? "Stop reading response"
+        : speechSupported
+          ? "Read response aloud"
+          : "Read aloud is unavailable on this device",
       disabled: speechDisabled,
       separatorBefore: true,
       onSelect: () => {
@@ -125,10 +90,7 @@ export function getMessageActions({
   if (onPromote && !message.pending && !message.error && message.runId) {
     items.push({
       id: "promote",
-      icon: BookmarkPlus,
       label: "Save to project knowledge…",
-      buttonLabel: "Promote message to project knowledge",
-      title: "Save to project knowledge; sharing requires a separate grant",
       disabled: !backendReady,
       separatorBefore: true,
       onSelect: () => {
@@ -139,38 +101,36 @@ export function getMessageActions({
   return items;
 }
 
-export function MessageActions({
-  items,
+export function MessageCopyButton({
   copyState,
+  onCopy,
 }: {
-  items: MessageAction[];
   copyState?: CopyState;
+  onCopy: () => void;
 }) {
+  const feedback =
+    copyState === "copied"
+      ? "Message copied"
+      : copyState === "failed"
+        ? "Copy failed"
+        : "";
   return (
-    <fieldset aria-label="Message actions" className="chat-message-actions">
-      {items.map((item) => (
-        <ElizaButton
-          aria-label={item.buttonLabel ?? item.label}
-          className="chat-message-action-button"
-          data-tone={item.tone}
-          disabled={item.disabled}
-          key={item.id}
-          onClick={item.onSelect}
-          size="sm"
-          title={item.title ?? item.buttonLabel ?? item.label}
-          type="button"
-          variant="ghost"
-        >
-          <UiIcon icon={item.icon} size="xs" />
-        </ElizaButton>
-      ))}
+    <>
+      <ElizaButton
+        aria-label="Copy message"
+        className="chat-turn-action"
+        data-copy-state={copyState}
+        onClick={onCopy}
+        size="sm"
+        title={feedback || "Copy message"}
+        type="button"
+        variant="ghost"
+      >
+        <UiIcon icon={copyState === "copied" ? Check : Copy} size="sm" />
+      </ElizaButton>
       <span className="sr-only" role="status">
-        {copyState === "copied"
-          ? "Message copied"
-          : copyState === "failed"
-            ? "Copy failed"
-            : ""}
+        {feedback}
       </span>
-    </fieldset>
+    </>
   );
 }

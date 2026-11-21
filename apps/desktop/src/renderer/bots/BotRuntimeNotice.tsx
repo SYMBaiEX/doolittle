@@ -1,4 +1,5 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
+import { ChatNotice } from "../chat/ChatNotice";
 
 type NoticeBot = Pick<BotSummary, "id" | "name" | "state" | "error">;
 
@@ -21,20 +22,19 @@ export function BotRuntimeNotice({
         : `${bot.name} is unavailable.`;
 
   return (
-    <div className="chat-bot-start-notice" role={failed ? "alert" : "status"}>
-      <span>
-        {message}
-        {failed && bot.error ? <small>{bot.error}</small> : null}
-      </span>
-      {(stopped || failed) && onStart ? (
-        <button
-          className="secondary-button shrink-0"
-          onClick={() => void onStart(bot.id)}
-          type="button"
-        >
-          {failed ? "Retry start" : "Start now"}
-        </button>
-      ) : null}
-    </div>
+    <ChatNotice
+      action={
+        (stopped || failed) && onStart
+          ? {
+              label: failed ? "Retry start" : "Start now",
+              invoke: () => void onStart(bot.id),
+            }
+          : undefined
+      }
+      tone={failed ? "error" : "neutral"}
+    >
+      {message}
+      {failed && bot.error ? <small>{bot.error}</small> : null}
+    </ChatNotice>
   );
 }

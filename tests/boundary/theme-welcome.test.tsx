@@ -49,7 +49,7 @@ it("returns to the original quiet welcome when the material is removed", () => {
   material("flat");
   expect(container.querySelector(".welcome-art")).toBeNull();
   expect(container.querySelector("h1")?.textContent).toBe(
-    "What’s on your mind?",
+    "What are we working on?",
   );
   expect(container.querySelector("details")?.open).toBe(false);
 });

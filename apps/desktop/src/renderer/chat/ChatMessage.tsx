@@ -1,11 +1,13 @@
 import { parseWalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
-import { type ReactNode, useMemo } from "react";
+import { AlertCircle, Bot, LoaderCircle } from "lucide-react";
+import { type ReactNode, useId, useMemo } from "react";
 import { MessageContent } from "../components/MessageContent";
 import {
   markdownCodeFences,
   type ParsedAgentMessage,
   parseAgentMessage,
 } from "../components/message-output";
+import { UiIcon } from "../components/UiIcon";
 import { WalletActivityCard } from "../components/WalletActivityCard";
 import { displayTimestamp } from "../lib";
 import { ContextCapsuleIcon, contextCapsuleLabel } from "./ContextCapsuleIcon";
@@ -87,15 +89,17 @@ export function ChatMessage({
   retryDisabled?: boolean;
   onRetry?: () => void;
 }) {
-  const author = message.role === "assistant" ? botName : "You";
+  const authorId = useId();
+  const timestampId = useId();
+  const assistant = message.role === "assistant";
+  const author = assistant ? botName : "You";
   const visibleContent = messageContentAfterReceipt(message, receipt);
-  const parseEvents = message.role === "assistant";
   const parsedAgentMessage = useMemo<ParsedAgentMessage | undefined>(
     () =>
-      parseEvents && visibleContent
+      assistant && visibleContent
         ? parseAgentMessage(visibleContent)
         : undefined,
-    [parseEvents, visibleContent],
+    [assistant, visibleContent],
   );
   const hasToolActivity = Boolean(parsedAgentMessage?.tools.length);
   const receiptNeedsAttention = Boolean(
@@ -126,22 +130,35 @@ export function ChatMessage({
             : "complete";
   return (
     <article
-      className={`chat-message group ${message.role} ${message.error && !showRunReceipt ? "error" : ""}`}
+      aria-labelledby={`${authorId} ${timestampId}`}
+      className={`chat-message ${message.role}`}
       data-message-role={message.role}
       data-message-state={messageState}
     >
-      <div className="chat-message-label">
-        <strong>
-          <span aria-hidden="true" className="chat-message-avatar">
-            {Array.from(author.trim())[0] ?? "D"}
+      <header className="chat-turn-header">
+        {assistant ? (
+          <span aria-hidden="true" className="chat-turn-mark">
+            <UiIcon icon={Bot} size="sm" />
           </span>
-          <span>{author}</span>
-        </strong>
-        <time dateTime={message.createdAt}>
+        ) : null}
+        <span className="chat-turn-author" id={authorId}>
+          {author}
+        </span>
+        <time dateTime={message.createdAt} id={timestampId}>
           {displayTimestamp(message.createdAt)}
         </time>
-      </div>
-      <div className="chat-message-body">
+        {assistant &&
+        visibleContent &&
+        messageState === "streaming" &&
+        !showRunReceipt &&
+        !hasToolActivity ? (
+          <span className="chat-turn-streaming">
+            <UiIcon icon={LoaderCircle} size="xs" />
+            Responding
+          </span>
+        ) : null}
+      </header>
+      <div className="chat-turn-content">
         {receipt && showRunReceipt ? (
           <RunReceiptView
             botName={botName}
@@ -151,7 +168,7 @@ export function ChatMessage({
             retryDisabled={retryDisabled}
           />
         ) : null}
-        {message.role === "assistant" &&
+        {assistant &&
           receipt?.latest.run.walletActivities?.map((value) => {
             const wallet = parseWalletActivityReceipt(value);
             return wallet ? (
@@ -162,8 +179,9 @@ export function ChatMessage({
             ) : null;
           })}
         {message.replayGap ? (
-          <p className="chat-history-notice" role="status">
-            Some earlier response updates expired.
+          <p className="chat-transcript-notice" role="status">
+            <UiIcon icon={AlertCircle} size="sm" />
+            <span>Some earlier response updates expired.</span>
           </p>
         ) : null}
         {visibleContent ? (
@@ -172,17 +190,22 @@ export function ChatMessage({
             pending={message.pending}
           />
         ) : message.pending && !receipt ? (
-          <span aria-live="polite" className="thinking" role="status">
-            {botName} is working
+          <span className="chat-turn-working" role="status">
+            <UiIcon icon={LoaderCircle} size="sm" />
+            <span>{botName} is working</span>
           </span>
         ) : null}
         {message.error && !showRunReceipt ? (
-          <div className="chat-history-notice" role="alert">
+          <div
+            className="chat-transcript-notice chat-transcript-notice--error"
+            role="alert"
+          >
+            <UiIcon icon={AlertCircle} size="sm" />
             <span>Response could not be completed.</span>
             {onRetry ? (
               <button
                 aria-label="Retry failed response in a new branch"
-                className="text-button"
+                className="chat-transcript-command"
                 disabled={retryDisabled}
                 onClick={onRetry}
                 type="button"
@@ -194,8 +217,8 @@ export function ChatMessage({
         ) : !visibleContent &&
           !message.pending &&
           !showRunReceipt &&
-          message.role === "assistant" ? (
-          <p className="text-[var(--muted)]">No response text was returned.</p>
+          assistant ? (
+          <p className="chat-turn-empty">No response text was returned.</p>
         ) : null}
         <MessageAttachmentList attachments={message.attachments} />
         {message.role === "user" && message.contextCapsule ? (
@@ -212,7 +235,7 @@ export function ChatMessage({
             <span aria-hidden="true">
               <ContextCapsuleIcon kind={message.contextCapsule.kind} />
             </span>
-            <span>
+            <span title={message.contextCapsule.path}>
               {contextCapsuleLabel(message.contextCapsule.kind)} ·{" "}
               {message.contextCapsule.path}
             </span>
@@ -231,7 +254,7 @@ export function ChatMessage({
           </p>
         ) : null}
       </div>
-      <footer className="chat-message-footer">{actions}</footer>
+      {actions ? <footer className="chat-turn-footer">{actions}</footer> : null}
     </article>
   );
 }

@@ -1,4 +1,10 @@
-import { ContextActionMenu, StateSurface } from "@doolittle/ui";
+import { Button, ContextActionMenu, StateSurface } from "@doolittle/ui";
+import {
+  AlertCircle,
+  ChevronUp,
+  LoaderCircle,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   memo,
   type RefObject,
@@ -7,10 +13,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { UiIcon } from "../components/UiIcon";
 import { useWorkspaceState } from "../session-workspace/chat-workspace-store";
 import { ChatMessage } from "./ChatMessage";
 import { TRANSCRIPT_PAGE_SIZE } from "./history-pagination";
-import { getMessageActions, MessageActions } from "./MessageActions";
+import { getMessageActions, MessageCopyButton } from "./MessageActions";
 import type {
   BranchMode,
   CopyState,
@@ -18,6 +25,7 @@ import type {
   RunReceiptStore,
 } from "./models";
 import { Welcome } from "./Welcome";
+import "./chat-transcript.css";
 
 export interface ChatTranscriptProps {
   sessionId: string;
@@ -87,14 +95,16 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   speakingMessageId,
   speechSupported,
 }: TranscriptMessageRowProps) {
+  const onCopy = (value: DisplayMessage) => callbacks.current.onCopy(value);
+  const actionsLabel =
+    message.role === "assistant" ? "Response actions" : "Message actions";
   const actions = getMessageActions({
     activeRequest,
     backendReady,
-    copyState,
     forkingMessageId,
     message,
     onBranch: (value, mode) => callbacks.current.onBranch(value, mode),
-    onCopy: (value) => callbacks.current.onCopy(value),
+    onCopy,
     onRead: (value) => callbacks.current.onRead(value),
     onStopReading: () => callbacks.current.onStopReading(),
     onPromote: canPromote
@@ -105,15 +115,31 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   });
   return (
     <ContextActionMenu
-      label={
-        message.role === "assistant" ? "Response actions" : "Message actions"
-      }
+      className="chat-transcript-entry"
+      label={actionsLabel}
       items={actions}
       scopeKey={message.id}
+      trigger={
+        <Button
+          aria-label={`More ${actionsLabel.toLowerCase()}`}
+          className="chat-turn-action chat-turn-overflow"
+          size="sm"
+          title={actionsLabel}
+          type="button"
+          variant="ghost"
+        >
+          <UiIcon icon={MoreHorizontal} size="sm" />
+        </Button>
+      }
     >
       <ChatMessage
         botName={botName}
-        actions={<MessageActions copyState={copyState} items={actions} />}
+        actions={
+          <MessageCopyButton
+            copyState={copyState}
+            onCopy={() => onCopy(message)}
+          />
+        }
         message={message}
         onRetry={
           canRetry
@@ -332,7 +358,7 @@ export function ChatTranscript({
           kind="error"
           action={
             <button
-              className="text-button"
+              className="chat-transcript-command"
               onClick={onRetryHistory}
               type="button"
             >
@@ -346,14 +372,23 @@ export function ChatTranscript({
       ) : messages.length ? (
         <>
           {loading ? (
-            <p className="chat-history-notice" role="status">
-              Refreshing conversation…
+            <p className="chat-transcript-notice" role="status">
+              <UiIcon
+                className="chat-turn-spinner"
+                icon={LoaderCircle}
+                size="sm"
+              />
+              <span>Refreshing conversation…</span>
             </p>
           ) : historyError ? (
-            <div className="chat-history-notice" role="alert">
+            <div
+              className="chat-transcript-notice chat-transcript-notice--error"
+              role="alert"
+            >
+              <UiIcon icon={AlertCircle} size="sm" />
               <span>History could not be refreshed. {historyError}</span>
               <button
-                className="text-button"
+                className="chat-transcript-command"
                 onClick={onRetryHistory}
                 type="button"
               >
@@ -372,7 +407,7 @@ export function ChatTranscript({
                     ? "Retry loading earlier messages"
                     : "Load earlier messages"
                 }
-                className="text-button"
+                className="chat-transcript-command"
                 disabled={loadingEarlierHistory || anchoredHistoryPending}
                 onClick={async (event) => {
                   const transcript = transcriptRef.current;
@@ -417,6 +452,16 @@ export function ChatTranscript({
                 }}
                 type="button"
               >
+                <UiIcon
+                  icon={
+                    loadingEarlierHistory || anchoredHistoryPending
+                      ? LoaderCircle
+                      : earlierHistoryError
+                        ? AlertCircle
+                        : ChevronUp
+                  }
+                  size="sm"
+                />
                 {loadingEarlierHistory || anchoredHistoryPending
                   ? "Loading earlier messages…"
                   : earlierHistoryError
@@ -438,8 +483,8 @@ export function ChatTranscript({
         />
       )}
       {showStandaloneProgress ? (
-        <div aria-live="polite" className="chat-progress" role="status">
-          <i />
+        <div className="chat-progress" role="status">
+          <UiIcon icon={LoaderCircle} size="sm" />
           <span>{progress}</span>
         </div>
       ) : null}
