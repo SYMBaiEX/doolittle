@@ -631,9 +631,11 @@ export function App() {
     () => sessions.filter((session) => session.conversationKind !== "group"),
     [sessions],
   );
-  const viewingGroups =
-    showGroupList ||
-    groupSessions.some((session) => session.sessionId === selectedSession);
+  const selectedGroup = groupSessions.some(
+    (session) => session.sessionId === selectedSession,
+  );
+  const viewingGroups = showGroupList || selectedGroup;
+  const browsingGroups = showGroupList && !selectedGroup;
   const scopeForSession = useCallback(
     (id: string) =>
       resolveSessionConversationScope(
@@ -2603,8 +2605,10 @@ export function App() {
   );
   const currentRouteLabel =
     view === "chat"
-      ? compactSessionPreview(selectedSessionSummary?.title ?? "") ||
-        "New conversation"
+      ? browsingGroups
+        ? "Groups"
+        : compactSessionPreview(selectedSessionSummary?.title ?? "") ||
+          "New conversation"
       : (activeItem?.label ?? "Desktop");
   const sidebarSessions = useMemo(() => {
     const items = [...scopedSessions]
@@ -2730,7 +2734,9 @@ export function App() {
       computerOrigin={routeOrigin}
     />
   );
-  const chatRouteActive = renderedView === "chat" && !botCreationOpen;
+  const chatVisible = renderedView === "chat" && !botCreationOpen;
+  const groupPickerVisible = chatVisible && browsingGroups;
+  const chatRouteActive = chatVisible && !browsingGroups;
   // Chat owns the renderer-side stream subscription and request state. Keep
   // that owner mounted while Settings, Code, or another route is visible so a
   // route transition cannot turn ordinary navigation into an interrupted run.
@@ -2983,7 +2989,7 @@ export function App() {
               forceVisible={canvasLayout}
               onOpen={openSidebarForMobile}
             />
-            {(chatRouteActive || editorVisible) && (
+            {(chatVisible || editorVisible) && (
               <WorkbenchViewSwitch
                 view={editorVisible ? "ide" : "agent"}
                 onChange={changeWorkbenchView}
@@ -3007,10 +3013,12 @@ export function App() {
                   {renderedView === "chat"
                     ? botCreationOpen
                       ? "Create a new bot"
-                      : (selectedBot?.name ?? "Doolittle")
+                      : viewingGroups
+                        ? "Groups"
+                        : (selectedBot?.name ?? "Doolittle")
                     : (activeItem?.label ?? "Doolittle")}
                 </strong>
-                {renderedView === "chat" && !botCreationOpen ? (
+                {chatRouteActive ? (
                   <span className="truncate text-sm text-[var(--muted)]">
                     {currentRouteLabel}
                   </span>
@@ -3028,7 +3036,7 @@ export function App() {
             <span aria-live="polite" className="sr-only">
               {`${currentRouteLabel} opened`}
             </span>
-            {renderedView === "chat" && !botCreationOpen ? (
+            {chatRouteActive ? (
               <div
                 aria-label="Conversation controls"
                 className={CHAT_CHROME_HOST_CLASS}
@@ -3079,6 +3087,19 @@ export function App() {
               runtime={runtime}
             />
           </div>
+        ) : null}
+        {groupPickerVisible ? (
+          <section
+            aria-label="Group chat browser"
+            className={`${VIEW_CONTAINER_CLASS} grid place-content-center px-6 text-center`}
+            data-view="chat"
+          >
+            <h1 className="text-lg font-semibold text-[var(--text)]">
+              {groupSessions.length
+                ? "Choose a group chat"
+                : "No group chats yet"}
+            </h1>
+          </section>
         ) : null}
         <div
           aria-hidden={!chatRouteActive}

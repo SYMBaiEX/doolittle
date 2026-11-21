@@ -550,6 +550,13 @@ test.describe("fresh native desktop", () => {
       await bindConversation(defaultBotId);
       for (let index = 0; index < 10; index += 1)
         await bindConversation(scout.id);
+      await sidebarChatScope(page).selectOption({ label: "Groups" });
+      await expect(
+        page.getByRole("heading", { name: "No group chats yet", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("textbox", { name: /^Message /u }),
+      ).toHaveCount(0);
       // Seed the same durable records a connector writes before reopening the
       // profile. The encoded account name makes this a legacy opaque session ID.
       await desktop.close();
@@ -803,6 +810,11 @@ test.describe("fresh native desktop", () => {
       await expect(
         transcript.getByText(projectRoot, { exact: false }),
       ).toBeVisible({ timeout: 8_000 });
+      const localPanelId = await page
+        .getByRole("tabpanel")
+        .filter({ has: transcript })
+        .getAttribute("id");
+      if (!localPanelId) throw new Error("Expected a linked local chat tab");
       await composer.fill(draft);
 
       await localPicker.click();
@@ -836,7 +848,7 @@ test.describe("fresh native desktop", () => {
       await page.getByRole("menuitem", { name: "Workspace views" }).click();
       await page
         .getByRole("tablist", { name: "Open conversations" })
-        .locator(`[aria-controls="session-panel-${local.sessionId}"]`)
+        .locator(`[aria-controls="${localPanelId}"]`)
         .click();
       await expect(localPicker).toBeVisible();
       await expect(composer).toHaveValue(draft);
