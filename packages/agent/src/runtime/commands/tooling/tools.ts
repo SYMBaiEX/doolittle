@@ -31,11 +31,7 @@ export async function handleToolsCommand(
     if (!query) {
       return "Usage: /tools search <query>";
     }
-    const tools = searchEffectiveTools(
-      context.runtime,
-      context.services,
-      query,
-    );
+    const tools = searchEffectiveTools(context.runtime, query);
     return tools.length
       ? tools
           .map(

@@ -1,3 +1,11 @@
+import {
+  currentConversationWorkspace,
+  isDesktopWorkspaceRuntime,
+} from "../../../runtime/workspace-scope";
+import type {
+  SkillHubInstalledRecord,
+  SkillHubWorkspaceRecord,
+} from "../types";
 import type { SkillsHubServiceApi } from "./api-types";
 import {
   primeCatalogCache,
@@ -63,9 +71,11 @@ export function createSkillsHubServiceApi(
     }
   };
 
-  const families: SkillsHubServiceApi["families"] = (
-    force = false,
-    limit = 50,
+  const readFamilies = (
+    entries: SkillHubWorkspaceRecord[],
+    installed: SkillHubInstalledRecord[],
+    force: boolean,
+    limit: number,
   ) =>
     loadServiceFamilies({
       cache: state.cache,
@@ -73,11 +83,15 @@ export function createSkillsHubServiceApi(
         paths: state.context.paths,
         skills: state.context.skills,
       },
-      workspace: workspace(),
-      installed: installedRecords(),
+      workspace: entries,
+      installed,
       force,
       limit,
     });
+  const families: SkillsHubServiceApi["families"] = (
+    force = false,
+    limit = 50,
+  ) => readFamilies(workspace(), installedRecords(), force, limit);
 
   const exportBundle: SkillsHubServiceApi["exportBundle"] = async (
     label = "skills-hub",
@@ -141,7 +155,12 @@ export function createSkillsHubServiceApi(
     installedManifests,
     installedManifest,
     summary: (force = false) => {
-      const currentWorkspace = workspace();
+      // A global desktop summary may inspect the skill catalog and installed
+      // records. Workspace skills require a conversation grant.
+      const currentWorkspace =
+        isDesktopWorkspaceRuntime() && !currentConversationWorkspace()
+          ? []
+          : workspace();
       const currentInstalled = installedRecords();
       return buildServiceSummary({
         cache: state.cache,
@@ -150,7 +169,7 @@ export function createSkillsHubServiceApi(
         },
         workspace: currentWorkspace,
         installed: currentInstalled,
-        families: families(force, 500),
+        families: readFamilies(currentWorkspace, currentInstalled, force, 500),
         installedManifest,
       });
     },

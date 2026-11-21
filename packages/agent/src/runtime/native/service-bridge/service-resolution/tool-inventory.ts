@@ -154,7 +154,9 @@ function summarize(
     for (const tool of tools) {
       const key =
         field === "transport" ? (tool.transport ?? "service") : tool.category;
-      grouped.set(key, [...(grouped.get(key) ?? []), tool]);
+      const entries = grouped.get(key);
+      if (entries) entries.push(tool);
+      else grouped.set(key, [tool]);
     }
     return [...grouped.entries()].map(([name, entries]) => ({
       [field]: name,
@@ -233,12 +235,11 @@ export function getRuntimeToolProjection(
 
 export function searchEffectiveTools(
   runtime: RuntimeLike,
-  services: AppServices,
   query: string,
   options: EffectiveToolInventoryOptions = {},
 ): EffectiveToolDefinition[] {
   const normalized = query.trim().toLowerCase();
-  const tools = getEffectiveToolInventory(runtime, services, options).tools;
+  const tools = getRuntimeToolProjection(runtime, options).tools;
   if (!normalized) return tools;
   return tools.filter((tool) =>
     [

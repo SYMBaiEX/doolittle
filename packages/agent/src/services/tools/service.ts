@@ -40,7 +40,10 @@ export class CapabilityCatalogService {
   ) {}
 
   list(): ToolDefinition[] {
-    const dynamic = this.getDynamicState();
+    return this.toolsFor(this.getDynamicState());
+  }
+
+  private toolsFor(dynamic: ToolRegistryDynamicState): ToolDefinition[] {
     const baseTools = TOOL_CATALOG.map((tool) =>
       patchToolDescription({ ...tool }, dynamic),
     );
@@ -90,7 +93,8 @@ export class CapabilityCatalogService {
   }
 
   summary(): ToolRegistrySummary {
-    const tools = this.list();
+    const dynamic = this.getDynamicState();
+    const tools = this.toolsFor(dynamic);
     return buildToolRegistrySummary(
       tools,
       tools.reduce<Record<string, ToolDefinition[]>>((groups, tool) => {
@@ -98,7 +102,7 @@ export class CapabilityCatalogService {
         groups[tool.category].push(tool);
         return groups;
       }, {}),
-      this.getDynamicState(),
+      dynamic,
     );
   }
 }

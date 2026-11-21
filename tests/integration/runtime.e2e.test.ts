@@ -108,7 +108,12 @@ describe("fresh shared-engine source runtime acceptance", () => {
       h.leadUrl,
       "/tools/detail?id=INSPECT_WORKSPACE_IN_PARALLEL",
     );
-    expect(inspection.tool?.name).toBe("INSPECT_WORKSPACE_IN_PARALLEL");
+    expect(inspection.tool?.id).toBe("INSPECT_WORKSPACE_IN_PARALLEL");
+    const tools = await json<{ summary: { total: number } }>(
+      h.leadUrl,
+      "/tools/summary",
+    );
+    expect(tools.summary.total).toBeGreaterThan(0);
 
     const [url] = h.urls;
     const [sessionA, sessionB, sessionOther] = h.sessions;

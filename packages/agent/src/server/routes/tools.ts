@@ -3,6 +3,7 @@ import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   getEffectivePluginManagerInventory,
   getEffectiveToolInventory,
+  getRuntimeToolProjection,
   searchEffectiveTools,
   TOOL_POLICY_PROFILES,
 } from "../../runtime/native/service-bridge/service-resolution/index";
@@ -58,7 +59,7 @@ export async function handleToolRoutes(
       return json({ error: "query is required" }, 400);
     }
     return json({
-      results: searchEffectiveTools(context.runtime, context.services, query, {
+      results: searchEffectiveTools(context.runtime, query, {
         profile,
       }),
     });
@@ -89,11 +90,7 @@ export async function handleToolRoutes(
     if (!category) {
       return json({ error: "name is required" }, 400);
     }
-    const inventory = getEffectiveToolInventory(
-      context.runtime,
-      context.services,
-      { profile },
-    );
+    const inventory = getRuntimeToolProjection(context.runtime, { profile });
     return json({
       category,
       tools: inventory.tools.filter(
@@ -107,11 +104,7 @@ export async function handleToolRoutes(
     if (!id) {
       return json({ error: "id is required" }, 400);
     }
-    const inventory = getEffectiveToolInventory(
-      context.runtime,
-      context.services,
-      { profile },
-    );
+    const inventory = getRuntimeToolProjection(context.runtime, { profile });
     return json({
       tool: inventory.tools.find(
         (tool) =>
