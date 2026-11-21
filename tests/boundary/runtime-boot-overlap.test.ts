@@ -1,14 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-
-function deferred<T>() {
-  let resolve!: (result: T) => void;
-  let reject!: (reason: Error) => void;
-  const promise = new Promise<T>((onResolve, onReject) => {
-    resolve = onResolve;
-    reject = onReject;
-  });
-  return { promise, resolve, reject };
-}
+import { createDeferred } from "../support/deferred";
 
 afterEach(() => {
   vi.doUnmock("@doolittle/agent/runtime/bootstrap");
@@ -25,8 +16,8 @@ it.each([false, true])(
       config: { mode: "api" },
       services: { logger: { child: vi.fn() } },
     };
-    const runtime = deferred<typeof context>();
-    const api = deferred<{ startApiServer: () => void }>();
+    const runtime = createDeferred<typeof context>();
+    const api = createDeferred<{ startApiServer: () => void }>();
     const activate = vi.fn(() => runtime.promise);
     const dispose = vi.fn(async () => {
       runtime.resolve(context);

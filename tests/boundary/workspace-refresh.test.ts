@@ -13,20 +13,14 @@ vi.mock("../../apps/desktop/src/renderer/bots/session-catalog", () => ({
 }));
 
 import { useRuntimeWorkspaceData } from "../../apps/desktop/src/renderer/use-runtime-workspace-data";
+import { createDeferred } from "../support/deferred";
 
-function pending<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
 const ready = { phase: "ready", message: "Ready" } as const;
 let container: HTMLDivElement;
 let root: Root;
 let listener: (state: BackendState) => void;
 let value: ReturnType<typeof useRuntimeWorkspaceData>;
-let initial: ReturnType<typeof pending<BackendState>>;
+let initial: ReturnType<typeof createDeferred<BackendState>>;
 function Probe() {
   value = useRuntimeWorkspaceData(() => "toast");
   return null;
@@ -38,7 +32,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  initial = pending<BackendState>();
+  initial = createDeferred<BackendState>();
   Object.defineProperty(window, "doolittle", {
     configurable: true,
     value: {
@@ -56,7 +50,7 @@ afterEach(() => {
   container.remove();
 });
 function batch(label: string) {
-  const gate = pending<void>();
+  const gate = createDeferred<void>();
   return {
     gate,
     read: async (path: string) => {
@@ -87,7 +81,7 @@ async function mount() {
   });
 }
 it("shows runtime status and projects while conversation history is still loading", async () => {
-  const history = pending<{ sessions: [] }>();
+  const history = createDeferred<{ sessions: [] }>();
   request.mockImplementation(async (path: string) => {
     if (path === "/runtime/status")
       return { provider: "offline", model: "local", plugins: {} };

@@ -27,6 +27,10 @@ export default defineConfig({
       "apps/desktop/release/**",
       "**/.generated/**",
     ],
+    env: {
+      DOOLITTLE_DESKTOP_RUNTIME: "",
+      DOOLITTLE_BOT_RUNTIME: "",
+    },
     clearMocks: true,
     restoreMocks: true,
     // Real SDK subprocess fixtures share the host with renderer transforms.

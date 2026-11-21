@@ -1,21 +1,14 @@
 import type { AgentRuntime } from "@elizaos/core";
 import { afterEach, expect, it, vi } from "vitest";
 import { validateCriticalRuntimeServices } from "../../packages/agent/src/runtime/bootstrap/runtime/critical";
+import { createDeferred } from "../support/deferred";
 
 afterEach(() => vi.unstubAllEnvs());
 
-function deferred() {
-  let resolve: () => void = () => undefined;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
-
 it("overlaps independent lead services and keeps subsequent checks behind both", async () => {
   vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "lead");
-  const experience = deferred();
-  const character = deferred();
+  const experience = createDeferred<void>();
+  const character = createDeferred<void>();
   const loadService = vi.fn((type: string) => {
     if (type === "EXPERIENCE") return experience.promise;
     if (type === "CHARACTER_MANAGEMENT") return character.promise;

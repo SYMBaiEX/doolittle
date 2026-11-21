@@ -3,20 +3,13 @@ import { expect, it, vi } from "vitest";
 import { createNoopLogger } from "../../packages/agent/src/logging/logger";
 import { createDeferredHydrator } from "../../packages/agent/src/runtime/bootstrap/runtime/deferred-hydration";
 import { StartupStateService } from "../../packages/agent/src/services/startup-state-service";
+import { createDeferred } from "../support/deferred";
 
 const tools: Plugin = { name: "test-tools", description: "A turn tool" };
 const connector: Plugin = {
   name: "test-connector",
   description: "A messaging connector",
 };
-
-function deferred() {
-  let resolve: () => void = () => undefined;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
 
 function fixture(
   dependencies: Partial<Parameters<typeof createDeferredHydrator>[0]> = {},
@@ -51,8 +44,8 @@ function fixture(
 }
 
 it("makes shared turn tools available while a messaging connector starts", async () => {
-  const entered = deferred();
-  const connected = deferred();
+  const entered = createDeferred<void>();
+  const connected = createDeferred<void>();
   const startup = fixture({
     registerMessagingPlugin: async () => {
       entered.resolve();
@@ -79,8 +72,8 @@ it("makes shared turn tools available while a messaging connector starts", async
 });
 
 it("loads configured connectors during tool warmup and starts them after the gateway", async () => {
-  const loaded = deferred();
-  const ready = deferred();
+  const loaded = createDeferred<void>();
+  const ready = createDeferred<void>();
   const order: string[] = [];
   const startup = fixture({
     loadTurnPlugins: async () => {
@@ -114,8 +107,8 @@ it("loads configured connectors during tool warmup and starts them after the gat
 });
 
 it("settles a connector import before allowing a retry after the gateway fails", async () => {
-  const importing = deferred();
-  const imported = deferred();
+  const importing = createDeferred<void>();
+  const imported = createDeferred<void>();
   const ensureGateway = vi.fn<() => void>().mockImplementationOnce(() => {
     throw new Error("gateway unavailable");
   });
@@ -148,7 +141,7 @@ it("settles a connector import before allowing a retry after the gateway fails",
 });
 
 it("cancels a waiting turn while preserving the shared startup attempt and its failure state", async () => {
-  const loading = deferred();
+  const loading = createDeferred<void>();
   const loadTurnPlugins = vi.fn(async () => {
     await loading.promise;
     return [tools];
