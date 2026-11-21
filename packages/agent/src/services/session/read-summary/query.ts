@@ -12,8 +12,8 @@ export function loadSummaryStats(
   const total = db
     .query(
       `
-        SELECT COUNT(DISTINCT session_id) as count
-        FROM messages
+        SELECT COUNT(*) as count
+        FROM session_message_activity
       `,
     )
     .get() as { count: number };
@@ -58,17 +58,12 @@ export function loadSessionMessageCount(
   db: SessionDatabase,
   sessionId: string,
 ): number {
-  return (
-    db
-      .query(
-        `
-          SELECT COUNT(*) as count
-          FROM messages
-          WHERE session_id = ?1
-        `,
-      )
-      .get(sessionId) as { count: number }
-  ).count;
+  const activity = db
+    .query(
+      "SELECT message_count AS count FROM session_message_activity WHERE session_id = ?1",
+    )
+    .get(sessionId) as { count: number } | undefined;
+  return activity?.count ?? 0;
 }
 
 export function buildSessionSummary(

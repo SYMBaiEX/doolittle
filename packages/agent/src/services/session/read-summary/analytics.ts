@@ -59,39 +59,34 @@ export function resolveSessionAnalytics(
   const rows = db
     .query(
       `
-        WITH aggregate_rows AS (
-          SELECT
-            messages.session_id as sessionId,
-            COUNT(*) as messageCount,
-            COALESCE(SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END), 0)
-              as userMessages,
-            COALESCE(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)
-              as assistantMessages,
-            COALESCE(SUM(CASE WHEN role = 'system' THEN 1 ELSE 0 END), 0)
-              as systemMessages,
-            MIN(created_at) as startedAt,
-            MAX(created_at) as endedAt,
-            COALESCE(SUM(LENGTH(text)), 0) as characterCount,
-            (
-              SELECT latest.text
-              FROM messages latest
-              WHERE latest.session_id = messages.session_id
-              ORDER BY latest.created_at DESC, latest.rowid DESC
-              LIMIT 1
-            ) as lastPreview
-          FROM messages
-          GROUP BY messages.session_id
-          ORDER BY endedAt DESC
-          LIMIT ?1
-        )
         SELECT
-          aggregate_rows.*,
+          activity.session_id as sessionId,
+          activity.message_count as messageCount,
+          activity.started_at as startedAt,
+          activity.ended_at as endedAt,
           session_metadata.title,
-          session_metadata.continuity_key as continuityKey
-        FROM aggregate_rows
+          session_metadata.continuity_key as continuityKey,
+          (SELECT COUNT(*) FROM messages
+            WHERE session_id = activity.session_id AND role = 'user')
+            as userMessages,
+          (SELECT COUNT(*) FROM messages
+            WHERE session_id = activity.session_id AND role = 'assistant')
+            as assistantMessages,
+          (SELECT COUNT(*) FROM messages
+            WHERE session_id = activity.session_id AND role = 'system')
+            as systemMessages,
+          (SELECT COALESCE(SUM(LENGTH(text)), 0) FROM messages
+            WHERE session_id = activity.session_id)
+            as characterCount,
+          (SELECT text FROM messages
+            WHERE session_id = activity.session_id
+            ORDER BY created_at DESC, rowid DESC LIMIT 1)
+            as lastPreview
+        FROM session_message_activity activity
         LEFT JOIN session_metadata
-          ON session_metadata.session_id = aggregate_rows.sessionId
-        ORDER BY aggregate_rows.endedAt DESC
+          ON session_metadata.session_id = activity.session_id
+        ORDER BY activity.ended_at DESC, activity.session_id ASC
+        LIMIT ?1
       `,
     )
     .all(

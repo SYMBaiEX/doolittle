@@ -1,6 +1,32 @@
+import { installSessionActivitySchema } from "./activity-schema";
 import type { SessionDatabase } from "./database";
 
+// Older Doolittle profiles left the SQLite user version at zero.
+const SESSION_SCHEMA_VERSION = 1;
+
+function readVersion(db: SessionDatabase): number {
+  return (db.query("PRAGMA user_version").get() as { user_version: number })
+    .user_version;
+}
+
 export function migrateSessionDatabase(db: SessionDatabase): void {
+  if (readVersion(db) >= SESSION_SCHEMA_VERSION) return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    // Another connection may have finished the upgrade before we got the lock.
+    if (readVersion(db) < SESSION_SCHEMA_VERSION) {
+      installSessionSchema(db);
+      installSessionActivitySchema(db);
+      db.exec(`PRAGMA user_version = ${SESSION_SCHEMA_VERSION}`);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function installSessionSchema(db: SessionDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,

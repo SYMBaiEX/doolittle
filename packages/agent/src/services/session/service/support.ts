@@ -7,8 +7,13 @@ export function createSessionDatabase(baseDir: string): SessionDatabase {
   const dbPath = join(baseDir, "state.db");
   mkdirSync(dirname(dbPath), { recursive: true });
   const db = new NodeSessionDatabase(dbPath);
-  migrateSessionDatabase(db);
-  return db;
+  try {
+    migrateSessionDatabase(db);
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 
 export function continuityKeyFor(sessionId: string): string {

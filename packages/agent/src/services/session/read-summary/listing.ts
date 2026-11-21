@@ -17,13 +17,12 @@ export function listSessionSummaries(
       `
         WITH recent AS (
           SELECT
-            messages.session_id as sessionId,
-            COUNT(*) as messageCount,
-            MIN(created_at) as startedAt,
-            MAX(created_at) as endedAt
-          FROM messages
-          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = messages.session_id WHERE session_projects.project_id = ?2" : ""}
-          GROUP BY messages.session_id
+            activity.session_id as sessionId,
+            activity.message_count as messageCount,
+            activity.started_at as startedAt,
+            activity.ended_at as endedAt
+          FROM session_message_activity activity
+          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = activity.session_id WHERE session_projects.project_id = ?2" : ""}
           ORDER BY endedAt DESC, sessionId ASC
           LIMIT ?1
         )
