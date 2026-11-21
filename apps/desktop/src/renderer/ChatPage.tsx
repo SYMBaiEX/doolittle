@@ -435,7 +435,7 @@ export function ChatSessionPanel({
     };
     const detach = window.doolittle.ui.onSurface(applySurface);
     void window.doolittle.ui
-      .getState()
+      .getState("presentation")
       .then((state) => {
         if (state.hostSurface) applySurface(state.hostSurface);
       })

@@ -132,6 +132,7 @@ import {
   THEME_MANIFEST_CHANGE_EVENT,
 } from "./desktop-theme";
 import { confirmDirtyNavigation } from "./dirty-navigation";
+import { observeNativeChatSelection } from "./interfaces/native-chat-selection";
 import { asArray, desktopRequest, useApiResource } from "./lib";
 import {
   APP_SIDEBAR_COMPACT_WIDTH,
@@ -2290,48 +2291,25 @@ export function App() {
       openInterfaces();
     }
     const bridge = window.doolittle.ui;
-    let disposed = false;
-    let generation = 0;
-    const detach = bridge?.onSurface(({ target }) => {
-      generation++;
-      revealNativeSurface(target);
-      setNativeSelectionRestored(true);
-    });
-    const restoreSelection = () => {
-      const request = ++generation;
-      const selectionRevision = chatSelectionRevision.current;
-      void bridge
-        ?.getSelection()
-        .then((target) => {
-          if (
-            disposed ||
-            request !== generation ||
-            selectionRevision !== chatSelectionRevision.current ||
-            !target
-          )
-            return;
-          bindSessionBot(target.sessionId, target.botId);
-          captureSessionProject(target.sessionId, target.projectId ?? null);
-          setSelectedBotId(target.botId);
-          setChatSelection({
-            sessionId: target.sessionId,
-            interactiveSelection: false,
-          });
+    const detach = bridge
+      ? observeNativeChatSelection(bridge, {
+          selectionRevision: () => chatSelectionRevision.current,
+          restore(target) {
+            bindSessionBot(target.sessionId, target.botId);
+            captureSessionProject(target.sessionId, target.projectId ?? null);
+            setSelectedBotId(target.botId);
+            setChatSelection({
+              sessionId: target.sessionId,
+              interactiveSelection: false,
+            });
+          },
+          reveal(target) {
+            revealNativeSurface(target);
+          },
+          ready: () => setNativeSelectionRestored(true),
         })
-        .catch(() => undefined)
-        .finally(() => {
-          if (!disposed && request === generation)
-            setNativeSelectionRestored(true);
-        });
-    };
-    restoreSelection();
-    const detachState = bridge?.onState((state) => {
-      generation++;
-      if (state.mode === "default") restoreSelection();
-    });
+      : undefined;
     return () => {
-      disposed = true;
-      detachState?.();
       detach?.();
       window.removeEventListener(
         "doolittle:interface-settings",
