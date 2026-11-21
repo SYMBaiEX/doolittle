@@ -44,7 +44,6 @@
     "@doolittle/plugin-claude-code": "workspace:*",
     "@doolittle/ui": "workspace:*",
     "@electron/asar": "4.3.2",
-    "@elizaos/core": "workspace:2.0.5",
     "@elizaos/auth": "workspace:2.0.5",
     "@elizaos/logger": "2.0.11-beta.7",
     "@elizaos/shared": "2.0.11-beta.7",
