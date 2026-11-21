@@ -26,6 +26,8 @@ interface TaskRunJournal {
   events: TaskRunEvent[];
   bytes: number;
   lastId: number;
+  ordered: boolean;
+  terminalEvent?: TaskRunEvent;
 }
 
 const MAX_DELTA_EVENT_BYTES = 32 * 1024;
@@ -43,7 +45,7 @@ export class RunControllerStore {
   private readonly roomIndex = new Map<string, string>();
   private readonly filePath?: string;
   private readonly persistenceDebounceMs: number;
-  private readonly writer: PersistedRunWriter;
+  private readonly writer?: PersistedRunWriter;
   private persistenceTimer?: ReturnType<typeof setTimeout>;
   private persistenceDirty = false;
 
@@ -51,7 +53,7 @@ export class RunControllerStore {
     this.persistenceDebounceMs =
       options.persistenceDebounceMs ??
       RunControllerStore.DEFAULT_PERSISTENCE_DEBOUNCE_MS;
-    this.writer = options.writer ?? writeJsonAtomicSync;
+    this.writer = options.writer;
     if (!dataDir) return;
     mkdirSync(dataDir, { recursive: true });
     this.filePath = join(dataDir, "run-receipts.json");
@@ -132,14 +134,32 @@ export class RunControllerStore {
     data: unknown,
     terminal = false,
   ): { event: TaskRunEvent; appended: boolean } {
-    const journal = this.eventJournals.get(runId) ?? {
+    const { event, appended } = this.recordEvent(runId, type, data, terminal);
+    if (appended) {
+      if (terminal) {
+        this.flushPersistence();
+      } else {
+        this.schedulePersistence();
+      }
+    }
+    return { event: cloneTaskEvent(event), appended };
+  }
+
+  private recordEvent(
+    runId: string,
+    type: string,
+    data: unknown,
+    terminal: boolean,
+  ): { event: TaskRunEvent; appended: boolean } {
+    const journal: TaskRunJournal = this.eventJournals.get(runId) ?? {
       events: [],
       bytes: 2,
       lastId: 0,
+      ordered: true,
     };
-    const existingTerminal = journal.events.find((event) => event.terminal);
+    const existingTerminal = journal.terminalEvent;
     if (existingTerminal) {
-      return { event: cloneTaskEvent(existingTerminal), appended: false };
+      return { event: existingTerminal, appended: false };
     }
     const event: TaskRunEvent = {
       id: journal.lastId + 1,
@@ -152,21 +172,24 @@ export class RunControllerStore {
     journal.bytes += eventBytes(event) + (journal.events.length ? 1 : 0);
     journal.lastId = event.id;
     journal.events.push(event);
+    if (terminal) journal.terminalEvent = event;
     this.trimJournal(journal);
     this.eventJournals.set(runId, journal);
     this.persistenceDirty = true;
-    if (terminal) {
-      this.flushPersistence();
-    } else {
-      this.schedulePersistence();
-    }
-    return { event: cloneTaskEvent(event), appended: true };
+    return { event, appended: true };
   }
 
   listEvents(runId: string, after = 0): TaskRunEvent[] {
-    return (this.eventJournals.get(runId)?.events ?? [])
-      .filter((event) => event.id > after)
-      .map(cloneTaskEvent);
+    const journal = this.eventJournals.get(runId);
+    if (!journal) return [];
+    const { events, ordered } = journal;
+    // Live subscribers usually read only the event that just woke them.
+    if (ordered) {
+      let start = events.length;
+      while (start > 0 && events[start - 1].id > after) start -= 1;
+      return events.slice(start).map(cloneTaskEvent);
+    }
+    return events.filter((event) => event.id > after).map(cloneTaskEvent);
   }
 
   hasJournal(runId: string): boolean {
@@ -174,9 +197,7 @@ export class RunControllerStore {
   }
 
   getTerminalEvent(runId: string): TaskRunEvent | undefined {
-    const event = this.eventJournals
-      .get(runId)
-      ?.events.find((entry) => entry.terminal);
+    const event = this.eventJournals.get(runId)?.terminalEvent;
     return event ? cloneTaskEvent(event) : undefined;
   }
 
@@ -265,10 +286,16 @@ export class RunControllerStore {
           .slice(-RunControllerStore.MAX_EVENTS_PER_RUN)
           .map(cloneTaskEvent);
         if (validEvents.length > 0) {
-          const journal = {
+          const journal: TaskRunJournal = {
             events: validEvents,
             bytes: Buffer.byteLength(JSON.stringify(validEvents), "utf8"),
             lastId: validEvents.at(-1)?.id ?? 0,
+            // Preserve the recorded order of older or externally edited journals.
+            ordered: validEvents.every(
+              (event, index) =>
+                index === 0 || event.id > validEvents[index - 1].id,
+            ),
+            terminalEvent: validEvents.find((event) => event.terminal),
           };
           this.trimJournal(journal);
           this.eventJournals.set(runId, journal);
@@ -290,14 +317,14 @@ export class RunControllerStore {
             endedAt: restoredAt,
           };
       this.receipts.set(restored.runId, restored);
-      if (!this.getTerminalEvent(restored.runId)) {
+      if (!this.eventJournals.get(restored.runId)?.terminalEvent) {
         const terminalType =
           restored.status === "complete"
             ? "response.completed"
             : restored.status === "cancelled"
               ? "response.cancelled"
               : "response.failed";
-        this.appendEvent(
+        this.recordEvent(
           restored.runId,
           terminalType,
           {
@@ -310,10 +337,10 @@ export class RunControllerStore {
         );
       }
     }
-    for (const [runId, { events }] of this.eventJournals) {
-      if (events.some((event) => event.terminal)) continue;
+    for (const [runId, { events, terminalEvent }] of this.eventJournals) {
+      if (terminalEvent) continue;
       const created = events.find((event) => event.type === "response.created");
-      this.appendEvent(
+      this.recordEvent(
         runId,
         "response.failed",
         {
@@ -327,6 +354,7 @@ export class RunControllerStore {
         true,
       );
     }
+    // Recovery publishes once, after every receipt and journal is restored.
     this.persistenceDirty = true;
     this.flushPersistence();
   }
@@ -339,17 +367,20 @@ export class RunControllerStore {
     if (!this.filePath || !this.persistenceDirty) return;
     const payload: PersistedRunReceipts = {
       version: 2,
-      receipts: Array.from(this.receipts.values(), (receipt) =>
-        structuredClone(receipt),
-      ),
+      receipts: Array.from(this.receipts.values()),
       events: Object.fromEntries(
         Array.from(this.eventJournals, ([runId, { events }]) => [
           runId,
-          events.map(cloneTaskEvent),
+          events,
         ]),
       ),
     };
-    this.writer(this.filePath, payload);
+    if (this.writer) {
+      this.writer(this.filePath, structuredClone(payload));
+    } else {
+      // The SDK writer serializes synchronously without retaining the snapshot.
+      writeJsonAtomicSync(this.filePath, payload);
+    }
     this.persistenceDirty = false;
   }
 
