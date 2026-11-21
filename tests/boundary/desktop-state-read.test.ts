@@ -117,6 +117,64 @@ for (const ledger of ledgers)
       });
   });
 
+it("loads matching ownership copies and still rejects invalid matching copies", () => {
+  const f = fixture("conversation-owners");
+  const timestamp = "2026-11-20T00:00:00.000Z";
+  const owner = {
+    sessionId: "example",
+    botId: "lead",
+    workspacePath: f.dir,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const matching = JSON.stringify({ version: 1, conversations: [owner] });
+  writeFileSync(f.primary, matching);
+  writeFileSync(f.backup, matching);
+  expect(new BotConversationLedger(f.dir).get(owner.sessionId)).toEqual(owner);
+
+  const duplicate = JSON.stringify({
+    version: 1,
+    conversations: [owner, owner],
+  });
+  writeFileSync(f.primary, duplicate);
+  writeFileSync(f.backup, duplicate);
+  expect(() => new BotConversationLedger(f.dir)).toThrow(
+    "could not be recovered",
+  );
+});
+
+it("preserves the scoped owner across an interrupted save and rejects a conflict", () => {
+  const f = fixture("conversation-owners");
+  const timestamp = "2026-11-20T00:00:00.000Z";
+  const owner = {
+    sessionId: "example",
+    botId: "lead",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const scopedOwner = { ...owner, workspacePath: f.dir };
+  writeFileSync(
+    f.primary,
+    JSON.stringify({ version: 1, conversations: [owner] }),
+  );
+  writeFileSync(
+    f.backup,
+    JSON.stringify({ version: 1, conversations: [scopedOwner] }),
+  );
+  expect(new BotConversationLedger(f.dir).get(owner.sessionId)).toEqual(
+    scopedOwner,
+  );
+
+  writeFileSync(
+    f.primary,
+    JSON.stringify({
+      version: 1,
+      conversations: [{ ...owner, botId: "other" }],
+    }),
+  );
+  expect(() => new BotConversationLedger(f.dir)).toThrow("copies disagree");
+});
+
 it("uses the newer team catalog when a mirrored write was interrupted", () => {
   const f = fixture("teams");
   writeFileSync(

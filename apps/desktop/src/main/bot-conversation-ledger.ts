@@ -164,12 +164,28 @@ function validConversation(value: unknown): value is BoundConversation {
   );
 }
 
-function parseLedger(path: string): StoredLedger | null {
-  if (!existsSync(path)) return null;
-  const raw = readRegularFileSync(path, MAX_LEDGER_BYTES).toString("utf8");
-  const value = JSON.parse(raw) as Partial<StoredLedger>;
+function readLedgerCopy(path: string): { present: boolean; bytes?: Buffer } {
+  if (!existsSync(path)) return { present: false };
+  try {
+    return {
+      present: true,
+      bytes: readRegularFileSync(path, MAX_LEDGER_BYTES),
+    };
+  } catch {
+    return { present: true };
+  }
+}
+
+function parseLedger(bytes: Buffer | undefined): StoredLedger | null {
+  if (!bytes) return null;
+  let value: Partial<StoredLedger> | null;
+  try {
+    value = JSON.parse(bytes.toString("utf8")) as Partial<StoredLedger> | null;
+  } catch {
+    return null;
+  }
   if (
-    value.version !== 1 ||
+    value?.version !== 1 ||
     !Array.isArray(value.conversations) ||
     value.conversations.some((item) => !validConversation(item)) ||
     (value.runs !== undefined &&
@@ -190,7 +206,7 @@ function parseLedger(path: string): StoredLedger | null {
     new Set(value.conversations.map((item) => item.sessionId)).size !==
       value.conversations.length
   ) {
-    throw new Error("The conversation owner ledger is invalid.");
+    return null;
   }
   return value as StoredLedger;
 }
@@ -211,29 +227,27 @@ export class BotConversationLedger {
       "bots",
       "conversation-owners.backup.json",
     );
-    const primaryExists = existsSync(this.path);
-    const backupExists = existsSync(this.backupPath);
-    let primary: StoredLedger | null = null;
-    let backup: StoredLedger | null = null;
-    try {
-      primary = parseLedger(this.path);
-    } catch {
-      /* recover from backup */
-    }
-    try {
-      backup = parseLedger(this.backupPath);
-    } catch {
-      /* recover from primary */
-    }
-    if ((primaryExists || backupExists) && !primary && !backup) {
+    const primaryCopy = readLedgerCopy(this.path);
+    const backupCopy = readLedgerCopy(this.backupPath);
+    const primary = parseLedger(primaryCopy.bytes);
+    // Normal saves publish identical bytes to both paths. Read each copy
+    // through the same bounded file checks, then validate identical data once.
+    const backup =
+      primaryCopy.bytes && backupCopy.bytes?.equals(primaryCopy.bytes)
+        ? primary
+        : parseLedger(backupCopy.bytes);
+    if ((primaryCopy.present || backupCopy.present) && !primary && !backup) {
       throw new Error(
         "Conversation ownership could not be recovered. Repair is required.",
       );
     }
-    for (const record of [
-      ...(backup?.conversations ?? []),
-      ...(primary?.conversations ?? []),
-    ]) {
+    if (backup) this.mergeCopy(backup);
+    if (primary && primary !== backup) this.mergeCopy(primary);
+    if ((!primary && backup) || (primary && !backup)) this.save("repair");
+  }
+
+  private mergeCopy(ledger: StoredLedger): void {
+    for (const record of ledger.conversations) {
       const existing = this.conversations.get(record.sessionId);
       if (
         existing &&
@@ -258,7 +272,7 @@ export class BotConversationLedger {
         existing?.workspacePath && !record.workspacePath ? existing : record,
       );
     }
-    for (const run of [...(backup?.runs ?? []), ...(primary?.runs ?? [])]) {
+    for (const run of ledger.runs ?? []) {
       const existing = this.runs.get(run.runId);
       if (
         existing &&
@@ -270,10 +284,7 @@ export class BotConversationLedger {
       }
       this.runs.set(run.runId, run);
     }
-    for (const project of [
-      ...(backup?.projects ?? []),
-      ...(primary?.projects ?? []),
-    ]) {
+    for (const project of ledger.projects ?? []) {
       const existing = this.projects.get(project.projectId);
       if (existing && existing.botId !== project.botId)
         throw new Error(
@@ -281,10 +292,7 @@ export class BotConversationLedger {
         );
       this.projects.set(project.projectId, project);
     }
-    for (const resource of [
-      ...(backup?.resources ?? []),
-      ...(primary?.resources ?? []),
-    ]) {
+    for (const resource of ledger.resources ?? []) {
       const existing = this.resources.get(resource.resourceId);
       if (
         existing &&
@@ -296,7 +304,6 @@ export class BotConversationLedger {
         );
       this.resources.set(resource.resourceId, resource);
     }
-    if ((!primary && backup) || (primary && !backup)) this.save("repair");
   }
 
   get(sessionId: string): BoundConversation | null {
