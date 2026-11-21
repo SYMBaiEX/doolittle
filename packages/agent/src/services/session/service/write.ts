@@ -11,7 +11,9 @@ import type {
   SessionMessageStore,
 } from "../messages";
 import type { SessionMetadataStore } from "../metadata";
+import { initialConversationTitle } from "../metadata/initial-title";
 import type { ProjectStore } from "../projects/store";
+import type { StoreSessionMessageOptions } from "./api";
 import type { SessionSummaryOperations } from "./summary";
 
 const MAX_FORK_MESSAGES = 500;
@@ -43,8 +45,22 @@ export class SessionWriteOperations {
     private readonly summaries: SessionSummaryOperations,
   ) {}
 
-  storeMessage(message: StoredMessage): void {
-    this.messageStore.storeMessage(message);
+  storeMessage(
+    message: StoredMessage,
+    options?: StoreSessionMessageOptions,
+  ): void {
+    if (
+      !options?.nameFromFirstUserMessage ||
+      message.role !== "user" ||
+      !this.metadataStore.canInitializeTitle(message.sessionId)
+    ) {
+      this.messageStore.storeMessage(message);
+      return;
+    }
+    const title = initialConversationTitle(message.text);
+    this.messageStore.storeMessageWithMetadata(message, () =>
+      this.metadataStore.initializeTitle(message.sessionId, message.id, title),
+    );
   }
 
   recordRunTerminalBoundary(

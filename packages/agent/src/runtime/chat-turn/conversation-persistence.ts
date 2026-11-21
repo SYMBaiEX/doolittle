@@ -748,7 +748,10 @@ export async function persistUserTurnMemory(input: {
   if ((input.nativeOwner ?? "doolittle") === "doolittle") {
     await persistNativeMemory(input.context, memory, "high");
   }
-  projectMessage(input.context, input.turn, memory, input.attachments);
+  input.context.services.sessions.storeMessage(
+    toProjectionMessage(input.context, input.turn, memory, input.attachments),
+    { nameFromFirstUserMessage: input.turn.localInteractive },
+  );
 }
 
 export async function persistAssistantTurnMemory(input: {

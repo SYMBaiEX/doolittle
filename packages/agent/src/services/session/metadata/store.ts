@@ -1,5 +1,5 @@
 import type { SessionSummary } from "../../../types/index";
-import type { SessionDatabase } from "../database";
+import type { SessionDatabase, SessionStatement } from "../database";
 
 export interface SessionMetadataValue {
   title?: string;
@@ -15,6 +15,9 @@ export interface SessionMetadataSummaryResolver {
 }
 
 export class SessionMetadataStore {
+  private canInitializeTitleStatement?: SessionStatement;
+  private initializeTitleStatement?: SessionStatement;
+
   constructor(
     private readonly db: SessionDatabase,
     private readonly summaryResolver: SessionMetadataSummaryResolver,
@@ -39,6 +42,42 @@ export class SessionMetadataStore {
       )
       .run(sessionId, normalized, continuityKey, new Date().toISOString());
     return this.summaryResolver.summarize(sessionId);
+  }
+
+  canInitializeTitle(sessionId: string): boolean {
+    this.canInitializeTitleStatement ??= this.db.query(`
+      SELECT NOT EXISTS (
+        SELECT 1 FROM messages WHERE session_id = ?1 AND role = 'user'
+      ) AND NOT EXISTS (
+        SELECT 1 FROM session_metadata WHERE session_id = ?1 AND title IS NOT NULL
+      ) AS eligible
+    `);
+    return Boolean(
+      (this.canInitializeTitleStatement.get(sessionId) as { eligible: number })
+        .eligible,
+    );
+  }
+
+  initializeTitle(sessionId: string, messageId: string, title: string): void {
+    this.initializeTitleStatement ??= this.db.query(`
+      INSERT INTO session_metadata (session_id, title, continuity_key, updated_at)
+      SELECT ?1, ?3, ?4, ?5
+      WHERE NOT EXISTS (
+        SELECT 1 FROM messages
+        WHERE session_id = ?1 AND role = 'user' AND id != ?2
+      )
+      ON CONFLICT(session_id) DO UPDATE SET
+        title = excluded.title,
+        updated_at = excluded.updated_at
+      WHERE session_metadata.title IS NULL
+    `);
+    this.initializeTitleStatement.run(
+      sessionId,
+      messageId,
+      title,
+      this.continuityKey(sessionId),
+      new Date().toISOString(),
+    );
   }
 
   metadata(sessionId: string): SessionMetadataValue | undefined {

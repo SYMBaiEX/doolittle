@@ -13,8 +13,8 @@ export const sessionServiceWriteMethods: Pick<
   | "rename"
 > &
   ThisType<SessionService> = {
-  storeMessage(message) {
-    getSessionServiceState(this).writes.storeMessage(message);
+  storeMessage(message, options) {
+    getSessionServiceState(this).writes.storeMessage(message, options);
   },
 
   recordRunTerminalBoundary(runId, sessionId, status) {

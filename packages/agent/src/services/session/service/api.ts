@@ -29,8 +29,15 @@ import type {
   UpdateProjectInput,
 } from "../projects/store";
 
+export interface StoreSessionMessageOptions {
+  nameFromFirstUserMessage?: boolean;
+}
+
 export interface SessionServiceApi {
-  storeMessage(message: StoredMessage): void;
+  storeMessage(
+    message: StoredMessage,
+    options?: StoreSessionMessageOptions,
+  ): void;
   replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void;
   deleteLatestExchange(
     sessionId: string,

@@ -77,9 +77,24 @@ export class SessionMessageStore {
   ) {}
 
   storeMessage(message: StoredMessage): void {
-    if (!this.insertMessage(message)) return;
+    if (this.insertMessage(message)) this.emitActivity(message);
+  }
 
-    this.emitActivity(message);
+  storeMessageWithMetadata(
+    message: StoredMessage,
+    writeMetadata: () => void,
+  ): void {
+    let inserted: boolean;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      inserted = this.insertMessage(message);
+      if (inserted) writeMetadata();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    if (inserted) this.emitActivity(message);
   }
 
   replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void {
