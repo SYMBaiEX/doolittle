@@ -71,7 +71,8 @@ export interface DesktopUiInterfaceBridge {
   onEvent(
     listener: (event: { subscriptionId: string; value: UiHostEvent }) => void,
   ): () => void;
-  getState(): Promise<UiInterfaceState>;
+  /** Request presentation state without loading the installed inventory. */
+  getState(view?: "presentation"): Promise<UiInterfaceState>;
   onState(listener: (state: UiInterfaceState) => void): () => void;
   install(): Promise<UiInterfaceState>;
   activate(request: UiInterfaceActivation): Promise<UiInterfaceState>;

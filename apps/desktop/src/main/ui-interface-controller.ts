@@ -146,7 +146,7 @@ export class UiInterfaceController {
               : {}),
           }
         : {}),
-      installed: this.listInstalled(),
+      installed: this.installed ?? [],
       safeMode: this.options.safeMode,
       ...(this.recovery ? { recovery: this.recovery } : {}),
       ...(this.hostSurface ? { hostSurface: this.hostSurface } : {}),
@@ -156,10 +156,17 @@ export class UiInterfaceController {
     };
   }
 
-  private listInstalled(): InstalledUiInterface[] {
-    if (this.installed) return this.installed;
+  private getInstalledState(): UiInterfaceState {
+    if (!this.installed) {
+      this.refreshInstalled();
+      this.emit();
+    }
+    return this.getState();
+  }
+
+  private refreshInstalled(): void {
     const directory = resolve(this.options.artifactRoot, "artifacts");
-    if (!existsSync(directory)) return [];
+    if (!existsSync(directory)) return;
     const installed: InstalledUiInterface[] = [];
     let inspected = 0;
     for (const plugin of readdirSync(directory, { withFileTypes: true }).slice(
@@ -211,7 +218,6 @@ export class UiInterfaceController {
       if (inspected >= 128 || installed.length >= 64) break;
     }
     this.installed = installed;
-    return installed;
   }
 
   async start(): Promise<void> {
@@ -363,6 +369,7 @@ export class UiInterfaceController {
       );
       if (directory) installUiArtifact(this.options.artifactRoot, directory);
       this.installed = undefined;
+      this.refreshInstalled();
       this.emit();
       return this.getState();
     });
@@ -741,7 +748,9 @@ export class UiInterfaceController {
           );
       });
     });
-    handle(uiInterfaceChannels.state, () => this.getState());
+    handle(uiInterfaceChannels.state, (view) =>
+      view === "presentation" ? this.getState() : this.getInstalledState(),
+    );
     handle(uiInterfaceChannels.install, () => this.install());
     handle(uiInterfaceChannels.activate, (request) =>
       this.activate(request as UiInterfaceActivation),

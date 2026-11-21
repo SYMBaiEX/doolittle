@@ -67,7 +67,7 @@ const bridge: DoolittleDesktopBridge = {
         uiInterfaceChannels.event,
         listener,
       ),
-    getState: () => ipcRenderer.invoke(uiInterfaceChannels.state),
+    getState: (view) => ipcRenderer.invoke(uiInterfaceChannels.state, view),
     onState: (listener) =>
       subscribeToDesktopEvent<UiInterfaceState>(
         uiInterfaceChannels.stateChanged,

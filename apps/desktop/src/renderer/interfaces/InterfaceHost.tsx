@@ -111,7 +111,7 @@ export function InterfaceHost({
       if (!disposed) setState(next);
     });
     void bridge
-      .getState()
+      .getState("presentation")
       .then((next) => {
         if (!disposed && !observed) setState(next);
       })
