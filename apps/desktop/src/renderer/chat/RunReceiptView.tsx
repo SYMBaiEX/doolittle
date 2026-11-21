@@ -5,111 +5,160 @@ import {
   Clock3,
   FilePenLine,
   LoaderCircle,
+  Minus,
   RotateCcw,
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { DesktopRunUpdate } from "../../shared/contracts";
+import { toolActionLabel } from "../components/tool-activity-details";
 import { UiIcon } from "../components/UiIcon";
 import { displayTimestamp } from "../lib";
-import {
-  type RunReceipt,
-  runActionLabel,
-  runEventCopy,
-  runEventKey,
-} from "./models";
+import type { RunReceipt } from "./models";
+import "./chat-activity.css";
 
-type RunTone = "neutral" | "good" | "warn" | "bad";
-type ActivityStatus = "running" | "complete" | "failed" | "waiting";
+type ActivityStatus =
+  | "running"
+  | "complete"
+  | "failed"
+  | "waiting"
+  | "unreported";
 
 export interface RunActivityItem {
   id: string;
   label: string;
   detail: string;
   status: ActivityStatus;
-  tone: RunTone;
   update: DesktopRunUpdate;
+  durationMs?: number;
 }
 
-const HIDDEN_EVENT_TYPES = new Set([
-  "heartbeat",
-  "message",
-  "stream",
-  "started",
-  "thinking",
-  "waiting",
-  "completed",
-  "cancelled",
-  "error",
-]);
-
-function activityStatus(update: DesktopRunUpdate): ActivityStatus {
-  if (update.type === "error" || update.type === "cancelled") return "failed";
-  if (update.type === "action-completed" || update.type === "completed") {
-    return "complete";
-  }
-  if (update.type === "local-mutation") {
-    return update.run.localMutations.at(-1)?.success ? "complete" : "failed";
-  }
-  if (update.type === "waiting" || update.type === "approvals")
-    return "waiting";
-  return "running";
+interface OpenAction {
+  index: number;
+  started: number;
+  timingAvailable: boolean;
 }
 
-function actionIdentity(update: DesktopRunUpdate): string | undefined {
-  if (update.type === "action-started") {
-    return `${update.run.observedActionCount}:${update.run.activeAction ?? "tool"}`;
-  }
-  if (update.type === "action-completed") {
-    return `${update.run.observedActionCount}:${update.run.lastAction ?? "tool"}`;
-  }
-  return undefined;
+function actionName(update: DesktopRunUpdate): string {
+  return (
+    (update.type === "action-started"
+      ? update.run.activeAction
+      : update.run.lastAction) || ""
+  );
 }
 
-/** Condense noisy lifecycle snapshots into stable operator-facing activity rows. */
+function lastMutation(run: DesktopRunUpdate["run"]) {
+  return run.localMutations?.at(-1);
+}
+
+function ended(update: DesktopRunUpdate): boolean {
+  return Boolean(
+    update.run.endedAt ||
+      update.run.terminalReason ||
+      ["complete", "cancelled", "error"].includes(update.run.status),
+  );
+}
+
+/** Project only the evidence recorded for this run, without inferring tool results. */
 export function runActivityItems(receipt: RunReceipt): RunActivityItem[] {
   const items: RunActivityItem[] = [];
-  const actionIndexes = new Map<string, number>();
-
-  for (const update of receipt.events) {
-    if (HIDDEN_EVENT_TYPES.has(update.type) || update.type === "acting")
-      continue;
-    const copy = runEventCopy(update);
-    const item: RunActivityItem = {
-      id: `${runEventKey(update)}:${update.run.updatedAt}`,
-      label: copy.label,
-      detail: copy.detail,
-      status: activityStatus(update),
-      tone: copy.tone,
-      update,
-    };
-    const identity = actionIdentity(update);
-    if (identity) {
-      const existing = actionIndexes.get(identity);
-      if (existing !== undefined) {
-        items[existing] = item;
-        continue;
-      }
-      actionIndexes.set(identity, items.length);
+  const indexed = new Map<string, number>();
+  const open = new Map<string, OpenAction>();
+  function upsert(item: RunActivityItem) {
+    const existing = indexed.get(item.id);
+    if (existing !== undefined) {
+      items[existing] = item;
+      return existing;
     }
-
-    const previous = items.at(-1);
-    if (
-      previous &&
-      ["thinking", "waiting", "approvals"].includes(update.type) &&
-      previous.update.type === update.type &&
-      previous.label === item.label &&
-      previous.detail === item.detail
-    ) {
-      items[items.length - 1] = item;
-      continue;
-    }
+    const index = items.length;
+    indexed.set(item.id, index);
     items.push(item);
+    return index;
   }
 
-  return items.slice(-18);
+  for (const update of receipt.events) {
+    const { run, type } = update;
+    if (type === "action-started" || type === "action-completed") {
+      const name = actionName(update);
+      const id = `action:${run.observedActionCount}:${name}`;
+      const existing = open.get(id);
+      const timestamp = Date.parse(run.updatedAt);
+      const label = toolActionLabel(name) || "Agent action";
+      if (type === "action-started") {
+        if (indexed.has(id)) continue;
+        const timingAvailable = open.size === 0;
+        for (const previous of open.values()) previous.timingAvailable = false;
+        open.set(id, {
+          index: upsert({ id, label, detail: "", status: "running", update }),
+          started: timestamp,
+          timingAvailable,
+        });
+      } else {
+        const elapsed = existing ? timestamp - existing.started : Number.NaN;
+        const durationMs =
+          existing?.timingAvailable && Number.isFinite(elapsed) && elapsed >= 0
+            ? elapsed
+            : indexed.has(id)
+              ? items[indexed.get(id) ?? -1]?.durationMs
+              : undefined;
+        upsert({
+          id,
+          label,
+          detail: "",
+          status: "complete",
+          update,
+          durationMs,
+        });
+        open.delete(id);
+      }
+    } else if (type === "local-mutation") {
+      const mutation = lastMutation(run);
+      if (!mutation) continue;
+      const path =
+        mutation.resolvedPath || mutation.requestedPath || "Workspace";
+      upsert({
+        id: `mutation:${run.localMutations.length}:${mutation.recordedAt}`,
+        label: mutation.success ? "Workspace changed" : "Change failed",
+        detail: path,
+        status: mutation.success ? "complete" : "failed",
+        update,
+      });
+    } else if (type === "approvals") {
+      const pending = run.pendingApprovals;
+      const previous = items.at(-1);
+      if (
+        previous?.update.type === type &&
+        previous.update.run.pendingApprovals === pending
+      ) {
+        continue;
+      }
+      const label =
+        pending > 0 ? "Approval requested" : "Approval queue cleared";
+      upsert({
+        id: `approval:${run.updatedAt}:${pending}`,
+        label,
+        detail:
+          pending > 0 ? `${formatCount(pending, "decision")} pending` : "",
+        status: pending > 0 ? "waiting" : "complete",
+        update,
+      });
+    }
+  }
+
+  if (ended(receipt.latest)) {
+    for (const { index } of open.values()) {
+      items[index] = { ...items[index], status: "unreported" };
+    }
+  }
+  return items;
 }
+
+function formatCount(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+type RunTone = "neutral" | "good" | "warn" | "bad";
 
 export function runReceiptState(receipt: RunReceipt): {
   label: string;
@@ -136,18 +185,20 @@ export function runReceiptState(receipt: RunReceipt): {
   return { label: "Working", statusLabel: "working", tone: "neutral" };
 }
 
-function elapsedMilliseconds(update: DesktopRunUpdate, now: number): number {
+function runElapsed(update: DesktopRunUpdate, now: number): number | undefined {
   const start = Date.parse(update.run.startedAt);
   const terminal = update.run.endedAt
     ? Date.parse(update.run.endedAt)
-    : update.run.terminalReason
+    : ended(update)
       ? Date.parse(update.run.updatedAt)
       : now;
-  if (!Number.isFinite(start) || !Number.isFinite(terminal)) return 0;
+  if (!Number.isFinite(start) || !Number.isFinite(terminal)) return undefined;
   return Math.max(0, terminal - start);
 }
 
 export function formatRunElapsed(milliseconds: number): string {
+  if (milliseconds < 1_000)
+    return `${Math.max(0, Math.round(milliseconds))} ms`;
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1_000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -156,7 +207,7 @@ export function formatRunElapsed(milliseconds: number): string {
 
 export const RUN_STALL_THRESHOLD_MS = 12_000;
 
-/** Heartbeats prove transport liveness, but only meaningful work clears a stall. */
+/** Heartbeats prove transport liveness, while meaningful work clears a stall. */
 export function runIsStalled(
   receipt: RunReceipt,
   now: number,
@@ -165,9 +216,7 @@ export function runIsStalled(
   if (
     !pending ||
     receipt.latest.run.pendingApprovals > 0 ||
-    receipt.latest.run.endedAt ||
-    receipt.latest.run.terminalReason ||
-    ["complete", "cancelled", "error"].includes(receipt.latest.run.status)
+    ended(receipt.latest)
   ) {
     return false;
   }
@@ -185,83 +234,93 @@ export function runIsStalled(
   );
 }
 
+const statusIcons = {
+  complete: Check,
+  failed: X,
+  waiting: Clock3,
+  running: LoaderCircle,
+  unreported: Minus,
+};
+
 function StatusMark({ status }: { status: ActivityStatus }) {
-  const icon =
-    status === "complete"
-      ? Check
-      : status === "failed"
-        ? X
-        : status === "waiting"
-          ? Clock3
-          : LoaderCircle;
   return (
     <span
       aria-hidden="true"
-      className={`grid size-5 shrink-0 place-items-center rounded-full border ${
-        status === "complete"
-          ? "border-[color-mix(in_srgb,var(--good)_35%,transparent)] bg-[color-mix(in_srgb,var(--good)_14%,transparent)] text-[var(--good)]"
-          : status === "failed"
-            ? "border-[color-mix(in_srgb,var(--bad)_42%,transparent)] bg-[color-mix(in_srgb,var(--bad)_14%,transparent)] text-[var(--bad)]"
-            : status === "waiting"
-              ? "border-[color-mix(in_srgb,var(--warn)_38%,transparent)] bg-[color-mix(in_srgb,var(--warn)_12%,transparent)] text-[var(--warn)]"
-              : "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]"
-      }`}
+      className="chat-activity-mark"
+      data-status={status}
     >
-      <UiIcon
-        className={
-          status === "running"
-            ? "animate-spin motion-reduce:animate-none"
-            : undefined
-        }
-        icon={icon}
-        size="xs"
-      />
+      <UiIcon icon={statusIcons[status]} size="xs" />
     </span>
   );
+}
+
+function stepState(item: RunActivityItem): string {
+  switch (item.status) {
+    case "complete":
+      return item.update.type === "action-completed" ? "Returned" : "Recorded";
+    case "failed":
+      return "Failed";
+    case "waiting":
+      return "Waiting";
+    case "unreported":
+      return "Result unavailable";
+    default:
+      return "Running";
+  }
 }
 
 function RunDetail({ item }: { item: RunActivityItem }) {
   const mutation =
     item.update.type === "local-mutation"
-      ? item.update.run.localMutations.at(-1)
+      ? lastMutation(item.update.run)
       : undefined;
+  const timestamp = item.update.run.updatedAt;
   return (
-    <section
-      aria-label={`${item.label} details`}
-      className="min-w-0 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-t bg-[color-mix(in_srgb,var(--surface-soft)_34%,transparent)] px-3 py-2.5"
-    >
-      <header className="flex min-w-0 items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2">
-          <StatusMark status={item.status} />
-          <strong className="truncate text-[length:var(--text-control)] font-semibold text-[var(--text)]">
-            {item.label}
-          </strong>
-        </span>
-        <time className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
-          {displayTimestamp(item.update.run.updatedAt)}
-        </time>
-      </header>
-      <p className="mt-2 mb-0 whitespace-pre-wrap text-[length:var(--text-meta)] leading-[1.55] text-[var(--muted)]">
-        {item.detail}
-      </p>
-      {mutation ? (
-        <div className="mt-2 flex min-w-0 items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-soft)]">
-          <UiIcon
-            className="text-[var(--faint)]"
-            icon={FilePenLine}
-            size="xs"
-          />
-          <span className="truncate">
-            {mutation.resolvedPath || mutation.requestedPath || "Workspace"}
-          </span>
-          {mutation.bytes === undefined ? null : (
-            <small className="ml-auto shrink-0 text-[var(--faint)]">
-              {mutation.bytes} bytes
-            </small>
-          )}
+    <>
+      <dl className="chat-activity-facts">
+        <div>
+          <dt>State</dt>
+          <dd>{stepState(item)}</dd>
         </div>
+        {Number.isFinite(Date.parse(timestamp)) ? (
+          <div>
+            <dt>Recorded</dt>
+            <dd>
+              <time dateTime={timestamp}>{displayTimestamp(timestamp)}</time>
+            </dd>
+          </div>
+        ) : null}
+        {item.durationMs !== undefined ? (
+          <div>
+            <dt>Duration</dt>
+            <dd>{formatRunElapsed(item.durationMs)}</dd>
+          </div>
+        ) : null}
+        {mutation?.bytes !== undefined ? (
+          <div>
+            <dt>Size</dt>
+            <dd>{formatCount(mutation.bytes, "byte")}</dd>
+          </div>
+        ) : null}
+        {mutation?.replacements !== undefined ? (
+          <div>
+            <dt>Replacements</dt>
+            <dd>{mutation.replacements}</dd>
+          </div>
+        ) : null}
+      </dl>
+      {mutation ? (
+        <div className="chat-activity-path">
+          <UiIcon icon={FilePenLine} size="xs" />
+          <code>{item.detail}</code>
+        </div>
+      ) : item.detail ? (
+        <p className="chat-activity-note">{item.detail}</p>
       ) : null}
-    </section>
+      {mutation?.message ? (
+        <p className="chat-activity-note">{mutation.message}</p>
+      ) : null}
+    </>
   );
 }
 
@@ -278,133 +337,124 @@ export function RunReceiptView({
   retryDisabled?: boolean;
   onRetry?: () => void;
 }) {
+  const id = useId();
   const state = runReceiptState(receipt);
   const items = useMemo(() => runActivityItems(receipt), [receipt]);
   const [expanded, setExpanded] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [clock, setClock] = useState(() =>
-    Date.parse(receipt.latest.run.endedAt || receipt.latest.run.updatedAt),
-  );
+  const [selectedId, setSelectedId] = useState<string>();
+  const { run } = receipt.latest;
+  const terminal = ended(receipt.latest);
+  const [clock, setClock] = useState(Date.now);
 
   useEffect(() => {
-    if (!pending) return;
-    setClock(Date.now());
+    if (!pending || terminal) return;
     const interval = window.setInterval(() => setClock(Date.now()), 1_000);
     return () => window.clearInterval(interval);
-  }, [pending]);
+  }, [pending, terminal]);
 
-  const selected = items.find((item) => item.id === selectedId) ?? null;
-  const elapsed = formatRunElapsed(elapsedMilliseconds(receipt.latest, clock));
+  const elapsed = runElapsed(
+    receipt.latest,
+    pending ? clock : Date.parse(run.updatedAt),
+  );
   const stalled = runIsStalled(receipt, clock, pending);
   const changedFiles = Array.from(
     new Set(
-      receipt.latest.run.localMutations
+      (run.localMutations ?? [])
         .filter((mutation) => mutation.success)
         .map((mutation) => mutation.resolvedPath || mutation.requestedPath)
         .filter((path): path is string => Boolean(path)),
     ),
   );
-  const failedChanges = receipt.latest.run.localMutations.filter(
+  const failedChanges = (run.localMutations ?? []).filter(
     (mutation) => !mutation.success,
-  );
-  const summary =
-    receipt.latest.run.terminalReason === "cancelled"
-      ? "Stopped by operator"
-      : receipt.latest.run.pendingApprovals > 0
-        ? `${receipt.latest.run.pendingApprovals} approval${receipt.latest.run.pendingApprovals === 1 ? "" : "s"} awaiting your decision`
-        : receipt.latest.run.errorMessage ||
-          receipt.latest.run.activeAction ||
-          receipt.latest.run.statusDetail ||
-          receipt.latest.run.lastAction ||
-          receipt.latest.run.status;
+  ).length;
+  const cancelled = state.statusLabel === "cancelled";
+  const recoverable = state.tone === "bad" || cancelled;
+  const summary = cancelled
+    ? "Stopped by operator."
+    : run.errorMessage?.includes("REQUESTED_LOCAL_MUTATION")
+      ? "No file changes were verified. The agent stopped before returning a final answer."
+      : run.errorMessage ||
+        (recoverable
+          ? run.statusDetail || "The run ended before it could finish."
+          : "");
   const currentActivity = stalled
     ? "Waiting for the next update"
-    : state.tone === "good" && changedFiles.length > 0
-      ? `Changed ${changedFiles.length} ${changedFiles.length === 1 ? "file" : "files"}`
-      : runActionLabel(receipt.latest.run.activeAction) ||
-        (receipt.latest.run.status === "thinking"
-          ? receipt.latest.run.statusDetail || "Planning the next step"
-          : runActionLabel(receipt.latest.run.lastAction) || state.label);
-  const visibleMetric = `${receipt.latest.run.observedActionCount > 0 ? `${receipt.latest.run.observedActionCount} ${receipt.latest.run.observedActionCount === 1 ? "action" : "actions"} · ` : ""}${elapsed}`;
-  const recoverable =
-    state.tone === "bad" || receipt.latest.run.terminalReason === "cancelled";
-  const failureSummary = summary.includes("REQUESTED_LOCAL_MUTATION")
-    ? "No file changes were verified. The agent stopped before returning a final answer."
-    : summary;
+    : terminal
+      ? changedFiles.length > 0
+        ? `Changed ${formatCount(changedFiles.length, "file")}`
+        : ""
+      : run.pendingApprovals > 0
+        ? `${formatCount(run.pendingApprovals, "decision")} pending`
+        : toolActionLabel(run.activeAction ?? "") ||
+          (run.status === "thinking"
+            ? run.statusDetail || "Planning the next step"
+            : "");
+  const metrics = [
+    run.observedActionCount > 0
+      ? formatCount(run.observedActionCount, "action")
+      : "",
+    elapsed ? formatRunElapsed(elapsed) : "",
+  ].filter(Boolean);
+
+  const status: ActivityStatus =
+    state.tone === "bad"
+      ? "failed"
+      : cancelled
+        ? "unreported"
+        : state.tone === "good"
+          ? "complete"
+          : state.tone === "warn"
+            ? "waiting"
+            : "running";
+  const runLabel = stalled
+    ? botName
+      ? `${botName} is still working`
+      : "Still working"
+    : botName && state.statusLabel === "working"
+      ? `${botName} is working`
+      : state.label;
 
   return (
     <section
-      className={`chat-run-receipt mb-2 overflow-hidden rounded-[var(--radius-sm)] border border-l-2 whitespace-normal ${
-        state.tone === "bad"
-          ? "border-[color-mix(in_srgb,var(--bad)_34%,var(--border))] border-l-[var(--bad)]"
-          : pending
-            ? "border-[color-mix(in_srgb,var(--border)_78%,transparent)] border-l-[var(--accent)]"
-            : "border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-l-[var(--border-strong)]"
-      } bg-[color-mix(in_srgb,var(--surface-soft)_58%,var(--bg))]`}
+      aria-label="Run receipt"
+      className="chat-activity chat-run-receipt"
       data-pending={pending ? "true" : "false"}
       data-stalled={stalled ? "true" : undefined}
+      data-tone={state.tone}
     >
       <button
+        aria-controls={`${id}-receipt`}
         aria-expanded={expanded}
-        className="grid min-h-10 w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left hover:bg-[color-mix(in_srgb,var(--surface-hover)_64%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] motion-reduce:transition-none"
-        onClick={() => setExpanded((value) => !value)}
+        className="chat-activity-trigger"
+        onClick={() => setExpanded(!expanded)}
         type="button"
       >
-        <StatusMark
-          status={
-            state.tone === "bad"
-              ? "failed"
-              : state.tone === "good"
-                ? "complete"
-                : state.tone === "warn"
-                  ? "waiting"
-                  : "running"
-          }
-        />
-        <span className="flex min-w-0 items-baseline gap-2">
-          <strong
-            aria-live={pending ? "polite" : undefined}
-            className="shrink-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]"
-          >
-            {stalled
-              ? botName
-                ? `${botName} is still working`
-                : "Still working"
-              : botName && state.statusLabel === "working"
-                ? `${botName} is working`
-                : state.label}
-          </strong>
-          {currentActivity === state.label ? null : (
-            <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
-              {currentActivity}
-            </small>
-          )}
+        <StatusMark status={status} />
+        <span className="chat-activity-title">
+          <strong aria-live={pending ? "polite" : undefined}>{runLabel}</strong>
+          {currentActivity ? <small>{currentActivity}</small> : null}
         </span>
-        <span className="whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] max-[520px]:hidden">
-          {visibleMetric}
-        </span>
+        {metrics.length ? (
+          <span className="chat-activity-metric">{metrics.join(" · ")}</span>
+        ) : null}
         <UiIcon
-          className={`text-[var(--faint)] transition-transform duration-150 ${expanded ? "rotate-180" : ""} motion-reduce:transition-none`}
+          className="chat-activity-chevron"
           icon={ChevronDown}
           size="xs"
         />
       </button>
-      {pending ? (
-        <span
-          aria-hidden="true"
-          className="block h-px w-full bg-[var(--border)]"
-        />
-      ) : null}
       {recoverable ? (
-        <div className="flex min-w-0 items-center gap-2 border-[var(--border)] border-t px-2.5 py-1.5">
-          <p className="m-0 min-w-0 flex-1 text-[length:var(--text-meta)] leading-relaxed text-[var(--muted)]">
-            {failureSummary}
-          </p>
+        <div
+          className="chat-activity-warning chat-activity-recovery"
+          data-tone={state.tone}
+        >
+          <span>{summary}</span>
           {onRetry ? (
             <button
-              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 text-[length:var(--text-control)] font-semibold text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50 max-[760px]:min-h-11"
-              disabled={retryDisabled}
               aria-label="Retry this response in a new branch"
+              className="chat-activity-copy"
+              disabled={retryDisabled}
               onClick={onRetry}
               type="button"
             >
@@ -414,78 +464,99 @@ export function RunReceiptView({
           ) : null}
         </div>
       ) : null}
-      {expanded ? (
-        <div className="border-[var(--border)] border-t">
-          {changedFiles.length > 0 ? (
-            <section aria-label="Changed files" className="px-3 py-2">
-              <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
-                Changed {changedFiles.length}{" "}
-                {changedFiles.length === 1 ? "file" : "files"}
-              </strong>
-              <ul className="mt-1 mb-0 grid list-none gap-1 p-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                {changedFiles.slice(0, 8).map((path) => (
-                  <li className="flex min-w-0 items-center gap-1.5" key={path}>
-                    <UiIcon
-                      className="shrink-0 text-[var(--faint)]"
-                      icon={FilePenLine}
-                      size="xs"
-                    />
-                    <span className="truncate">{path}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {failedChanges.length > 0 ? (
-            <p className="m-0 flex items-center gap-1.5 border-[var(--border)] border-t px-3 py-2 text-[length:var(--text-meta)] text-[var(--warn)]">
-              <UiIcon icon={TriangleAlert} size="xs" />
-              {failedChanges.length} failed file operation
-              {failedChanges.length === 1 ? "" : "s"}
-            </p>
-          ) : null}
-          {items.length > 0 ? (
-            <ol className="m-0 grid max-h-52 list-none gap-0.5 overflow-y-auto p-1.5 [scrollbar-gutter:stable]">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    aria-pressed={selected?.id === item.id}
-                    className={`grid min-h-10 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 border-0 bg-transparent px-2 py-1 text-left transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none max-[760px]:min-h-11 ${
-                      selected?.id === item.id
-                        ? "font-semibold text-[var(--text)]"
-                        : "text-[var(--text-soft)]"
-                    }`}
-                    onClick={() => setSelectedId(item.id)}
-                    type="button"
-                  >
-                    <StatusMark status={item.status} />
-                    <span className="flex min-w-0 items-baseline gap-2">
-                      <strong className="shrink-0 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
-                        {item.label}
-                      </strong>
-                      <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                        {item.detail}
-                      </small>
-                    </span>
-                    <time className="whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] max-[620px]:hidden">
-                      {displayTimestamp(item.update.run.updatedAt)}
-                    </time>
-                    <UiIcon
-                      className="text-[var(--faint)]"
-                      icon={ChevronRight}
-                      size="xs"
-                    />
-                  </button>
-                </li>
-              ))}
-            </ol>
-          ) : !recoverable ? (
-            <p className="m-0 px-3 py-2.5 text-[length:var(--text-meta)] text-[var(--muted)]">
-              {summary}
-            </p>
-          ) : null}
-          {selected ? <RunDetail item={selected} /> : null}
-        </div>
-      ) : null}
+      <div
+        className="chat-activity-panel"
+        hidden={!expanded}
+        id={`${id}-receipt`}
+      >
+        {expanded ? (
+          <>
+            {items.length ? (
+              <ol aria-label="Run steps" className="chat-activity-list">
+                {items.map((item, index) => {
+                  const selected = selectedId === item.id;
+                  const detailId = `${id}-step-${index}`;
+                  return (
+                    <li key={item.id}>
+                      <button
+                        aria-controls={detailId}
+                        aria-describedby={`${detailId}-state`}
+                        aria-expanded={selected}
+                        aria-label={`${selected ? "Hide" : "Show"} ${item.label} details`}
+                        className="chat-activity-row"
+                        onClick={() =>
+                          setSelectedId(selected ? undefined : item.id)
+                        }
+                        type="button"
+                      >
+                        <StatusMark status={item.status} />
+                        <span className="chat-activity-title">
+                          <strong>{item.label}</strong>
+                          {item.detail ? (
+                            <small title={item.detail}>{item.detail}</small>
+                          ) : null}
+                        </span>
+                        <span
+                          className="chat-activity-row-metadata"
+                          data-status={item.status}
+                          id={`${detailId}-state`}
+                        >
+                          {stepState(item)}
+                          {item.durationMs === undefined ? null : (
+                            <small>{formatRunElapsed(item.durationMs)}</small>
+                          )}
+                        </span>
+                        <UiIcon
+                          className="chat-activity-chevron"
+                          icon={ChevronRight}
+                          size="xs"
+                        />
+                      </button>
+                      <div
+                        className="chat-activity-details"
+                        hidden={!selected}
+                        id={detailId}
+                      >
+                        {selected ? <RunDetail item={item} /> : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : !changedFiles.length && !recoverable ? (
+              <p className="chat-activity-note chat-activity-empty">
+                {terminal
+                  ? "No tool steps were recorded."
+                  : "Tool steps will appear here as the run proceeds."}
+              </p>
+            ) : null}
+            {changedFiles.length ? (
+              <section
+                aria-label="Changed files"
+                className="chat-activity-files"
+              >
+                <strong>
+                  Changed {formatCount(changedFiles.length, "file")}
+                </strong>
+                <ul>
+                  {changedFiles.map((path) => (
+                    <li className="chat-activity-path" key={path}>
+                      <UiIcon icon={FilePenLine} size="xs" />
+                      <code>{path}</code>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {failedChanges > 0 ? (
+              <p className="chat-activity-warning" data-tone="warn">
+                <UiIcon icon={TriangleAlert} size="xs" />
+                {formatCount(failedChanges, "failed file operation")}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </section>
   );
 }
