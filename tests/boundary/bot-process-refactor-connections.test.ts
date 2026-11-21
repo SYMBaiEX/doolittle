@@ -7,6 +7,7 @@ import type {
   BackendManager,
   BackendManagerOptions,
 } from "../../apps/desktop/src/main/backend";
+import { handleBotApiRequest } from "../../apps/desktop/src/main/bot-api";
 import {
   BotActivationCancelledError,
   BotProcessRegistry,
@@ -139,6 +140,42 @@ it("leaves a stopped worker stopped while reading and cancelling saved work", as
   );
   expect(createBackend).not.toHaveBeenCalled();
   expect(runtimeFetch).not.toHaveBeenCalled();
+});
+
+it("serves the full bot catalog even when a ready worker's status read fails", async () => {
+  const runtimeFetch = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json({ runs: [] }))
+    .mockRejectedValueOnce(new Error("Worker receipt lookup failed"));
+  const { registry, createBackend } = fixture({ runtimeFetch });
+  const ready = registry.create({
+    name: "Ready worker",
+    persona: "Own its current chat.",
+    model: { provider: "offline", model: "offline" },
+  });
+  const stopped = registry.create({
+    name: "Stopped worker",
+    persona: "Own its saved chat.",
+    model: { provider: "offline", model: "offline" },
+  });
+  await registry.activate(ready.id);
+  registry.beginRun("default", "old-lead-run");
+  registry.beginRun(ready.id, "known-worker-run");
+
+  const response = await handleBotApiRequest(registry, {
+    requestId: "catalog",
+    method: "GET",
+    path: "/bots",
+    headers: {},
+  });
+  expect(response?.status).toBe(200);
+  expect(JSON.parse(response?.body ?? "{}").bots).toMatchObject([
+    { isDefault: true, activeRunCount: 0, state: "ready" },
+    { id: ready.id, activeRunCount: 1, state: "busy" },
+    { id: stopped.id, activeRunCount: 0, state: "stopped" },
+  ]);
+  expect(runtimeFetch).toHaveBeenCalledTimes(2);
+  expect(createBackend).toHaveBeenCalledOnce();
 });
 
 it("cancels both live broker runs before releasing the worker", async () => {

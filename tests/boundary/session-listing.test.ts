@@ -54,6 +54,12 @@ it("lists previews, totals and current project bindings for the selected convers
     expect(
       listSessionSummaries(db, 10).map(({ sessionId }) => sessionId),
     ).toEqual(["newest", "fork"]);
+    expect(
+      listSessionSummaries(db, 1, undefined, 1).map(
+        ({ sessionId }) => sessionId,
+      ),
+    ).toEqual(["fork"]);
+    expect(listSessionSummaries(db, 1, "project", 1)).toEqual([]);
     expect(listSessionSummaries(db, 1)[0]).toMatchObject({
       sessionId: "newest",
       projectId: undefined,

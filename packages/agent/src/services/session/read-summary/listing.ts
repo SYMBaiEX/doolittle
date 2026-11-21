@@ -11,6 +11,7 @@ export function listSessionSummaries(
   db: SessionDatabase,
   limit: number,
   projectId?: string,
+  offset = 0,
 ): SessionSummary[] {
   const rows = db
     .query(
@@ -22,9 +23,9 @@ export function listSessionSummaries(
             activity.started_at as startedAt,
             activity.ended_at as endedAt
           FROM session_message_activity activity
-          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = activity.session_id WHERE session_projects.project_id = ?2" : ""}
+          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = activity.session_id WHERE session_projects.project_id = ?3" : ""}
           ORDER BY endedAt DESC, sessionId ASC
-          LIMIT ?1
+          LIMIT ?1 OFFSET ?2
         )
         SELECT recent.*, project.project_id as projectId, metadata.title,
           metadata.continuity_key as continuityKey,
@@ -38,7 +39,9 @@ export function listSessionSummaries(
         ORDER BY recent.endedAt DESC, recent.sessionId ASC
       `,
     )
-    .all(...(projectId ? [limit, projectId] : [limit])) as Array<{
+    .all(
+      ...(projectId ? [limit, offset, projectId] : [limit, offset]),
+    ) as Array<{
     sessionId: string;
     messageCount: number;
     startedAt: string;

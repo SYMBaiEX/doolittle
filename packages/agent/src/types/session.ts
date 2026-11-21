@@ -59,6 +59,7 @@ export interface SessionForkResult extends SessionLineage {
 
 export interface SessionSummary extends Partial<SessionLineage> {
   sessionId: string;
+  conversationKind?: "group";
   projectId?: string;
   title?: string;
   continuityKey?: string;

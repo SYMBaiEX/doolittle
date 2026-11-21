@@ -538,6 +538,19 @@ export class BotProcessRegistry {
     return this.bindConversation("default", sessionId, summary.projectId);
   }
 
+  /** Legacy transcript IDs can be read from the lead without granting a scope. */
+  async assertLegacyLeadTranscript(
+    botId: string,
+    sessionId: string,
+  ): Promise<void> {
+    if (!this.get(botId).isDefault)
+      throw new Error("This named conversation is not bound to its bot.");
+    this.catalog.stableDefaultBotId();
+    const summary = await this.readLeadSessionSummary(sessionId);
+    if (summary.messageCount === 0 && !summary.projectId && !summary.title)
+      throw new Error("Conversation is not present in the lead runtime.");
+  }
+
   private async readLeadSessionSummary(sessionId: string): Promise<{
     sessionId: string;
     projectId?: string;
@@ -869,49 +882,44 @@ export class BotProcessRegistry {
           receipts.set(bot.id, new Set());
           continue;
         }
-        const response = await this.runtimeFetch(
-          `${state.url}/chat/runs?limit=100`,
-          {
-            signal: AbortSignal.timeout(5_000),
-          },
-        );
-        if (!response.ok) throw new Error("Bot run status is unavailable.");
-        const payload: unknown = await response.json();
-        if (
-          !payload ||
-          typeof payload !== "object" ||
-          !Array.isArray((payload as { runs?: unknown }).runs)
-        ) {
-          throw new Error("Bot run status is invalid.");
-        }
-        const active = new Set<string>();
-        for (const row of (payload as { runs: unknown[] }).runs) {
-          if (!row || typeof row !== "object")
-            throw new Error("Bot run status is invalid.");
-          const run = row as { runId?: unknown; status?: unknown };
-          if (typeof run.runId !== "string" || typeof run.status !== "string") {
-            throw new Error("Bot run status is invalid.");
+        try {
+          const response = await this.runtimeFetch(
+            `${state.url}/chat/runs?limit=100`,
+            { signal: AbortSignal.timeout(5_000) },
+          );
+          if (!response.ok) continue;
+          const payload: unknown = await response.json();
+          if (
+            !payload ||
+            typeof payload !== "object" ||
+            !Array.isArray((payload as { runs?: unknown }).runs)
+          )
+            continue;
+          const active = new Set<string>();
+          for (const row of (payload as { runs: unknown[] }).runs) {
+            if (!row || typeof row !== "object")
+              throw new Error("Bot run status is invalid.");
+            const run = row as { runId?: unknown; status?: unknown };
+            if (typeof run.runId !== "string" || typeof run.status !== "string")
+              throw new Error("Bot run status is invalid.");
+            if (isActiveRunStatus(run.status)) active.add(run.runId);
           }
-          if (isActiveRunStatus(run.status)) active.add(run.runId);
+          // Do not reintroduce a stopped or replaced runtime's stale receipts.
+          const current = backend?.getState();
+          receipts.set(
+            bot.id,
+            current?.phase === "ready" && current.url === state.url
+              ? active
+              : new Set(),
+          );
+        } catch {
+          // Run counts are advisory. Keep the last known count for this bot
+          // and continue reconciling the rest of the roster.
         }
-        // Do not reintroduce a stopped or replaced runtime's stale receipts.
-        const current = backend?.getState();
-        receipts.set(
-          bot.id,
-          current?.phase === "ready" && current.url === state.url
-            ? active
-            : new Set(),
-        );
       }
     };
-    // Bound fleet polling independently of execution slots. Concurrent callers
-    // share this sweep; one failed runtime still fails the catalog closed.
-    const outcomes = await Promise.allSettled(
-      Array.from({ length: Math.min(8, bots.length) }, poll),
-    );
-    for (const outcome of outcomes) {
-      if (outcome.status === "rejected") throw outcome.reason;
-    }
+    // Bound fleet polling independently of execution slots.
+    await Promise.all(Array.from({ length: Math.min(8, bots.length) }, poll));
     for (const [botId, active] of receipts) {
       if (active.size > 0) this.activeRuns.set(botId, active);
       else this.activeRuns.delete(botId);

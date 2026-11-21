@@ -2,6 +2,7 @@ import type {
   AgentTransportRequest,
   AgentTransportResponse,
 } from "../shared/contracts";
+import { isTranscriptId } from "../shared/transcript-id";
 import type { BotProcessRegistry } from "./bot-process-registry";
 
 function objectBody(
@@ -18,11 +19,38 @@ function objectBody(
   }
 }
 
+function isScopedSessionId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-zA-Z0-9:_-]{1,128}$/u.test(value);
+}
+
 function requiredSessionId(value: unknown): string {
-  if (typeof value !== "string" || !/^[a-zA-Z0-9:_-]{1,128}$/u.test(value)) {
+  if (!isScopedSessionId(value)) {
     throw new Error("A valid conversation ID is required.");
   }
   return value;
+}
+
+function requiredTranscriptId(value: unknown): string {
+  if (!isTranscriptId(value)) {
+    throw new Error("A valid saved transcript ID is required.");
+  }
+  return value;
+}
+
+function legacyLeadRow(
+  registry: BotProcessRegistry,
+  botId: string,
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!registry.get(botId).isDefault)
+    throw new Error("This named conversation is not bound to its bot.");
+  return {
+    ...row,
+    botId: registry.catalog.stableDefaultBotId(),
+    workspacePath: undefined,
+    projectContext: undefined,
+    readOnly: true,
+  };
 }
 
 function setVerifiedOrigin(
@@ -193,21 +221,26 @@ export async function assertBotSessionRequest(
       "/sessions/export",
     ].includes(path)
   ) {
+    const sessionId = requiredTranscriptId(url.searchParams.get("sessionId"));
     if (path === "/sessions/messages") {
       const throughRunId = url.searchParams.get("throughRunId");
       if (throughRunId !== null) {
+        requiredSessionId(sessionId);
         const runId = requiredSessionId(throughRunId);
         await registry.assertRunOwner(botId, runId);
         const run = registry.conversations.getRun(runId);
-        if (run?.sessionId !== url.searchParams.get("sessionId")) {
+        if (run?.sessionId !== sessionId) {
           throw new Error("Run does not belong to this conversation.");
         }
       }
     }
-    await registry.ensureConversationOwner(
-      botId,
-      requiredSessionId(url.searchParams.get("sessionId")),
-    );
+    if (isScopedSessionId(sessionId)) {
+      await registry.ensureConversationOwner(botId, sessionId);
+    } else {
+      if (path === "/sessions/export")
+        throw new Error("A valid conversation ID is required.");
+      await registry.assertLegacyLeadTranscript(botId, sessionId);
+    }
     return;
   }
   if (
@@ -252,7 +285,8 @@ export async function attributeBotSessionResponse(
   response: AgentTransportResponse,
 ): Promise<AgentTransportResponse> {
   if (response.status < 200 || response.status >= 300) return response;
-  const path = new URL(request.path, "http://desktop.local").pathname;
+  const url = new URL(request.path, "http://desktop.local");
+  const path = url.pathname;
   if (request.method !== "GET" && request.method !== "POST") return response;
   if (request.method === "POST" && path === "/acp/session/new") {
     const input = objectBody(request.body);
@@ -425,7 +459,20 @@ export async function attributeBotSessionResponse(
     )
       throw new Error("The runtime returned invalid conversation summary.");
     const summary = payload.summary as Record<string, unknown>;
-    const sessionId = requiredSessionId(summary.sessionId);
+    const sessionId = requiredTranscriptId(summary.sessionId);
+    if (sessionId !== url.searchParams.get("sessionId"))
+      throw new Error(
+        "Runtime summary does not match the requested transcript.",
+      );
+    if (!isScopedSessionId(sessionId)) {
+      return {
+        ...response,
+        body: JSON.stringify({
+          ...payload,
+          summary: legacyLeadRow(registry, botId, summary),
+        }),
+      };
+    }
     const scope = registry.assertConversationOwner(botId, sessionId);
     return {
       ...response,
@@ -491,7 +538,9 @@ export async function attributeBotSessionResponse(
     if (!row || typeof row !== "object" || Array.isArray(row))
       throw new Error("The runtime returned invalid conversation data.");
     const item = row as Record<string, unknown>;
-    const sessionId = requiredSessionId(item.sessionId);
+    const sessionId = requiredTranscriptId(item.sessionId);
+    if (!isScopedSessionId(sessionId))
+      return legacyLeadRow(registry, botId, item);
     const projectId =
       typeof item.projectId === "string" ? item.projectId : undefined;
     const owner =

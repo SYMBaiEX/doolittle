@@ -80,7 +80,11 @@ export interface SessionServiceApi {
     recentSessionIds: string[];
   };
   summarize(sessionId: string, limit?: number): SessionSummary;
-  listSessions(limit: number, projectId?: string): SessionSummary[];
+  listSessions(
+    limit: number,
+    projectId?: string,
+    offset?: number,
+  ): SessionSummary[];
   listTitled(limit: number): SessionSummary[];
   resolveByTitle(query: string): SessionSummary | undefined;
   usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary;

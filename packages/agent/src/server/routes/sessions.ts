@@ -6,6 +6,7 @@ import {
 } from "../../services/session/service/index";
 import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
+import { withConversationKinds } from "./session-groups";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 
@@ -41,15 +42,33 @@ export async function handleSessionRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/sessions") {
-    const limitRaw = url.searchParams.get("limit");
-    const limit = limitRaw ? Number(limitRaw) : 20;
+    const limitRaw = Number(url.searchParams.get("limit") ?? "20");
+    const limit =
+      Number.isSafeInteger(limitRaw) && limitRaw > 0
+        ? Math.min(limitRaw, 500)
+        : 20;
+    const offsetRaw = Number(url.searchParams.get("offset") ?? "0");
+    const offset =
+      Number.isSafeInteger(offsetRaw) && offsetRaw >= 0
+        ? Math.min(offsetRaw, 1_000_000_000)
+        : 0;
     const projectId = optionalProjectId(url);
     if (projectId instanceof Response) return projectId;
     const botId = readWorkerBotProfile()?.id;
+    const rows = context.services.sessions.listSessions(
+      limit + 1,
+      projectId,
+      offset,
+    );
+    const summaries = await withConversationKinds(
+      context,
+      rows.slice(0, limit),
+    );
     return json({
-      sessions: context.services.sessions
-        .listSessions(!Number.isNaN(limit) && limit > 0 ? limit : 20, projectId)
-        .map((session) => (botId ? { ...session, botId } : session)),
+      sessions: summaries.map((session) =>
+        botId ? { ...session, botId } : session,
+      ),
+      hasMore: rows.length > limit,
     });
   }
 
@@ -173,9 +192,10 @@ export async function handleSessionRoutes(
     if (!sessionId) {
       return json({ error: "sessionId is required" }, 400);
     }
-    return json({
-      summary: context.services.sessions.summarize(sessionId),
-    });
+    const [summary] = await withConversationKinds(context, [
+      context.services.sessions.summarize(sessionId),
+    ]);
+    return json({ summary });
   }
 
   if (request.method === "GET" && url.pathname === "/sessions/messages") {

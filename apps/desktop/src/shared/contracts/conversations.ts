@@ -3,6 +3,8 @@ import type { ManagedAttachmentDescriptor } from "./desktop";
 export interface SessionSummary {
   botId?: string;
   sessionId: string;
+  conversationKind?: "group";
+  readOnly?: boolean;
   projectId?: string;
   workspacePath?: string;
   projectContext?: SessionProjectContext;
@@ -41,6 +43,7 @@ export interface BotConversationScopeResponse {
 
 export interface SessionsResponse {
   sessions: SessionSummary[];
+  hasMore?: boolean;
 }
 
 export interface StoredMessage {

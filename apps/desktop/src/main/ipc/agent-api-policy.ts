@@ -192,9 +192,10 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     {
       exact: "/sessions",
       allowAllQueries: false,
-      allowedQueries: ["limit", "projectId"],
+      allowedQueries: ["limit", "offset", "projectId"],
       validateQuery: (query) =>
         validateIntegerQuery(query, "limit", { min: 1, max: 500 }) &&
+        validateIntegerQuery(query, "offset", { min: 0, max: 1_000_000_000 }) &&
         validateTextQuery(query, "projectId", { maxLength: 256 }),
     },
     {
@@ -220,7 +221,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       allowedQueries: ["sessionId", "limit", "offset"],
       validateQuery: (query) =>
         validateTextQuery(query, "sessionId", {
-          maxLength: 128,
+          maxLength: 512,
           required: true,
         }) &&
         validateIntegerQuery(query, "limit", { min: 1, max: 500 }) &&

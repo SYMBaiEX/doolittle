@@ -40,8 +40,12 @@ export class SessionReadSummaryHelpers {
     );
   }
 
-  listSessions(limit: number, projectId?: string): SessionSummary[] {
-    return listSessionSummaries(this.db, limit, projectId);
+  listSessions(
+    limit: number,
+    projectId?: string,
+    offset?: number,
+  ): SessionSummary[] {
+    return listSessionSummaries(this.db, limit, projectId, offset);
   }
 
   listTitled(limit: number): SessionSummary[] {
