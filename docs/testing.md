@@ -108,6 +108,21 @@ The packaged runner verifies source revision, artifact provenance, and
 `app.asar` identity before launching. It requires an artifact built from clean
 HEAD. `DOOLITTLE_DESKTOP_EXECUTABLE` selects an explicit executable when needed;
 the release gate clears that override to test its own repository artifact.
+
+### Desktop startup benchmarks
+
+```sh
+nub scripts/benchmark-desktop-boot.ts --runs 5 /path/to/baseline /path/to/candidate
+nub scripts/benchmark-desktop-boot.ts --runs 5 --warm /path/to/baseline /path/to/candidate
+```
+
+Pass two packaged executables for a comparison or omit them to measure a built
+local checkout. The benchmark uses private offline profiles and alternates
+launch order. `--warm` measures the second launch of each profile. Compare the
+median and range for the visible workbench, worker API, Eliza core, and finished
+runtime hydration. Run on the same host with comparable signing and build
+settings. Filesystem caches stay warm between launches, and provider response
+latency is outside this benchmark.
 A passing package smoke test does not establish installation, signing, or
 notarization on every target platform.
 

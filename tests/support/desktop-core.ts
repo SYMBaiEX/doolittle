@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import {
   type ElectronApplication,
   _electron as electron,
@@ -31,9 +32,17 @@ export interface DesktopFixture {
   page: Page;
   profile: string;
   workspace: string;
+  startup: DesktopStartupTimings;
   close(): Promise<void>;
   restart(): Promise<void>;
   dispose(): Promise<void>;
+}
+
+export interface DesktopStartupTimings {
+  workbenchMs: number;
+  apiReadyMs: number;
+  coreReadyMs: number;
+  runtimeReadyMs: number;
 }
 
 function removeOwned(path: string, prefix: string): void {
@@ -92,7 +101,10 @@ export async function launchDesktop(
   );
   let app: ElectronApplication | undefined;
   let page: Page | undefined;
+  let startup: DesktopStartupTimings;
   const open = async () => {
+    const started = performance.now();
+    const elapsed = () => Math.round(performance.now() - started);
     app = await electron.launch({
       ...(executablePath ? { executablePath } : {}),
       args: executablePath
@@ -124,49 +136,70 @@ export async function launchDesktop(
       throw new Error("Electron did not use the isolated fixture profile");
     const currentPage = await app.firstWindow();
     page = currentPage;
-    await expect
-      .poll(
-        () =>
-          currentPage.evaluate(
-            async () => (await window.doolittle.getBackendState()).phase,
-          ),
-        { timeout: 60_000 },
-      )
-      .toBe("ready");
-    await expect(currentPage.locator("[data-session-workbench]")).toBeVisible();
-    // A listening API is not full startup: Eliza plugin hydration follows it.
-    // Project acceptance begins only after the real runtime declares readiness.
-    let startupResult = "warming";
-    await expect
-      .poll(
-        async () => {
-          startupResult = await currentPage.evaluate(async () => {
-            const result = await window.doolittle.requestAgent({
-              requestId: crypto.randomUUID(),
-              path: "/runtime/status",
-              method: "GET",
-              headers: {},
-            });
-            if (result.status !== 200) return "warming";
-            const status = JSON.parse(result.body) as {
-              startup: {
-                deferredReady: boolean;
-                phases: Record<string, { status: string }>;
+    const workbench = currentPage
+      .locator("[data-session-workbench]")
+      .waitFor({ state: "visible", timeout: 60_000 })
+      .then(elapsed);
+    // The workbench, listening API, and hydrated runtime are separate milestones.
+    const waitForRuntime = async () => {
+      await expect
+        .poll(
+          () =>
+            currentPage.evaluate(
+              async () => (await window.doolittle.getBackendState()).phase,
+            ),
+          { timeout: 60_000, intervals: [25, 50, 100] },
+        )
+        .toBe("ready");
+      const apiReadyMs = elapsed();
+      let startupResult = "warming";
+      let coreReadyMs: number | undefined;
+      await expect
+        .poll(
+          async () => {
+            const readiness = await currentPage.evaluate(async () => {
+              const result = await window.doolittle.requestAgent({
+                requestId: crypto.randomUUID(),
+                path: "/runtime/status",
+                method: "GET",
+                headers: {},
+              });
+              if (result.status !== 200) return null;
+              const status = JSON.parse(result.body) as {
+                startup: {
+                  hotPathReady: boolean;
+                  deferredReady: boolean;
+                  phases: Record<string, { status: string }>;
+                };
               };
-            };
-            const failed = Object.entries(status.startup.phases).find(
-              ([, phase]) => phase.status === "error",
-            );
-            if (failed) return `error:${failed[0]}`;
-            return status.startup.deferredReady ? "ready" : "warming";
-          });
-          return startupResult;
-        },
-        { timeout: 60_000 },
-      )
-      .not.toBe("warming");
-    if (startupResult !== "ready")
-      throw new Error(`Runtime startup failed: ${startupResult}`);
+              const failed = Object.entries(status.startup.phases).find(
+                ([, phase]) => phase.status === "error",
+              );
+              return {
+                coreReady: status.startup.hotPathReady,
+                phase: failed
+                  ? `error:${failed[0]}`
+                  : status.startup.deferredReady
+                    ? "ready"
+                    : "warming",
+              };
+            });
+            if (readiness?.coreReady) coreReadyMs ??= elapsed();
+            startupResult = readiness?.phase ?? "warming";
+            return startupResult;
+          },
+          { timeout: 60_000, intervals: [25, 50, 100] },
+        )
+        .not.toBe("warming");
+      if (startupResult !== "ready" || coreReadyMs === undefined)
+        throw new Error(`Runtime startup failed: ${startupResult}`);
+      return { apiReadyMs, coreReadyMs, runtimeReadyMs: elapsed() };
+    };
+    const [workbenchMs, runtimeTimings] = await Promise.all([
+      workbench,
+      waitForRuntime(),
+    ]);
+    startup = { workbenchMs, ...runtimeTimings };
     await expect
       .poll(
         async () => {
@@ -203,6 +236,9 @@ export async function launchDesktop(
     },
     profile,
     workspace,
+    get startup() {
+      return startup;
+    },
     async close() {
       await app?.close();
       app = undefined;
