@@ -1,5 +1,5 @@
 import type { AppContext } from "../../runtime/bootstrap/index";
-import type { RouteHandler } from "../router";
+import { onDemandRoute, type RouteHandler } from "../router";
 import { handleAcpRoutes } from "./acp";
 import { handleActivityRoutes } from "./activity";
 import { handleBrowserRoutes } from "./browser";
@@ -35,9 +35,7 @@ import { handleSettingsExecutionRoutes } from "./settings-execution";
 import { handleSkillSynthesisRoutes } from "./skill-synthesis";
 import { handleSkillRoutes } from "./skills";
 import { handleToolRoutes } from "./tools";
-import { handleTrajectoryRoutes } from "./trajectories";
 import { handleTransportRoutes } from "./transport";
-import { handleWebhookRoutes } from "./webhooks";
 import { handleWorkspaceRoutes } from "./workspace";
 import { withDirectConversationWorkspace } from "./workspace-scope";
 
@@ -133,6 +131,20 @@ const scopedDiagnosticInventory = withDirectConversationWorkspace(
     ].includes(url.pathname),
 );
 
+const trajectoryRoutes = onDemandRoute<AppContext>(
+  (url) => url.pathname.startsWith("/trajectories/"),
+  async () => (await import("./trajectories")).handleTrajectoryRoutes,
+);
+
+export const webhookRoutes = onDemandRoute<AppContext>(
+  (url) =>
+    url.pathname.startsWith("/webhooks/") ||
+    url.pathname.startsWith("/pairing/") ||
+    url.pathname === "/hooks" ||
+    url.pathname.startsWith("/hooks/"),
+  async () => (await import("./webhooks")).handleWebhookRoutes,
+);
+
 export const apiRouteHandlers = [
   handleKnowledgeBrokerRoutes,
   scopedRuntimeRoutes,
@@ -170,7 +182,7 @@ export const apiRouteHandlers = [
   scopedContextDocumentRoutes,
   handleCronRoutes,
   handleSkillSynthesisRoutes,
-  handleTrajectoryRoutes,
-  handleWebhookRoutes,
+  trajectoryRoutes,
+  webhookRoutes,
   handleConversationRoutes,
 ] satisfies ReadonlyArray<RouteHandler<AppContext>>;

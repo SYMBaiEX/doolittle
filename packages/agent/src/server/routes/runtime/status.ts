@@ -1,6 +1,4 @@
 import { timingSafeEqual } from "node:crypto";
-import { threadId } from "node:worker_threads";
-import { readWorkerBotProfile } from "../../../runtime/bootstrap/bot-profile";
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getCommandCatalogEntries,
@@ -14,7 +12,6 @@ import {
 import { currentConversationWorkspace } from "../../../runtime/workspace-scope";
 import { hasAsciiControlCharacters } from "../../../utils/text-validation";
 import { json } from "../../responses";
-import { runtimeInstanceId } from "../../runtime-instance-id";
 import { resolveOwnership } from "./shared";
 
 export async function handleRuntimeStatusRoutes(
@@ -51,18 +48,6 @@ export async function handleRuntimeStatusRoutes(
       chatRuns,
       protocolPrompts,
       automaticAcpSessions,
-    });
-  }
-  if (request.method === "GET" && url.pathname === "/runtime/bot-identity") {
-    const workerBot = readWorkerBotProfile();
-    return json({
-      botId: workerBot?.id ?? context.runtime.agentId,
-      agentId: context.runtime.agentId,
-      name: context.config.agentName,
-      isDefault: !workerBot,
-      processId: process.pid,
-      threadId,
-      runtimeInstanceId: runtimeInstanceId(context.runtime),
     });
   }
   if (request.method === "GET" && url.pathname === "/commands/catalog") {

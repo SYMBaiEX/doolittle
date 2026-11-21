@@ -4,6 +4,24 @@ export type RouteHandler<TContext> = (
   url: URL,
 ) => Promise<Response | null> | Response | null;
 
+/** Load optional API capabilities only when their namespace is requested. */
+export function onDemandRoute<TContext>(
+  matches: (url: URL) => boolean,
+  load: () => Promise<RouteHandler<TContext>>,
+): RouteHandler<TContext> {
+  let handler: RouteHandler<TContext> | undefined;
+  return (context, request, url) => {
+    if (!matches(url)) return null;
+    request.signal.throwIfAborted();
+    if (handler) return handler(context, request, url);
+    return load().then((loaded) => {
+      handler = loaded;
+      request.signal.throwIfAborted();
+      return loaded(context, request, url);
+    });
+  };
+}
+
 export async function dispatchRouteHandlers<TContext>(
   context: TContext,
   request: Request,
@@ -11,7 +29,9 @@ export async function dispatchRouteHandlers<TContext>(
   handlers: ReadonlyArray<RouteHandler<TContext>>,
 ): Promise<Response | null> {
   for (const handler of handlers) {
-    const response = await handler(context, request, url);
+    const result = handler(context, request, url);
+    if (result === null) continue;
+    const response = await result;
     if (response) {
       return response;
     }

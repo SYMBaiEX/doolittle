@@ -1,5 +1,5 @@
 import { dispatchRoute } from "@elizaos/agent/api/dispatch-route";
-import { matchPluginRoutePath } from "@elizaos/agent/api/runtime-plugin-routes";
+import { matchPluginRoutePath } from "@elizaos/agent/api/plugin-route-path";
 import type { IAgentRuntime } from "@elizaos/core";
 import {
   getHttpRuntime,

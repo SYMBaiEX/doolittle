@@ -33,9 +33,9 @@ import {
 import { createRequestAbortController } from "./server/request-lifecycle";
 import { json, runResponsePostCommit } from "./server/responses";
 import { dispatchRouteHandlers } from "./server/router";
-import { apiRouteHandlers } from "./server/routes/index";
+import { apiRouteHandlers, webhookRoutes } from "./server/routes/index";
 import { handleOperationsRoutes } from "./server/routes/operations";
-import { handleRuntimeRoutes } from "./server/routes/runtime/index";
+import { runtimeIdentity } from "./server/routes/runtime/identity";
 import { withDirectConversationWorkspace } from "./server/routes/workspace-scope";
 import { isWorkerApiRouteAllowed } from "./server/worker-route-policy";
 
@@ -48,6 +48,11 @@ const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
 ]);
 const INTERACTIVE_TERMINAL_OUTPUT_PATH = "/terminal/session/output";
 const RUNTIME_IDENTITY_PATH = "/runtime/bot-identity";
+
+const interactiveTerminalRoutes = withDirectConversationWorkspace(
+  handleOperationsRoutes,
+  () => true,
+);
 
 let activeApiServer: Server | null = null;
 let activeApiServerAddress: string | null = null;
@@ -429,12 +434,8 @@ export async function createApiServer(
                   expectedTerminalToken: terminalCapability,
                 })) ?? json({ error: "Not found" }, 404))
               : providerAuthenticatedWebhook
-                ? ((await dispatchRouteHandlers(
-                    context,
-                    request,
-                    url,
-                    apiRouteHandlers,
-                  )) ?? json({ error: "Not found" }, 404))
+                ? ((await webhookRoutes(context, request, url)) ??
+                  json({ error: "Not found" }, 404))
                 : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
                     requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
                   ? (
@@ -442,16 +443,15 @@ export async function createApiServer(
                         ? method === "GET"
                         : method === "POST"
                     )
-                    ? ((await withDirectConversationWorkspace(
-                        handleOperationsRoutes,
-                        () => true,
-                      )(context, request, url)) ??
-                      json({ error: "Not found" }, 404))
+                    ? ((await interactiveTerminalRoutes(
+                        context,
+                        request,
+                        url,
+                      )) ?? json({ error: "Not found" }, 404))
                     : json({ error: "Method not allowed" }, 405)
                   : requestPath === RUNTIME_IDENTITY_PATH
                     ? method === "GET"
-                      ? ((await handleRuntimeRoutes(context, request, url)) ??
-                        json({ error: "Not found" }, 404))
+                      ? runtimeIdentity(context, workerBot?.id)
                       : json({ error: "Method not allowed" }, 405)
                     : ((await dispatchRuntimePluginRoute({
                         runtime: context.runtime,
