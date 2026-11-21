@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { expect, it, vi } from "vitest";
 import { createWorkerHostBridge } from "../../apps/desktop/src/main/bot-process/host-bridge";
 import type { BotProcessRegistry } from "../../apps/desktop/src/main/bot-process-registry";
@@ -128,6 +129,43 @@ it("cannot admit ACP work after its foreground claim receipt is abandoned", asyn
       signal,
     ),
   ).rejects.toThrow("matching foreground run");
+});
+
+it("queues writes to the same or nested workspace and admits sibling work", async () => {
+  const admission = new DesktopExecutionAdmission({ maxConcurrent: 3 });
+  const root = resolve("fixtures/workspace");
+  const claim = (runId: string, mutationRoot: string) => ({
+    botId: runId,
+    runId,
+    sessionId: runId,
+    kind: "foreground" as const,
+    mutationRoot,
+  });
+
+  const owner = admission.claim(claim("owner", root));
+  if (!owner.accepted) throw new Error("Initial write lease was rejected.");
+  expect(admission.claim(claim("same", root))).toEqual({
+    accepted: false,
+    reason: "mutation_conflict",
+  });
+  const queued = admission.acquire(claim("child", resolve(root, "..drafts")));
+  expect(admission.snapshot().pending).toBe(1);
+  expect(
+    admission.claim(claim("sibling", resolve(root, "../..other"))),
+  ).toMatchObject({ accepted: true });
+
+  expect(
+    admission.release({
+      botId: "owner",
+      runId: "owner",
+      leaseId: owner.leaseId,
+    }),
+  ).toBe(true);
+  await expect(queued).resolves.toMatchObject({ accepted: true });
+  expect(admission.claim(claim("parent", root))).toEqual({
+    accepted: false,
+    reason: "mutation_conflict",
+  });
 });
 
 it("resumes a chat stream from its last cursor with one terminal event", async () => {

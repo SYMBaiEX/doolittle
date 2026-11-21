@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { availableParallelism } from "node:os";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
 export type ExecutionAdmissionKind = "foreground" | "automatic-acp";
 export interface ExecutionAdmissionLease {
@@ -43,13 +43,9 @@ interface PendingClaim {
   onAbort: () => void;
 }
 function rootsOverlap(left: string, right: string): boolean {
-  const a = relative(left, right);
-  const b = relative(right, left);
-  return (
-    a === "" ||
-    b === "" ||
-    (!a.startsWith("..") && !isAbsolute(a)) ||
-    (!b.startsWith("..") && !isAbsolute(b))
+  return [relative(left, right), relative(right, left)].some(
+    (offset) =>
+      offset !== ".." && !offset.startsWith(`..${sep}`) && !isAbsolute(offset),
   );
 }
 function boundedInteger(value: number, name: string, maximum: number): number {
