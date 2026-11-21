@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 
+export { writeJsonAtomicSync } from "./atomic-json";
 export {
   RegularFileError,
   readRegularFileDescriptorSync,

@@ -1,6 +1,6 @@
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
 import type { BotDefinition } from "@doolittle/contracts/bots";
-import type { Character, UUID } from "@elizaos/core";
+import { type Character, parseCharacter, type UUID } from "@elizaos/core";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const AGENT_ID_PATTERN =
@@ -8,6 +8,14 @@ const AGENT_ID_PATTERN =
 // Includes a <=24 KB sheet, its <=16 KB legacy persona projection, and
 // route/permission metadata. Keep the launch envelope finite.
 const MAX_PROFILE_LENGTH = 64_000;
+
+function readSdkBotCharacter(value: unknown, name: string) {
+  const sheet = normalizeBotCharacter(value);
+  // Check the sheet against ElizaOS with the host-owned name. Keep the narrow
+  // projection so SDK defaults cannot overwrite the shared base character.
+  parseCharacter({ ...sheet, name });
+  return sheet;
+}
 
 /** A named bot's process identity is fixed at launch, never selected per request. */
 export function readWorkerBotProfile(
@@ -51,7 +59,7 @@ export function readWorkerBotProfile(
   ) {
     throw new Error("The named bot launch profile is incomplete.");
   }
-  const character = normalizeBotCharacter(
+  const character = readSdkBotCharacter(
     profile.character ?? { system: profile.persona },
     profile.name,
   );
@@ -66,7 +74,7 @@ export function composeWorkerCharacter(
   base: Character,
   bot: BotDefinition,
 ): Character {
-  const sheet = normalizeBotCharacter(
+  const sheet = readSdkBotCharacter(
     bot.character ?? { system: bot.persona },
     bot.name,
   );

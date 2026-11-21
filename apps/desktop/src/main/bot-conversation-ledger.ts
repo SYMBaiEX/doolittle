@@ -1,7 +1,6 @@
 import { chmodSync, existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 
 const SESSION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;

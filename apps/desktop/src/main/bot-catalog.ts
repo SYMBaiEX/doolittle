@@ -12,8 +12,7 @@ import {
   type UpdateBotInput,
 } from "@doolittle/contracts";
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
-import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 import type { RuntimeEndpoint } from "./runtime-endpoint";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
@@ -64,11 +63,10 @@ function personaText(value: unknown): string {
 
 function botPersonality(
   input: { persona?: string; character?: unknown },
-  name: string,
   previous?: BotDefinition,
 ): Pick<BotDefinition, "persona" | "character"> {
   if (input.character !== undefined) {
-    const character = normalizeBotCharacter(input.character, name);
+    const character = normalizeBotCharacter(input.character);
     if (
       input.persona !== undefined &&
       personaText(input.persona) !== character.system
@@ -81,13 +79,10 @@ function botPersonality(
     const persona = personaText(input.persona);
     return {
       persona,
-      character: normalizeBotCharacter(
-        {
-          ...(previous?.character ?? {}),
-          system: persona,
-        },
-        name,
-      ),
+      character: normalizeBotCharacter({
+        ...(previous?.character ?? {}),
+        system: persona,
+      }),
     };
   }
   if (previous)
@@ -183,11 +178,11 @@ function isStoredBotDefinition(value: unknown): value is BotDefinition {
   )
     return false;
   try {
-    const name = requiredText(bot.name, "Bot name", MAX_NAME_LENGTH);
+    requiredText(bot.name, "Bot name", MAX_NAME_LENGTH);
     personaText(bot.persona);
     if (
       bot.character !== undefined &&
-      normalizeBotCharacter(bot.character, name).system !== bot.persona
+      normalizeBotCharacter(bot.character).system !== bot.persona
     )
       return false;
     const workspacePath = validateWorkspacePath(bot.workspacePath);
@@ -275,8 +270,7 @@ export class BotCatalog {
       bots: value.bots.map((bot) => ({
         ...bot,
         character:
-          bot.character ??
-          normalizeBotCharacter({ system: bot.persona }, bot.name),
+          bot.character ?? normalizeBotCharacter({ system: bot.persona }),
       })),
     };
   }
@@ -367,7 +361,7 @@ export class BotCatalog {
 
   create(input: CreateBotInput): BotDefinition {
     const name = requiredText(input.name, "Bot name", MAX_NAME_LENGTH);
-    const personality = botPersonality(input, name);
+    const personality = botPersonality(input);
     const id = randomUUID();
     const scratchPath = resolve(this.dataDir, "bot-workspaces", id);
     const workspacePath = validateWorkspacePath(
@@ -423,13 +417,7 @@ export class BotCatalog {
       ...(input.name
         ? { name: requiredText(input.name, "Bot name", MAX_NAME_LENGTH) }
         : {}),
-      ...botPersonality(
-        input,
-        input.name
-          ? requiredText(input.name, "Bot name", MAX_NAME_LENGTH)
-          : existing.name,
-        existing,
-      ),
+      ...botPersonality(input, existing),
       ...(input.avatar
         ? { avatar: requiredText(input.avatar, "Bot avatar", 80) }
         : {}),

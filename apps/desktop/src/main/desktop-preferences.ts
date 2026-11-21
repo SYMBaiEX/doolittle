@@ -1,6 +1,4 @@
-import { readOptionalJson } from "@doolittle/storage";
-
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readOptionalJson, writeJsonAtomicSync } from "@doolittle/storage";
 import type { DesktopLifecycleState } from "./desktop-lifecycle";
 import { DEFAULT_DESKTOP_LIFECYCLE_STATE } from "./desktop-lifecycle";
 

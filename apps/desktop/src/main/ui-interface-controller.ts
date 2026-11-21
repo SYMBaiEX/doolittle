@@ -5,8 +5,7 @@ import type {
   UiPluginArtifactIdentity,
   UiPluginContributionSelection,
 } from "@doolittle/contracts/ui-plugin";
-import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 import type {
   BrowserWindow,
   IpcMain,

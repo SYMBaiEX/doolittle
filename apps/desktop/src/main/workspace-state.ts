@@ -1,7 +1,6 @@
 import { realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 import type { WorkspacePickResult, WorkspaceState } from "../shared/contracts";
 
 export const MAX_RECENT_WORKSPACES = 8;

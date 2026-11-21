@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
-import { readOptionalJson } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readOptionalJson, writeJsonAtomicSync } from "@doolittle/storage";
 import type { ManagedAttachmentDescriptor } from "./attachment-import";
 
 const ATTACHMENT_ID =

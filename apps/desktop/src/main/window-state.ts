@@ -1,6 +1,4 @@
-import { readOptionalJson } from "@doolittle/storage";
-
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readOptionalJson, writeJsonAtomicSync } from "@doolittle/storage";
 import { asRecord } from "@elizaos/shared/type-guards";
 
 // Keep the native window aligned with the renderer's narrowest supported

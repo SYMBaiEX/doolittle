@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { writeJsonAtomicSync } from "@doolittle/storage";
 
 const DESKTOP_STATE_FILES = ["onboarding.json", "settings.json"] as const;
 

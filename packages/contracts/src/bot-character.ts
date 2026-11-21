@@ -1,4 +1,4 @@
-import { type CharacterInput, parseCharacter } from "@elizaos/core";
+import type { CharacterInput } from "@elizaos/core";
 
 /** User-owned personality fields, never runtime identity or configuration. */
 export interface BotCharacterSheet
@@ -63,11 +63,8 @@ function list(value: unknown, label: string, max = 32): string[] {
   return value.map((entry) => text(entry, label, 2_000));
 }
 
-/** Strict ingress for catalog input, persisted records, and worker launch profiles. */
-export function normalizeBotCharacter(
-  value: unknown,
-  trustedName: string,
-): BotCharacterSheet {
+/** Validate the bounded personality fields allowed in a Doolittle bot sheet. */
+export function normalizeBotCharacter(value: unknown): BotCharacterSheet {
   const sheet = record(value, "Bot character", FIELDS);
   // Parse before constructing SDK input: JSON size and allowlists must hold even
   // though the SDK normalizer silently drops unknown properties.
@@ -128,8 +125,5 @@ export function normalizeBotCharacter(
       };
     });
   }
-  // SDK validation is deliberately last; the name is host-owned, not accepted
-  // from the sheet. Preserve our narrower projection, not SDK default fields.
-  parseCharacter({ ...normalized, name: trustedName } satisfies CharacterInput);
   return normalized;
 }

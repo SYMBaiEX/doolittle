@@ -1,5 +1,5 @@
 import { chmodSync } from "node:fs";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { writeJsonAtomicSync } from "@doolittle/storage";
 
 export function readLedgerCopies<T extends { revision: number }>(
   path: string,
