@@ -371,32 +371,35 @@ export async function makeProject(
 export async function openProjectChat(
   page: Page,
   projectId: string,
-  botName: string | RegExp = /^Doolittle\b/u,
+  botName = "Doolittle",
 ): Promise<string> {
-  const known = await page
-    .locator("[data-session-panel]")
-    .evaluateAll((panels) =>
-      panels.map((panel) => panel.getAttribute("data-session-panel")),
-    );
-  await page
-    .getByRole("complementary", { name: "Navigation and bots" })
+  const sidebar = page.getByRole("complementary", {
+    name: "Navigation and bots",
+  });
+  await sidebarChatScope(page).selectOption({ label: botName });
+  await sidebar
     .getByRole("button", { name: "New conversation", exact: true })
     .click();
-  const chooser = page.getByRole("dialog", { name: "Start a chat with…" });
+  const chooser = page.getByRole("dialog", {
+    name: `Start a chat with ${botName}`,
+    exact: true,
+  });
   await expect(chooser).toBeVisible();
   await chooser
     .getByRole("combobox", { name: "Project for new chat" })
     .selectOption(projectId);
+  const previous = await page.evaluate(
+    async () => (await window.doolittle.ui?.getSelection())?.sessionId,
+  );
   await chooser
-    .getByRole("region", { name: "Available bots" })
-    .getByRole("button", { name: botName })
+    .getByRole("button", { name: `Start chat with ${botName}`, exact: true })
     .click();
   // Creating a chat awaits its durable host binding, not just a UI animation.
   try {
     await expect(chooser).toBeHidden({ timeout: DESKTOP_REQUEST_TIMEOUT_MS });
   } catch (error) {
     throw new Error(
-      `Conversation chooser did not close: ${await chooser.innerText()}`,
+      `Conversation chooser did not close: ${await chooser.textContent()}`,
       { cause: error },
     );
   }
@@ -404,17 +407,10 @@ export async function openProjectChat(
   await expect
     .poll(
       async () => {
-        id = await page
-          .locator("[data-session-panel]")
-          .evaluateAll(
-            (panels, existing) =>
-              panels
-                .map((panel) => panel.getAttribute("data-session-panel"))
-                .find(
-                  (candidate) => candidate && !existing.includes(candidate),
-                ) ?? null,
-            known,
-          );
+        const next = await page.evaluate(
+          async () => (await window.doolittle.ui?.getSelection())?.sessionId,
+        );
+        id = next && next !== previous ? next : null;
         return id;
       },
       { timeout: 30_000 },
@@ -423,6 +419,12 @@ export async function openProjectChat(
   if (!id) throw new Error("New chat has no session ID");
   await expect(page.locator(`[data-session-panel="${id}"]`)).toBeVisible();
   return id;
+}
+
+export function sidebarChatScope(page: Page) {
+  return page
+    .getByRole("complementary", { name: "Navigation and bots" })
+    .getByRole("combobox", { name: "Chat scope", exact: true });
 }
 
 /** Count only native project prompts for this fixture root; no real user folder can be approved. */

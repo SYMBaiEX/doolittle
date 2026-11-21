@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import {
   appendFileSync,
   existsSync,
@@ -9,6 +11,10 @@ import {
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
 import type { BotConversationScope } from "../../apps/desktop/src/shared/contracts";
+import { stableRuntimeUuid } from "../../packages/agent/src/runtime/stable-runtime-uuid";
+import { GatewaySessionService } from "../../packages/agent/src/services/gateway-session-service";
+import { SessionMessageStore } from "../../packages/agent/src/services/session/messages";
+import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
 import { themeContrast } from "../../packages/ui/src/themes";
 import {
   agentRequest,
@@ -17,6 +23,7 @@ import {
   makeProject,
   openProjectChat,
   projectDialogCount,
+  sidebarChatScope,
 } from "../support/desktop-core";
 import { themeContrastFixture } from "../support/theme-contrast";
 
@@ -402,10 +409,12 @@ test.describe("fresh native desktop", () => {
       const page = desktop.page;
       await page
         .getByRole("complementary", { name: "Navigation and bots" })
-        .getByRole("button", { name: "New conversation", exact: true })
+        .getByRole("button", { name: "Add bot", exact: true })
         .click();
-      const chooser = page.getByRole("dialog", { name: "Start a chat with…" });
-      await chooser.getByRole("button", { name: /Create a new bot/u }).click();
+      const chooser = page.getByRole("dialog", {
+        name: "Start a chat with Fresh Scout",
+        exact: true,
+      });
       const creation = page.getByRole("region", { name: "Create a new bot" });
       const answer = creation.locator(".bot-design-dock textarea");
       for (const value of [
@@ -446,18 +455,12 @@ test.describe("fresh native desktop", () => {
       // five-second assertion budget; the journey still has its 60s deadline.
       await expect(composer).toBeEnabled({ timeout: 30_000 });
       await composer.fill("A short offline hello");
-      const navigation = page.getByRole("complementary", {
-        name: "Navigation and bots",
-      });
-      await navigation
-        .getByRole("button", { name: /^Doolittle(?:,|$)/u })
-        .click();
+      const scope = sidebarChatScope(page);
+      await scope.selectOption({ label: "Doolittle" });
       await expect(
         page.getByRole("textbox", { name: "Message Doolittle" }),
       ).toBeVisible();
-      await navigation
-        .getByRole("button", { name: /^Fresh Scout(?:,|$)/u })
-        .click();
+      await scope.selectOption({ label: "Fresh Scout" });
       await expect(composer).toHaveValue("A short offline hello");
       const conversation = page.getByLabel("Conversation detail").filter({
         has: composer,
@@ -515,6 +518,160 @@ test.describe("fresh native desktop", () => {
       await expect(
         page.getByRole("textbox", { name: /^Message /u }),
       ).toBeVisible();
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
+  test("switches complete chat histories and starts new chats for the selected bot", async () => {
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
+    try {
+      let { page } = desktop;
+      const { defaultBotId } = await agentRequest<{ defaultBotId: string }>(
+        page,
+        "/bots",
+      );
+      const scout = await agentRequest<{ id: string }>(page, "/bots", "POST", {
+        name: "Inventory Scout",
+        persona: "Offline inventory fixture.",
+        model: { provider: "offline", model: "offline" },
+      });
+      const bindConversation = (botId: string) =>
+        agentRequest(
+          page,
+          `/bots/${encodeURIComponent(botId)}/conversations`,
+          "POST",
+          {
+            sessionId: randomUUID(),
+          },
+        );
+      await bindConversation(defaultBotId);
+      for (let index = 0; index < 10; index += 1)
+        await bindConversation(scout.id);
+      // Seed the same durable records a connector writes before reopening the
+      // profile. The encoded account name makes this a legacy opaque session ID.
+      await desktop.close();
+      const runtime = join(desktop.profile, "runtime");
+      const groupTitle = "Telegram fixture group";
+      const groupText = "Stored Telegram group fixture";
+      const route = new GatewaySessionService(
+        join(runtime, "gateway", "sessions"),
+      ).resolve({
+        platform: "telegram",
+        userId: "123",
+        roomId: "-100123",
+        channelType: "supergroup",
+        text: groupText,
+        metadata: { accountId: "fixture bot" },
+      });
+      expect(route.sessionKey).toContain("%20");
+      const database = createSessionDatabase(runtime);
+      try {
+        new SessionMessageStore(database, new EventEmitter()).storeMessage({
+          id: randomUUID(),
+          sessionId: route.sessionKey,
+          roomId: stableRuntimeUuid(route.sessionKey),
+          entityId: "fixture-user",
+          role: "user",
+          text: groupText,
+          createdAt: new Date().toISOString(),
+        });
+        database
+          .query(
+            "INSERT INTO session_metadata (session_id, title, updated_at) VALUES (?1, ?2, ?3)",
+          )
+          .run(route.sessionKey, groupTitle, new Date().toISOString());
+      } finally {
+        database.close();
+      }
+      await desktop.restart();
+      page = desktop.page;
+
+      const sidebar = page.getByRole("complementary", {
+        name: "Navigation and bots",
+      });
+      const scope = sidebarChatScope(page);
+      const history = sidebar.getByRole("region", {
+        name: "Recent conversations",
+      });
+      const historyRows = history.getByRole("button", {
+        name: "Conversation",
+        exact: true,
+      });
+      const newConversation = sidebar.getByRole("button", {
+        name: "New conversation",
+        exact: true,
+      });
+      await expect(scope).toBeVisible();
+      await scope.selectOption({ label: "Doolittle" });
+      await expect(historyRows).toHaveCount(1);
+      await scope.selectOption({ label: "Inventory Scout" });
+      await expect(historyRows).toHaveCount(10);
+
+      await scope.selectOption({ label: "Groups" });
+      const groups = sidebar.getByRole("region", { name: "Group chats" });
+      const groupChat = groups.getByRole("button", {
+        name: groupTitle,
+        exact: true,
+      });
+      await expect(groupChat).toHaveCount(1);
+      await expect(
+        groups.getByRole("button", { name: "Conversation", exact: true }),
+      ).toHaveCount(0);
+      await expect(history).toBeHidden();
+      await expect(newConversation).toBeDisabled();
+      await groupChat.click();
+      const groupTranscript = page.getByLabel("Conversation detail").filter({
+        has: page.getByText(groupText, { exact: true }),
+      });
+      await expect(groupTranscript).toBeVisible();
+      await expect(
+        groupTranscript.getByText("Read-only conversation history", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(groupTranscript.getByRole("textbox")).toHaveCount(0);
+
+      await scope.selectOption({ label: "Inventory Scout" });
+      await expect(historyRows).toHaveCount(10);
+      const previous = await page.evaluate(() =>
+        window.doolittle.ui?.getSelection(),
+      );
+      await newConversation.click();
+      const chooser = page.getByRole("dialog", {
+        name: "Start a chat with Inventory Scout",
+        exact: true,
+      });
+      await expect(
+        chooser.getByRole("button", { name: /^Start chat with /u }),
+      ).toHaveCount(1);
+      await chooser
+        .getByRole("button", {
+          name: "Start chat with Inventory Scout",
+          exact: true,
+        })
+        .click();
+      await expect(chooser).toBeHidden();
+      await expect(
+        page.getByRole("textbox", { name: "Message Inventory Scout" }),
+      ).toBeVisible();
+      const selected = await page.evaluate(() =>
+        window.doolittle.ui?.getSelection(),
+      );
+      expect(selected?.botId).toBe(scout.id);
+      expect(selected?.sessionId).toBeTruthy();
+      expect(selected?.sessionId).not.toBe(previous?.sessionId);
+      const ownership = await agentRequest<{
+        conversation: BotConversationScope;
+      }>(
+        page,
+        `/bots/conversations/owner?sessionId=${encodeURIComponent(selected?.sessionId ?? "")}`,
+      );
+      expect(ownership.conversation.botId).toBe(scout.id);
+      await scope.selectOption({ label: "Doolittle" });
+      await expect(historyRows).toHaveCount(1);
     } finally {
       await desktop.dispose();
     }
@@ -834,13 +991,15 @@ test.describe("fresh native desktop", () => {
         .getByRole("complementary", { name: "Navigation and bots" })
         .getByRole("button", { name: "New conversation", exact: true })
         .click();
-      const chooser = page.getByRole("dialog", { name: "Start a chat with…" });
+      const chooser = page.getByRole("dialog", {
+        name: "Start a chat with Doolittle",
+        exact: true,
+      });
       await chooser
         .getByRole("combobox", { name: "Project for new chat" })
         .selectOption(projectId);
       await chooser
-        .getByRole("region", { name: "Available bots" })
-        .getByRole("button", { name: /^Doolittle\b/u })
+        .getByRole("button", { name: "Start chat with Doolittle", exact: true })
         .click();
       await expect(
         chooser.getByText("This conversation could not be opened", {
@@ -851,8 +1010,7 @@ test.describe("fresh native desktop", () => {
       // Reinstall in the same isolated process with a grant response; cancellation must not seed reuse.
       await installProjectDialog(desktop.app, desktop.workspace);
       await chooser
-        .getByRole("region", { name: "Available bots" })
-        .getByRole("button", { name: /^Doolittle\b/u })
+        .getByRole("button", { name: "Start chat with Doolittle", exact: true })
         .click();
       await expect(chooser).toBeHidden();
       expect(await projectDialogCount(desktop.app)).toBe(1);
@@ -869,11 +1027,6 @@ test.describe("fresh native desktop", () => {
       await page.evaluate(() =>
         window.dispatchEvent(new Event("doolittle:bot-catalog-changed")),
       );
-      await expect(
-        page
-          .getByRole("complementary", { name: "Navigation and bots" })
-          .getByText("Other Scout", { exact: true }),
-      ).toBeVisible();
       await openProjectChat(page, projectId, "Other Scout");
       expect(await projectDialogCount(desktop.app)).toBe(2);
       await agentRequest(page, `/bots/${otherBot.id}/stop`, "POST");
@@ -958,9 +1111,9 @@ test.describe("fresh native desktop", () => {
       // both names proves two real periodic reads without modifying frozen IPC.
       for (const name of ["Poll witness first", "Poll witness second"]) {
         await agentRequest(page, `/bots/${pulse.id}`, "PATCH", { name });
-        await expect(sidebar.getByText(name, { exact: true })).toBeVisible({
-          timeout: 15_000,
-        });
+        await expect(
+          sidebarChatScope(page).locator(`option[value="bot:${pulse.id}"]`),
+        ).toHaveText(name, { timeout: 15_000 });
       }
       const after = await page.evaluate(() => {
         const ui = window.doolittle.ui;

@@ -2,15 +2,39 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { BackendState } from "../../apps/desktop/src/shared/contracts";
+import type {
+  BackendState,
+  SessionSummary,
+  SessionsResponse,
+} from "../../apps/desktop/src/shared/contracts";
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("../../apps/desktop/src/renderer/lib", () => ({
   desktopRequest: request,
 }));
-vi.mock("../../apps/desktop/src/renderer/bots/session-catalog", () => ({
-  loadBotSessionCatalog: async (value: unknown) => value,
-}));
+vi.mock(
+  import("../../apps/desktop/src/renderer/bots/session-catalog"),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    loadBotSessionCatalog: async (
+      value: SessionsResponse | Promise<SessionsResponse>,
+    ) => {
+      const { sessions, hasMore } = await value;
+      return {
+        sessions,
+        ...(hasMore
+          ? {
+              leadHistoryPage: {
+                botId: "lead",
+                offset: sessions.length,
+                omittedSessionIds: new Set<string>(),
+              },
+            }
+          : {}),
+      };
+    },
+  }),
+);
 
 import { useRuntimeWorkspaceData } from "../../apps/desktop/src/renderer/use-runtime-workspace-data";
 import { createDeferred } from "../support/deferred";
@@ -80,6 +104,18 @@ async function mount() {
     listener(ready);
   });
 }
+
+function transcript(sessionId: string): SessionSummary {
+  return {
+    botId: "lead",
+    sessionId,
+    title: "History",
+    preview: [],
+    participants: [],
+    messageCount: 3,
+  };
+}
+
 it("shows runtime status and projects while conversation history is still loading", async () => {
   const history = createDeferred<{ sessions: [] }>();
   request.mockImplementation(async (path: string) => {
@@ -92,6 +128,82 @@ it("shows runtime status and projects while conversation history is still loadin
   expect(value.runtime?.model).toBe("local");
   expect(value.projects[0]?.id).toBe("project");
   await act(async () => history.resolve({ sessions: [] }));
+});
+
+it("publishes recent chats first and adds older groups without overwriting a confirmed workspace", async () => {
+  const older = createDeferred<SessionsResponse>();
+  const status = createDeferred<{ model: string }>();
+  request.mockImplementation(async (path: string) => {
+    if (path === "/sessions?limit=200")
+      return { sessions: [transcript("recent")], hasMore: true };
+    if (path === "/sessions?limit=200&offset=1") return older.promise;
+    if (path === "/runtime/status") return status.promise;
+    return { projects: [] };
+  });
+  await mount();
+  expect(value.sessions.map((row) => row.sessionId)).toEqual(["recent"]);
+  expect(request.mock.calls.map(([path]) => path)).toContain(
+    "/sessions?limit=200&offset=1",
+  );
+  act(() =>
+    value.publishConfirmedConversation({
+      botId: "lead",
+      sessionId: "confirmed",
+      projectId: "current-project",
+      workspacePath: "/current/workspace",
+      createdAt: "2026-11-02T00:00:00Z",
+      updatedAt: "2026-11-02T00:00:00Z",
+    }),
+  );
+  await act(async () =>
+    older.resolve({
+      sessions: [
+        {
+          ...transcript("confirmed"),
+          projectId: "stale-project",
+          workspacePath: "/stale/workspace",
+        },
+        { ...transcript("recent"), title: "Stale preview" },
+        { ...transcript("group"), conversationKind: "group" },
+      ],
+    }),
+  );
+  expect(value.sessions).toMatchObject([
+    {
+      sessionId: "confirmed",
+      projectId: "current-project",
+      workspacePath: "/current/workspace",
+      messageCount: 3,
+    },
+    { sessionId: "recent", title: "History" },
+    { sessionId: "group", conversationKind: "group" },
+  ]);
+  await act(async () => status.resolve({ model: "local" }));
+});
+
+it("cancels older history when a newer refresh starts", async () => {
+  const older = createDeferred<SessionsResponse>();
+  request.mockImplementation(async (path: string) => {
+    if (path === "/sessions?limit=200&offset=1") return older.promise;
+    if (path.startsWith("/sessions"))
+      return { sessions: [transcript("recent")], hasMore: true };
+    return { projects: [] };
+  });
+  await mount();
+  const olderSignal = request.mock.calls.find(
+    ([path]) => path === "/sessions?limit=200&offset=1",
+  )?.[3] as AbortSignal;
+  expect(olderSignal.aborted).toBe(false);
+  request.mockResolvedValue({ sessions: [transcript("fresh")], projects: [] });
+  await act(async () => {
+    expect(await value.refreshRuntime()).toBe(true);
+    older.resolve({ sessions: [transcript("obsolete")], hasMore: true });
+  });
+  expect(olderSignal.aborted).toBe(true);
+  expect(value.sessions.map((row) => row.sessionId)).toEqual(["fresh"]);
+  expect(request.mock.calls.map(([path]) => path)).not.toContain(
+    "/sessions?limit=200&offset=2",
+  );
 });
 it("keeps the newest refresh and retains usable rows while reporting a real failure", async () => {
   const first = batch("old");

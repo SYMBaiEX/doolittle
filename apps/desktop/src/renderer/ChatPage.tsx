@@ -212,6 +212,7 @@ export function ChatSessionPanel({
   backend: hostBackend,
   runtime,
   remoteSessions,
+  sessionMetadata = remoteSessions,
   selectedId,
   workspacePath: hostWorkspacePath,
   inventoryWorkspacePath,
@@ -247,6 +248,13 @@ export function ChatSessionPanel({
       ? botIdForSession(sessionId)
       : defaultBotId || selectedBotId || "";
   const currentBotId = resolveSessionBot(selectedId);
+  const isReadOnlySession = (sessionId: string) =>
+    sessionMetadata.some(
+      (session) =>
+        session.sessionId === sessionId &&
+        (session.readOnly || session.conversationKind === "group"),
+    );
+  const readOnlyChat = isReadOnlySession(selectedId);
   const currentBot = bots?.find((bot) => bot.id === currentBotId);
   const backend =
     currentBot && !currentBot.isDefault
@@ -402,9 +410,10 @@ export function ChatSessionPanel({
     if (surface === "media") setVisitedMedia(true);
   }, [surface]);
   const canDraft =
-    backend.phase === "ready" ||
-    hostBackend.phase === "ready" ||
-    hostBackend.phase === "booting";
+    !readOnlyChat &&
+    (backend.phase === "ready" ||
+      hostBackend.phase === "ready" ||
+      hostBackend.phase === "booting");
   const panelViewSnapshots = useWorkspaceRef<
     Record<string, ChatPanelViewState>
   >("view.snapshots", {});
@@ -841,6 +850,7 @@ export function ChatSessionPanel({
     contextCapsule?: ChatContextCapsule | null;
     composedContentOverride?: string;
   }) => {
+    if (isReadOnlySession(sessionId)) return false;
     if (clearComposer && attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before sending this message.",
@@ -1288,6 +1298,7 @@ export function ChatSessionPanel({
 
   const queueScope = scopeForSession?.(selectedId);
   const queueScopeReady =
+    !readOnlyChat &&
     runHydration === "ready" &&
     !workspaceBindingBlocked &&
     (!scopeForSession || queueScope?.kind === "confirmed");
@@ -1518,6 +1529,7 @@ export function ChatSessionPanel({
       ? "Commands cannot be sent with file context. Remove the attachments or send a normal message."
       : "";
   const canSubmit =
+    !readOnlyChat &&
     Boolean(draft.trim() || attachedFiles.length > 0) &&
     hostBackend.phase === "ready" &&
     !workspaceBindingBlocked &&
@@ -1610,7 +1622,7 @@ export function ChatSessionPanel({
             sessionId={selectedId}
             botName={currentBot?.name}
             activeRequest={activeRequest}
-            backendReady={backend.phase === "ready"}
+            backendReady={backend.phase === "ready" && !readOnlyChat}
             copyStates={copyStates}
             endRef={endRef}
             forkingMessageId={forkingMessageId}
@@ -1632,9 +1644,15 @@ export function ChatSessionPanel({
               )
             }
             onRead={readMessage}
-            onPromote={currentBotId ? promoteMessage : undefined}
+            onPromote={
+              currentBotId && !readOnlyChat ? promoteMessage : undefined
+            }
             onRetryHistory={() => retryHistory(selectedId)}
-            onRetryMessage={(message) => void branchMessage(message, "retry")}
+            onRetryMessage={
+              readOnlyChat
+                ? undefined
+                : (message) => void branchMessage(message, "retry")
+            }
             onLoadEarlier={() => loadEarlierHistory(selectedId)}
             onSelectPrompt={(prompt) => {
               setDraft(prompt);
@@ -1691,7 +1709,19 @@ export function ChatSessionPanel({
             {accessibilityStatus}
           </div>
         </div>
-        <div className="chat-composer-dock" ref={composerDockRef}>
+        {readOnlyChat ? (
+          <p className="chat-storage-warning" role="status">
+            Read-only conversation history
+          </p>
+        ) : null}
+        <div
+          className={
+            readOnlyChat ? "chat-composer-dock hidden" : "chat-composer-dock"
+          }
+          hidden={readOnlyChat}
+          inert={readOnlyChat}
+          ref={composerDockRef}
+        >
           <ChatComposer
             bot={currentBot}
             approvalBotId={currentBotId}

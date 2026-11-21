@@ -54,6 +54,7 @@ export interface DesktopRouteNavigation {
     expectedWorkspacePath?: string,
   ) => Promise<BotConversationScope | undefined>;
   createConversation: () => void;
+  startLeadConversation: () => void;
   startChatInProject: (
     projectId: string | null,
     sourceSessionId?: string,
@@ -373,7 +374,7 @@ export function DesktopRouteContent({
             );
           });
           if (session) navigation.openSession(session.sessionId);
-          else navigation.createConversation();
+          else navigation.startLeadConversation();
         };
         return (
           <Route

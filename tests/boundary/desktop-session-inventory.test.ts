@@ -15,7 +15,10 @@ vi.mock("../../apps/desktop/src/renderer/lib", () => ({
   desktopRequest: request,
 }));
 
-import { loadBotSessionCatalog } from "../../apps/desktop/src/renderer/bots/session-catalog";
+import {
+  loadBotSessionCatalog,
+  loadOlderLeadHistory,
+} from "../../apps/desktop/src/renderer/bots/session-catalog";
 
 function pending<T>() {
   let resolve!: (value: T) => void;
@@ -154,6 +157,102 @@ it("keeps the ledger and cached rows when a worker claims an unowned conversatio
       "Active's history is unavailable; saved conversations are retained.",
     ],
   });
+});
+
+it("shows healthy bots and retains the failed bot's last saved inventory", async () => {
+  request.mockImplementation(async (path: string) => {
+    switch (path) {
+      case "/bots":
+        return catalog;
+      case "/bots/lead/conversations":
+        return { conversations: [owner("lead", "lead-chat")] };
+      case "/bots/active/conversations":
+        throw new Error("Owner ledger temporarily unavailable");
+      case "/sessions?limit=200":
+        return { sessions: [summary("active", "unverified-chat")] };
+      case "/bots/stopped/conversations":
+        return { conversations: [owner("stopped", "stopped-chat")] };
+      default:
+        throw new Error(`Unexpected request: ${path}`);
+    }
+  });
+  const previous = [
+    summary("lead", "lead-chat"),
+    summary("active", "previous-active-chat"),
+    summary("stopped", "removed-stopped-chat"),
+  ];
+  const result = await loadBotSessionCatalog(
+    Promise.reject(new Error("Lead history is temporarily unavailable")),
+    previous,
+  );
+  expect(
+    result.sessions.map(({ botId, sessionId }) => [botId, sessionId]),
+  ).toEqual([
+    ["lead", "lead-chat"],
+    ["stopped", "stopped-chat"],
+    ["active", "previous-active-chat"],
+  ]);
+  expect(result).toMatchObject({
+    sessions: [
+      { title: previous[0]?.title, ...boundContext },
+      { title: "Conversation", ...boundContext },
+      previous[1],
+    ],
+    warnings: [
+      "Lead history is unavailable; saved conversations are retained.",
+      "Active's conversations could not be refreshed; saved conversations are retained.",
+    ],
+  });
+});
+
+it("omits conflicting conversation owners throughout paginated history", async () => {
+  request.mockImplementation(async (path: string) => {
+    switch (path) {
+      case "/bots":
+        return catalog;
+      case "/bots/lead/conversations":
+        return { conversations: [] };
+      case "/bots/active/conversations":
+        return {
+          conversations: [
+            owner("active", "active-chat"),
+            owner("active", "duplicate-chat"),
+          ],
+        };
+      case "/sessions?limit=200":
+        return { sessions: [] };
+      case "/sessions?limit=200&offset=1":
+        return {
+          sessions: [
+            summary("lead", "duplicate-chat"),
+            summary("lead", "older-chat"),
+          ],
+        };
+      case "/bots/stopped/conversations":
+        return { conversations: [owner("stopped", "duplicate-chat")] };
+      default:
+        throw new Error(`Unexpected request: ${path}`);
+    }
+  });
+  const result = await loadBotSessionCatalog(
+    { sessions: [summary("lead", "lead-chat")], hasMore: true },
+    [],
+  );
+  expect(result.sessions.map(({ sessionId }) => sessionId)).toEqual([
+    "lead-chat",
+    "active-chat",
+  ]);
+  expect(result.warnings).toEqual([
+    "Conversations with conflicting bot owners were omitted.",
+  ]);
+  const page = result.leadHistoryPage;
+  expect(page).toBeDefined();
+  if (!page) throw new Error("Expected additional lead history.");
+  const publish = vi.fn();
+  await loadOlderLeadHistory(page, new AbortController().signal, publish);
+  expect(publish).toHaveBeenCalledExactlyOnceWith([
+    summary("lead", "older-chat"),
+  ]);
 });
 
 it("does not fan out inventory calls after cancellation during a shared catalog request", async () => {

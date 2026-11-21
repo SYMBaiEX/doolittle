@@ -1,21 +1,34 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
-import { ContactRow, ContextActionMenu, StateSurface } from "@doolittle/ui";
+import {
+  ContextActionMenu,
+  NativeSelect,
+  RunState,
+  StateSurface,
+} from "@doolittle/ui";
 import {
   AlertCircle,
   CalendarClock,
+  ChevronDown,
   Files,
   ListTodo,
   LoaderCircle,
+  MessageSquare,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
   Settings,
+  Users,
   WifiOff,
   X,
 } from "lucide-react";
-import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+  useMemo,
+  useRef,
+} from "react";
 import type {
   DoolittleDesktopBridge,
   SessionSummary,
@@ -51,8 +64,8 @@ export interface DesktopSidebarProps {
   mobileSidebarOpen: boolean;
   navCollapsed: boolean;
   sidebarWidth: number;
+  chatScope: "bot" | "groups";
   selectedBotId: string;
-  defaultBotId: string;
   bots: readonly BotSummary[];
   botStatus: BotCatalogStatus;
   botError: string;
@@ -71,6 +84,7 @@ export interface DesktopSidebarProps {
   onStartConversation: (scope: ProjectScope) => void;
   onOpenSession: (sessionId: string) => void;
   onSelectBot: (botId: string) => void;
+  onSelectGroups: () => void;
   onAddBot: () => void;
   onRetryBots: () => void;
   onSetView: (view: View) => void;
@@ -95,8 +109,8 @@ export function DesktopSidebar({
   mobileSidebarOpen,
   navCollapsed,
   sidebarWidth,
+  chatScope,
   selectedBotId,
-  defaultBotId,
   bots,
   botStatus,
   botError,
@@ -115,6 +129,7 @@ export function DesktopSidebar({
   onStartConversation,
   onOpenSession,
   onSelectBot,
+  onSelectGroups,
   onAddBot,
   onRetryBots,
   onSetView,
@@ -123,22 +138,62 @@ export function DesktopSidebar({
   const area = desktopWorkspaceArea(navigationView);
   const compact = navCollapsed && !isMobileSidebarMode;
   const sidebarAction = `${SIDEBAR_ACTION_CLASS}${compact ? " justify-center" : ""}`;
-  const botSessions = sessions
-    .filter((session) => (session.botId ?? defaultBotId) === selectedBotId)
-    .sort((left, right) =>
-      (right.endedAt ?? right.startedAt ?? "").localeCompare(
-        left.endedAt ?? left.startedAt ?? "",
+  const scopePickerRef = useRef<HTMLSelectElement>(null);
+  const showingGroups = chatScope === "groups";
+  const selectedBot = bots.find((bot) => bot.id === selectedBotId);
+  const scopedBot = showingGroups ? undefined : selectedBot;
+  const scopedBotState = scopedBot ? botRunState(scopedBot) : undefined;
+  const canStartConversation = Boolean(scopedBot);
+  const sortedSessions = useMemo(
+    () =>
+      [...sessions].sort((left, right) =>
+        (right.endedAt ?? right.startedAt ?? "").localeCompare(
+          left.endedAt ?? left.startedAt ?? "",
+        ),
       ),
-    );
-  const selectedBotSessions = botSessions.slice(0, 8);
-  const currentSession = botSessions.find(
-    (session) => session.sessionId === selectedSession,
+    [sessions],
   );
-  // Keep an older opened conversation discoverable without widening the
-  // compact recent list or changing the bot/session ownership filter.
-  if (currentSession && !selectedBotSessions.includes(currentSession)) {
-    selectedBotSessions.splice(7, 1, currentSession);
-  }
+  const scopePicker = (
+    <div className="relative min-w-0 flex-1">
+      <NativeSelect
+        aria-label="Chat scope"
+        className="w-full cursor-pointer appearance-none truncate border-[var(--border)] bg-[var(--surface-raised)] pl-8 pr-8 font-medium hover:bg-[var(--surface-hover)]"
+        onChange={(event) => {
+          const scope = event.currentTarget.value;
+          if (scope === "groups") onSelectGroups();
+          else if (scope.startsWith("bot:")) onSelectBot(scope.slice(4));
+        }}
+        ref={scopePickerRef}
+        value={
+          showingGroups ? "groups" : selectedBot ? `bot:${selectedBotId}` : ""
+        }
+      >
+        <option disabled value="">
+          Choose a bot
+        </option>
+        {bots.length ? (
+          <optgroup label="Bots">
+            {bots.map((bot) => (
+              <option key={bot.id} value={`bot:${bot.id}`}>
+                {bot.name}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+        <option value="groups">Groups</option>
+      </NativeSelect>
+      <div className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-[var(--muted)]">
+        {scopedBotState ? (
+          <RunState compact state={scopedBotState} />
+        ) : (
+          <UiIcon icon={showingGroups ? Users : MessageSquare} />
+        )}
+      </div>
+      <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[var(--muted)]">
+        <UiIcon icon={ChevronDown} />
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -226,13 +281,70 @@ export function DesktopSidebar({
             <UiIcon icon={Search} size="sm" />
             <span className={compact ? "sr-only" : ""}>Search</span>
           </button>
+          {compact ? (
+            <button
+              aria-controls="desktop-sidebar"
+              aria-expanded={false}
+              className={sidebarAction}
+              onClick={() => {
+                onToggleNavigation();
+                requestAnimationFrame(() => scopePickerRef.current?.focus());
+              }}
+              title="Show chats"
+              type="button"
+            >
+              <UiIcon icon={showingGroups ? Users : MessageSquare} />
+              <span className="sr-only">Show chats</span>
+            </button>
+          ) : (
+            <ContextActionMenu
+              className="group flex min-w-0 items-center gap-1"
+              items={
+                scopedBot
+                  ? [
+                      {
+                        id: "manage",
+                        label: "Manage bots…",
+                        onSelect: () => onSetView("agents"),
+                      },
+                      {
+                        id: "copy-name",
+                        label: "Copy bot name",
+                        separatorBefore: true,
+                        onSelect: () => void copyContextText(scopedBot.name),
+                      },
+                      {
+                        id: "copy-id",
+                        label: "Copy bot ID",
+                        onSelect: () => void copyContextText(scopedBot.id),
+                      },
+                    ]
+                  : []
+              }
+              label={`${scopedBot?.name ?? "Chat scope"} actions`}
+              scopeKey={scopedBot?.id}
+              trigger={
+                scopedBot ? (
+                  <button
+                    aria-label={`${scopedBot.name} actions`}
+                    className={ROW_MENU_TRIGGER_CLASS}
+                    type="button"
+                  >
+                    <UiIcon icon={MoreHorizontal} />
+                  </button>
+                ) : undefined
+              }
+            >
+              {scopePicker}
+            </ContextActionMenu>
+          )}
           <button
             className={sidebarAction}
-            disabled={!selectedBotId}
+            disabled={!canStartConversation}
             onClick={() => onStartConversation(projectScope)}
             type="button"
             title={
-              !selectedBotId
+              !canStartConversation
                 ? "Choose a bot to start a conversation"
                 : compact
                   ? "New conversation"
@@ -247,11 +359,6 @@ export function DesktopSidebar({
           aria-label="Bots and conversations"
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 [-webkit-app-region:no-drag]"
         >
-          {!compact ? (
-            <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
-              Bots
-            </h2>
-          ) : null}
           {compact && botStatus === "error" ? (
             <button
               className={`${sidebarAction} mx-auto`}
@@ -301,174 +408,122 @@ export function DesktopSidebar({
               ) : null}
             </div>
           ) : null}
-          {botStatus === "loading" ||
-          (botStatus === "disabled" && bots.length === 0) ? (
-            !compact && (
-              <StateSurface
-                kind={botStatus === "disabled" ? "offline" : "loading"}
-                title={
-                  botStatus === "disabled" ? "Runtime offline" : "Loading bots"
-                }
-              />
-            )
-          ) : botStatus === "error" && bots.length === 0 ? (
-            !compact && (
-              <StateSurface
-                action={
-                  <button
-                    className="text-sm underline"
-                    onClick={onRetryBots}
-                    type="button"
-                  >
-                    Retry
-                  </button>
-                }
-                kind="error"
-                title="Bots unavailable"
-              >
-                {botError}
-              </StateSurface>
-            )
-          ) : bots.length === 0 ? (
-            !compact && (
-              <StateSurface kind="empty" title="No bots available">
-                The local runtime has not returned a bot catalog.
-              </StateSurface>
-            )
-          ) : (
-            <>
-              {bots.map((bot) => (
-                <div key={bot.id}>
+          {!compact &&
+          bots.length === 0 &&
+          (botStatus === "loading" || botStatus === "disabled") ? (
+            <StateSurface
+              kind={botStatus === "disabled" ? "offline" : "loading"}
+              title={
+                botStatus === "disabled" ? "Runtime offline" : "Loading bots"
+              }
+            />
+          ) : !compact && botStatus === "error" && bots.length === 0 ? (
+            <StateSurface
+              action={
+                <button
+                  className="text-sm underline"
+                  onClick={onRetryBots}
+                  type="button"
+                >
+                  Retry
+                </button>
+              }
+              kind="error"
+              title="Bots unavailable"
+            >
+              {botError}
+            </StateSurface>
+          ) : !compact && !showingGroups && bots.length === 0 ? (
+            <StateSurface kind="empty" title="No bots available">
+              The local runtime has not returned a bot catalog.
+            </StateSurface>
+          ) : null}
+          {!compact &&
+          (showingGroups || selectedBot || sortedSessions.length > 0) ? (
+            <section
+              aria-label={
+                showingGroups ? "Group chats" : "Recent conversations"
+              }
+            >
+              <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
+                {showingGroups ? "Group chats" : "Chats"}
+              </h2>
+              {sortedSessions.length ? (
+                sortedSessions.map((session) => (
                   <ContextActionMenu
-                    className={`group flex min-w-0 items-center [&_.dl-contact]:min-w-0 [&_.dl-contact]:flex-1 [&_.dl-contact]:w-auto ${compact ? "[&_.dl-contact]:relative [&_.dl-contact]:justify-center [&_.dl-contact]:px-0 [&_.dl-contact-copy]:sr-only [&_.dl-run-state]:absolute [&_.dl-run-state]:bottom-1 [&_.dl-run-state]:right-1" : ""}`}
+                    className="group flex min-w-0 items-center"
                     items={[
                       {
                         id: "open",
                         label: "Open conversation",
-                        onSelect: () => onSelectBot(bot.id),
+                        onSelect: () => onOpenSession(session.sessionId),
                       },
                       {
-                        id: "manage",
-                        label: "Manage bots…",
-                        onSelect: () => onSetView("agents"),
-                      },
-                      {
-                        id: "copy-name",
-                        label: "Copy bot name",
+                        id: "copy-title",
+                        label: "Copy conversation title",
+                        disabled: !session.title,
                         separatorBefore: true,
-                        onSelect: () => void copyContextText(bot.name),
+                        onSelect: () =>
+                          void copyContextText(session.title || ""),
                       },
                       {
                         id: "copy-id",
-                        label: "Copy bot ID",
-                        onSelect: () => void copyContextText(bot.id),
+                        label: "Copy conversation ID",
+                        onSelect: () => void copyContextText(session.sessionId),
                       },
                     ]}
-                    label={`${bot.name} actions`}
-                    scopeKey={`bot:${bot.id}`}
+                    label={`${session.title || "New conversation"} actions`}
+                    scopeKey={`conversation:${session.sessionId}`}
+                    key={session.sessionId}
                     trigger={
-                      compact ? undefined : (
-                        <button
-                          aria-label={`${bot.name} actions`}
-                          className={ROW_MENU_TRIGGER_CLASS}
-                          type="button"
-                        >
-                          <UiIcon icon={MoreHorizontal} size="sm" />
-                        </button>
-                      )
-                    }
-                  >
-                    <ContactRow
-                      avatar={bot.name.slice(0, 1).toUpperCase()}
-                      detail={bot.isDefault ? "Lead" : undefined}
-                      name={bot.name}
-                      onSelect={() => onSelectBot(bot.id)}
-                      selected={bot.id === selectedBotId}
-                      state={botRunState(bot)}
-                    />
-                  </ContextActionMenu>
-                </div>
-              ))}
-              {!compact ? (
-                <section aria-label="Recent conversations" className="mt-5">
-                  <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
-                    Recent conversations
-                  </h2>
-                  {selectedBotSessions.length ? (
-                    selectedBotSessions.map((session) => (
-                      <ContextActionMenu
-                        className="group flex min-w-0 items-center"
-                        items={[
-                          {
-                            id: "open",
-                            label: "Open conversation",
-                            onSelect: () => onOpenSession(session.sessionId),
-                          },
-                          {
-                            id: "copy-title",
-                            label: "Copy conversation title",
-                            disabled: !session.title,
-                            separatorBefore: true,
-                            onSelect: () =>
-                              void copyContextText(session.title || ""),
-                          },
-                          {
-                            id: "copy-id",
-                            label: "Copy conversation ID",
-                            onSelect: () =>
-                              void copyContextText(session.sessionId),
-                          },
-                        ]}
-                        label={`${session.title || "New conversation"} actions`}
-                        scopeKey={`conversation:${session.sessionId}`}
-                        key={session.sessionId}
-                        trigger={
-                          <button
-                            aria-label={`${session.title || "New conversation"} actions`}
-                            className={ROW_MENU_TRIGGER_CLASS}
-                            type="button"
-                          >
-                            <UiIcon icon={MoreHorizontal} size="sm" />
-                          </button>
-                        }
+                      <button
+                        aria-label={`${session.title || "New conversation"} actions`}
+                        className={ROW_MENU_TRIGGER_CLASS}
+                        type="button"
                       >
-                        <button
-                          aria-current={
-                            navigationView === "chat" &&
-                            session.sessionId === selectedSession
-                              ? "page"
-                              : undefined
-                          }
-                          className={`${SIDEBAR_ACTION_CLASS} min-w-0 flex-1 px-3`}
-                          onClick={() => onOpenSession(session.sessionId)}
-                          title={session.title || "New conversation"}
-                          type="button"
-                        >
-                          <span className="min-w-0 truncate">
-                            {session.title || "New conversation"}
-                          </span>
-                        </button>
-                      </ContextActionMenu>
-                    ))
-                  ) : (
-                    <p className="px-2 py-2 text-xs text-[var(--muted)]">
-                      No conversations yet.
-                    </p>
-                  )}
-                  <button
-                    aria-current={
-                      navigationView === "sessions" ? "page" : undefined
+                        <UiIcon icon={MoreHorizontal} size="sm" />
+                      </button>
                     }
-                    className="min-h-10 w-full rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
-                    onClick={() => onSetView("sessions")}
-                    type="button"
                   >
-                    All conversations
-                  </button>
-                </section>
+                    <button
+                      aria-current={
+                        navigationView === "chat" &&
+                        session.sessionId === selectedSession
+                          ? "page"
+                          : undefined
+                      }
+                      className={`${SIDEBAR_ACTION_CLASS} min-w-0 flex-1 px-3`}
+                      onClick={() => onOpenSession(session.sessionId)}
+                      title={session.title || "New conversation"}
+                      type="button"
+                    >
+                      <span className="min-w-0 truncate">
+                        {session.title || "New conversation"}
+                      </span>
+                    </button>
+                  </ContextActionMenu>
+                ))
+              ) : (
+                <p className="px-2 py-2 text-xs text-[var(--muted)]">
+                  {showingGroups
+                    ? "No group chats yet."
+                    : "No conversations yet."}
+                </p>
+              )}
+              {!showingGroups ? (
+                <button
+                  aria-current={
+                    navigationView === "sessions" ? "page" : undefined
+                  }
+                  className="min-h-10 w-full rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
+                  onClick={() => onSetView("sessions")}
+                  type="button"
+                >
+                  All conversations
+                </button>
               ) : null}
-            </>
-          )}
+            </section>
+          ) : null}
         </nav>
         {botStatus === "ready" || botStatus === "refreshing" ? (
           <button

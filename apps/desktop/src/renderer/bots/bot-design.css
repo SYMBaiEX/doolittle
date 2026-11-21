@@ -33,32 +33,7 @@
   font-size: 16px;
   font-weight: 600;
 }
-.new-chat-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 6px;
-}
-.new-chat-search input {
-  min-width: 0;
-  flex: 1;
-  background: transparent;
-  border: 0;
-  outline: 0;
-  color: var(--text);
-  font-size: 14px;
-}
-.new-chat-search:focus-within {
-  border-bottom-color: var(--text);
-}
-.new-chat-bots {
-  min-height: 0;
-  overflow-y: auto;
-}
-.new-chat-bots > p {
+.new-chat-status {
   margin: 12px 10px;
   font-size: 14px;
   color: var(--muted);
@@ -86,12 +61,9 @@
   font-size: 14px;
   font-weight: 550;
 }
-.new-chat-choice small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 12px;
+.new-chat-choice:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 .new-chat-avatar {
   display: grid;
@@ -396,7 +368,7 @@
   .bot-design-question-block input:not([type="checkbox"]):focus-visible,
   .bot-design-question-block select:focus-visible,
   .bot-design-question-block textarea:focus-visible,
-  .new-chat-search input:focus-visible {
+  .new-chat-chooser select:focus-visible {
     outline: 1px solid Highlight;
     outline-offset: 0;
     box-shadow: none;

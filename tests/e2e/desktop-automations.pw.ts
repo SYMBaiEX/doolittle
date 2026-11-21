@@ -9,7 +9,7 @@ import {
   installProjectDialog,
   launchDesktop,
   makeProject,
-  openProjectChat,
+  sidebarChatScope,
 } from "../support/desktop-core";
 
 test("automation schedules can be edited, paused, run, and deleted", async () => {
@@ -150,6 +150,20 @@ test("delegation unlocks after confirming a Lead workspace chat and applies bulk
   try {
     const { app, page, workspace } = desktop;
     const projectId = await makeProject(page, "Delegation fixture", workspace);
+    const { defaultBotId } = await agentRequest<{ defaultBotId: string }>(
+      page,
+      "/bots",
+    );
+    const botName = "Delegation fixture bot";
+    await agentRequest(page, "/bots", "POST", {
+      name: botName,
+      persona: "Offline delegation journey fixture.",
+      model: { provider: "offline", model: "offline" },
+    });
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("doolittle:bot-catalog-changed")),
+    );
+    await sidebarChatScope(page).selectOption({ label: botName });
     const openWork = () =>
       page
         .getByRole("navigation", { name: "Workspace navigation" })
@@ -158,13 +172,23 @@ test("delegation unlocks after confirming a Lead workspace chat and applies bulk
     await openWork();
     const newTask = page.getByRole("button", { name: "New task", exact: true });
     await expect(newTask).toBeDisabled();
-    await page.getByRole("button", { name: "Open a Lead chat" }).click();
-    await expect(
-      page.getByRole("dialog", { name: "Start a chat with…" }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Close new chat" }).click();
     await installProjectDialog(app, workspace);
-    await openProjectChat(page, projectId);
+    await page.getByRole("button", { name: "Open a Lead chat" }).click();
+    const chooser = page.getByRole("dialog", {
+      name: "Start a chat with Doolittle",
+      exact: true,
+    });
+    await chooser
+      .getByRole("combobox", { name: "Project for new chat" })
+      .selectOption(projectId);
+    await chooser
+      .getByRole("button", { name: "Start chat with Doolittle", exact: true })
+      .click();
+    await expect(chooser).toBeHidden();
+    const selected = await page.evaluate(() =>
+      window.doolittle.ui?.getSelection(),
+    );
+    expect(selected?.botId).toBe(defaultBotId);
     await openWork();
     await expect(newTask).toBeEnabled();
     for (const title of ["First fixture research", "Second fixture research"]) {

@@ -22,6 +22,7 @@ import type {
   ActivityFeedResponse,
   BotConversationScope,
   BotConversationScopeResponse,
+  SessionSummary,
   WorkspaceState,
 } from "../shared/contracts";
 import {
@@ -483,9 +484,11 @@ export function App() {
   );
   const chatSelectionRevision = useRef(0);
   const lastCredentialWarmup = useRef<typeof chatSelection | null>(null);
+  const [showGroupList, setShowGroupList] = useState(false);
   const setSelectedSession = useCallback((sessionId: string) => {
     chatSelectionRevision.current++;
     setNativeSelectionRestored(true);
+    setShowGroupList(false);
     setChatSelection({ sessionId, interactiveSelection: true });
   }, []);
   const [selectedBotId, setSelectedBotId] = useState("");
@@ -522,18 +525,26 @@ export function App() {
   );
   const [botCreationOpen, setBotCreationOpen] = useState(false);
   const [botCreationDirty, setBotCreationDirty] = useState(false);
-  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newChatBotId, setNewChatBotId] = useState<string | null>(null);
+  const newChatOpen = newChatBotId !== null;
   const [newChatBusy, setNewChatBusy] = useState(false);
   const [newChatError, setNewChatError] = useState("");
   const newChatBusyRef = useRef(false);
-  const newChatNavigationRef = useRef({ selectedSession, view, revision: 0 });
+  const newChatNavigationRef = useRef({
+    selectedSession,
+    showGroupList,
+    view,
+    revision: 0,
+  });
   const previousChatNavigation = newChatNavigationRef.current;
   newChatNavigationRef.current = {
     selectedSession,
+    showGroupList,
     view,
     revision:
       previousChatNavigation.revision +
       (previousChatNavigation.selectedSession !== selectedSession ||
+      previousChatNavigation.showGroupList !== showGroupList ||
       previousChatNavigation.view !== view
         ? 1
         : 0),
@@ -612,6 +623,17 @@ export function App() {
     setProjects,
     setSessions,
   } = useRuntimeWorkspaceData(pushToast);
+  const groupSessions = useMemo(
+    () => sessions.filter((session) => session.conversationKind === "group"),
+    [sessions],
+  );
+  const directSessions = useMemo(
+    () => sessions.filter((session) => session.conversationKind !== "group"),
+    [sessions],
+  );
+  const viewingGroups =
+    showGroupList ||
+    groupSessions.some((session) => session.sessionId === selectedSession);
   const scopeForSession = useCallback(
     (id: string) =>
       resolveSessionConversationScope(
@@ -672,6 +694,7 @@ export function App() {
     bots.find((bot) => bot.id === selectedBotId) ??
     bots.find((bot) => bot.id === defaultBotId) ??
     null;
+  const newChatBot = bots.find((bot) => bot.id === newChatBotId);
   useEffect(() => {
     if (!defaultBotId) return;
     setSelectedBotId((current) =>
@@ -1331,8 +1354,9 @@ export function App() {
   );
 
   const startConversation = useCallback(
-    (scope: ProjectScope) => {
-      if (newChatBusyRef.current) return;
+    (scope: ProjectScope, botId: string) => {
+      if (newChatBusyRef.current || !bots.some((bot) => bot.id === botId))
+        return;
       newChatTriggerRef.current =
         document.activeElement instanceof HTMLElement
           ? document.activeElement
@@ -1350,19 +1374,28 @@ export function App() {
           : "unscoped",
       );
       setNewChatError("");
-      setNewChatOpen(true);
+      setNewChatBotId(botId);
     },
-    [changeNewChatScope, projects],
+    [bots, changeNewChatScope, projects],
   );
 
   const createConversation = useCallback(() => {
+    if (!selectedBot || viewingGroups) return;
     const current = scopeForSession(selectedSession);
     const scope =
       view === "chat" && current.kind === "confirmed"
         ? (current.conversation.projectId ?? "unscoped")
         : projectScope;
-    startConversation(scope);
-  }, [projectScope, scopeForSession, selectedSession, startConversation, view]);
+    startConversation(scope, selectedBot.id);
+  }, [
+    projectScope,
+    scopeForSession,
+    selectedSession,
+    selectedBot,
+    startConversation,
+    view,
+    viewingGroups,
+  ]);
 
   useEffect(() => {
     window.addEventListener("doolittle:new-chat", createConversation);
@@ -1473,159 +1506,156 @@ export function App() {
     [sessions, transitionToProjectScope],
   );
 
-  const chooseChatBot = useCallback(
-    async (botId: string) => {
-      if (newChatBusyRef.current) return;
+  const confirmNewChat = useCallback(async () => {
+    if (newChatBusyRef.current) return;
+    if (
+      botCreationOpen &&
+      !confirmDirtyNavigation({
+        dirty: botCreationDirty,
+        confirm: () =>
+          window.confirm(
+            "Discard this unsaved bot design and start another chat?",
+          ),
+        discard: () => undefined,
+      })
+    )
+      return;
+    const bot = newChatBot;
+    if (!bot) return;
+    if (!confirmViewChange("chat")) return;
+    const id = newConversationId();
+    const scope = newChatScope;
+    const navigationAtChoice = { ...newChatNavigationRef.current };
+    newChatBusyRef.current = true;
+    setNewChatBusy(true);
+    setNewChatError("");
+    try {
+      const projectId =
+        scope === "all" || scope === "unscoped" ? undefined : scope;
+      const folder = newChatFolder.current;
+      const bound = await desktopRequest<BotConversationScopeResponse>(
+        `/bots/${encodeURIComponent(bot.id)}/conversations`,
+        "POST",
+        {
+          sessionId: id,
+          ...(projectId ? { projectId, consent: true } : {}),
+        },
+      );
       if (
-        botCreationOpen &&
-        !confirmDirtyNavigation({
-          dirty: botCreationDirty,
-          confirm: () =>
-            window.confirm(
-              "Discard this unsaved bot design and start another chat?",
-            ),
-          discard: () => undefined,
-        })
+        !bound.conversation ||
+        bound.conversation.sessionId !== id ||
+        bound.conversation.botId !== bot.id
+      )
+        throw new Error("Binding mismatch");
+      if (bound.conversation.projectId !== projectId)
+        throw new Error("Binding mismatch");
+      if (
+        folder &&
+        folder.projectId === projectId &&
+        !pathsEqual(bound.conversation.workspacePath, folder.path)
+      )
+        throw new Error("Selected folder changed before the chat opened.");
+      if (
+        newChatNavigationRef.current.selectedSession !==
+          navigationAtChoice.selectedSession ||
+        newChatNavigationRef.current.view !== navigationAtChoice.view ||
+        newChatNavigationRef.current.revision !== navigationAtChoice.revision
+      ) {
+        setNewChatError(
+          "The chat was created, but navigation changed while access was confirmed. Open the bot to find it.",
+        );
+        return;
+      }
+      const previousSelection = await window.doolittle.ui?.getSelection();
+      if (
+        newChatNavigationRef.current.selectedSession !==
+          navigationAtChoice.selectedSession ||
+        newChatNavigationRef.current.view !== navigationAtChoice.view ||
+        newChatNavigationRef.current.revision !== navigationAtChoice.revision
       )
         return;
-      const bot = bots.find((entry) => entry.id === botId && !entry.archivedAt);
-      if (!bot) return;
-      if (!confirmViewChange("chat")) return;
-      const id = newConversationId();
-      const scope = newChatScope;
-      const navigationAtChoice = { ...newChatNavigationRef.current };
-      newChatBusyRef.current = true;
-      setNewChatBusy(true);
-      setNewChatError("");
-      try {
-        const projectId =
-          scope === "all" || scope === "unscoped" ? undefined : scope;
-        const folder = newChatFolder.current;
-        const bound = await desktopRequest<BotConversationScopeResponse>(
-          `/bots/${encodeURIComponent(bot.id)}/conversations`,
-          "POST",
-          {
-            sessionId: id,
-            ...(projectId ? { projectId, consent: true } : {}),
-          },
+      // Persist the exact host-confirmed tuple before a reload can occur.
+      // The session inventory may not yet contain this empty conversation.
+      const selected = await window.doolittle.ui?.dispatch({
+        type: "conversation.select",
+        target: {
+          botId: bot.id,
+          sessionId: id,
+          ...(projectId ? { projectId } : {}),
+        },
+      });
+      if (selected && !selected.accepted)
+        throw new Error("Conversation selection was not accepted");
+      if (
+        newChatNavigationRef.current.selectedSession !==
+          navigationAtChoice.selectedSession ||
+        newChatNavigationRef.current.view !== navigationAtChoice.view ||
+        newChatNavigationRef.current.revision !== navigationAtChoice.revision
+      ) {
+        // Native selection may have completed while the user navigated. Keep
+        // the latest confirmed chat, or the prior host selection for a draft.
+        const currentScope = scopeForSession(
+          newChatNavigationRef.current.selectedSession,
         );
-        if (
-          !bound.conversation ||
-          bound.conversation.sessionId !== id ||
-          bound.conversation.botId !== bot.id
-        )
-          throw new Error("Binding mismatch");
-        if (bound.conversation.projectId !== projectId)
-          throw new Error("Binding mismatch");
-        if (
-          folder &&
-          folder.projectId === projectId &&
-          !pathsEqual(bound.conversation.workspacePath, folder.path)
-        )
-          throw new Error("Selected folder changed before the chat opened.");
-        if (
-          newChatNavigationRef.current.selectedSession !==
-            navigationAtChoice.selectedSession ||
-          newChatNavigationRef.current.view !== navigationAtChoice.view ||
-          newChatNavigationRef.current.revision !== navigationAtChoice.revision
-        ) {
-          setNewChatError(
-            "The chat was created, but navigation changed while access was confirmed. Open the bot to find it.",
-          );
-          return;
-        }
-        const previousSelection = await window.doolittle.ui?.getSelection();
-        if (
-          newChatNavigationRef.current.selectedSession !==
-            navigationAtChoice.selectedSession ||
-          newChatNavigationRef.current.view !== navigationAtChoice.view ||
-          newChatNavigationRef.current.revision !== navigationAtChoice.revision
-        )
-          return;
-        // Persist the exact host-confirmed tuple before a reload can occur.
-        // The session inventory may not yet contain this empty conversation.
-        const selected = await window.doolittle.ui?.dispatch({
-          type: "conversation.select",
-          target: {
-            botId: bot.id,
-            sessionId: id,
-            ...(projectId ? { projectId } : {}),
-          },
-        });
-        if (selected && !selected.accepted)
-          throw new Error("Conversation selection was not accepted");
-        if (
-          newChatNavigationRef.current.selectedSession !==
-            navigationAtChoice.selectedSession ||
-          newChatNavigationRef.current.view !== navigationAtChoice.view ||
-          newChatNavigationRef.current.revision !== navigationAtChoice.revision
-        ) {
-          // Native selection may have completed while the user navigated. Keep
-          // the latest confirmed chat, or the prior host selection for a draft.
-          const currentScope = scopeForSession(
-            newChatNavigationRef.current.selectedSession,
-          );
-          const currentTarget =
-            currentScope.kind === "confirmed"
-              ? {
-                  botId: currentScope.conversation.botId,
-                  sessionId: currentScope.conversation.sessionId,
-                  ...(currentScope.conversation.projectId
-                    ? { projectId: currentScope.conversation.projectId }
-                    : {}),
-                }
-              : previousSelection;
-          if (currentTarget)
-            await window.doolittle.ui?.dispatch({
-              type: "conversation.select",
-              target: currentTarget,
-            });
-          setNewChatError(
-            "The chat was created, but navigation changed while access was confirmed. Open the bot to find it.",
-          );
-          return;
-        }
-        if (setView("chat", { skipDirtyCheck: true })) {
-          setNewChatOpen(false);
-          setBotCreationOpen(false);
-          setSelectedBotId(bot.id);
-          recordConversationScope(bound.conversation);
-          setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
-          captureSessionProject(id, bound.conversation.projectId ?? null);
-          setProjectScope(bound.conversation.projectId ?? "unscoped");
-          setSelectedSession(id);
-          chatStore?.update(CHAT_COMPOSER_FOCUS_STATE_KEY, id);
-        }
-      } catch {
+        const currentTarget =
+          currentScope.kind === "confirmed"
+            ? {
+                botId: currentScope.conversation.botId,
+                sessionId: currentScope.conversation.sessionId,
+                ...(currentScope.conversation.projectId
+                  ? { projectId: currentScope.conversation.projectId }
+                  : {}),
+              }
+            : previousSelection;
+        if (currentTarget)
+          await window.doolittle.ui?.dispatch({
+            type: "conversation.select",
+            target: currentTarget,
+          });
         setNewChatError(
-          "This conversation could not be opened. Your current draft was kept. Try again.",
+          "The chat was created, but navigation changed while access was confirmed. Open the bot to find it.",
         );
-      } finally {
-        newChatBusyRef.current = false;
-        setNewChatBusy(false);
+        return;
       }
-    },
-    [
-      bots,
-      chatStore,
-      recordConversationScope,
-      newChatScope,
-      captureSessionProject,
-      scopeForSession,
-      setSelectedSession,
-      setView,
-      botCreationOpen,
-      botCreationDirty,
-      confirmViewChange,
-    ],
-  );
+      if (setView("chat", { skipDirtyCheck: true })) {
+        setNewChatBotId(null);
+        setBotCreationOpen(false);
+        setSelectedBotId(bot.id);
+        recordConversationScope(bound.conversation);
+        setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
+        captureSessionProject(id, bound.conversation.projectId ?? null);
+        setProjectScope(bound.conversation.projectId ?? "unscoped");
+        setSelectedSession(id);
+        chatStore?.update(CHAT_COMPOSER_FOCUS_STATE_KEY, id);
+      }
+    } catch {
+      setNewChatError(
+        "This conversation could not be opened. Your current draft was kept. Try again.",
+      );
+    } finally {
+      newChatBusyRef.current = false;
+      setNewChatBusy(false);
+    }
+  }, [
+    chatStore,
+    newChatBot,
+    recordConversationScope,
+    newChatScope,
+    captureSessionProject,
+    scopeForSession,
+    setSelectedSession,
+    setView,
+    botCreationOpen,
+    botCreationDirty,
+    confirmViewChange,
+  ]);
 
   const openBot = useCallback(
     (botId: string) => {
       if (!bots.some((bot) => bot.id === botId)) return;
       if (!setView("chat")) return;
       setSelectedBotId(botId);
-      const latest = latestBotSession(sessions, botId, defaultBotId);
+      const latest = latestBotSession(directSessions, botId, defaultBotId);
       const scratchDraft = firstPrivateBotDraft({
         botId,
         defaultBotId,
@@ -1633,7 +1663,7 @@ export function App() {
           chatStore?.read(CHAT_DRAFTS_STATE_KEY, () =>
             loadConversationDrafts(localStorage),
           ) ?? loadConversationDrafts(localStorage),
-        sessions,
+        sessions: directSessions,
         botBindings: localBotBindings,
         projectBindings: localProjectBindings,
       });
@@ -1653,19 +1683,38 @@ export function App() {
       bots,
       chatStore,
       defaultBotId,
+      directSessions,
       localBotBindings,
       localProjectBindings,
-      sessions,
       setSelectedSession,
       setView,
       captureSessionProject,
     ],
   );
 
+  const openGroups = useCallback(() => {
+    if (!setView("chat")) return;
+    if (
+      !groupSessions.some((session) => session.sessionId === selectedSession)
+    ) {
+      const newest = groupSessions.reduce<SessionSummary | undefined>(
+        (current, session) =>
+          !current ||
+          (session.endedAt ?? session.startedAt ?? "") >
+            (current.endedAt ?? current.startedAt ?? "")
+            ? session
+            : current,
+        undefined,
+      );
+      if (newest) setSelectedSession(newest.sessionId);
+    }
+    setShowGroupList(true);
+  }, [groupSessions, selectedSession, setSelectedSession, setView]);
+
   const openCreateBot = useCallback(() => {
     if (!setView("chat")) return;
     if (botCreationOpen) {
-      setNewChatOpen(false);
+      setNewChatBotId(null);
       return;
     }
     botCreationTriggerRef.current = newChatOpen
@@ -1673,7 +1722,7 @@ export function App() {
       : document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    setNewChatOpen(false);
+    setNewChatBotId(null);
     setBotCreationDirty(false);
     setBotCreationOpen(true);
   }, [newChatOpen, setView, botCreationOpen]);
@@ -2501,16 +2550,18 @@ export function App() {
   }, [activeItem?.label]);
   const scopedSessions = useMemo(
     () =>
-      sessions.filter(
-        (session) =>
-          (projectScope === "all"
-            ? true
-            : projectScope === "unscoped"
-              ? !session.projectId
-              : session.projectId === projectScope) &&
-          (session.botId ?? defaultBotId) === (selectedBotId || defaultBotId),
-      ),
-    [defaultBotId, projectScope, selectedBotId, sessions],
+      viewingGroups
+        ? groupSessions
+        : directSessions.filter(
+            (session) => (session.botId ?? defaultBotId) === selectedBot?.id,
+          ),
+    [
+      defaultBotId,
+      directSessions,
+      groupSessions,
+      selectedBot?.id,
+      viewingGroups,
+    ],
   );
   const projectCards = useMemo<ProjectLike[]>(
     () =>
@@ -2620,6 +2671,8 @@ export function App() {
         },
         consumeNavigationIntent,
         createConversation,
+        startLeadConversation: () =>
+          startConversation(projectScope, defaultBotId),
         startChatInProject: async (projectId, sourceSessionId) => {
           try {
             await startChatInProject(projectId, sourceSessionId);
@@ -2838,22 +2891,18 @@ export function App() {
       </Suspense>
       {newChatOpen ? (
         <NewChatChooser
-          bots={bots}
-          loading={botResource.status === "loading"}
+          bot={newChatBot}
           busy={newChatBusy}
-          error={botResource.error}
           transitionError={newChatError}
-          onChoose={(botId) => void chooseChatBot(botId)}
-          onCreate={openCreateBot}
+          onConfirm={() => void confirmNewChat()}
           onClose={() => {
             if (newChatBusyRef.current) return;
-            setNewChatOpen(false);
+            setNewChatBotId(null);
             const trigger = newChatTriggerRef.current;
             requestAnimationFrame(() => {
               if (trigger?.isConnected) trigger.focus({ preventScroll: true });
             });
           }}
-          onRetry={botResource.reload}
           projects={projectCards}
           scope={newChatScope}
           onScopeChange={changeNewChatScope}
@@ -2894,12 +2943,12 @@ export function App() {
           navCollapsed={effectiveNavCollapsed}
           projectScope={projectScope}
           sidebarWidth={sidebarWidth}
+          chatScope={viewingGroups ? "groups" : "bot"}
           selectedBotId={selectedBot?.id ?? ""}
-          defaultBotId={defaultBotId}
           bots={bots}
           botStatus={botResource.status ?? "loading"}
           botError={botResource.error}
-          sessions={sessions}
+          sessions={scopedSessions}
           selectedSession={selectedSession}
           navigationView={navigationView}
           platform={window.doolittle.platform}
@@ -2911,9 +2960,10 @@ export function App() {
           onResizeActiveChange={shellResizeActiveChange}
           onToggleNavigation={toggleNavigation}
           onOpenPalette={openCommandPalette}
-          onStartConversation={startConversation}
+          onStartConversation={createConversation}
           onOpenSession={openSession}
           onSelectBot={openBot}
+          onSelectGroups={openGroups}
           onAddBot={openCreateBot}
           onRetryBots={botResource.reload}
           onSetView={setView}

@@ -1,3 +1,5 @@
+import { isTranscriptId } from "../../shared/transcript-id";
+
 export const SESSION_WORKSPACE_STORAGE_KEY =
   "doolittle.desktop.session-workspace.v2";
 export const LEGACY_SESSION_WORKSPACE_STORAGE_KEY =
@@ -43,8 +45,6 @@ export interface WorkspaceDivider {
   parentHeight: number;
 }
 
-const validId = (value: unknown): value is string =>
-  typeof value === "string" && /^[a-zA-Z0-9:_-]{1,128}$/u.test(value);
 const leaf = (id: string): WorkspaceNode => ({ type: "leaf", id });
 const clampRatio = (ratio: number) => Math.max(0.2, Math.min(0.8, ratio));
 
@@ -69,7 +69,7 @@ function parseNode(
   const node = value as Record<string, unknown>;
   if (
     node.type === "leaf" &&
-    validId(node.id) &&
+    isTranscriptId(node.id) &&
     allowed.has(node.id) &&
     !seen.has(node.id)
   ) {
@@ -200,7 +200,7 @@ export function restoreWorkspaceLayout(
   value: string | null,
   selectedId: string,
 ): SessionWorkspaceLayout {
-  const fallbackIds = validId(selectedId) ? [selectedId] : [];
+  const fallbackIds = isTranscriptId(selectedId) ? [selectedId] : [];
   const fallback: SessionWorkspaceLayout = {
     version: 2,
     openIds: fallbackIds,
@@ -216,12 +216,14 @@ export function restoreWorkspaceLayout(
       !Array.isArray(parsed.openIds)
     )
       return fallback;
-    const openIds = [...new Set<string>(parsed.openIds.filter(validId))].slice(
-      0,
-      MAX_OPEN_PANELS,
-    );
-    if (validId(selectedId) && !openIds.includes(selectedId)) {
-      if (openIds.length >= MAX_OPEN_PANELS) openIds.pop();
+    const openIds = [
+      ...new Set<string>(parsed.openIds.filter(isTranscriptId)),
+    ].slice(0, MAX_OPEN_PANELS);
+    const needsSelectedView =
+      isTranscriptId(selectedId) && !openIds.includes(selectedId);
+    const replaceFocused =
+      needsSelectedView && openIds.length >= MAX_OPEN_PANELS;
+    if (needsSelectedView && !replaceFocused) {
       openIds.push(selectedId);
     }
     let tree: WorkspaceNode | null = null;
@@ -230,7 +232,7 @@ export function restoreWorkspaceLayout(
     } else {
       for (const id of openIds) tree = appendNode(tree, id);
     }
-    return {
+    const layout: SessionWorkspaceLayout = {
       version: 2,
       openIds,
       focusedId: openIds.includes(selectedId)
@@ -248,6 +250,9 @@ export function restoreWorkspaceLayout(
             : "tabs",
       tree,
     };
+    return replaceFocused
+      ? openWorkspaceSession(layout, selectedId, "replace-focused")
+      : layout;
   } catch {
     return fallback;
   }
@@ -256,10 +261,30 @@ export function restoreWorkspaceLayout(
 export function openWorkspaceSession(
   layout: SessionWorkspaceLayout,
   id: string,
+  atCapacity: "keep" | "replace-focused" = "keep",
 ): SessionWorkspaceLayout {
-  if (!validId(id)) return layout;
-  if (layout.openIds.includes(id)) return { ...layout, focusedId: id };
-  if (layout.openIds.length >= MAX_OPEN_PANELS) return layout;
+  if (!isTranscriptId(id)) return layout;
+  if (layout.openIds.includes(id)) {
+    return layout.focusedId === id ? layout : { ...layout, focusedId: id };
+  }
+  if (layout.openIds.length >= MAX_OPEN_PANELS) {
+    if (atCapacity === "keep") return layout;
+    const replacedId = layout.openIds.includes(layout.focusedId)
+      ? layout.focusedId
+      : layout.openIds[0];
+    if (!replacedId) return layout;
+    const openIds = layout.openIds.map((openId) =>
+      openId === replacedId ? id : openId,
+    );
+    return {
+      ...layout,
+      openIds,
+      focusedId: id,
+      tree: layout.tree
+        ? replaceLeaf(layout.tree, replacedId, () => leaf(id))
+        : completeTree(null, openIds),
+    };
+  }
   const tree = appendNode(layout.tree, id);
   return {
     ...layout,
@@ -327,19 +352,17 @@ export function moveWorkspaceSession(
 
 function replaceLeaf(
   node: WorkspaceNode,
-  sourceId: string,
-  targetId: string,
-  axis: SplitAxis,
+  id: string,
+  replacement: (
+    node: Extract<WorkspaceNode, { type: "leaf" }>,
+  ) => WorkspaceNode,
 ): WorkspaceNode {
-  if (node.type === "leaf")
-    return node.id === sourceId
-      ? { type: "split", axis, ratio: 0.5, first: node, second: leaf(targetId) }
-      : node;
-  return {
-    ...node,
-    first: replaceLeaf(node.first, sourceId, targetId, axis),
-    second: replaceLeaf(node.second, sourceId, targetId, axis),
-  };
+  if (node.type === "leaf") return node.id === id ? replacement(node) : node;
+  const first = replaceLeaf(node.first, id, replacement);
+  const second = replaceLeaf(node.second, id, replacement);
+  return first === node.first && second === node.second
+    ? node
+    : { ...node, first, second };
 }
 
 export function splitWorkspaceSession(
@@ -357,7 +380,13 @@ export function splitWorkspaceSession(
     return layout;
   const withoutTarget = removeNode(layout.tree, targetId);
   if (!withoutTarget) return layout;
-  const tree = replaceLeaf(withoutTarget, sourceId, targetId, axis);
+  const tree = replaceLeaf(withoutTarget, sourceId, (source) => ({
+    type: "split",
+    axis,
+    ratio: 0.5,
+    first: source,
+    second: leaf(targetId),
+  }));
   return {
     ...layout,
     openIds: treeIds(tree),

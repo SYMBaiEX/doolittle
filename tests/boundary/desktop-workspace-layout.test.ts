@@ -147,7 +147,7 @@ describe("session workspace split layout", () => {
     const layout = restoreWorkspaceLayout(
       JSON.stringify({
         version: 1,
-        openIds: ["a", "a", 'bad"id', "b"],
+        openIds: ["a", "a", "bad\u0000id", "b"],
         mode: "tiles",
         weights: { a: 2 },
       }),
@@ -232,5 +232,40 @@ describe("session workspace split layout", () => {
       layout = openWorkspaceSession(layout, `s-${index}`);
     expect(openWorkspaceSession(layout, "extra")).toBe(layout);
     expect(moveWorkspaceSession(layout, "s-1", -1).openIds[0]).toBe("s-1");
+  });
+
+  it("reuses the focused split pane for external navigation at capacity", () => {
+    let layout = restoreWorkspaceLayout(null, "s-0");
+    for (let index = 1; index < MAX_OPEN_PANELS; index++)
+      layout = openWorkspaceSession(layout, `s-${index}`);
+    layout = arrangeWorkspaceSessions(layout, "vertical");
+    layout = resizeWorkspaceSplit(layout, "", 0.6);
+    layout = openWorkspaceSession(layout, "s-4");
+
+    const selectedId = 'telegram:fixture%20bot:"Room [1]"';
+    const next = openWorkspaceSession(layout, selectedId, "replace-focused");
+    expect(next.openIds).toEqual(
+      layout.openIds.map((id) => (id === "s-4" ? selectedId : id)),
+    );
+    expect(next.focusedId).toBe(selectedId);
+    expect(next.mode).toBe("split");
+
+    const { "s-4": previousPane, ...otherPanes } = workspaceGeometry(
+      layout.tree,
+    ).panels;
+    expect(workspaceGeometry(next.tree)).toEqual({
+      panels: { ...otherPanes, [selectedId]: previousPane },
+      dividers: workspaceGeometry(layout.tree).dividers,
+    });
+    expect(restoreWorkspaceLayout(JSON.stringify(layout), selectedId)).toEqual(
+      next,
+    );
+    expect(restoreWorkspaceLayout(JSON.stringify(next), selectedId)).toEqual(
+      next,
+    );
+    expect(openWorkspaceSession(next, "s-2", "replace-focused")).toEqual({
+      ...next,
+      focusedId: "s-2",
+    });
   });
 });

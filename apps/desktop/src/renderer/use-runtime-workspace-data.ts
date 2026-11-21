@@ -6,9 +6,13 @@ import type {
   ProjectsResponse,
   RuntimeStatus,
   SessionSummary,
-  SessionsResponse,
 } from "../shared/contracts";
-import { loadBotSessionCatalog } from "./bots/session-catalog";
+import {
+  loadBotSessionCatalog,
+  loadLeadSessionPage,
+  loadOlderLeadHistory,
+  mergeOlderLeadHistory,
+} from "./bots/session-catalog";
 import type { ToastInput } from "./components/ToastRegion";
 import { desktopRequest } from "./lib";
 import { confirmedConversationSummary } from "./session-conversation-scope";
@@ -104,12 +108,7 @@ export function useRuntimeWorkspaceData(
           if (isCurrent()) setRuntime(value);
         }),
         loadBotSessionCatalog(
-          desktopRequest<SessionsResponse>(
-            "/sessions?limit=200",
-            "GET",
-            undefined,
-            signal,
-          ),
+          loadLeadSessionPage(signal),
           sessionsRef.current,
           { generation: backendGeneration, reuseFreshCatalog, signal },
         ).then((result) => {
@@ -119,7 +118,17 @@ export function useRuntimeWorkspaceData(
           )
             return;
           setSessions(result.sessions);
-          return result.warnings?.at(-1);
+          const olderHistory =
+            result.leadHistoryPage &&
+            loadOlderLeadHistory(result.leadHistoryPage, signal, (rows) => {
+              if (isCurrent())
+                setSessions((current) =>
+                  signal.aborted
+                    ? current
+                    : mergeOlderLeadHistory(current, rows),
+                );
+            }).catch(() => "Older conversation history could not be loaded.");
+          return { warnings: result.warnings, olderHistory };
         }),
         desktopRequest<ProjectsResponse>(
           "/projects?includeArchived=true",
@@ -131,7 +140,6 @@ export function useRuntimeWorkspaceData(
         }),
       ]);
       if (!isCurrent()) return false;
-      refreshRequestRef.current = null;
       const sessionResultIsCurrent =
         sessionRevision === sessionInventoryRevision.current;
       const failure = [
@@ -141,7 +149,7 @@ export function useRuntimeWorkspaceData(
       ].find((result) => result?.status === "rejected");
       const warning =
         sessionResultIsCurrent && inventory.status === "fulfilled"
-          ? inventory.value
+          ? inventory.value?.warnings?.at(-1)
           : undefined;
       const error =
         warning ??
@@ -151,6 +159,19 @@ export function useRuntimeWorkspaceData(
             : String(failure.reason)
           : "");
       setGlobalError(error);
+      const older =
+        inventory.status === "fulfilled"
+          ? inventory.value?.olderHistory
+          : undefined;
+      if (older) {
+        void older.then((warning) => {
+          if (!isCurrent()) return;
+          refreshRequestRef.current = null;
+          if (warning) setGlobalError((current) => current || warning);
+        });
+      } else {
+        refreshRequestRef.current = null;
+      }
       return !failure && !warning;
     },
     [backendGeneration, cancelRefresh],

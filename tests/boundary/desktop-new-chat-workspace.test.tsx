@@ -5,14 +5,14 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { NewChatChooser } from "../../apps/desktop/src/renderer/bots/NewChatChooser";
 
-it("chooses a local workspace before dispatching to a bot", () => {
+it("chooses a local workspace before starting a chat with the pinned bot", () => {
   const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
   environment.IS_REACT_ACT_ENVIRONMENT = true;
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  const onChoose = vi.fn();
+  const onConfirm = vi.fn();
   const onScopeChange = vi.fn();
   const onChooseLocalFolder = vi.fn();
   const bot: BotSummary = {
@@ -39,14 +39,10 @@ it("chooses a local workspace before dispatching to a bot", () => {
     act(() =>
       root.render(
         <NewChatChooser
-          bots={[bot]}
-          error=""
-          loading={false}
-          onChoose={onChoose}
+          bot={bot}
           onChooseLocalFolder={onChooseLocalFolder}
           onClose={vi.fn()}
-          onCreate={vi.fn()}
-          onRetry={vi.fn()}
+          onConfirm={onConfirm}
           onScopeChange={onScopeChange}
           projects={[
             { id: "project", name: "Project", primaryPath: "/fixture/project" },
@@ -67,13 +63,16 @@ it("chooses a local workspace before dispatching to a bot", () => {
     render("unscoped");
     const selector = host.querySelector<HTMLSelectElement>("select");
     const botButton = host.querySelector<HTMLButtonElement>(
-      "section[aria-label='Available bots'] button",
+      'button[aria-label="Start chat with Fixture"]',
     );
     const folderButton = Array.from(host.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("Choose local folder"),
     );
     if (!selector || !botButton || !folderButton)
       throw new Error("New chat actions were not rendered.");
+    expect(host.querySelector("h2")?.textContent).toBe(
+      "Start a chat with Fixture",
+    );
     expect(selector.selectedOptions[0].text).toBe("Private workspace");
     expect(Array.from(selector.options, (option) => option.value)).toEqual([
       "unscoped",
@@ -83,7 +82,7 @@ it("chooses a local workspace before dispatching to a bot", () => {
 
     act(() => folderButton.click());
     expect(onChooseLocalFolder).toHaveBeenCalledOnce();
-    expect(onChoose).not.toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
 
     act(() => {
       selector.value = "project";
@@ -93,7 +92,7 @@ it("chooses a local workspace before dispatching to a bot", () => {
     render("project");
     expect(host.textContent).toContain("This computer · /fixture/project");
     act(() => botButton.click());
-    expect(onChoose).toHaveBeenCalledExactlyOnceWith(bot.id);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
 
     render("old");
     expect(selector.selectedOptions[0].text).toBe("Project unavailable");

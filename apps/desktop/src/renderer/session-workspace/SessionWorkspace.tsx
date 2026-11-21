@@ -58,6 +58,21 @@ type PanelProps = ChatPageProps & {
   visible: boolean;
 };
 
+function sessionElementId(kind: "panel" | "tab", id: string): string {
+  return `session-${kind}-${encodeURIComponent(id)}`;
+}
+
+function findPanel(
+  root: HTMLElement | null,
+  id: string,
+): HTMLElement | undefined {
+  return root
+    ? Array.from(
+        root.querySelectorAll<HTMLElement>("[data-session-panel]"),
+      ).find((panel) => panel.dataset.sessionPanel === id)
+    : undefined;
+}
+
 function canRestoreFocus(
   element: HTMLElement | null | undefined,
 ): element is HTMLElement {
@@ -199,9 +214,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    const pane = rootRef.current?.querySelector<HTMLElement>(
-      `[data-session-panel="${layout.focusedId}"]`,
-    );
+    const pane = findPanel(rootRef.current, layout.focusedId);
     const composer = pane?.querySelector<HTMLTextAreaElement>("textarea");
     const candidates = viewsRef.current?.open
       ? [composer, pane, rootRef.current]
@@ -211,9 +224,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   }, [layout.focusedId]);
   const focusAfterFinder = useCallback(() => {
     const button = finderButtonRef.current;
-    const pane = rootRef.current?.querySelector<HTMLElement>(
-      `[data-session-panel="${layout.focusedId}"]`,
-    );
+    const pane = findPanel(rootRef.current, layout.focusedId);
     const composer = pane?.querySelector<HTMLTextAreaElement>("textarea");
     focusFirstAvailable([
       button,
@@ -225,9 +236,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   }, [layout.focusedId]);
   const closeViews = () => {
     if (viewsRef.current) viewsRef.current.open = false;
-    const pane = rootRef.current?.querySelector<HTMLElement>(
-      `[data-session-panel="${layout.focusedId}"]`,
-    );
+    const pane = findPanel(rootRef.current, layout.focusedId);
     focusFirstAvailable([
       viewsReturnRef.current,
       pane?.querySelector<HTMLTextAreaElement>("textarea"),
@@ -332,9 +341,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       if (restoreFocus && id === layout.focusedId) {
         focusRequestedRef.current = false;
         requestAnimationFrame(() => {
-          const panel = rootRef.current?.querySelector<HTMLElement>(
-            `[data-session-panel="${id}"]`,
-          );
+          const panel = findPanel(rootRef.current, id);
           (
             panel?.querySelector<HTMLTextAreaElement>("textarea") ?? panel
           )?.focus({ preventScroll: true });
@@ -347,21 +354,32 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     [layout.openIds, layout.focusedId, props.onSelect],
   );
 
+  const rememberClosedPanel = useCallback((id: string) => {
+    setClosedIds((current) =>
+      [...current.filter((closedId) => closedId !== id), id].slice(
+        -MAX_RETAINED_CLOSED_PANELS,
+      ),
+    );
+  }, []);
+
   useEffect(() => {
     if (externalSelectionRef.current === props.selectedId) return;
     externalSelectionRef.current = props.selectedId;
-    if (
-      !layout.openIds.includes(props.selectedId) &&
-      layout.openIds.length >= MAX_OPEN_PANELS
-    ) {
+    const next = openWorkspaceSession(
+      layout,
+      props.selectedId,
+      "replace-focused",
+    );
+    if (next === layout) return;
+    const replacedId = layout.openIds.find((id) => !next.openIds.includes(id));
+    if (replacedId) {
+      rememberClosedPanel(replacedId);
       setAnnouncement(
-        `Up to ${MAX_OPEN_PANELS} panels can be open. Close a view before opening the selected session; its draft and run are retained.`,
+        "Opened in the focused view. The previous chat, draft, and any active run are retained.",
       );
-      if (layout.focusedId) props.onSelect(layout.focusedId);
-      return;
     }
-    setLayout((current) => openWorkspaceSession(current, props.selectedId));
-  }, [props.selectedId, props.onSelect, layout.focusedId, layout.openIds]);
+    setLayout(next);
+  }, [layout, props.selectedId, rememberClosedPanel]);
 
   useEffect(() => {
     setRetainedIds((current) => {
@@ -389,9 +407,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   useEffect(() => {
     if (!focusRequestedRef.current) return;
     focusRequestedRef.current = false;
-    const panel = rootRef.current?.querySelector<HTMLElement>(
-      `[data-session-panel="${layout.focusedId}"]`,
-    );
+    const panel = findPanel(rootRef.current, layout.focusedId);
     (panel?.querySelector<HTMLTextAreaElement>("textarea") ?? panel)?.focus({
       preventScroll: true,
     });
@@ -410,9 +426,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     }
     if (layout.focusedId !== composerFocusId) return;
     const frame = requestAnimationFrame(() => {
-      const panel = rootRef.current?.querySelector<HTMLElement>(
-        `[data-session-panel="${composerFocusId}"]`,
-      );
+      const panel = findPanel(rootRef.current, composerFocusId);
       focusFirstAvailable([panel?.querySelector("textarea"), panel]);
       setComposerFocusId("");
     });
@@ -468,23 +482,15 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     const next = closeWorkspaceSession(layout, id);
     if (next === layout) return;
     if (next.openIds.length < 2) setFocusView(false);
-    setClosedIds((current) =>
-      [...current.filter((closedId) => closedId !== id), id].slice(
-        -MAX_RETAINED_CLOSED_PANELS,
-      ),
-    );
+    rememberClosedPanel(id);
     setLayout(next);
     if (next.focusedId) props.onSelect(next.focusedId);
     setAnnouncement(
       "View closed. Its draft, history, and any active run are retained. Reopen it from Panels or Find session.",
     );
     requestAnimationFrame(() => {
-      const target = rootRef.current?.querySelector<HTMLElement>(
-        `[data-session-focus="${next.focusedId}"]`,
-      );
-      const panel = rootRef.current?.querySelector<HTMLElement>(
-        `[data-session-panel="${next.focusedId}"]`,
-      );
+      const panel = findPanel(rootRef.current, next.focusedId);
+      const target = panel?.querySelector<HTMLElement>("[data-session-focus]");
       (
         (target?.closest("[hidden], [inert]") ? null : target) ??
         panel?.querySelector<HTMLElement>("textarea") ??
@@ -646,7 +652,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     if (keepViews) {
       requestAnimationFrame(() =>
         document
-          .getElementById(`session-tab-${id}`)
+          .getElementById(sessionElementId("tab", id))
           ?.focus({ preventScroll: true }),
       );
     }
@@ -941,10 +947,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                     >
                       <Button
                         variant="ghost"
-                        aria-controls={`session-panel-${id}`}
+                        aria-controls={sessionElementId("panel", id)}
                         aria-selected={id === layout.focusedId}
                         className="inline-flex min-h-10 min-w-0 max-w-64 items-center gap-2 rounded-[var(--radius-md)] border-0 bg-transparent px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 max-[760px]:max-w-44"
-                        id={`session-tab-${id}`}
+                        id={sessionElementId("tab", id)}
                         onClick={() => focusSession(id, true)}
                         onKeyDown={(event) => {
                           const next =
@@ -965,7 +971,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                           focusSession(nextId, false, false);
                           requestAnimationFrame(() =>
                             document
-                              .getElementById(`session-tab-${nextId}`)
+                              .getElementById(sessionElementId("tab", nextId))
                               ?.focus({ preventScroll: true }),
                           );
                         }}
@@ -1102,7 +1108,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 data-session-panel={id}
                 hidden={!visible}
                 inert={!visible}
-                id={`session-panel-${id}`}
+                id={sessionElementId("panel", id)}
                 onFocusCapture={(event) => {
                   // React portal focus bubbles through this component tree, but
                   // menu contents are not part of the owned pane's DOM.
