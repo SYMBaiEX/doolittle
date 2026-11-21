@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -26,7 +27,7 @@ function fixture(options: BotProcessRegistryOptions = {}) {
     getState: () => ({ phase: "ready", url: "http://127.0.0.1:9" }),
     getWorkspaceDirectory: () => dir,
     start: async () => ({ phase: "ready" }),
-    stop: async () => undefined,
+    stop: vi.fn(async () => undefined),
   } as unknown as BackendManager;
   let workerOptions: BackendManagerOptions | undefined;
   const createBackend = vi.fn(
@@ -50,8 +51,135 @@ function fixture(options: BotProcessRegistryOptions = {}) {
     dir,
     { ...options, createBackend },
   );
-  return { dir, registry, createBackend, workerOptions: () => workerOptions };
+  return {
+    dir,
+    registry,
+    backend,
+    createBackend,
+    workerOptions: () => workerOptions,
+  };
 }
+
+function prepareBrokerWork(registry: BotProcessRegistry, targetBotId: string) {
+  const lead = registry.get("default");
+  const target = registry.get(targetBotId);
+  const now = new Date().toISOString();
+  const approvalId = randomUUID();
+  const jobId = randomUUID();
+  const fireId = randomUUID();
+  const automationRunId = `automation:${fireId}`;
+  registry.automations.ledger.approve({
+    id: approvalId,
+    jobId,
+    targetBotId,
+    definitionDigest: "a".repeat(64),
+    permissions: target.permissions,
+    targetRevision: target.updatedAt,
+    createdAt: now,
+  });
+  registry.automations.ledger.prepare({
+    fireId,
+    jobId,
+    approvalId,
+    targetBotId,
+    fireKeyDigest: "b".repeat(64),
+    sessionId: `automation:${jobId}:${fireId}`,
+    runId: automationRunId,
+    status: "accepted",
+    createdAt: now,
+    updatedAt: now,
+  });
+  const dispatchId = randomUUID();
+  const consultationRunId = `consultation:${dispatchId}`;
+  const rootRunId = randomUUID();
+  registry.consultations.ledger.prepare({
+    dispatchId,
+    rootRunId,
+    depth: 1,
+    ancestry: [lead.id],
+    origin: {
+      botId: lead.id,
+      agentId: lead.agentId,
+      sessionId: "lead-chat",
+      runId: rootRunId,
+    },
+    targetBotId,
+    targetSessionId: `consult:${dispatchId}`,
+    targetRunId: consultationRunId,
+    permissions: target.permissions,
+    deadline: new Date(Date.now() + 30_000).toISOString(),
+    status: "accepted",
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { fireId, dispatchId, automationRunId, consultationRunId };
+}
+
+it("leaves a stopped worker stopped while reading and cancelling saved work", async () => {
+  const runtimeFetch = vi.fn<typeof fetch>();
+  const { registry, createBackend } = fixture({ runtimeFetch });
+  const bot = registry.create({
+    name: "Stopped worker",
+    persona: "Own the saved work.",
+    model: { provider: "offline", model: "offline" },
+  });
+  const { fireId, dispatchId } = prepareBrokerWork(registry, bot.id);
+
+  await expect(registry.automations.wait("default", fireId)).rejects.toThrow(
+    "worker is unavailable",
+  );
+  await expect(
+    registry.consultations.wait("default", dispatchId),
+  ).rejects.toThrow("selected bot is stopped");
+  await registry.stop(bot.id);
+
+  expect(registry.automations.ledger.get(fireId)?.status).toBe("cancelled");
+  expect(registry.consultations.ledger.get(dispatchId)?.status).toBe(
+    "cancelled",
+  );
+  expect(createBackend).not.toHaveBeenCalled();
+  expect(runtimeFetch).not.toHaveBeenCalled();
+});
+
+it("cancels both live broker runs before releasing the worker", async () => {
+  let finishCancellation!: () => void;
+  const cancellation = new Promise<void>((resolve) => {
+    finishCancellation = resolve;
+  });
+  const runtimeFetch = vi.fn<typeof fetch>().mockImplementation(async () => {
+    await cancellation;
+    return Response.json({ cancelled: true });
+  });
+  const { registry, backend } = fixture({ runtimeFetch });
+  const bot = registry.create({
+    name: "Live worker",
+    persona: "Finish assigned work.",
+    model: { provider: "offline", model: "offline" },
+  });
+  await registry.activate(bot.id);
+  const { fireId, dispatchId, automationRunId, consultationRunId } =
+    prepareBrokerWork(registry, bot.id);
+
+  const stopping = registry.stop(bot.id);
+  try {
+    await vi.waitFor(() => expect(runtimeFetch).toHaveBeenCalledTimes(2));
+    expect(backend.stop).not.toHaveBeenCalled();
+    expect(registry.automations.ledger.get(fireId)?.status).toBe("cancelled");
+    expect(registry.consultations.ledger.get(dispatchId)?.status).toBe(
+      "cancelled",
+    );
+    for (const runId of [automationRunId, consultationRunId]) {
+      expect(runtimeFetch).toHaveBeenCalledWith(
+        `http://127.0.0.1:9/chat/runs/${encodeURIComponent(runId)}/cancel`,
+        expect.objectContaining({ method: "POST" }),
+      );
+    }
+  } finally {
+    finishCancellation();
+    await stopping;
+  }
+  expect(backend.stop).toHaveBeenCalledOnce();
+});
 
 it.each([
   ["openai", "openai-api", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"],

@@ -455,8 +455,8 @@ export class BotAutomationBroker {
       const current = this.ledger.get(fireId);
       if (!current || ["cancelled", "error"].includes(current.status))
         throw new Error("Automation ended without an authorized result.");
-      const state = (await this.bots.backendFor(fire.targetBotId)).getState();
-      if (state.phase !== "ready" || !state.url)
+      const state = this.bots.readyBackendFor(fire.targetBotId)?.getState();
+      if (state?.phase !== "ready" || !state.url)
         throw new Error(
           "The automation worker is unavailable. Its fire identity will not be replayed.",
         );
@@ -538,8 +538,8 @@ export class BotAutomationBroker {
       return;
     this.ledger.update(fireId, "cancelled");
     try {
-      const state = (await this.bots.backendFor(fire.targetBotId)).getState();
-      if (state.phase === "ready" && state.url)
+      const state = this.bots.readyBackendFor(fire.targetBotId)?.getState();
+      if (state?.phase === "ready" && state.url)
         await this.runtimeFetch(
           `${state.url}/chat/runs/${encodeURIComponent(fire.runId)}/cancel`,
           { method: "POST", signal: AbortSignal.timeout(5_000) },

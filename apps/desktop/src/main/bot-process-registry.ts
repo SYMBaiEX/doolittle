@@ -1150,8 +1150,7 @@ export class BotProcessRegistry {
 
   private async stopRuntime(definition: BotDefinition): Promise<BotSummary> {
     try {
-      await this.automations.cancelForBot(definition.id);
-      await this.consultations.cancelForBot(definition.id);
+      await this.cancelBrokerWork(definition.id);
     } finally {
       const backend = this.backends.get(definition.id);
       if (backend) {
@@ -1159,11 +1158,11 @@ export class BotProcessRegistry {
         if (this.backends.get(definition.id) === backend)
           this.backends.delete(definition.id);
       }
+      // A grant lookup can outlive a confirmed Stop. Release its old intent
+      // once the backend is gone, even when broker bookkeeping failed.
+      this.activations.delete(definition.id);
+      this.activeRuns.delete(definition.id);
     }
-    // Grant resolution can outlive a confirmed Stop. Release the old pending
-    // intent now; its identity/generation guards cannot clear a later Start.
-    this.activations.delete(definition.id);
-    this.activeRuns.delete(definition.id);
     return this.summary(definition.id);
   }
 
@@ -1189,8 +1188,7 @@ export class BotProcessRegistry {
 
   private async stopAllRuntimes(): Promise<void> {
     try {
-      await this.automations.cancelAll();
-      await this.consultations.cancelAll();
+      await this.cancelBrokerWork();
     } finally {
       await Promise.all(
         [...this.backends.values()]
@@ -1199,6 +1197,22 @@ export class BotProcessRegistry {
       );
       this.backends.clear();
       this.activeRuns.clear();
+    }
+  }
+
+  private async cancelBrokerWork(botId?: string): Promise<void> {
+    // Both brokers revoke their own grants before sending cancellation to live
+    // workers. Wait for both transports before releasing worker ownership.
+    const outcomes = await Promise.allSettled(
+      botId
+        ? [
+            this.automations.cancelForBot(botId),
+            this.consultations.cancelForBot(botId),
+          ]
+        : [this.automations.cancelAll(), this.consultations.cancelAll()],
+    );
+    for (const outcome of outcomes) {
+      if (outcome.status === "rejected") throw outcome.reason;
     }
   }
 

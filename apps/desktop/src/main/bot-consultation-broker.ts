@@ -135,9 +135,13 @@ export class BotConsultationBroker {
   }
 
   private async endpoint(botId: string): Promise<string> {
-    const backend = await this.bots.backendFor(botId);
-    const state = backend.getState();
-    if (state.phase !== "ready" || !state.url)
+    await this.bots.backendFor(botId);
+    return this.readyEndpoint(botId);
+  }
+
+  private readyEndpoint(botId: string): string {
+    const state = this.bots.readyBackendFor(botId)?.getState();
+    if (state?.phase !== "ready" || !state.url)
       throw new Error("The selected bot is stopped.");
     return state.url;
   }
@@ -441,7 +445,7 @@ export class BotConsultationBroker {
     if (["complete", "cancelled", "error", "timeout"].includes(record.status)) {
       throw new Error("Consultation ended without an exact result.");
     }
-    const url = await this.endpoint(record.targetBotId);
+    const url = this.readyEndpoint(record.targetBotId);
     const deadline = Date.parse(record.deadline);
     while (Date.now() < deadline && !signal?.aborted) {
       const response = await this.runtimeFetch(
@@ -538,7 +542,7 @@ export class BotConsultationBroker {
     // Revoke the host workspace grant before waiting on worker cancellation.
     this.ledger.update(dispatchId, status);
     try {
-      const url = await this.endpoint(record.targetBotId);
+      const url = this.readyEndpoint(record.targetBotId);
       await this.runtimeFetch(
         `${url}/chat/runs/${encodeURIComponent(record.targetRunId)}/cancel`,
         {
