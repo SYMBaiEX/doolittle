@@ -64,6 +64,7 @@
     "./runtime/bootstrap": "./src/runtime/bootstrap/index.ts",
     "./runtime/bootstrap/bot-profile": "./src/runtime/bootstrap/bot-profile.ts",
     "./runtime/bootstrap/env": "./src/runtime/bootstrap/env/index.ts",
+    "./runtime/bootstrap/runtime/desktop-database-seed": "./src/runtime/bootstrap/runtime/desktop-database-seed.ts",
     "./runtime/bootstrap/runtime/initialization": "./src/runtime/bootstrap/runtime/initialization.ts",
     "./runtime/chat": "./src/runtime/chat.ts",
     "./runtime/chat-turn/connection": "./src/runtime/chat-turn/connection.ts",

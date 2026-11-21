@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { registerHttpPluginRoutes } from "@elizaos/host/protocol";
+import { installRuntimePluginLifecycle } from "@elizaos/agent/runtime/plugin-lifecycle";
+import { AgentRuntime } from "@elizaos/core";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap/index";
 import { createApiServer } from "../../packages/agent/src/server";
@@ -18,6 +19,10 @@ it("keeps startup probes, product routes, plugin priority, and webhook authority
   vi.stubEnv("ELIZA_REQUIRE_LOCAL_AUTH", "1");
   vi.stubEnv("ELIZA_API_TOKEN", "fixture-api-token");
   vi.stubEnv("ELIZA_API_BIND", "127.0.0.1");
+  const runtime = new AgentRuntime({
+    character: { id: randomUUID(), name: "Fixture", bio: [] },
+  });
+  installRuntimePluginLifecycle(runtime);
   const context = {
     config: {
       host: "127.0.0.1",
@@ -30,13 +35,13 @@ it("keeps startup probes, product routes, plugin priority, and webhook authority
       sessions: { listProjects: () => [] },
       logger: { error: vi.fn() },
     },
-    runtime: { agentId: randomUUID() },
+    runtime,
   } as unknown as AppContext;
   const interceptWebhook = vi.fn(async () => ({
     status: 418,
     body: "Unexpected plugin dispatch",
   }));
-  registerHttpPluginRoutes(context.runtime, {
+  await runtime.registerPlugin({
     name: "fixture-routes",
     description: "Fixture plugin route precedence",
     routes: [

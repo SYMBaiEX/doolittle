@@ -4,14 +4,14 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRegularFileSync } from "@doolittle/storage";
-import { extractFile, listPackage } from "@electron/asar";
 import {
   type DesktopPgliteSeedReceipt,
   MAX_PGLITE_SEED_BYTES,
   validateDesktopPgliteSeedReceipt,
   verifyDesktopPgliteSeed,
-} from "../../../packages/agent/src/runtime/bootstrap/runtime/desktop-database-seed";
+} from "@doolittle/agent/runtime/bootstrap/runtime/desktop-database-seed";
+import { readRegularFileSync } from "@doolittle/storage";
+import { extractFile, listPackage } from "@electron/asar";
 import { assertOptionalDependencyEntry } from "./dependency-key";
 import {
   DESKTOP_ARTIFACT_FILES,

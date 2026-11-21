@@ -10,14 +10,14 @@ import {
 import { createRequire } from "node:module";
 import { basename, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRegularFileSync } from "@doolittle/storage";
-import { build, type Metafile } from "esbuild";
 import {
   DESKTOP_PGLITE_SEED_FILE,
   type DesktopPgliteSeedReceipt,
   desktopPgliteRuntimeDigest,
   MAX_PGLITE_SEED_BYTES,
-} from "../../../packages/agent/src/runtime/bootstrap/runtime/desktop-database-seed";
+} from "@doolittle/agent/runtime/bootstrap/runtime/desktop-database-seed";
+import { readRegularFileSync } from "@doolittle/storage";
+import { build, type Metafile } from "esbuild";
 import {
   assertDesktopDistributionLicensePolicy,
   discoverDynamicCommonJsPackages,
