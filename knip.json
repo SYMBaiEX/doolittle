@@ -44,13 +44,32 @@
       "ignoreDependencies": ["scriptc", "@elizaos/plugin-sql"]
     },
     "apps/cli": {
-      "entry": [
-        "src/index.ts",
-        "src/acp-server.ts",
-        "dist/index.js",
-        "dist/acp-server.js"
-      ],
-      "project": ["src/**/*.ts"]
+      "entry": ["src/index.ts", "src/acp-server.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": [
+        "acpx",
+        "@elizaos/agent",
+        "@elizaos/auth",
+        "@elizaos/logger",
+        "@elizaos/plugin-agent-orchestrator",
+        "@elizaos/plugin-agent-skills",
+        "@elizaos/plugin-anthropic",
+        "@elizaos/plugin-assistant",
+        "@elizaos/plugin-browser",
+        "@elizaos/plugin-codex-cli",
+        "@elizaos/plugin-discord",
+        "@elizaos/plugin-elizacloud",
+        "@elizaos/plugin-form",
+        "@elizaos/plugin-github",
+        "@elizaos/plugin-mcp",
+        "@elizaos/plugin-ollama",
+        "@elizaos/plugin-openai",
+        "@elizaos/plugin-pdf",
+        "@elizaos/plugin-slack",
+        "@elizaos/plugin-telegram",
+        "@elizaos/shared",
+        "@elizaos/skills"
+      ]
     }
   },
   "ignoreWorkspaces": ["vendor/elizaos/packages/*"]
