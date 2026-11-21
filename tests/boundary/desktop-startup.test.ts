@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -23,7 +24,11 @@ import {
 } from "../../apps/desktop/src/main/backend";
 import { BotCatalog } from "../../apps/desktop/src/main/bot-catalog";
 import { BotProcessRegistry } from "../../apps/desktop/src/main/bot-process-registry";
-import { registerIpc } from "../../apps/desktop/src/main/ipc";
+import { DesktopExecutionAdmission } from "../../apps/desktop/src/main/execution-admission";
+import {
+  type RegisterIpcDependencies,
+  registerIpc,
+} from "../../apps/desktop/src/main/ipc";
 import { desktopIpcChannels } from "../../apps/desktop/src/shared/ipc-channels";
 import { readWorkerBotProfile } from "../../packages/agent/src/runtime/bootstrap/bot-profile";
 import { writeJsonAtomicSync } from "../../packages/storage/src/index";
@@ -188,7 +193,14 @@ it("uses embedded Node for Electron source launches and honors the explicit Nub 
   });
 });
 
-function desktopIpcFixture(runtime: BackendManager, bots?: BotProcessRegistry) {
+function desktopIpcFixture(
+  runtime: BackendManager,
+  bots?: BotProcessRegistry,
+  options: Pick<
+    RegisterIpcDependencies,
+    "admission" | "sensitiveActionDependencies"
+  > = {},
+) {
   const workspace = {
     currentPath: runtime.getWorkspaceDirectory(),
     recentPaths: [],
@@ -204,6 +216,7 @@ function desktopIpcFixture(runtime: BackendManager, bots?: BotProcessRegistry) {
     } as unknown as IpcMain,
     backend: runtime,
     bots,
+    ...options,
     getMainWindow: () => null,
     authorizeSender: (event) => event === sender,
     pickFiles: async () => ({ canceled: true, paths: [] }),
@@ -216,6 +229,97 @@ function desktopIpcFixture(runtime: BackendManager, bots?: BotProcessRegistry) {
   });
   return { dispose, handlers, sender };
 }
+
+it("dispatches an editor save with the approved chat origin and rechecks the workspace after the dialog", async () => {
+  const { runtime, target } = runtimeFixture();
+  const replacement = realpathSync(createDirectory());
+  const project = {
+    id: "approved-project",
+    name: "Approved project",
+    workspacePath: realpathSync(createDirectory()),
+  };
+  const bots = new BotProcessRegistry(
+    target,
+    target.repoRoot,
+    runtime,
+    target.repoRoot,
+  );
+  const bot = bots.create({
+    name: "Local writer",
+    persona: "Edit the selected project.",
+    permissions: { allowMutation: true },
+  });
+  const scope = bots.bindConversationWorkspace(
+    bot.id,
+    "approved-chat",
+    project,
+  );
+  vi.spyOn(bots, "readLeadProject").mockImplementation(async () => project);
+  const backendFor = vi.spyOn(bots, "backendFor").mockResolvedValue(runtime);
+  const url = "http://127.0.0.1:32769";
+  vi.spyOn(runtime, "getState").mockReturnValue({
+    phase: "ready",
+    url,
+    message: "Ready",
+  });
+  const confirm = vi.fn(async () => true);
+  const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+    Response.json({ path: join(project.workspacePath, "main.ts") }),
+  );
+  const { dispose, handlers, sender } = desktopIpcFixture(runtime, bots, {
+    admission: new DesktopExecutionAdmission(),
+    sensitiveActionDependencies: { confirm, fetch },
+  });
+  try {
+    const invoke = handlers.get(
+      desktopIpcChannels.invoke.workspaceSaveConfirmed,
+    );
+    if (!invoke) throw new Error("Workspace save handler is missing.");
+    const write = {
+      path: "main.ts",
+      expectedContent: "export const count = 1;\n",
+      content: "export const count = 2;\n",
+    };
+    const request = {
+      ...write,
+      botId: bot.id,
+      originConversationId: scope.sessionId,
+      workspacePath: project.workspacePath,
+    };
+    confirm.mockResolvedValueOnce(false);
+    await expect(invoke(sender, request)).resolves.toEqual({
+      status: "cancelled",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+
+    await expect(invoke(sender, request)).resolves.toEqual({
+      status: "saved",
+      path: join(project.workspacePath, "main.ts"),
+    });
+    expect(backendFor).toHaveBeenCalledWith(bot.id);
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(`${url}/workspace/write`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-doolittle-origin-conversation": scope.sessionId,
+      },
+      body: expect.any(String),
+      signal: expect.any(AbortSignal),
+    });
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual(write);
+
+    confirm.mockImplementationOnce(async () => {
+      project.workspacePath = replacement;
+      return true;
+    });
+    await expect(invoke(sender, request)).rejects.toThrow(
+      "Conversation project root changed",
+    );
+    expect(fetch).toHaveBeenCalledOnce();
+  } finally {
+    dispose();
+  }
+});
 
 it("loads the editor resolver through trusted desktop IPC and preserves its workspace checks", async () => {
   const { runtime, target } = runtimeFixture();
