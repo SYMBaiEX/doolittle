@@ -3,7 +3,10 @@ import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
+import {
+  DESKTOP_RUNTIME_LISTENING,
+  DESKTOP_RUNTIME_READY_ACK,
+} from "@doolittle/contracts/engine";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
 import { EngineClient } from "./engine-client";
@@ -249,7 +252,7 @@ export interface BackendLaunchTarget {
 }
 
 export interface BackendManagerOptions {
-  /** Optional launch prerequisites shared by the initial start and restarts. */
+  /** Optional environment setup for the runtime child. */
   beforeSpawn?: Promise<void>;
   /** The desktop's single runtime host owns named agent worker isolates. */
   sharedEngine?: boolean;
@@ -279,12 +282,22 @@ export function findPackagedRuntime(
     : null;
 }
 
-export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
+export function sourceRuntimeTarget(
+  repoRoot: string,
+  electronExecutable?: string,
+): BackendLaunchTarget {
+  // Use the same embedded Node runtime as the packaged app from Electron.
+  // Standalone harnesses and explicit development toolchains can use Nub.
+  const launch =
+    electronExecutable && !process.env.DOOLITTLE_NUB_PATH
+      ? {
+          executable: electronExecutable,
+          environment: { ELECTRON_RUN_AS_NODE: "1" },
+        }
+      : { executable: resolveNubExecutable(repoRoot) };
   return {
-    executable: resolveNubExecutable(repoRoot),
-    // Lead and worker isolates must load the same built entry. Nub's source
-    // resolver is process-local and does not cross Node worker boundaries.
-    args: ["apps/cli/dist/index.js", "api"],
+    ...launch,
+    args: ["apps/cli/dist/managed-runtime.js", "api"],
     repoRoot,
   };
 }
@@ -529,8 +542,16 @@ export class BackendManager extends RuntimeEndpoint {
       const parsed = urlParser.push(text);
       if (parsed) resolveUrl?.(parsed);
     };
+    const onListening = (message: unknown) => {
+      if (!message || typeof message !== "object") return;
+      const { type, url } = message as { type?: unknown; url?: unknown };
+      if (type !== DESKTOP_RUNTIME_LISTENING || typeof url !== "string") return;
+      const match = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})$/u.exec(url);
+      if (match && Number(match[1]) <= 65_535) resolveUrl?.(url);
+    };
     child.stdout?.on("data", consume);
     child.stderr?.on("data", consume);
+    child.on("message", onListening);
     child.once("error", (error) => {
       if (child.pid === undefined && this.child === child) {
         // A spawn error has no process to reap and may never emit exit.
@@ -642,6 +663,7 @@ export class BackendManager extends RuntimeEndpoint {
       return next;
     } finally {
       clearTimeout(timeout);
+      child.off("message", onListening);
     }
   }
 

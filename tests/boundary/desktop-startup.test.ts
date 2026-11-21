@@ -11,10 +11,16 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
+import {
+  DESKTOP_RUNTIME_LISTENING,
+  DESKTOP_RUNTIME_READY_ACK,
+} from "@doolittle/contracts/engine";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { afterEach, expect, it, vi } from "vitest";
-import { BackendManager } from "../../apps/desktop/src/main/backend";
+import {
+  BackendManager,
+  sourceRuntimeTarget,
+} from "../../apps/desktop/src/main/backend";
 import { BotCatalog } from "../../apps/desktop/src/main/bot-catalog";
 import { BotProcessRegistry } from "../../apps/desktop/src/main/bot-process-registry";
 import { registerIpc } from "../../apps/desktop/src/main/ipc";
@@ -30,12 +36,20 @@ function createDirectory(): string {
 }
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const directory of directories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-function runtimeFixture(withHost = false) {
+function runtimeFixture(
+  withHost = false,
+  runtimeFetch: typeof fetch = async (url) =>
+    String(url).endsWith("/runtime/bot-identity")
+      ? Response.json({ botId: "default", agentId: "test", name: "Test" })
+      : Response.json({ ok: true }),
+  beforeSpawn?: Promise<void>,
+) {
   const directory = createDirectory();
   const marker = join(directory, "launch-environment");
   const acknowledged = join(directory, "host-acknowledged");
@@ -44,12 +58,19 @@ function runtimeFixture(withHost = false) {
     args: [
       "-e",
       `require("node:fs").writeFileSync(process.env.DOOLITTLE_TEST_MARKER, process.env.DOOLITTLE_TEST_BRIDGE ?? "");
-      if (process.connected) process.on("message", (message) => {
-        if (message === ${JSON.stringify(DESKTOP_RUNTIME_READY_ACK)}) {
-          require("node:fs").writeFileSync(process.env.DOOLITTLE_TEST_ACK, "ready");
-        }
-      });
-      console.log("API listening on http://127.0.0.1:32769");
+      if (process.connected) {
+        process.on("message", (message) => {
+          if (message === ${JSON.stringify(DESKTOP_RUNTIME_READY_ACK)}) {
+            require("node:fs").writeFileSync(process.env.DOOLITTLE_TEST_ACK, "ready");
+          }
+        });
+        const type = ${JSON.stringify(DESKTOP_RUNTIME_LISTENING)};
+        process.send({ type, url: "http://192.0.2.1:32769" });
+        process.send({ type, url: "http://127.0.0.1:65536" });
+        process.send({ type, url: "http://127.0.0.1:32769" });
+      } else {
+        console.log("API listening on http://127.0.0.1:32769");
+      }
       setInterval(() => {}, 1000);`,
     ],
     repoRoot: directory,
@@ -59,66 +80,112 @@ function runtimeFixture(withHost = false) {
       DOOLITTLE_TEST_BRIDGE: "",
     },
   };
-  let resolveBridge = () => {};
-  const beforeSpawn = new Promise<void>((resolve) => {
-    resolveBridge = resolve;
+  const probe = vi.fn(runtimeFetch);
+  const runtime = new BackendManager(target, directory, directory, probe, {
+    beforeSpawn,
+    ...(withHost
+      ? { hostRpcBotId: "default", workerHostHandler: async () => undefined }
+      : {}),
   });
-  const runtime = new BackendManager(
-    target,
-    directory,
-    directory,
-    async (url) =>
-      String(url).endsWith("/runtime/bot-identity")
-        ? Response.json({ botId: "default", agentId: "test", name: "Test" })
-        : Response.json({ stopped: true }),
-    {
-      beforeSpawn,
-      ...(withHost
-        ? { hostRpcBotId: "default", workerHostHandler: async () => undefined }
-        : {}),
-    },
-  );
-  return { resolveBridge, marker, acknowledged, runtime, target };
+  return { marker, acknowledged, runtime, target, probe };
 }
 
-it("publishes booting before the capture bridge binds and starts once with its environment", async () => {
-  const { resolveBridge, marker, runtime, target } = runtimeFixture();
+it("starts once with the capture environment and accepts the listening line without IPC", async () => {
+  let finishEnvironment = () => {};
+  const environment = new Promise<void>((resolve) => {
+    finishEnvironment = resolve;
+  });
+  const { marker, runtime, target } = runtimeFixture(
+    false,
+    undefined,
+    environment,
+  );
   const startup = runtime.start();
   try {
     expect(runtime.start()).toBe(startup);
     expect(runtime.getState().phase).toBe("booting");
     expect(existsSync(marker)).toBe(false);
     target.environment.DOOLITTLE_TEST_BRIDGE = "bound";
-    resolveBridge();
+    finishEnvironment();
     await expect(startup).resolves.toMatchObject({ phase: "ready" });
     expect(readFileSync(marker, "utf8")).toBe("bound");
   } finally {
     await runtime.stop();
-    resolveBridge();
+    finishEnvironment();
     await startup;
   }
 });
 
-it("never launches a runtime stopped while the capture bridge was binding", async () => {
-  const { resolveBridge, marker, runtime } = runtimeFixture();
+it("does not launch after stopping while the worker is awaiting its capture environment", async () => {
+  let finishEnvironment = () => {};
+  const environment = new Promise<void>((resolve) => {
+    finishEnvironment = resolve;
+  });
+  const { marker, runtime } = runtimeFixture(false, undefined, environment);
   const startup = runtime.start();
+  expect(runtime.getState().phase).toBe("booting");
   await runtime.stop();
-  resolveBridge();
+  finishEnvironment();
   await expect(startup).resolves.toMatchObject({ phase: "stopped" });
   expect(existsSync(marker)).toBe(false);
 });
 
-it("acknowledges readiness to the owned child over desktop IPC", async () => {
-  const { resolveBridge, acknowledged, runtime } = runtimeFixture(true);
-  resolveBridge();
+it("keeps a runtime stopped if its startup health check returns late", async () => {
+  let releaseHealth = (_value: Response) => {};
+  const health = new Promise<Response>((resolve) => {
+    releaseHealth = resolve;
+  });
+  const { runtime, probe } = runtimeFixture(true, () => health);
+  const startup = runtime.start();
   try {
-    await expect(runtime.start()).resolves.toMatchObject({ phase: "ready" });
+    await vi.waitFor(() => expect(probe).toHaveBeenCalledOnce());
+    await runtime.stop();
+    releaseHealth(Response.json({ ok: true }));
+    await expect(startup).resolves.toMatchObject({ phase: "stopped" });
+    expect(probe).toHaveBeenCalledOnce();
+  } finally {
+    releaseHealth(Response.json({ ok: true }));
+    await runtime.stop();
+    await startup;
+  }
+});
+
+it("verifies health and identity before acknowledging a valid private endpoint reported on IPC", async () => {
+  const { acknowledged, runtime, probe } = runtimeFixture(true);
+  try {
+    await expect(runtime.start()).resolves.toMatchObject({
+      phase: "ready",
+      agentId: "test",
+      url: "http://127.0.0.1:32769",
+    });
+    expect(probe.mock.calls.map(([url]) => url)).toEqual([
+      "http://127.0.0.1:32769/health",
+      "http://127.0.0.1:32769/runtime/bot-identity",
+    ]);
     await vi.waitFor(() =>
       expect(readFileSync(acknowledged, "utf8")).toBe("ready"),
     );
   } finally {
     await runtime.stop();
   }
+});
+
+it("uses embedded Node for Electron source launches and honors the explicit Nub override", () => {
+  const directory = createDirectory();
+  vi.stubEnv("DOOLITTLE_NUB_PATH", undefined);
+  expect(sourceRuntimeTarget(directory, process.execPath)).toEqual({
+    executable: process.execPath,
+    args: ["apps/cli/dist/managed-runtime.js", "api"],
+    repoRoot: directory,
+    environment: { ELECTRON_RUN_AS_NODE: "1" },
+  });
+  const override = join(directory, "nub");
+  vi.stubEnv("DOOLITTLE_NUB_PATH", override);
+  expect(sourceRuntimeTarget(directory, process.execPath)).toEqual({
+    executable: override,
+    args: ["apps/cli/dist/managed-runtime.js", "api"],
+    repoRoot: directory,
+  });
 });
 
 function desktopIpcFixture(runtime: BackendManager, bots?: BotProcessRegistry) {

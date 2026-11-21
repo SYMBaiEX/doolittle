@@ -21,7 +21,7 @@ import { isolatedRuntimeEnvironment } from "../support/isolated-runtime-environm
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 function ownedRuntimePids(rootPid: number): number[] {
-  const rows = execFileSync("ps", ["-axo", "pid=,ppid=,comm="], {
+  const rows = execFileSync("ps", ["-ww", "-axo", "pid=,ppid=,command="], {
     encoding: "utf8",
   })
     .trim()
@@ -47,7 +47,9 @@ function ownedRuntimePids(rootPid: number): number[] {
     .filter(
       (row) =>
         owned.has(row.pid) &&
-        /(?:^|\/)(?:node(?:-MainThread)?|nub[^/]*)$/u.test(row.command),
+        /(?:^|[\s/])apps\/cli\/dist\/managed-runtime\.js api(?:\s|$)/u.test(
+          row.command,
+        ),
     )
     .map((row) => row.pid);
 }

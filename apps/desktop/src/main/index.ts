@@ -88,8 +88,6 @@ import {
 let mainWindow: BrowserWindow | null = null;
 let backend: BackendManager | null = null;
 let bots: BotProcessRegistry | null = null;
-let browserRenderBridge: BrowserRenderBridge | null = null;
-let browserRenderStartup: Promise<void> | undefined;
 let workspaceState: WorkspaceStateManager | null = null;
 let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
 let disposeIpc: (() => void) | null = null;
@@ -720,6 +718,35 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
+// Bind the capture listener while Electron is becoming ready. Capture windows
+// can only be created later, for authenticated requests to a managed app.
+let browserRenderBridge: BrowserRenderBridge | null | undefined;
+const browserRenderStartup = ownsSingleInstance
+  ? startBrowserRenderBridge({
+      isManagedAppUrl: (url) =>
+        isActiveManagedRenderUrl(
+          url,
+          () =>
+            backend?.getState() ?? {
+              phase: "booting",
+              message: "Runtime unavailable",
+            },
+          () => backend?.getWorkspaceDirectory() ?? "",
+        ),
+    }).then(
+      (bridge) => {
+        browserRenderBridge = bridge;
+        return bridge;
+      },
+      () => {
+        // Text capture remains available when native rendering is unavailable.
+        console.warn("Private rendered-page capture is unavailable.");
+        browserRenderBridge = null;
+        return null;
+      },
+    )
+  : null;
+
 let desktopStartup: Promise<void> = Promise.resolve();
 if (ownsSingleInstance)
   desktopStartup = app.whenReady().then(async () => {
@@ -746,7 +773,7 @@ if (ownsSingleInstance)
       isPackaged: app.isPackaged,
       packagedRuntime,
       sourceRuntime: sourceRepoRoot
-        ? sourceRuntimeTarget(sourceRepoRoot)
+        ? sourceRuntimeTarget(sourceRepoRoot, process.execPath)
         : null,
     });
     const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
@@ -769,7 +796,6 @@ if (ownsSingleInstance)
       runtimeDataDir,
       sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,
     );
-    pruneStaleRecordedAudioImports(runtimeDataDir);
     const requestedWorkspaceOverride =
       process.env.DOOLITTLE_DESKTOP_CWD?.trim();
     const requestedWorkspace = requestedWorkspaceOverride || homedir();
@@ -784,51 +810,27 @@ if (ownsSingleInstance)
       fallbackWorkspace,
       { selectFallback: Boolean(requestedWorkspaceOverride) },
     );
-    desktopPreferences = new DesktopPreferences(
-      resolve(app.getPath("userData"), "desktop-preferences.json"),
-    );
-    const packagedUpdater = app.isPackaged ? configuredUpdater() : null;
-    updates = new DesktopUpdateController(
-      packagedUpdater,
-      app.isPackaged && process.platform === "linux"
-        ? "Automatic updates are disabled on Linux until release metadata has an independently pinned signature. Download and verify a signed release manually."
-        : app.isPackaged
-          ? "Updates are unavailable in this packaged build."
-          : "Updates are only available in a packaged, signed Doolittle build.",
-    );
     const executionAdmission = new DesktopExecutionAdmission(
       readExecutionCapacity(),
     );
-    // Native renderer IPC can start while the independent capture server binds.
-    // The runtime still receives the capture endpoint before any worker starts.
-    browserRenderStartup = startBrowserRenderBridge({
-      isManagedAppUrl: (url) =>
-        isActiveManagedRenderUrl(
-          url,
-          () =>
-            backend?.getState() ?? {
-              phase: "booting",
-              message: "Runtime unavailable",
-            },
-          () => backend?.getWorkspaceDirectory() ?? "",
-        ),
-    }).then(
-      (bridge) => {
-        browserRenderBridge = bridge;
+    const setCaptureEnvironment = (bridge: BrowserRenderBridge | null) => {
+      if (bridge)
         target.environment = { ...target.environment, ...bridge.environment };
-      },
-      () => {
-        // Text capture remains available when native rendering is unavailable.
-        console.warn("Private rendered-page capture is unavailable.");
-      },
-    );
+    };
+    // A late bind delays only the worker. If the bridge is already available,
+    // spawn in this turn before Electron starts building the window.
+    const beforeSpawn =
+      browserRenderBridge === undefined
+        ? browserRenderStartup?.then(setCaptureEnvironment)
+        : undefined;
+    if (browserRenderBridge) setCaptureEnvironment(browserRenderBridge);
     backend = new BackendManager(
       target,
       runtimeDataDir,
       workspaceState.getState().currentPath || fallbackWorkspace,
       fetch,
       {
-        beforeSpawn: browserRenderStartup,
+        beforeSpawn,
         sharedEngine: true,
         hostRpcBotId: "default",
         ...createWorkerHostBridge({
@@ -847,6 +849,19 @@ if (ownsSingleInstance)
     );
     // Start the runtime while preparing the window and its IPC handlers.
     void backend.start();
+    pruneStaleRecordedAudioImports(runtimeDataDir);
+    desktopPreferences = new DesktopPreferences(
+      resolve(app.getPath("userData"), "desktop-preferences.json"),
+    );
+    const packagedUpdater = app.isPackaged ? configuredUpdater() : null;
+    updates = new DesktopUpdateController(
+      packagedUpdater,
+      app.isPackaged && process.platform === "linux"
+        ? "Automatic updates are disabled on Linux until release metadata has an independently pinned signature. Download and verify a signed release manually."
+        : app.isPackaged
+          ? "Updates are unavailable in this packaged build."
+          : "Updates are only available in a packaged, signed Doolittle build.",
+    );
     const providerAuth = new ProviderAuthController({
       openExternal: (url) => shell.openExternal(url),
       readClipboardText: () => clipboard.readText(),
@@ -1132,9 +1147,8 @@ const handleDesktopQuit = createDesktopQuitHandler({
     quitting = value;
   },
   afterStopped: async () => {
-    await browserRenderStartup;
-    await browserRenderBridge?.dispose();
-    browserRenderBridge = null;
+    const captureBridge = await browserRenderStartup;
+    await captureBridge?.dispose();
     tray?.destroy();
     tray = null;
     disposeUiWorkspace?.();
@@ -1153,7 +1167,7 @@ const handleDesktopQuit = createDesktopQuitHandler({
 });
 
 app.on("before-quit", (event) => {
-  if (!backend) return;
+  if (!ownsSingleInstance) return;
   void handleDesktopQuit(event);
 });
 
