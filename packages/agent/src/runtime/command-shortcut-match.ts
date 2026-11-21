@@ -2,6 +2,7 @@ import type { IAgentRuntime } from "@elizaos/core";
 import { commandShortcutAliases } from "../actions/command-action";
 
 export const DOOLITTLE_COMMAND_ACTION = "DOOLITTLE_COMMAND";
+export const DOOLITTLE_SHELL_SHORTCUT_ACTION = "DOOLITTLE_SHELL_SHORTCUT";
 
 /** Match only registered client controls; execution stays behind SDK gates. */
 export function matchesRegisteredCommandShortcut(
@@ -16,16 +17,19 @@ export function matchesRegisteredCommandShortcut(
   return commandShortcutAliases().includes(command);
 }
 
-export function matchesRegisteredClientControl(
+export function resolveRegisteredClientControl(
   runtime: IAgentRuntime,
   text: string,
-): boolean {
-  return (
-    matchesRegisteredCommandShortcut(runtime, text) ||
-    (runtime.actions.some(
-      (action) => action.name === "DOOLITTLE_SHELL_SHORTCUT",
-    ) &&
-      text.trim().startsWith("!") &&
-      !/^!web(?:\s|:|$)/iu.test(text.trim()))
-  );
+): string | undefined {
+  if (matchesRegisteredCommandShortcut(runtime, text))
+    return DOOLITTLE_COMMAND_ACTION;
+  const trimmed = text.trim();
+  if (
+    trimmed.startsWith("!") &&
+    !/^!web(?:\s|:|$)/iu.test(trimmed) &&
+    runtime.actions.some(
+      (action) => action.name === DOOLITTLE_SHELL_SHORTCUT_ACTION,
+    )
+  )
+    return DOOLITTLE_SHELL_SHORTCUT_ACTION;
 }

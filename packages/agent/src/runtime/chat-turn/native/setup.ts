@@ -1,6 +1,6 @@
 import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
-import { matchesRegisteredClientControl } from "../../command-shortcut-match";
+import { resolveRegisteredClientControl } from "../../command-shortcut-match";
 import {
   hasWorkspaceMutationObligation,
   recentMutationHistory,
@@ -50,7 +50,7 @@ export async function prepareNativeTurnSetup(input: {
       recentMutationHistory(input.context.services.sessions, turn.sessionId),
     ),
   );
-  const routingOwner = matchesRegisteredClientControl(
+  const routingOwner = resolveRegisteredClientControl(
     input.context.runtime,
     input.effectiveInput.message,
   )

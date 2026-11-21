@@ -5,6 +5,7 @@ import type {
   Memory,
 } from "@elizaos/core";
 import { getMemoryText } from "@elizaos/core";
+import { DOOLITTLE_SHELL_SHORTCUT_ACTION } from "../runtime/command-shortcut-match";
 import {
   executeTerminalCommand,
   formatTerminalCommandResponse,
@@ -16,8 +17,6 @@ import {
 } from "../runtime/turn-runtime-scope";
 import type { AppServices } from "../services/index";
 import type { ChatTurnRequest, EnvConfig } from "../types/runtime/index";
-
-export const DOOLITTLE_SHELL_SHORTCUT_ACTION = "DOOLITTLE_SHELL_SHORTCUT";
 
 function messageSource(message: Memory): string {
   if (typeof message.content !== "string" && message.content?.source) {
@@ -147,14 +146,17 @@ export function createShellCommandAction(
       const command = parseExplicitShellCommand(getMemoryText(message));
       if (!command) {
         const text = "Usage: !<shell command>";
-        await callback?.({ text, source: "doolittle-shell-command" });
-        return {
+        const actionResult: ActionResult = {
           success: false,
           text,
           error: "SHELL_COMMAND_REQUIRED",
           userFacingText: text,
           verifiedUserFacing: true,
+          data: { actionName: DOOLITTLE_SHELL_SHORTCUT_ACTION },
         };
+        recordScopedTurnActionResult(runtime, actionResult);
+        await callback?.({ text, source: "doolittle-shell-command" });
+        return actionResult;
       }
 
       const abortSignal = getScopedTurnAbortSignal(runtime);
@@ -236,8 +238,7 @@ export function createShellCommandAction(
         const text = `Shell command failed: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        await callback?.({ text, source: "doolittle-shell-command" });
-        return {
+        const actionResult: ActionResult = {
           success: false,
           text,
           error: error instanceof Error ? error.message : String(error),
@@ -248,6 +249,9 @@ export function createShellCommandAction(
             command,
           },
         };
+        recordScopedTurnActionResult(runtime, actionResult);
+        await callback?.({ text, source: "doolittle-shell-command" });
+        return actionResult;
       }
     },
   };

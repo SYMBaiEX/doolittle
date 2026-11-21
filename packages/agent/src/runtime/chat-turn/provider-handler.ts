@@ -10,8 +10,8 @@ import {
 } from "../action-result-metadata";
 import type { AgentExecutionContext } from "../chat";
 import {
-  matchesRegisteredClientControl,
   matchesRegisteredCommandShortcut,
+  resolveRegisteredClientControl,
 } from "../command-shortcut-match";
 import { checkOllamaReadiness } from "../native/plugin-registry/ollama-readiness";
 import {
@@ -231,21 +231,46 @@ export async function executeProviderMessageTurn(
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
-        if (matchesRegisteredClientControl(input.context.runtime, prompt)) {
+        const shortcut = resolveRegisteredClientControl(
+          input.context.runtime,
+          prompt,
+        );
+        if (shortcut) {
+          let reply = "";
           const executed = await input.context.runtime.runActionsByMode(
             "ALWAYS_BEFORE",
             input.memory,
             undefined,
-            { callback: input.streamState.onCallbackContent },
+            {
+              // The SDK labels canonical settled callbacks with the action name.
+              // Only the explicitly requested shortcut can deliver that reply.
+              callback: async (content, actionName) => {
+                if (
+                  actionName === shortcut &&
+                  content.agentVoiced === true &&
+                  typeof content.text === "string"
+                )
+                  reply = content.text;
+                return [];
+              },
+            },
           );
           throwIfTurnAborted(input.abortSignal);
           handledMessage = true;
           actionResults = getScopedTurnActionResults(input.context.runtime);
-          response = input.streamState.getResponse();
-          if (!executed.length || !response.trim()) {
+          const result = actionResults.find(
+            (entry) => actionResultActionName(entry) === shortcut,
+          );
+          if (!executed.some((action) => action.name === shortcut)) {
             response =
               "The client command could not complete under the current action permissions.";
             runFailureMessage = response;
+          } else if (!reply.trim()) {
+            response = "The client command returned no verified output.";
+            runFailureMessage = response;
+          } else {
+            response = reply;
+            if (result?.success === false) runFailureMessage = response;
           }
           input.streamState.setResponse(response);
           return;
