@@ -1,12 +1,14 @@
 import { execFileSync } from "node:child_process";
 import {
   appendFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
+import type { BotConversationScope } from "../../apps/desktop/src/shared/contracts";
 import { themeContrast } from "../../packages/ui/src/themes";
 import {
   agentRequest,
@@ -82,7 +84,7 @@ test.describe("fresh native desktop", () => {
       await desktop.app.evaluate(({ dialog }, root) => {
         dialog.showOpenDialog = (async (...args) => {
           const options = args.at(-1) as Electron.OpenDialogOptions;
-          if (options.title !== "Add folders to this project")
+          if (options.title !== "Choose a local folder for this chat")
             throw new Error("Unexpected folder picker");
           return { canceled: false, filePaths: [root] };
         }) as typeof dialog.showOpenDialog;
@@ -516,6 +518,174 @@ test.describe("fresh native desktop", () => {
       await expect(
         page.getByRole("textbox", { name: /^Message /u }),
       ).toBeVisible();
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
+  test("codes in the folder chosen from This computer and keeps private chats separate", async () => {
+    const desktop = await launchDesktop();
+    const { app, page, workspace } = desktop;
+    const projectRoot = join(workspace, "local-coding");
+    const file = "local-file.txt";
+    const before = "Original code\n";
+    const after = "Edited in the approved folder\n";
+    const terminalProof = join(projectRoot, "command-root.txt");
+    const draft = "Keep this draft in the local coding chat.";
+    const readScopedFile = (
+      scope: Pick<
+        BotConversationScope,
+        "botId" | "sessionId" | "workspacePath"
+      >,
+      path: string,
+    ) =>
+      page.evaluate(
+        ({ scope, path }) =>
+          window.doolittle.requestAgent({
+            requestId: crypto.randomUUID(),
+            path: `/workspace/read?${new URLSearchParams({ path })}`,
+            method: "GET",
+            headers: {},
+            botId: scope.botId,
+            originConversationId: scope.sessionId,
+            workspacePath: scope.workspacePath,
+          }),
+        { scope, path },
+      );
+
+    try {
+      mkdirSync(projectRoot);
+      writeFileSync(join(projectRoot, file), before);
+      await installProjectDialog(app, projectRoot);
+      await app.evaluate(
+        ({ dialog }, { file, projectRoot }) => {
+          dialog.showOpenDialog = (async (...args) => {
+            const options = args.at(-1) as Electron.OpenDialogOptions;
+            if (
+              options.title !== "Choose a local folder for this chat" ||
+              !options.properties?.includes("openDirectory") ||
+              options.properties.includes("multiSelections")
+            )
+              throw new Error("Expected a native project folder picker");
+            return { canceled: false, filePaths: [projectRoot] };
+          }) as typeof dialog.showOpenDialog;
+          const confirm = dialog.showMessageBox;
+          dialog.showMessageBox = (async (...args: unknown[]) => {
+            const options = args.at(-1) as Electron.MessageBoxOptions;
+            if (
+              options.title === "Save workspace file?" &&
+              options.message === file &&
+              options.buttons?.includes("Save changes")
+            ) {
+              return {
+                response: options.buttons.indexOf("Save changes"),
+                checkboxChecked: false,
+              };
+            }
+            return Reflect.apply(confirm, dialog, args);
+          }) as typeof dialog.showMessageBox;
+        },
+        { file, projectRoot },
+      );
+
+      const picker = page.getByRole("dialog", {
+        name: "Choose a workspace for a new chat",
+      });
+      const chooseWorkspace = page.getByRole("button", {
+        name: /^Choose workspace\./u,
+      });
+      await chooseWorkspace.click();
+      await picker
+        .getByRole("button", { name: /^Choose local folder/u })
+        .click();
+      const localPicker = page.getByRole("button", {
+        name: /^Choose workspace\. Current workspace This computer.*local-coding/u,
+      });
+      await expect(localPicker).toBeVisible();
+      expect(await projectDialogCount(app)).toBe(1);
+
+      const local = await page.evaluate(() =>
+        window.doolittle.ui?.getSelection(),
+      );
+      if (!local?.projectId) throw new Error("Expected a scoped local chat");
+      const localScope = { ...local, workspacePath: projectRoot };
+      const opened = await readScopedFile(localScope, file);
+      expect(opened.status).toBe(200);
+      expect(JSON.parse(opened.body)).toMatchObject({ content: before });
+      await expect(
+        page.evaluate(
+          ({ after, before, file, localScope }) =>
+            window.doolittle.saveWorkspaceFile({
+              botId: localScope.botId,
+              originConversationId: localScope.sessionId,
+              workspacePath: localScope.workspacePath,
+              path: file,
+              content: after,
+              expectedContent: before,
+            }),
+          { after, before, file, localScope },
+        ),
+      ).resolves.toMatchObject({
+        status: "saved",
+      });
+      expect(readFileSync(join(projectRoot, file), "utf8")).toBe(after);
+
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const encodedRoot = Buffer.from(projectRoot).toString("base64");
+      await composer.fill(
+        `!node -e "const cwd = process.cwd(); if (cwd !== Buffer.from('${encodedRoot}', 'base64').toString()) process.exit(1); require('node:fs').writeFileSync('command-root.txt', cwd); console.log(cwd);"`,
+      );
+      await composer.press("Enter");
+      await expect
+        .poll(() =>
+          existsSync(terminalProof)
+            ? readFileSync(terminalProof, "utf8")
+            : null,
+        )
+        .toBe(projectRoot);
+      const transcript = page.getByRole("log", {
+        name: "local-coding conversation",
+      });
+      await expect(
+        transcript.getByText(projectRoot, { exact: false }),
+      ).toBeVisible({ timeout: 8_000 });
+      await composer.fill(draft);
+
+      await localPicker.click();
+      await picker.getByRole("button", { name: /^Private workspace/u }).click();
+      await expect(chooseWorkspace).toHaveAccessibleName(/Private workspace/u);
+      const privateChat = await page.evaluate(() =>
+        window.doolittle.ui?.getSelection(),
+      );
+      expect(privateChat?.sessionId).not.toBe(local.sessionId);
+      expect(privateChat?.projectId).toBeUndefined();
+      const { conversations } = await agentRequest<{
+        conversations: BotConversationScope[];
+      }>(page, `/bots/${encodeURIComponent(local.botId)}/conversations`);
+      const privateScope = conversations.find(
+        ({ sessionId }) => sessionId === privateChat?.sessionId,
+      );
+      if (!privateScope?.workspacePath)
+        throw new Error("Expected a bound private workspace");
+      expect(privateScope.workspacePath).not.toBe(projectRoot);
+      const denied = await readScopedFile(privateScope, file);
+      expect(denied.status).toBeGreaterThanOrEqual(400);
+      expect(denied.body).not.toContain(after.trim());
+      await expect(
+        readScopedFile({ ...privateScope, workspacePath: projectRoot }, file),
+      ).rejects.toThrow(
+        "Requested workspace does not belong to this conversation.",
+      );
+      await expect(composer).toHaveValue("");
+
+      await page.getByRole("button", { name: "Conversation options" }).click();
+      await page.getByRole("menuitem", { name: "Workspace views" }).click();
+      await page
+        .getByRole("tablist", { name: "Open conversations" })
+        .locator(`[aria-controls="session-panel-${local.sessionId}"]`)
+        .click();
+      await expect(localPicker).toBeVisible();
+      await expect(composer).toHaveValue(draft);
     } finally {
       await desktop.dispose();
     }
