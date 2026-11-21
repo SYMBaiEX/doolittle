@@ -36,6 +36,7 @@ export interface RunActivityItem {
 
 interface OpenAction {
   index: number;
+  name: string;
   started: number;
   timingAvailable: boolean;
 }
@@ -65,6 +66,7 @@ export function runActivityItems(receipt: RunReceipt): RunActivityItem[] {
   const items: RunActivityItem[] = [];
   const indexed = new Map<string, number>();
   const open = new Map<string, OpenAction>();
+  const observedReturns = new Set<string>();
   function upsert(item: RunActivityItem) {
     const existing = indexed.get(item.id);
     if (existing !== undefined) {
@@ -82,7 +84,6 @@ export function runActivityItems(receipt: RunReceipt): RunActivityItem[] {
     if (type === "action-started" || type === "action-completed") {
       const name = actionName(update);
       const id = `action:${run.observedActionCount}:${name}`;
-      const existing = open.get(id);
       const timestamp = Date.parse(run.updatedAt);
       const label = toolActionLabel(name) || "Agent action";
       if (type === "action-started") {
@@ -91,26 +92,41 @@ export function runActivityItems(receipt: RunReceipt): RunActivityItem[] {
         for (const previous of open.values()) previous.timingAvailable = false;
         open.set(id, {
           index: upsert({ id, label, detail: "", status: "running", update }),
+          name,
           started: timestamp,
           timingAvailable,
         });
       } else {
-        const elapsed = existing ? timestamp - existing.started : Number.NaN;
+        const returnId = `return:${id}`;
+        if (observedReturns.has(returnId)) continue;
+        observedReturns.add(returnId);
+
+        // The count is shared for the whole run and advances when any tool
+        // starts, so a return can carry another invocation's count.
+        const matches = name
+          ? [...open].filter(([, action]) => action.name === name)
+          : [];
+        const match = matches.length === 1 ? matches[0] : undefined;
+        if (matches.length > 1) {
+          for (const [, { index }] of matches) {
+            items[index] = { ...items[index], status: "unreported" };
+          }
+        }
+
+        const elapsed = match ? timestamp - match[1].started : Number.NaN;
         const durationMs =
-          existing?.timingAvailable && Number.isFinite(elapsed) && elapsed >= 0
+          match?.[1].timingAvailable && Number.isFinite(elapsed) && elapsed >= 0
             ? elapsed
-            : indexed.has(id)
-              ? items[indexed.get(id) ?? -1]?.durationMs
-              : undefined;
+            : undefined;
         upsert({
-          id,
+          id: match?.[0] ?? returnId,
           label,
-          detail: "",
+          detail: matches.length > 1 ? "Invocation unknown" : "",
           status: "complete",
           update,
           durationMs,
         });
-        open.delete(id);
+        if (match) open.delete(match[0]);
       }
     } else if (type === "local-mutation") {
       const mutation = lastMutation(run);

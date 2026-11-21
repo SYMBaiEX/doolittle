@@ -132,6 +132,42 @@ it("avoids assigning timing to overlapping actions or reporting a missing result
   ]);
 });
 
+it("keeps overlapping named actions attached to their starts when the shared counter advances", () => {
+  const events = [
+    step("action-started", 1, 25, { activeAction: "READ_FILE" }),
+    step("action-started", 2, 50, { activeAction: "WRITE_FILE" }),
+    step("action-completed", 2, 125, { lastAction: "READ_FILE" }),
+    step("action-completed", 2, 130, { lastAction: "READ_FILE" }),
+    step("action-completed", 2, 200, { lastAction: "WRITE_FILE" }),
+  ];
+  const latest = step("completed", 2, 300, { status: "complete" });
+  expect(runActivityItems({ latest, events })).toMatchObject([
+    { id: "action:1:READ_FILE", status: "complete", durationMs: undefined },
+    { id: "action:2:WRITE_FILE", status: "complete", durationMs: undefined },
+  ]);
+});
+
+it("records an ambiguous same-name return separately from both possible invocations", () => {
+  const events = [
+    step("action-started", 1, 25, { activeAction: "READ_FILE" }),
+    step("action-started", 2, 50, { activeAction: "READ_FILE" }),
+    step("action-completed", 2, 125, { lastAction: "READ_FILE" }),
+  ];
+  const latest = step("completed", 2, 300, { status: "complete" });
+  const items = runActivityItems({ latest, events });
+  expect(items).toMatchObject([
+    { id: "action:1:READ_FILE", status: "unreported" },
+    { id: "action:2:READ_FILE", status: "unreported" },
+    {
+      id: "return:action:2:READ_FILE",
+      detail: "Invocation unknown",
+      status: "complete",
+      durationMs: undefined,
+    },
+  ]);
+  expect(items.every((item) => item.durationMs === undefined)).toBe(true);
+});
+
 it("shows structured exit metadata and copies the full selected output without formatting it", async () => {
   const stdout = `<script>literal text</script>\n${"line > value\n".repeat(3_500)}`;
   const command: ToolActivity = {
