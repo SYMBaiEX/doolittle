@@ -9,6 +9,10 @@ vi.mock("../../apps/desktop/src/renderer/eliza-client", () => ({
   desktopRequest: vi.fn(),
 }));
 
+import {
+  loadBotSessionCatalog,
+  useDesktopBotCatalog,
+} from "../../apps/desktop/src/renderer/bots/session-catalog";
 import { desktopRequest } from "../../apps/desktop/src/renderer/eliza-client";
 import {
   desktopQueryClient,
@@ -39,6 +43,10 @@ function View({ bot, enabled = true }: { bot: string; enabled?: boolean }) {
       <small>{resource.error}</small>
     </div>
   );
+}
+function Catalog() {
+  const resource = useDesktopBotCatalog("ready", 0);
+  return <output>{resource.data?.bots.length ?? 0}</output>;
 }
 function mount() {
   const element = document.createElement("div");
@@ -153,9 +161,6 @@ it("does not retry a read rejected by authorization", async () => {
 });
 
 it("recovers catalog status before publishing a durable new conversation", async () => {
-  const { loadBotSessionCatalog } = await import(
-    "../../apps/desktop/src/renderer/bots/session-catalog"
-  );
   let reads = 0;
   vi.mocked(desktopRequest).mockImplementation(async (path) => {
     if (path === "/bots") {
@@ -189,4 +194,48 @@ it("recovers catalog status before publishing a durable new conversation", async
   ]);
   expect(reads).toBe(2);
   expect(desktopRequest).toHaveBeenCalledTimes(3);
+});
+
+it("shares the startup catalog with session inventory and refreshes owners after writes", async () => {
+  let catalogReads = 0;
+  vi.mocked(desktopRequest).mockImplementation(async (path) => {
+    if (path === "/bots") {
+      catalogReads++;
+      return {
+        defaultBotId: "lead",
+        bots: [
+          { id: "lead", isDefault: true, state: "ready" },
+          ...(catalogReads > 1 ? [{ id: "new", state: "stopped" }] : []),
+        ],
+      };
+    }
+    if (path === "/bots/lead/conversations") return { conversations: [] };
+    if (path === "/bots/new/conversations")
+      return { conversations: [{ botId: "new", sessionId: "new-chat" }] };
+    throw new Error("Unexpected request");
+  });
+  const { element, root } = mount();
+  act(() => root.render(<Catalog />));
+  await flush();
+  expect(element.textContent).toBe("1");
+  await act(async () => {
+    await loadBotSessionCatalog({ sessions: [] }, [], {
+      reuseFreshCatalog: true,
+    });
+  });
+  expect(catalogReads).toBe(1);
+  await act(async () => {
+    const fresh = await loadBotSessionCatalog({ sessions: [] }, []);
+    expect(fresh.sessions).toEqual([
+      expect.objectContaining({ botId: "new", sessionId: "new-chat" }),
+    ]);
+  });
+  expect(catalogReads).toBe(2);
+  await act(async () => {
+    await loadBotSessionCatalog({ sessions: [] }, [], {
+      generation: 1,
+      reuseFreshCatalog: true,
+    });
+  });
+  expect(catalogReads).toBe(3);
 });

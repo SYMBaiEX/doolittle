@@ -25,6 +25,7 @@ import type {
   SessionForkResponse,
   SessionSummary,
 } from "../shared/contracts";
+import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { BotRuntimeNotice } from "./bots/BotRuntimeNotice";
 import type { KnowledgePromotionSource } from "./bots/KnowledgePromotionDialog";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
@@ -33,6 +34,10 @@ import {
   type InspectorTab,
 } from "./chat/CompanionInspector";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
+import {
+  chatComposerModule,
+  chatTranscriptModule,
+} from "./chat/chat-surface-modules";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
 import {
   botAcceptsDispatch,
@@ -109,18 +114,12 @@ function chatSubmissionContent(draft: string, attachmentCount: number): string {
     : "";
 }
 
-const ChatComposer = lazy(async () => {
-  const module = await import("./chat/ChatComposer");
-  return { default: module.ChatComposer };
-});
+const ChatComposer = chatComposerModule.Component;
 const KnowledgePromotionDialog = lazy(async () => ({
   default: (await import("./bots/KnowledgePromotionDialog"))
     .KnowledgePromotionDialog,
 }));
-const ChatTranscript = lazy(async () => {
-  const module = await import("./chat/ChatTranscript");
-  return { default: module.ChatTranscript };
-});
+const ChatTranscript = chatTranscriptModule.Component;
 const MediaPage = lazy(async () => {
   const module = await import("./MediaPage");
   return { default: module.MediaPage };
@@ -377,6 +376,12 @@ export function ChatSessionPanel({
     currentBotId,
     defaultBotId,
   );
+  const [visitedHistory, setVisitedHistory] = useState(surface === "history");
+  const [visitedMedia, setVisitedMedia] = useState(surface === "media");
+  useEffect(() => {
+    if (surface === "history") setVisitedHistory(true);
+    if (surface === "media") setVisitedMedia(true);
+  }, [surface]);
   const canDraft =
     backend.phase === "ready" ||
     hostBackend.phase === "ready" ||
@@ -1860,27 +1865,31 @@ export function ChatSessionPanel({
         id={`chat-context-history-${selectedId}`}
         inert={surface !== "history"}
       >
-        <SessionsPage
-          active={backend.phase === "ready" && surface === "history"}
-          embedded
-          onNewConversation={() => {
-            if (onRequestNewConversation) {
-              onRequestNewConversation();
-              return;
-            }
-            createConversation();
-            onSurfaceChange?.("conversation");
-            requestAnimationFrame(() => composerRef.current?.focus());
-          }}
-          openChat={(sessionId) => {
-            onSelect(sessionId);
-            onSurfaceChange?.("conversation");
-            requestAnimationFrame(() => composerRef.current?.focus());
-          }}
-          projectId={activeProject?.id}
-          refresh={refreshRuntime}
-          sessions={sessions}
-        />
+        {surface === "history" || visitedHistory ? (
+          <Suspense fallback={<DesktopRouteLoadingFallback label="history" />}>
+            <SessionsPage
+              active={backend.phase === "ready" && surface === "history"}
+              embedded
+              onNewConversation={() => {
+                if (onRequestNewConversation) {
+                  onRequestNewConversation();
+                  return;
+                }
+                createConversation();
+                onSurfaceChange?.("conversation");
+                requestAnimationFrame(() => composerRef.current?.focus());
+              }}
+              openChat={(sessionId) => {
+                onSelect(sessionId);
+                onSurfaceChange?.("conversation");
+                requestAnimationFrame(() => composerRef.current?.focus());
+              }}
+              projectId={activeProject?.id}
+              refresh={refreshRuntime}
+              sessions={sessions}
+            />
+          </Suspense>
+        ) : null}
       </section>
       <section
         aria-hidden={surface !== "media" ? "true" : undefined}
@@ -1890,20 +1899,24 @@ export function ChatSessionPanel({
         id={`chat-context-media-${selectedId}`}
         inert={surface !== "media"}
       >
-        <MediaPage
-          active={
-            backend.phase === "ready" &&
-            surface === "media" &&
-            Boolean(currentBotId)
-          }
-          botId={currentBotId || undefined}
-          embedded
-          onOpenConversation={(sessionId) => {
-            onSelect(sessionId, true);
-            onSurfaceChange?.("conversation");
-          }}
-          sessionId={selectedId}
-        />
+        {surface === "media" || visitedMedia ? (
+          <Suspense fallback={<DesktopRouteLoadingFallback label="media" />}>
+            <MediaPage
+              active={
+                backend.phase === "ready" &&
+                surface === "media" &&
+                Boolean(currentBotId)
+              }
+              botId={currentBotId || undefined}
+              embedded
+              onOpenConversation={(sessionId) => {
+                onSelect(sessionId, true);
+                onSurfaceChange?.("conversation");
+              }}
+              sessionId={selectedId}
+            />
+          </Suspense>
+        ) : null}
       </section>
       {inspectorPresence.present ? (
         <div

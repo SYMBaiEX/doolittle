@@ -144,6 +144,19 @@ it("does not let a late refresh or initial snapshot revive an offline backend", 
   expect(value.sessions).toEqual([]);
 });
 
+it("uses a new catalog generation after a runtime restart", async () => {
+  request.mockResolvedValue({ sessions: [], projects: [] });
+  await mount();
+  const originalGeneration = value.backendGeneration;
+  await act(async () => {
+    listener({ phase: "booting", message: "Restarting" });
+    listener(ready);
+  });
+  expect(value.backendGeneration).toBe(originalGeneration + 1);
+  await act(async () => listener({ ...ready, message: "Still ready" }));
+  expect(value.backendGeneration).toBe(originalGeneration + 1);
+});
+
 it("publishes a host-confirmed chat immediately and rejects an older inventory completion", async () => {
   const stale = batch("before-host-commit");
   request.mockImplementation(stale.read);

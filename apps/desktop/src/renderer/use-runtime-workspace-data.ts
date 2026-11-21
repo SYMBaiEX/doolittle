@@ -20,6 +20,7 @@ export function useRuntimeWorkspaceData(
     phase: "booting",
     message: "Connecting to the local runtime…",
   });
+  const [backendGeneration, setBackendGeneration] = useState(0);
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const sessionsRef = useRef(sessions);
@@ -35,6 +36,9 @@ export function useRuntimeWorkspaceData(
     if (backendPhaseRef.current !== state.phase) {
       backendPhaseRef.current = state.phase;
       refreshRequestRef.current++;
+      // A ready catalog can only describe workers in this runtime generation.
+      if (state.phase === "ready")
+        setBackendGeneration((current) => current + 1);
     }
     setBackend(state);
   }, []);
@@ -72,62 +76,77 @@ export function useRuntimeWorkspaceData(
     [],
   );
 
-  const refreshRuntime = useCallback(async () => {
-    if (backendPhaseRef.current !== "ready") return false;
-    const requestId = ++refreshRequestRef.current;
-    const sessionRevision = sessionInventoryRevision.current;
-    const isCurrent = () =>
-      mountedRef.current && requestId === refreshRequestRef.current;
-    setGlobalError("");
-    const [status, inventory, projectList] = await Promise.allSettled([
-      desktopRequest<RuntimeStatus>("/runtime/status").then((value) => {
-        if (isCurrent()) setRuntime(value);
-      }),
-      desktopRequest<SessionsResponse>("/sessions?limit=200").then(
-        async (lead) => {
-          if (
-            !isCurrent() ||
-            sessionRevision !== sessionInventoryRevision.current
-          )
-            return;
-          const result = await loadBotSessionCatalog(lead, sessionsRef.current);
-          if (
-            !isCurrent() ||
-            sessionRevision !== sessionInventoryRevision.current
-          )
-            return;
-          setSessions(result.sessions);
-          return result.warnings?.at(-1);
-        },
-      ),
-      desktopRequest<ProjectsResponse>("/projects?includeArchived=true").then(
-        (value) => {
-          if (isCurrent()) setProjects(value.projects);
-        },
-      ),
-    ]);
-    if (!isCurrent()) return false;
-    const sessionResultIsCurrent =
-      sessionRevision === sessionInventoryRevision.current;
-    const failure = [
-      projectList,
-      sessionResultIsCurrent ? inventory : null,
-      status,
-    ].find((result) => result?.status === "rejected");
-    const warning =
-      sessionResultIsCurrent && inventory.status === "fulfilled"
-        ? inventory.value
-        : undefined;
-    const error =
-      warning ??
-      (failure?.status === "rejected"
-        ? failure.reason instanceof Error
-          ? failure.reason.message
-          : String(failure.reason)
-        : "");
-    setGlobalError(error);
-    return !failure && !warning;
-  }, []);
+  const refreshRuntimeData = useCallback(
+    async (reuseFreshCatalog: boolean) => {
+      if (backendPhaseRef.current !== "ready") return false;
+      const requestId = ++refreshRequestRef.current;
+      const sessionRevision = sessionInventoryRevision.current;
+      const isCurrent = () =>
+        mountedRef.current && requestId === refreshRequestRef.current;
+      setGlobalError("");
+      const [status, inventory, projectList] = await Promise.allSettled([
+        desktopRequest<RuntimeStatus>("/runtime/status").then((value) => {
+          if (isCurrent()) setRuntime(value);
+        }),
+        desktopRequest<SessionsResponse>("/sessions?limit=200").then(
+          async (lead) => {
+            if (
+              !isCurrent() ||
+              sessionRevision !== sessionInventoryRevision.current
+            )
+              return;
+            const result = await loadBotSessionCatalog(
+              lead,
+              sessionsRef.current,
+              {
+                generation: backendGeneration,
+                reuseFreshCatalog,
+              },
+            );
+            if (
+              !isCurrent() ||
+              sessionRevision !== sessionInventoryRevision.current
+            )
+              return;
+            setSessions(result.sessions);
+            return result.warnings?.at(-1);
+          },
+        ),
+        desktopRequest<ProjectsResponse>("/projects?includeArchived=true").then(
+          (value) => {
+            if (isCurrent()) setProjects(value.projects);
+          },
+        ),
+      ]);
+      if (!isCurrent()) return false;
+      const sessionResultIsCurrent =
+        sessionRevision === sessionInventoryRevision.current;
+      const failure = [
+        projectList,
+        sessionResultIsCurrent ? inventory : null,
+        status,
+      ].find((result) => result?.status === "rejected");
+      const warning =
+        sessionResultIsCurrent && inventory.status === "fulfilled"
+          ? inventory.value
+          : undefined;
+      const error =
+        warning ??
+        (failure?.status === "rejected"
+          ? failure.reason instanceof Error
+            ? failure.reason.message
+            : String(failure.reason)
+          : "");
+      setGlobalError(error);
+      return !failure && !warning;
+    },
+    [backendGeneration],
+  );
+
+  const refreshRuntime = useCallback(
+    () => refreshRuntimeData(false),
+    [refreshRuntimeData],
+  );
 
   const refreshWithFeedback = useCallback(async () => {
     const succeeded = await refreshRuntime();
@@ -201,14 +220,15 @@ export function useRuntimeWorkspaceData(
 
   useEffect(() => {
     if (backend.phase === "ready") {
-      void refreshRuntime();
+      void refreshRuntimeData(true);
     } else {
       setRuntime(null);
     }
-  }, [backend.phase, refreshRuntime]);
+  }, [backend.phase, refreshRuntimeData]);
 
   return {
     backend,
+    backendGeneration,
     globalError,
     projects,
     publishConfirmedConversation,

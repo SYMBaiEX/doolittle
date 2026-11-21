@@ -1,4 +1,4 @@
-import { type ComponentType, lazy } from "react";
+import type { ComponentType } from "react";
 import { renderedViewForView, type View } from "../desktop-navigation";
 import {
   cancelDesktopRouteResourcePrefetchIntent,
@@ -6,6 +6,7 @@ import {
   type RouteReadiness,
   scheduleDesktopRouteResourcePrefetch,
 } from "./desktop-route-prefetch";
+import { createPreloadedComponent } from "./preloaded-component";
 
 type DesktopRouteComponent = ComponentType<Record<string, unknown>>;
 
@@ -17,7 +18,7 @@ function lazyRoute<Module, Props extends object>(
   const loader = async () => ({
     default: page(await load()) as unknown as DesktopRouteComponent,
   });
-  return { load: loader, component: lazy(loader) };
+  return { loader, view: createPreloadedComponent(loader) };
 }
 
 const routes = {
@@ -52,13 +53,18 @@ const routes = {
 };
 
 export function getDesktopRouteComponent(view: View): DesktopRouteComponent {
-  return routes[renderedViewForView(view)].component;
+  return routes[renderedViewForView(view)].view.Component;
+}
+
+/** Load only the view code. The runtime may still be starting. */
+export function loadDesktopRouteModule(view: View): Promise<unknown> {
+  return routes[renderedViewForView(view)].view.preload();
 }
 
 /** Replace a rejected lazy component so the user can retry its chunk. */
 export function resetDesktopRoute(view: View): void {
   const route = routes[renderedViewForView(view)];
-  route.component = lazy(route.load);
+  route.view = createPreloadedComponent(route.loader);
 }
 
 /** Warm the route module and its first-view resources once navigation commits. */
@@ -69,7 +75,7 @@ export async function warmDesktopRoute(
 ): Promise<void> {
   cancelDesktopRouteResourcePrefetchIntent();
   await Promise.all([
-    routes[renderedViewForView(view)].load(),
+    loadDesktopRouteModule(view),
     prefetchDesktopRouteResources(view, runtimeReady, workspacePath),
   ]);
 }
@@ -83,6 +89,6 @@ export function preloadDesktopRoute(
   runtimeReady: RouteReadiness = true,
   workspacePath = "",
 ): void {
-  void routes[renderedViewForView(view)].load().catch(() => undefined);
+  void loadDesktopRouteModule(view).catch(() => undefined);
   scheduleDesktopRouteResourcePrefetch(view, runtimeReady, workspacePath);
 }

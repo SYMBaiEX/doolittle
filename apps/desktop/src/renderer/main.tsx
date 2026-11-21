@@ -1,7 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { App, preloadInitialDesktopRoute } from "./App";
 import { DesktopErrorBoundary } from "./components/DesktopErrorBoundary";
+import { resolveDesktopHash } from "./desktop-navigation";
 import {
   applyDesktopAppearance,
   applyDesktopDensity,
@@ -15,6 +16,8 @@ import {
 import { InterfaceHost } from "./interfaces/InterfaceHost";
 import { ChatWorkspaceProvider } from "./session-workspace/chat-workspace-store";
 import "./eliza-tailwind.css";
+
+preloadInitialDesktopRoute(resolveDesktopHash().view);
 
 document.documentElement.dataset.platform = window.doolittle.platform;
 applyDesktopFoundationTokens();

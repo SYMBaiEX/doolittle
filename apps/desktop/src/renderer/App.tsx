@@ -1,4 +1,4 @@
-import type { BotCatalogResponse, BotSummary } from "@doolittle/contracts/bots";
+import type { BotSummary } from "@doolittle/contracts/bots";
 import { WorkspaceShell } from "@doolittle/ui";
 import { useMediaQuery, useVisibleInterval } from "@doolittle/ui/environment";
 import { ArrowLeft } from "lucide-react";
@@ -34,6 +34,7 @@ import {
   COMMAND_PALETTE_LOADING_STATUS_CLASS,
 } from "./app-shell/command-palette-loading-layout";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
+import type { DesktopRouteContentProps } from "./app-shell/DesktopRouteContent";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
 import {
@@ -44,9 +45,11 @@ import {
   replaceDesktopNavigationEntry,
 } from "./app-shell/desktop-navigation-history";
 import {
+  loadDesktopRouteModule,
   resetDesktopRoute,
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
+import { createPreloadedComponent } from "./app-shell/preloaded-component";
 import type { DesktopRouteFocusStore } from "./app-shell/route-focus-state";
 import {
   APP_MAIN_CLASS,
@@ -91,7 +94,12 @@ import {
   saveSessionProjectBindings,
   sessionProjectTarget,
 } from "./bots/session-bindings";
+import { useDesktopBotCatalog } from "./bots/session-catalog";
 import { useBotCatalogPolling } from "./bots/useBotCatalogPolling";
+import {
+  chatComposerModule,
+  chatTranscriptModule,
+} from "./chat/chat-surface-modules";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
@@ -201,11 +209,25 @@ const DesktopUtilityLayer = lazy(() =>
   })),
 );
 
-const DesktopRouteContent = lazy(() =>
-  import("./app-shell/DesktopRouteContent").then((module) => ({
-    default: module.DesktopRouteContent,
-  })),
-);
+const desktopRouteContentModule =
+  createPreloadedComponent<DesktopRouteContentProps>(() =>
+    import("./app-shell/DesktopRouteContent").then((module) => ({
+      default: module.DesktopRouteContent,
+    })),
+  );
+
+const DesktopRouteContent = desktopRouteContentModule.Component;
+
+/** Overlap initial route imports with native selection restore. */
+export function preloadInitialDesktopRoute(view: View): void {
+  void Promise.allSettled([
+    desktopRouteContentModule.preload(),
+    loadDesktopRouteModule(view),
+    ...(view === "chat"
+      ? [chatComposerModule.preload(), chatTranscriptModule.preload()]
+      : []),
+  ]);
+}
 
 const loadDesktopSidebar = () =>
   import("./app-shell/DesktopSidebar").then((module) => ({
@@ -570,6 +592,7 @@ export function App() {
   useEffect(() => observeContextMenuCopy(pushToast), [pushToast]);
   const {
     backend,
+    backendGeneration,
     globalError,
     projects,
     publishConfirmedConversation,
@@ -601,9 +624,7 @@ export function App() {
     },
     [publishConfirmedConversation],
   );
-  const botResource = useApiResource<BotCatalogResponse>("/bots", [
-    backend.phase,
-  ]);
+  const botResource = useDesktopBotCatalog(backend.phase, backendGeneration);
   const botCatalog = botResource.data;
   useEffect(() => {
     const refresh = () => {

@@ -1,24 +1,45 @@
 import type { BotCatalogResponse } from "@doolittle/contracts/bots";
 import type {
+  BackendPhase,
   BotConversationScope,
   SessionSummary,
   SessionsResponse,
 } from "../../shared/contracts";
-import { desktopQueryClient, desktopRequest } from "../lib";
+import {
+  apiResourceCacheKey,
+  desktopQueryClient,
+  desktopRequest,
+  useApiResource,
+} from "../lib";
 import { confirmedConversationSummary } from "../session-conversation-scope";
+
+const BOT_CATALOG_PATH = "/bots";
+
+export function useDesktopBotCatalog(phase: BackendPhase, generation: number) {
+  return useApiResource<BotCatalogResponse>(BOT_CATALOG_PATH, [
+    phase,
+    generation,
+  ]);
+}
 
 /** Discover stopped workers through the authoritative ledger; never start one to list chats. */
 export async function loadBotSessionCatalog(
   lead: SessionsResponse,
   previous: readonly SessionSummary[],
+  { generation = 0, reuseFreshCatalog = false } = {},
 ): Promise<SessionsResponse & { warnings?: string[] }> {
   const catalog = await desktopQueryClient.fetchQuery({
-    queryKey: ["doolittle:session-catalog:bots"],
+    queryKey: [apiResourceCacheKey(BOT_CATALOG_PATH, ["ready", generation])],
     queryFn: ({ signal }) =>
-      desktopRequest<BotCatalogResponse>("/bots", "GET", undefined, signal),
-    // This inventory follows a durable chat write. Deduplicate concurrent reads
-    // and recover transient status errors without reusing an older bot list.
-    staleTime: 0,
+      desktopRequest<BotCatalogResponse>(
+        BOT_CATALOG_PATH,
+        "GET",
+        undefined,
+        signal,
+      ),
+    // Startup can reuse the shell's catalog. A refresh can follow a durable
+    // chat write, so it still needs a current roster of conversation owners.
+    ...(reuseFreshCatalog ? {} : { staleTime: 0 }),
   });
   const sessions = new Map<string, SessionSummary>(
     lead.sessions.map((session) => [
