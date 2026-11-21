@@ -35,22 +35,23 @@ export function loadSummaryStats(
   };
 }
 
-export function loadSessionMessageRows(
-  db: SessionDatabase,
-  sessionId: string,
-  limit: number,
-): SessionMessageRow[] {
-  return db
-    .query(
-      `
-        SELECT session_id as sessionId, created_at as createdAt, role, text
-        FROM messages
-        WHERE session_id = ?1
-        ORDER BY created_at ASC, rowid ASC
-        LIMIT ?2
-      `,
-    )
-    .all(sessionId, limit) as SessionMessageRow[];
+export function prepareSessionMessageRows(db: SessionDatabase) {
+  const statement = db.query(`
+    SELECT session_id as sessionId, created_at as createdAt, role, text
+    FROM messages
+    WHERE session_id = ?1
+    ORDER BY created_at ASC, rowid ASC
+    LIMIT ?2
+  `);
+  return (sessionId: string, limit: number) =>
+    statement.all(sessionId, limit) as SessionMessageRow[];
+}
+
+export function describeSessionMessages(rows: SessionMessageRow[]) {
+  return {
+    participants: Array.from(new Set(rows.map((row) => row.role))),
+    preview: rows.map((row) => `[${row.role}] ${row.text.slice(0, 200)}`),
+  };
 }
 
 export function loadSessionMessageCount(
@@ -76,7 +77,7 @@ export function buildSessionSummary(
   sessionId: string,
   rowLimit: number,
 ): SessionSummary {
-  const rows = loadSessionMessageRows(db, sessionId, rowLimit);
+  const rows = prepareSessionMessageRows(db)(sessionId, rowLimit);
   const metadata = metadataResolver.metadata(sessionId);
   const projectId = metadataResolver.projectIdForSession?.(sessionId);
 
@@ -108,7 +109,6 @@ export function buildSessionSummary(
     messageCount: total,
     startedAt: rows[0]?.createdAt,
     endedAt: rows.at(-1)?.createdAt,
-    participants: Array.from(new Set(rows.map((row) => row.role))),
-    preview: rows.map((row) => `[${row.role}] ${row.text.slice(0, 200)}`),
+    ...describeSessionMessages(rows),
   };
 }

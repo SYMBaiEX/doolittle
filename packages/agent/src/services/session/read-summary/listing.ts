@@ -1,45 +1,72 @@
 import type { SessionSummary } from "../../../types/index";
 import type { SessionDatabase } from "../database";
-import { buildSessionSummary } from "./query";
+import {
+  buildSessionSummary,
+  describeSessionMessages,
+  prepareSessionMessageRows,
+} from "./query";
 import type { SessionMetadataResolver } from "./types";
 
 export function listSessionSummaries(
   db: SessionDatabase,
-  metadataResolver: SessionMetadataResolver,
   limit: number,
   projectId?: string,
 ): SessionSummary[] {
   const rows = db
     .query(
       `
-        SELECT
-          messages.session_id as sessionId,
-          COUNT(*) as messageCount,
-          MIN(created_at) as startedAt,
-          MAX(created_at) as endedAt
-        FROM messages
-        ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = messages.session_id WHERE session_projects.project_id = ?2" : ""}
-        GROUP BY messages.session_id
-        ORDER BY endedAt DESC
-        LIMIT ?1
+        WITH recent AS (
+          SELECT
+            messages.session_id as sessionId,
+            COUNT(*) as messageCount,
+            MIN(created_at) as startedAt,
+            MAX(created_at) as endedAt
+          FROM messages
+          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = messages.session_id WHERE session_projects.project_id = ?2" : ""}
+          GROUP BY messages.session_id
+          ORDER BY endedAt DESC, sessionId ASC
+          LIMIT ?1
+        )
+        SELECT recent.*, project.project_id as projectId, metadata.title,
+          metadata.continuity_key as continuityKey,
+          lineage.parent_session_id as parentSessionId,
+          lineage.forked_from_message_id as forkedFromMessageId,
+          lineage.root_session_id as rootSessionId
+        FROM recent
+        LEFT JOIN session_projects project ON project.session_id = recent.sessionId
+        LEFT JOIN session_metadata metadata ON metadata.session_id = recent.sessionId
+        LEFT JOIN session_lineage lineage ON lineage.session_id = metadata.session_id
+        ORDER BY recent.endedAt DESC, recent.sessionId ASC
       `,
     )
     .all(...(projectId ? [limit, projectId] : [limit])) as Array<{
     sessionId: string;
     messageCount: number;
-    startedAt?: string;
-    endedAt?: string;
+    startedAt: string;
+    endedAt: string;
+    projectId: string | null;
+    title: string | null;
+    continuityKey: string | null;
+    parentSessionId: string | null;
+    forkedFromMessageId: string | null;
+    rootSessionId: string | null;
   }>;
 
-  return rows.map((row) => {
-    const summary = buildSessionSummary(db, metadataResolver, row.sessionId, 6);
-    return {
-      ...summary,
-      messageCount: row.messageCount,
-      startedAt: row.startedAt,
-      endedAt: row.endedAt,
-    };
-  });
+  if (!rows.length) return [];
+  const readPreview = prepareSessionMessageRows(db);
+  return rows.map((row) => ({
+    sessionId: row.sessionId,
+    projectId: row.projectId ?? undefined,
+    title: row.title ?? undefined,
+    continuityKey: row.continuityKey ?? undefined,
+    parentSessionId: row.parentSessionId ?? undefined,
+    forkedFromMessageId: row.forkedFromMessageId ?? undefined,
+    rootSessionId: row.rootSessionId ?? undefined,
+    messageCount: row.messageCount,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    ...describeSessionMessages(readPreview(row.sessionId, 6)),
+  }));
 }
 
 export function listTitledSessions(

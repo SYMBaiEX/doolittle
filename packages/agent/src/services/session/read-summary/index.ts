@@ -41,12 +41,7 @@ export class SessionReadSummaryHelpers {
   }
 
   listSessions(limit: number, projectId?: string): SessionSummary[] {
-    return listSessionSummaries(
-      this.db,
-      this.metadataResolver,
-      limit,
-      projectId,
-    );
+    return listSessionSummaries(this.db, limit, projectId);
   }
 
   listTitled(limit: number): SessionSummary[] {
