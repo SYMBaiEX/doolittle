@@ -6,7 +6,8 @@ import { migrateSessionDatabase } from "../schema";
 export function createSessionDatabase(baseDir: string): SessionDatabase {
   const dbPath = join(baseDir, "state.db");
   mkdirSync(dirname(dbPath), { recursive: true });
-  const db = new NodeSessionDatabase(dbPath);
+  // The Eliza memory adapter uses the same file and a matching busy timeout.
+  const db = new NodeSessionDatabase(dbPath, { timeout: 5_000 });
   try {
     migrateSessionDatabase(db);
     return db;

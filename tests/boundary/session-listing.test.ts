@@ -1,8 +1,14 @@
+import { once } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Worker } from "node:worker_threads";
 import { expect, it } from "vitest";
 import { NodeSessionDatabase } from "../../packages/agent/src/services/session/database";
 import { resolveSessionAnalytics } from "../../packages/agent/src/services/session/read-summary/analytics";
 import { listSessionSummaries } from "../../packages/agent/src/services/session/read-summary/listing";
 import { migrateSessionDatabase } from "../../packages/agent/src/services/session/schema";
+import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
 
 it("lists previews, totals and current project bindings for the selected conversations", () => {
   const db = new NodeSessionDatabase(":memory:");
@@ -163,5 +169,30 @@ it("rolls back a failed schema upgrade before accepting a retry", () => {
     expect(listSessionSummaries(db, 5)).toEqual([]);
   } finally {
     db.close();
+  }
+});
+
+it("can open an older profile while a concurrent writer finishes", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "doolittle-session-schema-"));
+  const writer = new Worker(
+    `const { DatabaseSync } = require("node:sqlite");
+    const { parentPort, workerData } = require("node:worker_threads");
+    const db = new DatabaseSync(workerData);
+    db.exec("BEGIN IMMEDIATE");
+    parentPort.postMessage("locked");
+    setTimeout(() => { db.exec("COMMIT"); db.close(); }, 100);`,
+    { eval: true, workerData: join(directory, "state.db") },
+  );
+  try {
+    await once(writer, "message");
+    const db = createSessionDatabase(directory);
+    try {
+      expect(listSessionSummaries(db, 5)).toEqual([]);
+    } finally {
+      db.close();
+    }
+  } finally {
+    await writer.terminate();
+    rmSync(directory, { recursive: true, force: true });
   }
 });
