@@ -1,5 +1,11 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -75,14 +81,18 @@ afterEach(async () => {
 describe("built CLI product acceptance", () => {
   it("starts help, version and JSON commands from outside the repository", async () => {
     const options = { cwd: profile, env: environment, timeout: 15_000 };
+    const initialData = readdirSync(resolve(profile, "data")).sort();
     const version = await execute(process.execPath, [entry, "--version"], {
       ...options,
       env: { ...environment, DOOLITTLE_REPO_ROOT: undefined },
     });
     expect(version.stdout.trim()).toBe(`Doolittle ${cliManifest.version}`);
+    expect(version.stderr).toBe("");
     const help = await execute(process.execPath, [entry, "--help"], options);
     expect(help.stdout).toContain("doolittle cockpit");
     expect(help.stdout).toContain("doolittle desktop");
+    expect(help.stderr).toBe("");
+    expect(readdirSync(resolve(profile, "data")).sort()).toEqual(initialData);
     const result = await execute(
       process.execPath,
       [entry, "exec", "-p", "/help", "--json"],
@@ -91,6 +101,13 @@ describe("built CLI product acceptance", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: true,
       text: expect.stringContaining("operator shell"),
+    });
+    await expect(
+      execute(process.execPath, [entry, "exec"], options),
+    ).rejects.toMatchObject({
+      code: 1,
+      stdout: "",
+      stderr: expect.stringContaining("Usage: doolittle exec --prompt"),
     });
   }, 45_000);
 

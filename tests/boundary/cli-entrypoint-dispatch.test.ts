@@ -11,11 +11,10 @@ import {
 
 describe("CLI entrypoint dispatch", () => {
   it("uses the interactive command-search response for a pre-boot alias", async () => {
-    const invocation = await resolveEntrypointInvocation({
-      argv: ["exec", "-p", "/commands-search"],
-      env: {},
-      repoRoot: process.cwd(),
-    });
+    const invocation = await resolveEntrypointInvocation(
+      resolveSubcommand(["exec", "-p", "/commands-search"]),
+      { env: {}, repoRoot: process.cwd() },
+    );
     expect(invocation.staticPromptResult).toEqual(
       resolveStaticCliInput("/commands search", {
         agentName: "Eliza",

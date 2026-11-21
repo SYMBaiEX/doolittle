@@ -1,129 +1,55 @@
 #!/usr/bin/env nub
-import "./entrypoint/host-execution";
-import { pathToFileURL } from "node:url";
-import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
-import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
-import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
-import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
-import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
-import type { AgentRuntime } from "@elizaos/core";
-import { getCliErrorMessage } from "./cli/execution/types";
-import { restoreTerminalState } from "./cli/render-utils";
-import { isCliStartupExitError, runOnboardingWizard } from "./cli/startup";
+import { DOOLITTLE_VERSION } from "@doolittle/agent/version";
 import { renderTopLevelHelp } from "./entrypoint/help";
-import { handleEntrypointInitialCommandFlow } from "./entrypoint/initial-command-flow";
-import { resolveEntrypointInvocation } from "./entrypoint/invocation";
-import { writeStderrLine } from "./entrypoint/output";
-import { prepareEntrypointRuntimeBoot } from "./entrypoint/runtime-boot";
-import { isRecoverableTopLevelRuntimeError } from "./entrypoint/runtime-errors";
-import { installRuntimeProcessLifecycle } from "./entrypoint/runtime-process-lifecycle";
-import { handleEntrypointRuntimeSurface } from "./entrypoint/runtime-surface";
-
-installEngineWorkerTransport();
-const sharedEngineHost = installSharedEngineHost(
-  process.env.DOOLITTLE_ENGINE_WORKER_ENTRY
-    ? pathToFileURL(process.env.DOOLITTLE_ENGINE_WORKER_ENTRY)
-    : import.meta.url,
-);
+import { resolveSubcommand } from "./entrypoint/subcommand";
 
 async function main(): Promise<number> {
+  const selection = resolveSubcommand();
+  switch (selection.command) {
+    case "help":
+      console.log(renderTopLevelHelp());
+      return 0;
+    case "version":
+      console.log(`Doolittle ${DOOLITTLE_VERSION}`);
+      return 0;
+  }
+
+  // Snapshot the launch environment before any configuration or plugins load.
+  await import("./entrypoint/host-execution");
+  const [
+    { getDefaultRepoRoot },
+    { getEntrypointLogger },
+    { handleLocalEntrypointSubcommand },
+  ] = await Promise.all([
+    import("@doolittle/agent/config/env/paths"),
+    import("@doolittle/agent/logging/entrypoint-logger"),
+    import("./entrypoint/local-subcommands"),
+  ]);
   const entryLogger = getEntrypointLogger("index");
   const repoRoot = getDefaultRepoRoot();
-  const invocation = await resolveEntrypointInvocation({ repoRoot });
-  const {
-    command,
-    rest,
-    shellIsInteractive,
-    oneShot,
-    immediatePrompt,
-    staticPromptResult,
-    jobControlDir,
-  } = invocation;
-
-  if (
-    await handleEntrypointInitialCommandFlow({
-      command,
-      rest,
-      repoRoot,
-      renderTopLevelHelp,
-      entryLogger,
-      runOnboardingWizard,
-      oneShot,
-      immediatePrompt,
-      staticPromptResult,
-      jobControlDir,
-      launcherPath: process.argv[1],
-      writeStderrLine,
-    })
-  ) {
-    return 0;
-  }
-
-  const {
-    context,
-    bootLogs,
-    runtimePlan,
-    runtimeLogger,
-    startServer,
-    startServerWhenShellReady,
-    apiOwnsRuntimeAfterCli,
-  } = await prepareEntrypointRuntimeBoot({
-    command,
-    shellIsInteractive,
-    immediatePrompt,
+  const localExitCode = await handleLocalEntrypointSubcommand({
+    ...selection,
+    repoRoot,
+    entryLogger,
   });
+  if (localExitCode !== undefined) return localExitCode;
 
-  const installApiLifecycle = () =>
-    installRuntimeProcessLifecycle({
-      label: `${context.config.agentName} ${command}`,
-      async close(reason) {
-        try {
-          await sharedEngineHost?.stopAll();
-        } finally {
-          await shutdownApplicationRuntime(
-            context.runtime as AgentRuntime,
-            reason,
-            {
-              fast: true,
-            },
-          );
-        }
-      },
-      captureFatal: (error, origin) => {
-        entryLogger.captureError("runtime-process-fatal", error, {
-          command,
-          origin,
-        });
-      },
-    });
-
-  if (runtimePlan.shouldStartApiImmediately) {
-    const lifecycle = installApiLifecycle();
-    if (!(await startServer())) {
-      lifecycle.dispose();
-      await shutdownApplicationRuntime(
-        context.runtime as AgentRuntime,
-        "Doolittle API unavailable",
-        { fast: true },
-      );
-      return 1;
-    }
-  }
-
-  const runtimeSurface = await handleEntrypointRuntimeSurface({
-    command,
-    oneShot,
-    jobControlDir,
-    context,
-    runtimePlan,
-    runtimeLogger,
-    startServerWhenShellReady,
-    apiOwnsRuntimeAfterCli,
-    bootLogs,
+  const [
+    { resolveEntrypointInvocation },
+    { handleEntrypointInitialCommandFlow },
+  ] = await Promise.all([
+    import("./entrypoint/invocation"),
+    import("./entrypoint/initial-command-flow"),
+  ]);
+  const invocation = await resolveEntrypointInvocation(selection, { repoRoot });
+  const initialExitCode = await handleEntrypointInitialCommandFlow({
+    ...invocation,
+    entryLogger,
+    launcherPath: process.argv[1],
   });
-
-  if (runtimeSurface.apiOwnsRuntime) installApiLifecycle();
-  return runtimeSurface.exitCode;
+  if (initialExitCode !== undefined) return initialExitCode;
+  const { runEntrypointRuntime } = await import("./entrypoint/runtime-command");
+  return runEntrypointRuntime(invocation, entryLogger, import.meta.url);
 }
 
 // Keep one lightweight handle alive while long-lived TUI/server startup
@@ -134,14 +60,28 @@ main()
   .then((exitCode) => {
     process.exitCode = exitCode;
   })
-  .catch((error) => {
-    const entryLogger = getEntrypointLogger("index");
+  .catch(async (error) => {
+    const [
+      { getEntrypointLogger },
+      { getCliErrorMessage },
+      { restoreTerminalState },
+      { writeStderrLine },
+      { isCliStartupExitError },
+      { isRecoverableTopLevelRuntimeError },
+    ] = await Promise.all([
+      import("@doolittle/agent/logging/entrypoint-logger"),
+      import("./cli/execution/types"),
+      import("./cli/render-utils"),
+      import("./entrypoint/output"),
+      import("./cli/startup"),
+      import("./entrypoint/runtime-errors"),
+    ]);
     restoreTerminalState();
     if (isCliStartupExitError(error)) {
       process.exitCode = error.exitCode;
       return;
     }
-    entryLogger.captureError("entrypoint-main-failed", error);
+    getEntrypointLogger("index").captureError("entrypoint-main-failed", error);
     if (isRecoverableTopLevelRuntimeError(error)) {
       writeStderrLine(getCliErrorMessage(error));
     } else {

@@ -1,13 +1,10 @@
-import { loadApplicationEnv } from "@doolittle/agent/config/env";
-import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
-import { resolveStaticCliInput } from "../cli/execution/static";
 import type { CliExecutionResult } from "../cli/execution/types";
 import { readEntrypointStdinText } from "./stdin";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
 import {
   parseOneShotOptions,
   resolveEntrypointAliasPrompt,
-  resolveSubcommand,
+  type resolveSubcommand,
 } from "./subcommand";
 
 export interface EntrypointInvocation {
@@ -20,17 +17,18 @@ export interface EntrypointInvocation {
   jobControlDir?: string;
 }
 
-export async function resolveEntrypointInvocation(options: {
-  argv?: string[];
-  env?: Record<string, string | undefined>;
-  repoRoot: string;
-  stdin?: AsyncIterable<string | Uint8Array> & { isTTY?: boolean };
-  stdoutIsTTY?: boolean;
-}): Promise<EntrypointInvocation> {
+export async function resolveEntrypointInvocation(
+  { command, rest }: ReturnType<typeof resolveSubcommand>,
+  options: {
+    env?: Record<string, string | undefined>;
+    repoRoot: string;
+    stdin?: AsyncIterable<string | Uint8Array> & { isTTY?: boolean };
+    stdoutIsTTY?: boolean;
+  },
+): Promise<EntrypointInvocation> {
   const stdin = options.stdin ?? process.stdin;
   const env = options.env ?? process.env;
   const stdoutIsTTY = options.stdoutIsTTY ?? process.stdout.isTTY;
-  const { command, rest } = resolveSubcommand(options.argv);
   const stdinIsTTY = Boolean(stdin.isTTY);
   const shellIsInteractive = stdinIsTTY && stdoutIsTTY;
   const oneShot = command === "exec" ? parseOneShotOptions(rest) : undefined;
@@ -46,8 +44,25 @@ export async function resolveEntrypointInvocation(options: {
   const aliasPrompt = resolveEntrypointAliasPrompt(command, rest);
   const immediatePrompt =
     command === "exec" ? oneShot?.prompt : (aliasPrompt ?? pipedPrompt);
-  const builtin = normalizeSlashCommandSyntax(immediatePrompt ?? "");
-  if (!options.env && builtin === "/help") loadApplicationEnv();
+  let staticPromptResult: CliExecutionResult | undefined;
+  if (immediatePrompt) {
+    const [{ normalizeSlashCommandSyntax }, { resolveStaticCliInput }] =
+      await Promise.all([
+        import("@doolittle/agent/runtime/command-catalog"),
+        import("../cli/execution/static"),
+      ]);
+    const builtin = normalizeSlashCommandSyntax(immediatePrompt);
+    if (!options.env && builtin === "/help") {
+      const { loadApplicationEnv } = await import(
+        "@doolittle/agent/config/env"
+      );
+      loadApplicationEnv();
+    }
+    staticPromptResult = resolveStaticCliInput(builtin, {
+      agentName: env.DOOLITTLE_NAME?.trim() || "Eliza",
+      workspaceDir: options.repoRoot,
+    });
+  }
 
   return {
     command,
@@ -55,10 +70,7 @@ export async function resolveEntrypointInvocation(options: {
     shellIsInteractive,
     oneShot,
     immediatePrompt,
-    staticPromptResult: resolveStaticCliInput(builtin, {
-      agentName: env.DOOLITTLE_NAME?.trim() || "Eliza",
-      workspaceDir: options.repoRoot,
-    }),
+    staticPromptResult,
     jobControlDir: env.DOOLITTLE_JOB_CONTROL_DIR?.trim() || undefined,
   };
 }

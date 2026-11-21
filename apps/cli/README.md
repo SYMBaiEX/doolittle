@@ -18,10 +18,12 @@ nub run cli:build
 nub run cli:typecheck
 ```
 
-[`src/index.ts`](src/index.ts) is the source executable. The build writes
-`dist/index.js` and `dist/acp-server.js`; the source installer links `doolittle`
-to the source entrypoint. Application-root discovery is independent of the
-current project directory. Packaged hosts can provide `DOOLITTLE_REPO_ROOT`.
+[`src/index.ts`](src/index.ts) is the source executable. The source installer
+links `doolittle` to it. The CLI build emits `dist/index.js`,
+`dist/acp-server.js`, and their shared chunks. After stopping compiled CLI
+and desktop development processes, run `nub run cli:build --clean` to prune
+chunks from earlier builds. Application-root discovery works from any project
+directory. Packaged hosts can provide `DOOLITTLE_REPO_ROOT`.
 
 ## Ownership
 

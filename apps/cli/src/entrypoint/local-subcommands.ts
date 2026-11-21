@@ -1,39 +1,34 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { AppLogger } from "@doolittle/agent/logging/logger";
-import { renderCommandCatalog } from "@doolittle/agent/runtime/command-catalog";
-import { runInheritedTextProcess } from "@doolittle/agent/services/process-execution";
-import { DOOLITTLE_VERSION } from "@doolittle/agent/version";
+import { writeStderrLine } from "./output";
 import type { EntrypointSubcommand } from "./subcommand";
 
 export async function handleLocalEntrypointSubcommand(input: {
   command: EntrypointSubcommand;
   rest: string[];
   repoRoot: string;
-  renderTopLevelHelp: () => string;
   entryLogger: AppLogger;
-  runOnboardingWizard: (args: string[]) => Promise<void>;
-  writeStderrLine: (message: string) => void;
 }): Promise<number | undefined> {
-  const { command, rest, repoRoot, writeStderrLine } = input;
+  const { command, rest, repoRoot } = input;
   switch (command) {
-    case "help":
-      console.log(input.renderTopLevelHelp());
-      return 0;
-    case "version":
-      console.log(`Doolittle ${DOOLITTLE_VERSION}`);
-      return 0;
-    case "commands":
+    case "commands": {
+      const { renderCommandCatalog } = await import(
+        "@doolittle/agent/runtime/command-catalog"
+      );
       console.log(
         renderCommandCatalog(rest.join(" ").trim() || undefined, 80, repoRoot),
       );
       return 0;
+    }
     case "setup":
-    case "doctor":
-      await input.runOnboardingWizard(
+    case "doctor": {
+      const { runOnboardingWizard } = await import("../cli/startup");
+      await runOnboardingWizard(
         command === "doctor" ? ["--check", ...rest] : rest,
       );
       return 0;
+    }
     case "desktop":
     case "native": {
       const args = { repoRoot, args: rest };
@@ -56,6 +51,9 @@ export async function handleLocalEntrypointSubcommand(input: {
         writeStderrLine("Install script not found at scripts/install.sh.");
         return 1;
       }
+      const { runInheritedTextProcess } = await import(
+        "@doolittle/agent/services/process-execution"
+      );
       const result = await runInheritedTextProcess(
         "bash",
         [installScript, ...rest],

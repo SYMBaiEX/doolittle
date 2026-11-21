@@ -7,6 +7,12 @@
   "bin": {
     "doolittle": "./src/index.ts"
   },
+  "files": [
+    "src",
+    "dist/index.js",
+    "dist/acp-server.js",
+    "dist/doolittle-*.js"
+  ],
   "scripts": {
     "dev": "nub watch src/index.ts",
     "start": "nub src/index.ts",
