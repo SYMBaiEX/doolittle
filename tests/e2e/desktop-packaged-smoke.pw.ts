@@ -30,7 +30,9 @@ test.describe("packaged desktop smoke", () => {
         terminal.locator(".interactive-terminal-mode"),
       ).toContainText("PTY");
       await terminal.getByRole("tabpanel").click();
-      await page.keyboard.type("printf 'FRESH_%s\\n' TERMINAL");
+      await page.keyboard.type(
+        "test -z \"$ELECTRON_RUN_AS_NODE\" && printf 'FRESH_%s\\n' TERMINAL",
+      );
       await page.keyboard.press("Enter");
       await expect
         .poll(

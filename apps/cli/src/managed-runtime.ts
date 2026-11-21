@@ -5,6 +5,10 @@ if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") {
   process.exit(1);
 }
 
+// The app host uses this flag to enter Node mode. User shells and applications
+// launched by the runtime must inherit their normal Electron behavior.
+delete process.env.ELECTRON_RUN_AS_NODE;
+
 const keepAlive = setInterval(() => {}, 60_000);
 
 try {
