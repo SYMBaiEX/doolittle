@@ -1,6 +1,7 @@
 import type { ActionResult } from "@elizaos/core";
 import { isRecord } from "../../utils/records";
 import { actionResultActionName } from "../action-result-metadata";
+import { isSdkTerminalActionName } from "../sdk-terminal-identity";
 import {
   getScopedTurnActionResults,
   hasScopedTurnActionReceipts,
@@ -66,7 +67,7 @@ export function mergeActionResults(
         ) {
           receiptKey = `duplicate-delegation:${blocked.previousSessionId}`;
         }
-      } else if (isRecord(data) && action === "SHELL") {
+      } else if (isRecord(data) && isSdkTerminalActionName(action)) {
         if (typeof data.runId === "string") receiptKey = `shell:${data.runId}`;
       }
 

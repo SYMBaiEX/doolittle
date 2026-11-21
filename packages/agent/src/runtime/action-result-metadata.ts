@@ -9,6 +9,7 @@ import type { ActionResult, ProviderDataRecord } from "@elizaos/core";
 import { asNonEmptyString } from "@elizaos/shared/type-guards";
 import type { LocalMutationInput } from "../services/run-controller-service/index";
 import { isRecord } from "../utils/records";
+import { isShellResultActionName } from "./sdk-terminal-identity";
 
 type RecordLike = Record<string, unknown>;
 type CommandResultSource = RecordLike & { command: unknown; exitCode: unknown };
@@ -302,9 +303,7 @@ function resolveCommandResultSource(
 
   const actionName = asNonEmptyString(data.actionName)?.toUpperCase();
   const looksLikeSdkTerminalResult =
-    (actionName === "SHELL" ||
-      actionName === "SHELL_COMMAND" ||
-      actionName === "RUN_IN_TERMINAL") &&
+    isShellResultActionName(actionName) &&
     asNonEmptyString(data.command) &&
     typeof numberValue(data.exitCode) === "number";
   return looksLikeSdkTerminalResult ? (data as CommandResultSource) : undefined;

@@ -1,4 +1,5 @@
 import type { Action, ActionResult } from "@elizaos/core";
+import { SDK_TERMINAL_ACTION_NAME } from "../runtime/sdk-terminal-identity";
 import { PARALLEL_WORKSPACE_INSPECTION } from "./parallel-workspace-inspection";
 
 export const DOOLITTLE_CODING_ACTION = "DOOLITTLE_CODING";
@@ -20,7 +21,7 @@ export const DOOLITTLE_CODING_SUBACTIONS = [
   "CREATE_DIRECTORY",
   "PATCH_FILE",
   "DOOLITTLE_REPOSITORY",
-  "SHELL",
+  SDK_TERMINAL_ACTION_NAME,
   "DOOLITTLE_APP_SERVER",
   "DOOLITTLE_BROWSER_ANALYZE",
 ] as const;

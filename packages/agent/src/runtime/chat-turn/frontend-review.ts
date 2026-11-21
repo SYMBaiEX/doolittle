@@ -10,6 +10,7 @@ import {
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
 } from "../action-result-metadata";
+import { isSdkTerminalActionName } from "../sdk-terminal-identity";
 import {
   admittedWorkspace,
   chronologyUnverified,
@@ -124,7 +125,7 @@ function freshFrontendReviewAttempt(
         (mutation) => mutation.success,
       );
       const rebuilt =
-        actionResultActionName(result) === "SHELL" &&
+        isSdkTerminalActionName(actionResultActionName(result)) &&
         command &&
         inspectWorkspaceCommands(command.command, command.executedIn).some(
           (operation) => operation.kind === "build",

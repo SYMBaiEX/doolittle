@@ -7,6 +7,7 @@ import {
   hasWorkspaceCodingAttempt,
 } from "../runtime/chat-turn/workspace-noop-completion";
 import { resolveRemoteExecutionPlatform } from "../runtime/commands/command-execution";
+import { SDK_TERMINAL_ACTION_NAME } from "../runtime/sdk-terminal-identity";
 import {
   getScopedTurnAbortSignal,
   getScopedTurnActionResults,
@@ -19,8 +20,7 @@ export const DOOLITTLE_APP_SERVER_ACTION = "DOOLITTLE_APP_SERVER";
 export function createAppServerAction(services: AppServices): Action {
   return {
     name: DOOLITTLE_APP_SERVER_ACTION,
-    description:
-      "Start, inspect, or stop a long-running local application in a managed terminal. After coding and building, start the user's dev command (for example bun run dev) here, not in one-shot SHELL or a detached background shell. Supply the resolved existing absolute cwd. Returns actual HTTP-ready URL, terminal session and process identity. Status and stop require the returned sessionId and are scoped to this conversation. A starting result requires another status check; only ready proves the URL works. Include the URL and terminal stop instructions in the final reply.",
+    description: `Start, inspect, or stop a long-running local application in a managed terminal. After coding and building, start the user's dev command (for example bun run dev) here, not in one-shot ${SDK_TERMINAL_ACTION_NAME} or a detached background shell. Supply the resolved existing absolute cwd. Returns actual HTTP-ready URL, terminal session and process identity. Status and stop require the returned sessionId and are scoped to this conversation. A starting result requires another status check; only ready proves the URL works. Include the URL and terminal stop instructions in the final reply.`,
     descriptionCompressed:
       "Start/status/stop a managed local app; actual URL and terminal Stop control.",
     contexts: ["code", "terminal"],

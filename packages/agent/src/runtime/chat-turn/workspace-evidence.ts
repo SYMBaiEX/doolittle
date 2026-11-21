@@ -7,6 +7,7 @@ import {
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
 } from "../action-result-metadata";
+import { isSdkTerminalActionName } from "../sdk-terminal-identity";
 import {
   missingWorkspaceMutationRequirements as missingVerifiedWorkspaceRequirements,
   verifyWorkspaceNoopCompletion as verifyChronologicalWorkspaceNoop,
@@ -103,7 +104,7 @@ export function admittedWorkspace(
     if (result.success !== true) continue;
     const command = extractCommandResultFromActionResult(result);
     if (
-      actionResultActionName(result) === "SHELL" &&
+      isSdkTerminalActionName(actionResultActionName(result)) &&
       command?.success === true &&
       command.exitCode === 0
     ) {

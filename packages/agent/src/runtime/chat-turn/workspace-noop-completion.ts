@@ -10,6 +10,7 @@ import {
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
 } from "../action-result-metadata";
+import { isSdkTerminalActionName } from "../sdk-terminal-identity";
 
 const LOCAL_MUTATION_ACTIONS = new Set([
   "WRITE_FILE",
@@ -79,7 +80,7 @@ function successfulShellCommands(actionResults: readonly ActionResult[]) {
   return actionResults.flatMap((result, index) => {
     if (
       result.success !== true ||
-      actionResultActionName(result)?.toUpperCase() !== "SHELL"
+      !isSdkTerminalActionName(actionResultActionName(result)?.toUpperCase())
     ) {
       return [];
     }

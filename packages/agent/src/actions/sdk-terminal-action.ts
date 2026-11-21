@@ -92,7 +92,8 @@ export function createSdkTerminalAction(
   const sdkHandler = sdkAction.handler;
   return {
     ...sdkAction,
-    description: `${sdkAction.description} Doolittle's parent may also use SHELL for requested install/build verification after a coding delegation, including recovery from a failed worker; keep implementation work delegated. For project builds, stop any managed dev server in that workspace first. Run the build before asking Doolittle to start the managed application.`,
+    similes: [...new Set([...(sdkAction.similes ?? []), "SHELL"])],
+    description: `${sdkAction.description} Doolittle's parent may also use ${sdkAction.name} for requested install/build verification after a coding delegation, including recovery from a failed worker; keep implementation work delegated. For project builds, stop any managed dev server in that workspace first. Run the build before asking Doolittle to start the managed application.`,
     descriptionCompressed:
       "Run explicit commands or parent install/build verification after coding. Delegate implementation; stop managed dev servers before building.",
     handler: async (runtime, message, state, options) => {
@@ -106,7 +107,7 @@ export function createSdkTerminalAction(
           success: false,
           error: "WORKSPACE_BUILD_CONFLICT",
           text: buildConflict,
-          data: { actionName: "SHELL", command },
+          data: { actionName: sdkAction.name, command },
         };
       } else {
         let releaseScope: (() => void) | undefined;
@@ -128,7 +129,10 @@ export function createSdkTerminalAction(
             success: false,
             error: "SHELL_COMMAND_FAILED",
             text: error instanceof Error ? error.message : String(error),
-            data: { actionName: "SHELL", ...(command ? { command } : {}) },
+            data: {
+              actionName: sdkAction.name,
+              ...(command ? { command } : {}),
+            },
           };
         } finally {
           releaseScope?.();

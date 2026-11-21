@@ -468,7 +468,7 @@ HEADLESS_EVAL_SUITES["headless-workflows-v7"] = {
           prompt: [
             "In the current Doolittle workspace only, create math.mjs exporting a named function sumFinite(values). It returns the sum of finite numeric array entries, ignores strings and non-finite numbers, and returns 0 for an empty array. Preserve the exact v6 behavioral expectations: [1, 2.5, '3', NaN, Infinity, -4] gives -0.5; [] gives 0; [1, '2', 2] gives 3.",
             "Do not create or edit any other task file. The ACP session may add AGENTS.md and CLAUDE.md as harness identity files; leave them untouched.",
-            "Run this exact public SHELL command in the original parent CLI turn after creating math.mjs. Do not delegate the verifier to a worker, subagent, ACP session, or other CLI run:",
+            "Run this exact shell command with the terminal tool in the original parent CLI turn after creating math.mjs. Do not delegate the verifier to a worker, subagent, ACP session, or other CLI run:",
             CODING_VERIFICATION_COMMAND,
             'On verifier success, the final response must be exactly its success JSON body with no code fence or added text: {"file":"math.mjs","tests":"passed"}. Otherwise return exactly {"file":"math.mjs","tests":"unverified"} with no other text. Do not claim verification based on a worker, your response, or another command.',
           ].join("\n"),

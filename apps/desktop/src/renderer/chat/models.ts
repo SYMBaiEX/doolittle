@@ -154,6 +154,7 @@ export function runActionLabel(action: string | null | undefined): string {
     SEARCH_FILES: "Searching files",
     SHELL: "Running command",
     TASKS_SPAWN_AGENT: "Delegating work",
+    TERMINAL_SHELL: "Running command",
     WRITE_FILE: "Writing file",
   };
   return (

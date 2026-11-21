@@ -7,6 +7,7 @@ import {
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
 } from "../action-result-metadata";
+import { isSdkTerminalActionName } from "../sdk-terminal-identity";
 import {
   frontendReviewAttempt,
   frontendReviewRequired,
@@ -395,7 +396,7 @@ export function hasPostAdmissionWorkspaceVerification(
     const freshScripts = new Set<string>();
     const earlierScripts = new Set<string>();
     for (const [index, result] of actionResults.entries()) {
-      if (actionResultActionName(result) !== "SHELL") continue;
+      if (!isSdkTerminalActionName(actionResultActionName(result))) continue;
       const command = extractCommandResultFromActionResult(result);
       if (!command) continue;
       for (const operation of inspectWorkspaceCommands(
@@ -514,7 +515,8 @@ export function hasPostAdmissionWorkspaceVerification(
       // and dependent app/review, while retaining the requested Bun runner.
       if (scope !== "build" || !requirements.requireBunInstall) return true;
       const command = extractCommandResultFromActionResult(result);
-      if (actionResultActionName(result) !== "SHELL" || !command) return true;
+      if (!isSdkTerminalActionName(actionResultActionName(result)) || !command)
+        return true;
       return inspectWorkspaceCommands(command.command, command.executedIn)
         .filter((operation) => operation.kind === "build")
         .every((operation) => operation.runner === "bun");

@@ -85,6 +85,7 @@
     "./runtime/native/service-bridge/ownership": "./src/runtime/native/service-bridge/ownership/index.ts",
     "./runtime/native/service-bridge/service-resolution": "./src/runtime/native/service-bridge/service-resolution/index.ts",
     "./runtime/run-progress": "./src/runtime/run-progress.ts",
+    "./runtime/sdk-terminal-identity": "./src/runtime/sdk-terminal-identity.ts",
     "./runtime/stable-runtime-uuid": "./src/runtime/stable-runtime-uuid.ts",
     "./runtime/theme-catalog": "./src/runtime/theme-catalog/index.ts",
     "./runtime/turn-runtime-scope": "./src/runtime/turn-runtime-scope.ts",

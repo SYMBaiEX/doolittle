@@ -16,6 +16,7 @@ import {
 import { workspaceNoopRequirements } from "../../chat-turn/workspace-noop-completion";
 import { getScopedExecutionLease } from "../../execution-admission";
 import { buildCacheablePrompt } from "../../prompt-cache/index";
+import { SDK_TERMINAL_ACTION_NAME } from "../../sdk-terminal-identity";
 import {
   getScopedTurnAbortSignal,
   getScopedTurnActionResults,
@@ -133,12 +134,12 @@ function completion(
   const parentVerification = [
     ...(requirements.requireBunInstall
       ? [
-          `The user requires a Bun dependency install. After this child session ends, you must run 'cd "${receipt.workdir}" && bun install' yourself through native SHELL and wait for exit code 0; a command run only inside the child session is not a parent-turn SHELL receipt.`,
+          `The user requires a Bun dependency install. After this child session ends, you must run 'cd "${receipt.workdir}" && bun install' yourself through ${SDK_TERMINAL_ACTION_NAME} and wait for exit code 0; a command run only inside the child session is not a parent-turn terminal receipt.`,
         ]
       : []),
     ...(requirements.requireBuild || requirements.requireManagedApplication
       ? [
-          `Before reporting completion${requirements.requireManagedApplication ? " or starting the app" : ""}, run 'cd "${receipt.workdir}" && bun run build' yourself through native SHELL and wait for exit code 0.`,
+          `Before reporting completion${requirements.requireManagedApplication ? " or starting the app" : ""}, run 'cd "${receipt.workdir}" && bun run build' yourself through ${SDK_TERMINAL_ACTION_NAME} and wait for exit code 0.`,
         ]
       : []),
     ...(requirements.requireManagedApplication

@@ -9,6 +9,7 @@ import {
   realpathSync,
 } from "node:fs";
 import { join } from "node:path";
+import { SDK_TERMINAL_ACTION_NAME } from "@doolittle/agent/runtime/sdk-terminal-identity";
 
 export const ACTION_DIAGNOSTIC_BYTE_LIMIT = 262144;
 export const ACTION_DIAGNOSTIC_EVENT_LIMIT = 2048;
@@ -66,6 +67,7 @@ const CATEGORY_BY_ACTION: ReadonlyMap<string, ActionCategory> = new Map([
   ["SEARCH_FILES", "files"],
   ["DOOLITTLE_REPOSITORY", "repository"],
   ["SHELL", "shell"],
+  [SDK_TERMINAL_ACTION_NAME, "shell"],
   ["DOOLITTLE_SHELL_SHORTCUT", "shell"],
   ["DOOLITTLE_APP_SERVER", "managed-app"],
   ["DOOLITTLE_BROWSER_ANALYZE", "browser"],

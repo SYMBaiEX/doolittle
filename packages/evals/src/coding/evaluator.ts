@@ -1,4 +1,8 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import {
+  isSdkTerminalActionName,
+  isShellResultActionName,
+} from "@doolittle/agent/runtime/sdk-terminal-identity";
 import { inspectWorkspaceCommands } from "@doolittle/agent/utils/workspace-commands";
 import type { CodingEvalCase } from "./cases";
 
@@ -197,11 +201,7 @@ function shellReceipt(eventValue: unknown) {
   const action = string(
     metadata.action ?? actionData?.actionName,
   )?.toUpperCase();
-  if (
-    !action ||
-    !["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"].includes(action)
-  )
-    return undefined;
+  if (!isShellResultActionName(action)) return undefined;
   const commandResult =
     record(metadata.commandResult) ??
     record(actionData?.commandResult) ??
@@ -319,7 +319,10 @@ function runtimeSmokeEvidence(
   const evidence: string[] = [];
   for (const eventValue of events) {
     const metadata = record(record(eventValue)?.metadata);
-    if (!metadata || string(metadata.action)?.toUpperCase() !== "SHELL")
+    if (
+      !metadata ||
+      !isSdkTerminalActionName(string(metadata.action)?.toUpperCase())
+    )
       continue;
     const actionResult = record(metadata.actionResult);
     const actionData = record(actionResult?.data);

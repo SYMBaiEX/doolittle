@@ -26,6 +26,7 @@ import {
   type WorkspaceNoopRequirements,
   workspaceNoopRequirements,
 } from "../../packages/agent/src/runtime/chat-turn/workspace-noop-completion";
+import { SDK_TERMINAL_ACTION_NAME } from "../../packages/agent/src/runtime/sdk-terminal-identity";
 import {
   recordScopedTurnActionResult,
   runWithTurnRuntimeScope,
@@ -51,7 +52,7 @@ function mutation(path = `${workdir}/src/App.tsx`): ActionResult {
   });
 }
 function shell(command: string, directory = workdir): ActionResult {
-  return action("SHELL", {
+  return action(SDK_TERMINAL_ACTION_NAME, {
     commandResult: {
       command,
       executedIn: directory,

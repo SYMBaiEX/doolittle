@@ -4,6 +4,7 @@ import { escapeXml } from "../../utils/xml";
 import { extractCommandResultFromActionResult } from "../action-result-metadata";
 import type { AgentExecutionContext } from "../chat";
 import { runModelAnalysis } from "../model-analysis";
+import { isShellResultActionName } from "../sdk-terminal-identity";
 import { resolveExactOutputIntent } from "./exact-output-intent";
 
 const MAX_RESULT_CHARS = 6_000;
@@ -12,7 +13,6 @@ const LARGE_TOOL_TRANSCRIPT_CHARS = 2_000;
 const LARGE_TOOL_TRANSCRIPT_LINES = 20;
 const MAX_EXACT_OUTPUT_CHARS = 4_000;
 const MAX_EXACT_OUTPUT_LINES = 16;
-const SHELL_ACTIONS = new Set(["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"]);
 
 const RAW_FILE_READ =
   /^Read:\s+.+\nLines:\s+\d+-\d+\s+of\s+\d+\n(?:\d+\|[^\n]*(?:\n|$)){2,}/u;
@@ -84,8 +84,7 @@ function exactOutputResult(
     result.verifiedUserFacing !== true ||
     result.userFacingText !== response ||
     result.error != null ||
-    typeof data.actionName !== "string" ||
-    !SHELL_ACTIONS.has(data.actionName) ||
+    !isShellResultActionName(data.actionName) ||
     typeof data.command !== "string" ||
     !data.command.trim() ||
     data.exitCode !== 0 ||
@@ -141,8 +140,7 @@ export function isUnsynthesizedToolResponse(
         (data &&
           ("commandResult" in data ||
             "command" in data ||
-            (typeof data.actionName === "string" &&
-              SHELL_ACTIONS.has(data.actionName)))),
+            isShellResultActionName(data.actionName))),
     );
     const unqualifiedCommand =
       commandReceipt &&

@@ -348,7 +348,7 @@ export async function createApiServer(
               );
               return;
             }
-            // SHELL sends its dedicated capability, not an API bearer token.
+            // The SDK terminal action sends its dedicated capability, not an API bearer token.
             const rejection = resolveTerminalRunRejection(incoming, {});
             if (rejection) {
               await writeEarlyResponse(

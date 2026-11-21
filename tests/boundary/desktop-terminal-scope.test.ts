@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime, Memory } from "@elizaos/core";
 import { afterEach, expect, it, vi } from "vitest";
+import { createCodingAction } from "../../packages/agent/src/actions/coding-action";
 import { createSdkTerminalAction } from "../../packages/agent/src/actions/sdk-terminal-action";
+import { extractCommandResultFromActionResult } from "../../packages/agent/src/runtime/action-result-metadata";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 import { leaseTerminalActionScope } from "../../packages/agent/src/runtime/terminal-action-scope";
 import {
@@ -77,6 +79,7 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
   });
   try {
     const action = createSdkTerminalAction(services);
+    expect(createCodingAction().subActions).toContain(action.name);
     const result = await runWithConversationWorkspace(scope, () =>
       action.handler(
         runtime,
@@ -88,11 +91,19 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
     expect(result?.success, result?.text).toBe(true);
     expect(result?.data).toEqual(
       expect.objectContaining({
+        actionName: action.name,
         command: "pwd",
         executedIn: root,
         exitCode: 0,
       }),
     );
+    if (!result) throw new Error("SDK terminal result was not returned");
+    expect(extractCommandResultFromActionResult(result)).toMatchObject({
+      command: "pwd",
+      executedIn: root,
+      exitCode: 0,
+      success: true,
+    });
     expect(run).toHaveBeenCalledOnce();
     if (!captured) throw new Error("SDK request was not captured");
     const replay = await handler(

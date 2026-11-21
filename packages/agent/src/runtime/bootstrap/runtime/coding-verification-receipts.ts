@@ -4,6 +4,7 @@ import {
   CODING_VERIFICATION_SUCCESS_MARKER,
   type CodingVerificationReceipt,
 } from "@doolittle/contracts";
+import { isSdkTerminalActionName } from "../../sdk-terminal-identity";
 
 export interface CodingVerificationRunIdentity {
   sessionId: string;
@@ -102,7 +103,7 @@ export class CodingVerificationReceiptTracker {
     identity: CodingVerificationRunIdentity | undefined,
     action: string | undefined,
   ): void {
-    if (!hasIdentity(identity) || action !== "SHELL") return;
+    if (!hasIdentity(identity) || !isSdkTerminalActionName(action)) return;
     let state = this.runs.get(identity.runId);
     if (!state) {
       state = {
@@ -154,7 +155,8 @@ export class CodingVerificationReceiptTracker {
     expectedWorkdir: string | undefined;
   }): ScopedCodingVerificationReceipt | undefined {
     const { identity } = input;
-    if (!hasIdentity(identity) || input.action !== "SHELL") return undefined;
+    if (!hasIdentity(identity) || !isSdkTerminalActionName(input.action))
+      return undefined;
 
     let state = this.runs.get(identity.runId);
     if (!state) {
@@ -181,7 +183,7 @@ export class CodingVerificationReceiptTracker {
     const actionResult = record(input.actionResult) ? input.actionResult : {};
     const data = record(actionResult.data) ? actionResult.data : {};
     if (
-      data.actionName !== "SHELL" ||
+      !isSdkTerminalActionName(data.actionName) ||
       data.command !== CODING_VERIFICATION_COMMAND
     )
       return undefined;
