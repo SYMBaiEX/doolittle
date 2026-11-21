@@ -22,8 +22,6 @@ import {
   type ConversationDraft,
   loadConversationDrafts,
   loadConversationPins,
-  type StorageLike,
-  safeSetStorageItem,
   saveConversationDrafts,
   saveConversationPins,
 } from "../conversation-persistence";
@@ -51,11 +49,11 @@ import type {
 } from "./models";
 
 import type { RunClaims } from "./run-claim-reconciliation";
+import {
+  loadStoredChatMessages,
+  saveStoredChatMessages,
+} from "./transcript-cache";
 
-const CHAT_STORAGE_KEY = "doolittle.desktop.conversations.v2";
-const MAX_CHAT_STORAGE_CHARS = 3_500_000;
-const MAX_PERSISTED_MESSAGES_PER_SESSION = 500;
-const MAX_PERSISTED_MESSAGE_CONTENT = 120_000;
 const HISTORY_PAGE_SIZE = 500;
 
 type PagedSessionMessagesResponse = SessionMessagesResponse & {
@@ -74,106 +72,6 @@ function pruneAttachmentCleanup(
     Object.entries(attachmentCleanup).filter(([attachmentId]) =>
       attachmentIds.has(attachmentId),
     ),
-  );
-}
-
-function boundedStoredMessages(
-  messages: readonly DisplayMessage[],
-  maxMessages: number,
-  maxContent: number,
-): DisplayMessage[] {
-  return messages.slice(-maxMessages).map((message) =>
-    message.content.length <= maxContent
-      ? message
-      : {
-          ...message,
-          content: `${message.content.slice(0, maxContent)}\n\n[Local transcript cache truncated]`,
-        },
-  );
-}
-
-/** Persist chat history as a bounded, best-effort cache; the server remains canonical. */
-function saveStoredChatMessages(
-  storage: StorageLike,
-  messages: ConversationStore,
-  protectedSessionId?: string,
-): boolean {
-  try {
-    const entries = Object.entries(messages).sort(([, left], [, right]) =>
-      (right.at(-1)?.createdAt ?? "").localeCompare(
-        left.at(-1)?.createdAt ?? "",
-      ),
-    );
-    const ordered = protectedSessionId
-      ? [
-          ...entries.filter(([sessionId]) => sessionId === protectedSessionId),
-          ...entries.filter(([sessionId]) => sessionId !== protectedSessionId),
-        ]
-      : entries;
-    const persisted: ConversationStore = {};
-    for (const [sessionId, sessionMessages] of ordered) {
-      const bounded = boundedStoredMessages(
-        sessionMessages,
-        MAX_PERSISTED_MESSAGES_PER_SESSION,
-        MAX_PERSISTED_MESSAGE_CONTENT,
-      );
-      const candidate = JSON.stringify({
-        ...persisted,
-        [sessionId]: bounded,
-      });
-      if (candidate.length <= MAX_CHAT_STORAGE_CHARS) {
-        persisted[sessionId] = bounded;
-        continue;
-      }
-      if (sessionId === protectedSessionId) {
-        const compact = boundedStoredMessages(sessionMessages, 50, 32_000);
-        const compactCandidate = JSON.stringify({
-          ...persisted,
-          [sessionId]: compact,
-        });
-        if (compactCandidate.length <= MAX_CHAT_STORAGE_CHARS) {
-          persisted[sessionId] = compact;
-        }
-      }
-    }
-    return safeSetStorageItem(
-      storage,
-      CHAT_STORAGE_KEY,
-      JSON.stringify(persisted),
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const message = value as Partial<DisplayMessage>;
-  const capsule = message.contextCapsule;
-  const validCapsule =
-    capsule === undefined ||
-    (Boolean(capsule) &&
-      typeof capsule === "object" &&
-      (capsule.kind === "file" ||
-        capsule.kind === "diff" ||
-        capsule.kind === "review" ||
-        capsule.kind === "brief" ||
-        capsule.kind === "terminal" ||
-        capsule.kind === "plan" ||
-        capsule.kind === "browser") &&
-      typeof capsule.path === "string" &&
-      (capsule.source === undefined || typeof capsule.source === "string"));
-  return (
-    typeof message.id === "string" &&
-    message.id.length > 0 &&
-    (message.runId === undefined || typeof message.runId === "string") &&
-    (message.role === "user" || message.role === "assistant") &&
-    typeof message.content === "string" &&
-    typeof message.createdAt === "string" &&
-    (message.replayGap === undefined || message.replayGap === true) &&
-    validCapsule
   );
 }
 
@@ -229,27 +127,6 @@ async function fetchHistoryPage(
 
 export interface ChatSessionForRender extends SessionSummary {
   pinned: boolean;
-}
-
-export function loadStoredChatMessages(
-  storage: StorageLike,
-): ConversationStore {
-  try {
-    const value = storage.getItem(CHAT_STORAGE_KEY);
-    if (!value) return {};
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(parsed).map(([sessionId, messages]) => [
-        sessionId,
-        Array.isArray(messages) ? messages.filter(isStoredDisplayMessage) : [],
-      ]),
-    ) as ConversationStore;
-  } catch {
-    return {};
-  }
 }
 
 function canonicalReplyIndexAfter(

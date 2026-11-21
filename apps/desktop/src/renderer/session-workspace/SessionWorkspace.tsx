@@ -16,7 +16,7 @@ import {
 import type { SessionSummary } from "../../shared/contracts";
 import type { ChatPageProps } from "../ChatPage";
 import type { ConversationStore, RunReceiptStore } from "../chat/models";
-import { loadStoredChatMessages } from "../chat/useChatConversationState";
+import { loadStoredChatMessages } from "../chat/transcript-cache";
 import { copyContextText } from "../context-menu-clipboard";
 import { newConversationId } from "../conversation-id";
 import {
