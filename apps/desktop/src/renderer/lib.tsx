@@ -116,16 +116,19 @@ export function compactNumber(value: number): string {
   }).format(value);
 }
 
+let timestampFormatter: Intl.DateTimeFormat | undefined;
+
 export function displayTimestamp(value?: string): string {
   if (!value) return "Not yet";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(undefined, {
+  timestampFormatter ??= new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(date);
+  });
+  return timestampFormatter.format(date);
 }
 
 export function useApiResource<T>(
