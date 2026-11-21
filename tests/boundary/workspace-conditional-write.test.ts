@@ -9,12 +9,13 @@ import {
   type WorkspaceCheckpoint,
   WorkspaceCheckpointService,
 } from "../../packages/agent/src/services/workspace-service/checkpoints";
+import { createDeferred } from "../support/deferred";
 
 it("keeps a newer file written while an editor save waits for its checkpoint", async () => {
   const root = mkdtempSync(join(tmpdir(), "doolittle-conditional-write-"));
   const path = join(root, "note.txt");
-  const started = Promise.withResolvers<void>();
-  const checkpoint = Promise.withResolvers<WorkspaceCheckpoint>();
+  const started = createDeferred<void>();
+  const checkpoint = createDeferred<WorkspaceCheckpoint>();
   const receipt = {
     id: "fixture",
     createdAt: "",
