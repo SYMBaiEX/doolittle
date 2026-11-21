@@ -70,9 +70,11 @@ test.describe("packaged desktop smoke", () => {
           .getByText("model provider is unavailable", { exact: false }),
       ).toBeVisible({ timeout: 60_000 });
 
-      const identityPath = "/runtime/bot-identity";
-      type WorkerIdentity = { agentId: string; runtimeInstanceId: string };
-      const identity = await agentRequest<WorkerIdentity>(page, identityPath);
+      const processId = desktop.app.process().pid;
+      const agentId = await page.evaluate(
+        async () => (await window.doolittle.getBackendState()).agentId,
+      );
+      expect(agentId).toEqual(expect.any(String));
       const historyPath = "/sessions/search?query=Fresh+packaged+offline+hello";
       const history = await agentRequest<{ hits: unknown[] }>(
         page,
@@ -81,12 +83,12 @@ test.describe("packaged desktop smoke", () => {
       expect(history.hits.length).toBeGreaterThan(0);
 
       await desktop.restart();
-      const reopened = await agentRequest<WorkerIdentity>(
-        desktop.page,
-        identityPath,
-      );
-      expect(reopened.agentId).toBe(identity.agentId);
-      expect(reopened.runtimeInstanceId).not.toBe(identity.runtimeInstanceId);
+      expect(desktop.app.process().pid).not.toBe(processId);
+      expect(
+        await desktop.page.evaluate(
+          async () => (await window.doolittle.getBackendState()).agentId,
+        ),
+      ).toBe(agentId);
       expect(await agentRequest(desktop.page, historyPath)).toEqual(history);
     } finally {
       await desktop.dispose();
