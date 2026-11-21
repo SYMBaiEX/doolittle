@@ -8,7 +8,7 @@
 
 import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { loadApplicationEnv } from "@doolittle/agent/config/env";
+import { loadApplicationEnv } from "@doolittle/agent/config/env/load";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
 

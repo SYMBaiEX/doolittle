@@ -1,7 +1,10 @@
 import { lstatSync } from "node:fs";
 import { resolve } from "node:path";
 import { readRegularFileSync } from "@doolittle/storage";
+import { syncElizaEnvAliases } from "@elizaos/shared/utils/env";
 import { parse, populate } from "dotenv";
+import { stageLegacyApiAliases } from "./aliases";
+import { getDefaultRepoRoot } from "./paths";
 
 const MAX_REPO_ENV_BYTES = 256 * 1024;
 const UNSAFE_ENV_ERROR = "Unable to read application .env safely.";
@@ -48,4 +51,19 @@ export function loadProcessEnv(
       Object.hasOwn(parsed, "DATABASE_URL") ||
       Object.hasOwn(parsed, "POSTGRES_URL"),
   };
+}
+
+// Capture the application root before loading values from its environment file.
+export const applicationEnvRoot = getDefaultRepoRoot();
+let declaresDatabaseUrl: boolean | undefined;
+
+export function loadApplicationEnv({ reload = false } = {}): boolean {
+  if (!reload && declaresDatabaseUrl !== undefined) return declaresDatabaseUrl;
+  // Workers only receive settings approved by the desktop host.
+  declaresDatabaseUrl =
+    process.env.DOOLITTLE_BOT_RUNTIME !== "worker" &&
+    loadProcessEnv(applicationEnvRoot).declaresDatabaseUrl;
+  stageLegacyApiAliases(process.env);
+  syncElizaEnvAliases({ brandedPrefix: "DOOLITTLE" });
+  return declaresDatabaseUrl;
 }

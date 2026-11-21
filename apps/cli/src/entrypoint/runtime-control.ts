@@ -1,6 +1,5 @@
 import type { AppLogger } from "@doolittle/agent/logging/logger";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
-import { readWorkerBotProfile } from "@doolittle/agent/runtime/bootstrap/bot-profile";
 import type { ApiServerAddress } from "@doolittle/agent/server";
 import {
   DESKTOP_RUNTIME_LISTENING,
@@ -123,7 +122,7 @@ export function createApiStartupController(
   let shellClosed = false;
   let listenerRequested = false;
   const startIngress = () => {
-    if (readWorkerBotProfile()) return;
+    if (process.env.DOOLITTLE_BOT_RUNTIME === "worker") return;
     try {
       context.gateway.startIngress();
     } catch (error) {
