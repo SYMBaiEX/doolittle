@@ -372,6 +372,7 @@ export function SettingsPage({
   return (
     <SettingsFrame
       className={SETTINGS_PAGE_CLASS}
+      data-settings-searching={Boolean(sectionQuery.trim())}
       navigation={
         <SettingsNavigation
           categories={categories}

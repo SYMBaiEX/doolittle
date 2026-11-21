@@ -1,0 +1,103 @@
+[data-analytics-page] {
+  min-block-size: 100%;
+  align-content: start;
+  gap: 0;
+}
+
+.analytics-workbench,
+.analytics-empty-landing {
+  margin: var(--document-gap, 12px) var(--document-inset, 12px);
+}
+
+.analytics-empty-landing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.analytics-workbench,
+.analytics-grid {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--document-gap, 12px);
+}
+
+.analytics-grid {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: stretch;
+}
+
+.analytics-grid > section {
+  overflow: hidden;
+}
+
+.analytics-series-scroll,
+.analytics-session-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.analytics-series-scroll:focus-visible,
+.analytics-session-scroll:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.analytics-series {
+  display: flex;
+  align-items: end;
+  min-inline-size: 100%;
+  margin: 0;
+  padding: 4px 10px 10px;
+  list-style: none;
+}
+
+.analytics-series > li {
+  display: grid;
+  flex: 1 0 34px;
+  grid-template-rows: auto clamp(110px, 20vh, 220px) auto;
+  justify-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-series-track {
+  display: flex;
+  align-items: end;
+  inline-size: min(22px, 66%);
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--surface-soft);
+}
+
+.analytics-series-track > i {
+  inline-size: 100%;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+}
+
+.analytics-session-scroll {
+  max-block-size: clamp(220px, 48dvh, 480px);
+}
+
+.analytics-session-scroll table {
+  min-inline-size: 26rem;
+}
+
+.analytics-session-scroll :is(th, td):is(:nth-child(2), :nth-child(3)) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+@container observability (max-width: 770px) {
+  .analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -222,6 +222,8 @@ export function PageHeader({
       <PagePanel.Header
         actions={actions ? <div className="page-actions">{actions}</div> : null}
         bordered={false}
+        className="page-header__toolbar"
+        contentClassName="page-header__copy"
         description={<p>{description}</p>}
         descriptionClassName="page-header__description"
         eyebrow={<span className="eyebrow">{eyebrow}</span>}

@@ -145,7 +145,7 @@ export function LogsPage({
           { label: "Errors", value: errorCount, tone: "bad" },
         ]}
       />
-      <div className={OBSERVABILITY_FILTER_CLASS}>
+      <div className={`${OBSERVABILITY_FILTER_CLASS} runtime-log-filters`}>
         <label htmlFor="runtime-log-search">
           <span className="sr-only">Search runtime logs</span>
           <Input
@@ -186,7 +186,6 @@ export function LogsPage({
         </Notice>
       ) : null}
       <RuntimeLogStream
-        className="[&>[role=log]]:h-[clamp(18rem,56vh,35rem)] max-[700px]:[&>[role=log]]:h-[clamp(18rem,54svh,26rem)]"
         entries={logEntries}
         error={resource.error || undefined}
         filtered={Boolean(effectiveQuery || effectiveLevel !== "all")}

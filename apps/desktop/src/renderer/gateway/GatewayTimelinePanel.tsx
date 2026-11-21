@@ -83,7 +83,7 @@ export function GatewayTimelinePanel({
         ) : null}
       </div>
       {entries.length > 0 ? (
-        <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(120px,0.5fr)_minmax(130px,0.6fr)_minmax(200px,1fr)] gap-2.25 border-x-0 border-y border-[var(--border)] px-0 py-2.25 max-[620px]:grid-cols-1">
+        <fieldset className="gateway-timeline-filters m-0 grid min-w-0 gap-2.25 border-x-0 border-y border-[var(--border)] px-0 py-2.25">
           <legend className="sr-only">Gateway record filters</legend>
           <label className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]">
             Direction

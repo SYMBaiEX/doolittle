@@ -141,7 +141,7 @@ export function SkillsPage({ active }: { active: boolean }) {
       </div>
       <section
         aria-labelledby="skills-catalog-tab"
-        className="skills-page-catalog grid gap-2.5 [&_.catalog-browser]:min-h-[clamp(400px,54vh,600px)]"
+        className="skills-page-catalog grid gap-2.5"
         hidden={section !== "catalog"}
         id="skills-catalog-panel"
         role="tabpanel"

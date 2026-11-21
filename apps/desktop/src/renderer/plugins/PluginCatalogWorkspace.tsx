@@ -49,7 +49,7 @@ export function PluginCatalogWorkspace({
   return (
     <section
       aria-label="Runtime plugin catalog"
-      className={`plugin-catalog-workspace min-[821px]:h-[clamp(380px,42vh,500px)] ${CATALOG_BROWSER_CLASS}`}
+      className={`plugin-catalog-workspace ${CATALOG_BROWSER_CLASS}`}
     >
       <aside className={CATALOG_INDEX_CLASS}>
         <header className={CATALOG_INDEX_HEADER_CLASS}>

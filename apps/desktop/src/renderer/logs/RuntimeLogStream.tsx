@@ -6,12 +6,8 @@ import {
   ErrorBlock,
   LoadingBlock,
 } from "../lib";
-import {
-  logEntryBorderColor,
-  logEntryClassName,
-  logEntryTone,
-  type RuntimeLogEntry,
-} from "../log-viewer-mapping";
+import { logEntryTone, type RuntimeLogEntry } from "../log-viewer-mapping";
+import "./runtime-log-stream.css";
 
 export function RuntimeLogStream({
   className = "",
@@ -48,21 +44,16 @@ export function RuntimeLogStream({
   return (
     <section
       aria-labelledby="runtime-log-stream-title"
-      className={`overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] ${className}`}
+      className={`runtime-log-stream ${className}`}
       data-runtime-log-stream="true"
     >
-      <header className="flex min-h-9.5 items-center justify-between gap-3 border-[var(--border)] border-b px-2.5 py-1.5">
-        <div className="grid min-w-0 gap-px">
-          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
-            Runtime
-          </span>
-          <h2
-            className="m-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]"
-            id="runtime-log-stream-title"
-          >
-            Event stream
-          </h2>
-        </div>
+      <header className="runtime-log-stream__header">
+        <h2
+          className="m-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]"
+          id="runtime-log-stream-title"
+        >
+          Runtime events
+        </h2>
         <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
           {entries.length.toLocaleString()} records
         </span>
@@ -87,32 +78,33 @@ export function RuntimeLogStream({
       ) : (
         <div
           aria-label="Runtime log records"
-          className="overflow-y-auto"
+          className="runtime-log-stream__records"
           role="log"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: The log is an independent scroll region with no nested focusable controls.
+          tabIndex={0}
         >
           {entries.map((entry) => (
             <article
-              className={`grid min-h-9 grid-cols-[54px_minmax(0,1fr)_92px] items-start gap-2 border-[var(--line-subtle)] border-b border-l-2 px-2.25 py-1.75 last:border-b-0 data-[search-target]:bg-[var(--surface-raised)] focus-visible:-outline-offset-1 focus-visible:outline-1 focus-visible:outline-[var(--focus-ring)] max-[700px]:grid-cols-[52px_minmax(0,1fr)] ${logEntryClassName(entry)}`}
+              className="runtime-log-stream__row"
               data-search-target={entry.id === focusedLogId ? "" : undefined}
               key={entry.id}
               ref={entry.id === focusedLogId ? focusedEntryRef : undefined}
-              style={{ borderLeftColor: logEntryBorderColor(entry.level) }}
               tabIndex={entry.id === focusedLogId ? -1 : undefined}
             >
-              <Badge tone={logEntryTone(entry.level)}>
-                {entry.level.toUpperCase()}
-              </Badge>
-              <p className="m-0 min-w-0 whitespace-pre-wrap break-words font-[var(--font-mono)] text-[length:var(--text-meta)] leading-[1.5] text-[var(--text-soft)]">
-                {entry.message}
-              </p>
+              <div className="runtime-log-stream__severity">
+                <Badge tone={logEntryTone(entry.level)}>
+                  {entry.level.toUpperCase()}
+                </Badge>
+              </div>
               {entry.timestamp ? (
                 <time
-                  className="text-right font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] max-[700px]:hidden"
+                  className="runtime-log-stream__time"
                   dateTime={entry.timestamp}
                 >
                   {displayTimestamp(entry.timestamp)}
                 </time>
               ) : null}
+              <p className="runtime-log-stream__message">{entry.message}</p>
             </article>
           ))}
         </div>

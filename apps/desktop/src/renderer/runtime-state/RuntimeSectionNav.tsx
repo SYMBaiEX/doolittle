@@ -16,12 +16,12 @@ export function RuntimeSectionNav<Section extends string>({
   return (
     <TabsList
       aria-label={ariaLabel}
-      className="runtime-section-nav flex h-auto w-full flex-wrap items-stretch gap-1 border-b border-[var(--line-subtle)] bg-transparent p-0"
+      className="runtime-section-nav flex h-auto min-w-0 w-full flex-nowrap items-stretch justify-start gap-1 overflow-x-auto border-b border-[var(--line-subtle)] bg-transparent p-0 [scrollbar-width:thin]"
     >
       {sections.map((section) => (
         <TabsTrigger
           aria-label={`${section.label}: ${section.detail}`}
-          className="runtime-section-nav__item min-h-10 max-[720px]:min-h-11 min-w-0 rounded-xs border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-control)] whitespace-normal break-words text-center leading-snug text-[var(--muted)] shadow-none focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-[var(--text)] data-[state=active]:shadow-none"
+          className="runtime-section-nav__item flex-none min-h-10 max-[720px]:min-h-11 rounded-xs border-0 bg-transparent px-2.5 py-1.5 text-[length:var(--text-control)] whitespace-nowrap leading-snug text-[var(--muted)] shadow-none focus-visible:z-1 focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] data-[state=active]:bg-[var(--surface-hover)] data-[state=active]:font-semibold data-[state=active]:text-[var(--text)] data-[state=active]:shadow-none"
           key={section.id}
           title={section.detail}
           value={section.id}

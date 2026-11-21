@@ -25,36 +25,6 @@ export function logEntryTone(level: string): "neutral" | "warn" | "bad" {
   return "neutral";
 }
 
-export function logEntryClassName(
-  entry: Pick<RuntimeLogEntry, "level">,
-): string {
-  const tone = logLevelTone(entry.level);
-  if (tone === "debug" || tone === "trace") {
-    return "opacity-75";
-  }
-  if (tone === "warn") {
-    return "[&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]";
-  }
-  if (tone === "info") {
-    return "[&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]";
-  }
-  return "";
-}
-
-export function logEntryBorderColor(level: string): string {
-  switch (logLevelTone(level)) {
-    case "error":
-      return "var(--danger)";
-    case "warn":
-      return "var(--warning)";
-    case "debug":
-    case "trace":
-      return "var(--muted)";
-    default:
-      return "var(--line-subtle)";
-  }
-}
-
 /** Translates Doolittle's structured runtime events into the public UI viewer shape. */
 export function toLogViewerEntries(logs: unknown[]): RuntimeLogEntry[] {
   return logs.map((value, index) => {

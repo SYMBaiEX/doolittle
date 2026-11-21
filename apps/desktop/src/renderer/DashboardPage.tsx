@@ -33,6 +33,7 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
+import "./dashboard/dashboard-workbench.css";
 
 interface RepoStatusResponse {
   status?: string;
@@ -155,9 +156,9 @@ export function DashboardPage({
     return (
       <div className={DASHBOARD_PAGE_CLASS} data-dashboard-page="true">
         <PageHeader
-          eyebrow="Mission control"
+          eyebrow="Workspace"
           title="Dashboard"
-          description="Current pressure, next actions, and workspace state."
+          description="Pending decisions, recent conversations, and repository status."
           actions={
             <Button disabled size="sm" type="button" variant="secondary">
               Refresh
@@ -174,9 +175,9 @@ export function DashboardPage({
   return (
     <div className={DASHBOARD_PAGE_CLASS} data-dashboard-page="true">
       <PageHeader
-        eyebrow="Mission control"
+        eyebrow="Workspace"
         title="Dashboard"
-        description="Current pressure, next actions, and workspace state."
+        description="Pending decisions, recent conversations, and repository status."
         actions={
           <Button onClick={refresh} size="sm" type="button" variant="secondary">
             Refresh
@@ -184,62 +185,61 @@ export function DashboardPage({
         }
       />
 
-      {topLevelErrors.length ? (
-        <Notice tone="warn">
-          Some dashboard panels are degraded. Working data still renders where
-          available.
-        </Notice>
-      ) : null}
+      <div className="dashboard-workbench">
+        {topLevelErrors.length ? (
+          <Notice tone="warn">Some dashboard panels are unavailable.</Notice>
+        ) : null}
 
-      <DashboardPriorityPanel
-        agentAccounts={accountPoolSummary.enabled}
-        conversations={compactNumber(sessionSummary.total)}
-        nextActions={nextActions}
-        onOpenChat={onOpenChat}
-        onOpenProviders={onOpenProviders}
-        onOpenReview={onOpenReview}
-        onOpenSetup={onOpenSetup}
-        onOpenTasks={onOpenTasks}
-        reloadRepo={repoStatus.reload}
-        reloadSetup={setup.reload}
-        repo={repo}
-        repoError={repoStatus.error}
-        repoLoading={repoStatus.loading}
-        runtimePlugins={compactNumber(runtimePluginCount)}
-        sessions={sessionCards}
-        setupEntries={setupEntries}
-        setupError={setup.error}
-        setupLoading={setup.loading}
-        setupWarnings={setupHealth.warnings}
-      />
+        <DashboardPriorityPanel
+          agentAccounts={accountPoolSummary.enabled}
+          conversations={compactNumber(sessionSummary.total)}
+          nextActions={nextActions}
+          onOpenChat={onOpenChat}
+          onOpenProviders={onOpenProviders}
+          onOpenReview={onOpenReview}
+          onOpenSetup={onOpenSetup}
+          onOpenTasks={onOpenTasks}
+          reloadRepo={repoStatus.reload}
+          reloadSetup={setup.reload}
+          repo={repo}
+          repoError={repoStatus.error}
+          repoLoading={repoStatus.loading}
+          runtimePlugins={compactNumber(runtimePluginCount)}
+          sessions={sessionCards}
+          setupEntries={setupEntries}
+          setupError={setup.error}
+          setupLoading={setup.loading}
+          setupWarnings={setupHealth.warnings}
+        />
 
-      <DashboardActivityPanels
-        approvals={approvalCards}
-        approvalsError={approvals.error}
-        approvalsLoading={approvals.loading}
-        onOpenChat={onOpenChat}
-        onOpenReview={onOpenReview}
-        onOpenTasks={onOpenTasks}
-        reloadApprovals={approvals.reload}
-        reloadTasks={tasks.reload}
-        sessions={sessionCards}
-        tasks={taskCards}
-        tasksError={tasks.error}
-        tasksLoading={tasks.loading}
-      />
+        <DashboardActivityPanels
+          approvals={approvalCards}
+          approvalsError={approvals.error}
+          approvalsLoading={approvals.loading}
+          onOpenChat={onOpenChat}
+          onOpenReview={onOpenReview}
+          onOpenTasks={onOpenTasks}
+          reloadApprovals={approvals.reload}
+          reloadTasks={tasks.reload}
+          sessions={sessionCards}
+          tasks={taskCards}
+          tasksError={tasks.error}
+          tasksLoading={tasks.loading}
+        />
 
-      <HomeObservabilityLinks />
+        <HomeObservabilityLinks />
 
-      <DashboardRuntimeDetails
-        accountPool={accountPoolSummary}
-        accountPoolError={accountPool.error}
-        accountPoolLoading={accountPool.loading}
-        onOpenProviders={onOpenProviders}
-        ownershipCount={ownershipCount}
-        reloadAccountPool={accountPool.reload}
-        runtime={runtime}
-        runtimePluginCount={runtimePluginCount}
-      />
+        <DashboardRuntimeDetails
+          accountPool={accountPoolSummary}
+          accountPoolError={accountPool.error}
+          accountPoolLoading={accountPool.loading}
+          onOpenProviders={onOpenProviders}
+          ownershipCount={ownershipCount}
+          reloadAccountPool={accountPool.reload}
+          runtime={runtime}
+          runtimePluginCount={runtimePluginCount}
+        />
+      </div>
     </div>
   );
 }

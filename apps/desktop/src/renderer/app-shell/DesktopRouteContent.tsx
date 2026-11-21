@@ -35,6 +35,7 @@ import {
   type OrchestrationFocusState,
 } from "./route-focus-state";
 import { VIEW_PRIMITIVES_CLASS } from "./view-layout";
+import "./route-documents.css";
 
 const LINKED_WORK_VIEWS = [
   ["review", "review"],
@@ -451,5 +452,14 @@ export function DesktopRouteContent({
     }
   })();
 
-  return <div className={`contents ${VIEW_PRIMITIVES_CLASS}`}>{content}</div>;
+  return (
+    <div
+      className={`contents ${VIEW_PRIMITIVES_CLASS}`}
+      data-route-document={
+        routeOwner === "chat" || routeOwner === "code" ? undefined : routeOwner
+      }
+    >
+      {content}
+    </div>
+  );
 }

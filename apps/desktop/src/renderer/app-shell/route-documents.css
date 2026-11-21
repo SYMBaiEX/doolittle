@@ -1,0 +1,283 @@
+/* The outer shell owns the viewport. These gutters belong to headers, toolbars,
+   and panel contents, so full-bleed workspaces retain their available space. */
+[data-route-document] {
+  --document-gap: 12px;
+  --document-inset: clamp(12px, 1.45vw, 22px);
+  --document-toolbar-height: 42px;
+}
+
+[data-route-document] > .page {
+  margin: 0;
+  min-inline-size: 0;
+  max-inline-size: none;
+  padding: 0;
+}
+
+[data-route-document] .page-header {
+  display: block;
+  min-block-size: 0;
+  margin: 0;
+  padding: 0;
+  border-block-end: 1px solid var(--border);
+  background: var(--surface);
+}
+
+[data-route-document] .page-header__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px var(--document-gap);
+  min-block-size: var(--document-toolbar-height);
+  padding: 10px var(--document-inset);
+}
+
+[data-route-document] .page-header__toolbar > div:first-child {
+  inline-size: auto;
+  min-inline-size: min(100%, 15rem);
+}
+
+[data-route-document] .page-header__copy {
+  max-inline-size: 45rem;
+  overflow-wrap: anywhere;
+}
+
+[data-route-document] .page-header__copy h1 {
+  margin: 0;
+  font-size: var(--page-title-size, 20px);
+  line-height: 1.2;
+}
+
+[data-route-document] .page-header__description > p {
+  margin: 0;
+  color: var(--muted);
+}
+
+[data-route-document] .page-actions {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+[data-route-document] .notice::before {
+  display: none;
+}
+
+[data-route-document] .notice {
+  padding-inline: 10px;
+}
+
+[data-route-document] .filter-bar {
+  flex-wrap: wrap;
+}
+
+[data-route-document] :is(.filter-bar, .inline-form) > * {
+  min-inline-size: 0;
+}
+
+[data-route-document] .filter-bar > .search-field {
+  flex: 1 1 min(100%, 16rem);
+}
+
+[data-activity-page] {
+  min-block-size: 100%;
+  align-content: start;
+  gap: var(--document-gap);
+}
+
+[data-activity-page] > :not(.page-header, .sr-only) {
+  min-inline-size: 0;
+  margin-inline: var(--document-inset);
+}
+
+[data-route-document="orchestration"] .orchestration-page {
+  container: work / inline-size;
+}
+
+[data-route-document="orchestration"] .orchestration-header {
+  min-block-size: 0;
+  padding: 8px var(--document-inset);
+  background: var(--surface);
+}
+
+[data-route-document="orchestration"] .orchestration-nav-row {
+  padding-inline: var(--document-inset);
+}
+
+[data-route-document="orchestration"]
+  .orchestration-master-item[aria-pressed="true"],
+[data-route-document="orchestration"] .review-list button[aria-current="true"] {
+  background: var(--surface-hover);
+}
+
+[data-route-document="orchestration"] .review-work-overview {
+  box-shadow: none;
+}
+
+[data-route-document="orchestration"] :is(.automation-page, .review-page) {
+  min-inline-size: 0;
+}
+
+[data-route-document="orchestration"] .automation-page > header {
+  background: var(--surface);
+}
+
+[data-route-document="orchestration"] .automation-builder {
+  border-inline: 0;
+  border-radius: 0;
+}
+
+[data-route-document="orchestration"] .automation-workspace {
+  padding-inline: var(--document-inset);
+}
+
+[data-route-document="orchestration"] .gateway-timeline-panel {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-route-document="orchestration"] .gateway-timeline-filters {
+  grid-template-columns: minmax(110px, 0.65fr) minmax(110px, 0.7fr) minmax(
+      0,
+      1.65fr
+    );
+}
+
+[data-route-document="orchestration"]
+  .gateway-timeline-filters
+  :focus-visible:is(input, select) {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+@container gateway (max-width: 540px) {
+  [data-route-document="orchestration"] .gateway-timeline-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  [data-route-document="orchestration"]
+    .gateway-timeline-filters
+    > label:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@container work (max-width: 760px) {
+  [data-route-document="orchestration"] .orchestration-master-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, min(38%, 14rem)) minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  [data-route-document="orchestration"] .orchestration-master {
+    min-block-size: 0;
+    max-block-size: none;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--border);
+  }
+
+  [data-route-document="orchestration"] .orchestration-detail {
+    min-block-size: 0;
+    overflow: auto;
+  }
+
+  [data-route-document="orchestration"] .automation-workspace,
+  [data-route-document="orchestration"] .automation-builder__header,
+  [data-route-document="orchestration"] .automation-builder__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Settings owns its independent navigation and content scrollports. Keep the
+   current section and its tabs in reach when a catalog or form fills the page. */
+[data-route-document="settings"] .dl-settings-page-heading,
+[data-route-document="settings"] .dl-settings-tabs {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--bg);
+}
+
+[data-route-document="settings"] .dl-settings-page-heading {
+  padding-inline: var(--document-inset);
+}
+
+[data-route-document="settings"]
+  .dl-settings-content:has(> .dl-settings-tabs)
+  > .dl-settings-page-heading {
+  position: static;
+}
+
+[data-route-document="settings"] .dl-settings-tabs {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding-inline: var(--document-inset);
+  scrollbar-width: thin;
+}
+
+[data-route-document="settings"] .dl-settings-tabs [role="tab"] {
+  flex: none;
+  white-space: nowrap;
+}
+
+[data-route-document="settings"] .dl-settings-menu {
+  gap: 9px;
+  padding-block: 12px;
+}
+
+[data-route-document="settings"] .dl-settings-menu-sections {
+  gap: var(--document-gap);
+}
+
+[data-route-document="settings"] .dl-settings-content .settings-section-header,
+[data-route-document="settings"] .dl-settings-group {
+  padding-inline: var(--document-inset);
+}
+
+[data-route-document="settings"]
+  .dl-settings-content
+  :focus-visible:is(input, select, textarea, [role="tab"]) {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+@container dl-settings (max-width: 760px) {
+  [data-route-document="settings"] .dl-settings-menu {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+    align-items: end;
+    gap: 6px 10px;
+    padding: 8px var(--document-inset);
+  }
+
+  [data-route-document="settings"] .dl-settings-menu-search {
+    display: grid;
+    min-inline-size: 0;
+  }
+
+  [data-route-document="settings"] .dl-settings-menu-search input {
+    min-block-size: 44px;
+  }
+
+  [data-route-document="settings"]
+    [data-settings-searching="true"]
+    .dl-settings-menu-sections {
+    display: grid;
+    grid-column: 1 / -1;
+    max-block-size: min(28dvh, 15rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    border-block-start: 1px solid var(--border);
+    padding-block-start: 8px;
+  }
+}
+
+@media (forced-colors: active) {
+  [data-route-document="settings"]
+    .dl-settings-content
+    :focus-visible:is(input, select, textarea, [role="tab"]) {
+    outline-color: Highlight;
+  }
+}

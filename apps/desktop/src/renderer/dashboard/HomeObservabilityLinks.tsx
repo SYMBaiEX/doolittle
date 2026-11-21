@@ -1,7 +1,7 @@
 import {
   DASHBOARD_CARD_CLASS,
   DASHBOARD_CARD_HEADING_CLASS,
-  DASHBOARD_MINI_GRID_CLASS,
+  DASHBOARD_SPLIT_CLASS,
 } from "./dashboard-layout";
 
 const HOME_GATEWAYS = [
@@ -25,7 +25,7 @@ const HOME_GATEWAYS = [
  */
 export function HomeObservabilityLinks() {
   return (
-    <div className={DASHBOARD_MINI_GRID_CLASS} data-home-observability-links>
+    <div className={DASHBOARD_SPLIT_CLASS} data-home-observability-links>
       {HOME_GATEWAYS.map((gateway) => (
         <section className={DASHBOARD_CARD_CLASS} key={gateway.title}>
           <div className={DASHBOARD_CARD_HEADING_CLASS}>

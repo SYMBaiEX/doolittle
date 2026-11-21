@@ -1,5 +1,14 @@
-import { Button } from "@doolittle/ui";
+import {
+  ArrowUpRight,
+  GitPullRequest,
+  Link2,
+  ListTodo,
+  MessageSquare,
+  Settings2,
+} from "lucide-react";
+import { useId } from "react";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { UiIcon } from "../components/UiIcon";
 import type {
   DashboardNextAction,
   DashboardRepoSnapshot,
@@ -10,9 +19,17 @@ import { Badge, ErrorBlock, LoadingBlock } from "../lib";
 import {
   DASHBOARD_CARD_CLASS,
   DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
-  DASHBOARD_TWO_COLUMN_CLASS,
 } from "./dashboard-layout";
+
+const actionIcons = {
+  review: GitPullRequest,
+  tasks: ListTodo,
+  setup: Settings2,
+  chat: MessageSquare,
+  providers: Link2,
+};
 
 export function DashboardPriorityPanel({
   agentAccounts,
@@ -55,6 +72,7 @@ export function DashboardPriorityPanel({
   setupLoading: boolean;
   setupWarnings: number;
 }) {
+  const actionLabelId = useId();
   return (
     <>
       <CompactStatStrip
@@ -86,18 +104,17 @@ export function DashboardPriorityPanel({
         ]}
       />
 
-      <div className={DASHBOARD_TWO_COLUMN_CLASS}>
+      <div className={DASHBOARD_SPLIT_CLASS}>
         <section className={DASHBOARD_CARD_CLASS}>
           <div className={DASHBOARD_CARD_HEADING_CLASS}>
             <div>
-              <span className="eyebrow">Next actions</span>
-              <h2>What to do now</h2>
+              <h2>Next actions</h2>
             </div>
             <Badge tone={nextActions[0]?.tone === "warn" ? "warn" : "good"}>
               {nextActions.length} queued
             </Badge>
           </div>
-          <div className="grid gap-0.5">
+          <div className="dashboard-action-list">
             {nextActions.map((action) => {
               const handler =
                 action.target === "review"
@@ -112,29 +129,29 @@ export function DashboardPriorityPanel({
                           ? () => onOpenChat(sessions[0]?.id)
                           : undefined;
               return (
-                <article
-                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-[var(--radius-xs)] px-1 py-2.5"
+                <button
+                  aria-label={`Open ${action.title}`}
+                  aria-describedby={`${actionLabelId}-${action.id}`}
+                  className="dashboard-action-row"
+                  disabled={!handler}
                   key={action.id}
+                  onClick={handler}
+                  type="button"
                 >
-                  <header className="col-start-1 flex justify-between gap-2.5">
-                    <strong>{action.title}</strong>
-                    <Badge tone={action.tone}>{action.target}</Badge>
-                  </header>
-                  <p className="col-start-1 m-0 text-[length:var(--text-body,13px)] text-[var(--text-soft)]">
-                    {action.description}
-                  </p>
-                  <Button
-                    aria-label={`Open ${action.title}`}
-                    className="col-start-2 row-span-2 row-start-1 self-center"
-                    disabled={!handler}
-                    onClick={() => handler?.()}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
+                  <span
+                    className="dashboard-action-mark"
+                    data-tone={action.tone}
                   >
-                    Open
-                  </Button>
-                </article>
+                    <UiIcon icon={actionIcons[action.target]} size="sm" />
+                  </span>
+                  <span className="dashboard-action-copy">
+                    <strong>{action.title}</strong>
+                    <small id={`${actionLabelId}-${action.id}`}>
+                      {action.description}
+                    </small>
+                  </span>
+                  <UiIcon icon={ArrowUpRight} size="sm" />
+                </button>
               );
             })}
           </div>
@@ -143,7 +160,6 @@ export function DashboardPriorityPanel({
         <section className={DASHBOARD_CARD_CLASS}>
           <div className={DASHBOARD_CARD_HEADING_CLASS}>
             <div>
-              <span className="eyebrow">Workspace pulse</span>
               <h2>Repository and setup</h2>
             </div>
             <Badge

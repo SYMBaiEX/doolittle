@@ -8,7 +8,7 @@ import { Badge, displayTimestamp, ErrorBlock, LoadingBlock } from "../lib";
 import {
   DASHBOARD_CARD_CLASS,
   DASHBOARD_CARD_HEADING_CLASS,
-  DASHBOARD_MINI_GRID_CLASS,
+  DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
 } from "./dashboard-layout";
 
@@ -48,7 +48,7 @@ export function DashboardActivityPanels({
     Boolean(tasksError);
 
   return (
-    <div className={DASHBOARD_MINI_GRID_CLASS}>
+    <div className={DASHBOARD_SPLIT_CLASS}>
       <section
         className={`${DASHBOARD_CARD_CLASS} ${sessions.length ? "" : "flex min-h-[72px] items-center max-[620px]:min-h-[88px]"}`}
       >

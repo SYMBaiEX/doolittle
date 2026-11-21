@@ -1,0 +1,77 @@
+.runtime-log-filters {
+  margin-inline: var(--document-inset, 12px);
+}
+
+.runtime-log-stream {
+  min-inline-size: 0;
+  border-block: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.runtime-log-stream__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 36px;
+  padding: 6px var(--document-inset, 12px);
+  border-block-end: 1px solid var(--border);
+}
+
+.runtime-log-stream__records {
+  min-block-size: 120px;
+  block-size: clamp(12rem, calc(100dvh - 18rem), 43rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.runtime-log-stream__records:focus-visible,
+.runtime-log-stream__row:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.runtime-log-stream__row {
+  display: grid;
+  grid-template-columns: 3.6rem minmax(0, 1fr) minmax(6rem, auto);
+  grid-template-areas: "level message time";
+  align-items: start;
+  gap: 5px 10px;
+  min-block-size: 32px;
+  padding: 7px var(--document-inset, 12px);
+  border-block-end: 1px solid var(--line-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+
+.runtime-log-stream__row[data-search-target] {
+  background: var(--surface-hover);
+}
+
+.runtime-log-stream__severity {
+  grid-area: level;
+}
+
+.runtime-log-stream__time {
+  grid-area: time;
+  color: var(--muted);
+  text-align: end;
+}
+
+.runtime-log-stream__message {
+  grid-area: message;
+  min-inline-size: 0;
+  margin: 0;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@container observability (max-width: 580px) {
+  .runtime-log-stream__row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "level time" "message message";
+  }
+}

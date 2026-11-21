@@ -1,3 +1,4 @@
+import { Button } from "@doolittle/ui";
 import { CompactStatStrip } from "../components/CompactStatStrip";
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
@@ -20,6 +21,7 @@ import {
   OBSERVABILITY_PAGE_CLASS,
 } from "../observability-layout";
 import { compactSessionPreview } from "../session-preview";
+import "./analytics-workbench.css";
 
 interface AnalyticsResponse {
   totals?: {
@@ -80,17 +82,21 @@ export function AnalyticsPage({
     [active],
   );
   const totals = resource.data?.totals ?? {};
-  const activity = asArray(resource.data?.dailyActivity).map((value) =>
-    asRecord(value),
-  );
+  const activity = asArray(resource.data?.dailyActivity).flatMap((value) => {
+    const entry = asRecord(value);
+    const date = asString(entry.date, asString(entry.day));
+    const messages = Math.max(
+      0,
+      asNumber(entry.messages, asNumber(entry.messageCount)),
+    );
+    return date ? [{ date, messages }] : [];
+  });
   const recentSessions = asArray(resource.data?.recentSessions).map((value) =>
     asRecord(value),
   );
-  const maxMessages = Math.max(
+  const maxMessages = activity.reduce(
+    (largest, entry) => Math.max(largest, entry.messages),
     1,
-    ...activity.map((entry) =>
-      asNumber(entry.messages, asNumber(entry.messageCount)),
-    ),
   );
   const hasActivity = hasAnalyticsActivity(
     totals,
@@ -103,7 +109,7 @@ export function AnalyticsPage({
       <PageHeader
         eyebrow="Workspace"
         title="Analytics"
-        description="Local session and context estimates. No remote telemetry."
+        description="Local conversation activity and context estimates."
         actions={
           <Button
             disabled={!active}
@@ -126,13 +132,10 @@ export function AnalyticsPage({
       ) : !hasActivity ? (
         <section
           aria-labelledby="analytics-empty-title"
-          className={`analytics-empty-landing ${OBSERVABILITY_CARD_CLASS} flex items-center justify-between gap-4 px-4 py-3 max-[700px]:flex-col max-[700px]:items-stretch max-[700px]:gap-3`}
+          className={`analytics-empty-landing ${OBSERVABILITY_CARD_CLASS}`}
           data-analytics-empty="true"
         >
           <div className="grid min-w-0 gap-[3px]">
-            <span className={OBSERVABILITY_EYEBROW_CLASS}>
-              Private by design
-            </span>
             <h2
               className="text-sm font-bold text-[var(--text-strong)]"
               id="analytics-empty-title"
@@ -140,8 +143,7 @@ export function AnalyticsPage({
               No local activity yet
             </h2>
             <p className="text-[length:var(--text-control)] text-[var(--text-muted)]">
-              Start a conversation. Session counts and context estimates stay on
-              this device.
+              Start a conversation to see its activity here.
             </p>
           </div>
           <Button
@@ -153,7 +155,7 @@ export function AnalyticsPage({
           </Button>
         </section>
       ) : (
-        <>
+        <div className="analytics-workbench">
           <CompactStatStrip
             label="Analytics summary"
             stats={[
@@ -175,10 +177,7 @@ export function AnalyticsPage({
               },
             ]}
           />
-          <div
-            className="analytics-grid grid grid-cols-[minmax(250px,0.62fr)_minmax(32rem,1.38fr)] items-start gap-[9px] max-[1120px]:grid-cols-1"
-            data-analytics-grid="true"
-          >
+          <div className="analytics-grid" data-analytics-grid="true">
             <section className={OBSERVABILITY_CARD_CLASS}>
               <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
                 <div>
@@ -189,43 +188,39 @@ export function AnalyticsPage({
                 </div>
               </div>
               {activity.length ? (
-                <div
-                  aria-label="Messages by day"
-                  className="flex min-h-[170px] items-end gap-2 px-2.5 pt-2 pb-2.5 max-[1120px]:min-h-[150px]"
-                  role="img"
+                <section
+                  aria-label="Daily message counts"
+                  className="analytics-series-scroll"
+                  // biome-ignore lint/a11y/noNoninteractiveTabindex: This horizontally scrollable series has no nested focusable controls.
+                  tabIndex={0}
                 >
-                  {activity.map((entry) => {
-                    const messages = asNumber(
-                      entry.messages,
-                      asNumber(entry.messageCount),
-                    );
-                    const label = asString(
-                      entry.date,
-                      asString(entry.day, "No date"),
-                    );
-                    return (
-                      <div
-                        className="flex min-w-5 flex-1 flex-col items-center gap-[5px]"
-                        key={`${label}:${JSON.stringify(entry)}`}
-                      >
-                        <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                          {messages}
+                  <ul className="analytics-series">
+                    {activity.map(({ date, messages }) => (
+                      <li key={date}>
+                        <span>
+                          {messages}{" "}
+                          <span className="sr-only">messages on</span>
                         </span>
-                        <div className="relative h-[108px] w-full max-w-8 overflow-hidden rounded-[var(--radius-xs)] bg-[var(--surface-soft)] max-[1120px]:h-[92px]">
+                        <span
+                          aria-hidden="true"
+                          className="analytics-series-track"
+                        >
                           <i
-                            className="absolute inset-x-0 bottom-0 rounded-t-[2px] bg-[var(--accent)]"
                             style={{
-                              height: `${Math.max(4, (messages / maxMessages) * 100)}%`,
+                              height: `${(messages / maxMessages) * 100}%`,
                             }}
                           />
-                        </div>
-                        <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                          {label.slice(5) || label}
+                        </span>
+                        <small title={date}>
+                          <span className="sr-only">{date}</span>
+                          <span aria-hidden="true">
+                            {date.replace(/^\d{4}-/u, "")}
+                          </span>
                         </small>
-                      </div>
-                    );
-                  })}
-                </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ) : (
                 <EmptyBlock density="compact" title="No daily activity yet">
                   Session totals are available, but no daily message series was
@@ -242,7 +237,12 @@ export function AnalyticsPage({
                   <h2>Recent sessions</h2>
                 </div>
               </div>
-              <div className="max-h-[236px] overflow-auto">
+              <section
+                aria-label="Session usage table"
+                className="analytics-session-scroll"
+                // biome-ignore lint/a11y/noNoninteractiveTabindex: This scrollable table has no nested focusable controls.
+                tabIndex={0}
+              >
                 <table className="w-full border-collapse">
                   <thead>
                     <tr>
@@ -255,6 +255,7 @@ export function AnalyticsPage({
                         <th
                           className="border-b border-[var(--border)] px-[9px] py-[7px] text-left text-[length:var(--text-meta)] uppercase tracking-[0.1em] text-[var(--muted)]"
                           key={label}
+                          scope="col"
                         >
                           {label}
                         </th>
@@ -274,10 +275,14 @@ export function AnalyticsPage({
                     ) : null}
                     {recentSessions.map((entry, index) => {
                       const usage = asRecord(entry.usage);
+                      const label = analyticsSessionLabel(entry);
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
-                          <td className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
-                            {analyticsSessionLabel(entry)}
+                          <td
+                            className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]"
+                            title={label}
+                          >
+                            {label}
                           </td>
                           <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {asNumber(entry.messageCount)}
@@ -300,13 +305,11 @@ export function AnalyticsPage({
                     })}
                   </tbody>
                 </table>
-              </div>
+              </section>
             </section>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
-
-import { Button } from "@doolittle/ui";
