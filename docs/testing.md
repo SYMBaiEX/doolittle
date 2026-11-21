@@ -59,7 +59,8 @@ nub run test:all
 [`vitest.integration.config.ts`](../vitest.integration.config.ts). Its fixtures
 exercise real processes, workers, and isolated browser protocols.
 `test:e2e:desktop-workbench` builds the CLI and desktop, then runs the native
-Electron journeys. `test:e2e` runs both; `test:all` adds the boundary suite.
+Electron journeys. `test:e2e` runs both lanes with one build of each app.
+`test:all` starts with the boundary suite.
 
 These fixtures use private temporary profiles and workspaces. They exercise
 real ownership and transport behavior with offline model conditions; they do
@@ -154,9 +155,9 @@ versions, route settings, repeated samples, and human review coverage explicit.
 
 `nub run check:release:static` combines lint, types, builds,
 repository/security checks, and runtime preparation/audit. `nub run check:release`
-adds the boundary suite and native and packaged acceptance. `check:all` aliases
-the complete release gate. Use these deliberately at release or integration
-milestones.
+adds boundary tests, reuses those app builds for source and native desktop
+acceptance, then builds and tests a clean-HEAD package. `check:all` aliases the
+complete release gate. Use these at release or integration milestones.
 
 Report exactly which commands ran and their results. Distinguish static checks,
 unit/DOM tests, real process or Electron journeys, packaged acceptance, and live

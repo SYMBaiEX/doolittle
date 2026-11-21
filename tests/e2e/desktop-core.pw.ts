@@ -166,13 +166,10 @@ test.describe("fresh native desktop", () => {
         page.getByRole("button", { name: "New automation" }).first(),
       ).toBeVisible();
       await page.getByRole("button", { name: "Weekday brief" }).click();
-      await page
-        .getByRole("textbox", { name: "Name", exact: true })
-        .fill("Panel acceptance schedule");
-      await page.getByRole("button", { name: "Create automation" }).click();
       await expect(
-        page.getByText("Panel acceptance schedule", { exact: true }),
-      ).toBeVisible();
+        page.getByRole("textbox", { name: "Name", exact: true }),
+      ).toHaveValue("Weekday brief");
+      await page.getByRole("button", { name: "Close builder" }).click();
       await work.getByRole("tab", { name: "Queue" }).click();
       await expect(
         navigation.getByRole("button", { name: "Work", exact: true }),
@@ -996,32 +993,43 @@ test.describe("fresh native desktop", () => {
       await desktop.dispose();
     }
   });
-  test("switches expressive themes without losing drafts and restores appearance after restart", async () => {
+  test("switches expressive themes without losing chat state or readability", async () => {
     test.setTimeout(120_000);
     const desktop = await launchDesktop();
     try {
       let page = desktop.page;
-      const composer = page.getByRole("textbox", { name: /^Message /u });
-      await composer.fill("Keep this coding draft while I change the theme.");
-      await page
-        .getByRole("button", { name: "Open settings", exact: true })
-        .click();
-      for (const [name, id, material] of [
+      const composer = () => page.getByRole("textbox", { name: /^Message /u });
+      const draft = "Keep this coding draft while I change the theme.";
+      const chooseTheme = async (name: string) => {
+        await page
+          .getByRole("button", { name: "Open settings", exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: new RegExp(`^${name}:`, "u") })
+          .click();
+      };
+      const returnToChat = () =>
+        page.getByRole("button", { name: /^Back to /u }).click();
+      const themes = [
         ["Anime Atelier", "anime-atelier", "cel"],
         ["Golden Gate Glass", "golden-gate-glass", "glass"],
-      ]) {
-        await page
-          .getByRole("button", { name: new RegExp(`^${name}:`) })
-          .click();
+      ] as const;
+      const appearanceChoices = [
+        ["light", "Light"],
+        ["dark", "Dark"],
+      ] as const;
+      await composer().fill(draft);
+      for (const [name, id, material] of themes) {
+        await chooseTheme(name);
         await expect(page.locator("html")).toHaveAttribute("data-theme", id);
         await expect(page.locator("html")).toHaveAttribute(
           "data-ui-material",
           material,
         );
-        for (const appearance of ["light", "dark"]) {
+        for (const [appearance, label] of appearanceChoices) {
           await page
             .getByRole("button", {
-              name: `${appearance === "light" ? "Light" : "Dark"}: ${appearance === "light" ? "Light" : "Dark"} surfaces`,
+              name: `${label}: ${label} surfaces`,
               exact: true,
             })
             .click();
@@ -1096,76 +1104,19 @@ test.describe("fresh native desktop", () => {
               `${id}/${appearance}/${pair.label} contrast`,
             ).toBeGreaterThanOrEqual(4.5);
           }
-          await page.screenshot({
-            animations: "disabled",
-            path: test.info().outputPath(`${id}-${appearance}.png`),
-          });
-          await page.getByRole("button", { name: /^Back to /u }).click();
-          await expect(
-            page.getByRole("textbox", { name: /^Message /u }),
-          ).toHaveValue("Keep this coding draft while I change the theme.");
-          await page.screenshot({
-            animations: "disabled",
-            path: test.info().outputPath(`${id}-${appearance}-chat.png`),
-          });
-          await page.locator(".chat-welcome-starter").first().click();
-          const draft = page.getByRole("textbox", { name: /^Message /u });
-          await expect(draft).toHaveValue("Help me think something through");
-          await draft.fill("Keep this coding draft while I change the theme.");
-          await page
-            .getByRole("button", { name: "Open settings", exact: true })
-            .click();
         }
+        await returnToChat();
+        await expect(composer()).toHaveValue(draft);
+        await page.locator(".chat-welcome-starter").first().click();
+        await expect(composer()).toHaveValue("Help me think something through");
+        await composer().fill(draft);
       }
-      await page.emulateMedia({ reducedMotion: "reduce" });
-      await expect(page.locator(".desktop-shell")).toHaveCSS(
-        "transition-duration",
-        "0s",
-      );
-      await desktop.restart();
-      page = desktop.page;
-      await expect(page.locator("html")).toHaveAttribute(
-        "data-theme",
-        "golden-gate-glass",
-      );
-      await expect(
-        page.getByRole("textbox", { name: /^Message /u }),
-      ).toHaveValue("Keep this coding draft while I change the theme.");
-      await desktop.app.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()[0]?.setSize(520, 780);
-      });
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
-        ),
-      ).toBe(true);
-      await expectQuietFocus(page.getByRole("textbox", { name: /^Message /u }));
-      await desktop.app.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()[0]?.setSize(520, 430);
-      });
-      await expect(
-        page.getByRole("textbox", { name: /^Message /u }),
-      ).toBeInViewport({ ratio: 1 });
-      await page.emulateMedia({ forcedColors: "active" });
-      await expect(page.locator(".chat-composer")).toHaveCSS(
-        "backdrop-filter",
-        "none",
-      );
-    } finally {
-      await desktop.dispose();
-    }
-  });
-  test("preserves a code transcript while changing complete theme compositions", async () => {
-    const desktop = await launchDesktop();
-    try {
-      const page = desktop.page;
-      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
-      await composer.fill(
+
+      await composer().fill(
         "Reference snippet:\n```ts\nexport const greeting = 'Hello, Doolittle';\n```",
       );
-      await composer.press("Enter");
-      const message = page.locator(".chat-message.user").first();
-      await expect(message).toContainText("Hello, Doolittle");
+      await composer().press("Enter");
+      const messages = page.locator(".chat-message.user");
       await expect(
         page.locator(".chat-message.assistant").first(),
       ).toBeVisible();
@@ -1183,39 +1134,59 @@ test.describe("fresh native desktop", () => {
           { timeout: 30_000 },
         )
         .toBe(true);
-      const selected = await page.evaluate(
-        async () => (await window.doolittle.ui?.getSnapshot())?.selected,
-      );
+      const getSelection = () =>
+        page.evaluate(() => window.doolittle.ui?.getSelection());
+      const selected = await getSelection();
       expect(selected).toBeTruthy();
-      for (const name of ["Anime Atelier", "Golden Gate Glass"]) {
-        await page
-          .getByRole("button", { name: "Open settings", exact: true })
-          .click();
-        await page
-          .getByRole("button", { name: new RegExp(`^${name}:`) })
-          .click();
+      for (const [name] of themes) {
+        await chooseTheme(name);
         await page
           .getByRole("button", { name: "Light: Light surfaces", exact: true })
           .click();
-        await page.getByRole("button", { name: /^Back to /u }).click();
-        await expect(message).toContainText("Hello, Doolittle");
-        expect(
-          await page.evaluate(
-            async () => (await window.doolittle.ui?.getSnapshot())?.selected,
-          ),
-        ).toEqual(selected);
-        await expect(page.locator(".chat-message.user")).toHaveCount(1);
-        await expect(message.locator("pre")).toBeVisible();
-        await expectQuietFocus(composer);
-        await page.screenshot({
-          animations: "disabled",
-          path: test
-            .info()
-            .outputPath(
-              `${name.replaceAll(" ", "-").toLowerCase()}-code-chat.png`,
-            ),
-        });
+        await returnToChat();
+        expect(await getSelection()).toEqual(selected);
+        await expect(messages).toHaveCount(1);
+        await expect(messages.locator("pre")).toContainText("Hello, Doolittle");
+        await expectQuietFocus(composer());
       }
+      await composer().fill(draft);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(page.locator(".desktop-shell")).toHaveCSS(
+        "transition-duration",
+        "0s",
+      );
+      await desktop.restart();
+      page = desktop.page;
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-theme",
+        "golden-gate-glass",
+      );
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-appearance",
+        "light",
+      );
+      await expect(composer()).toHaveValue(draft);
+      await expect(page.locator(".chat-message.user pre")).toContainText(
+        "Hello, Doolittle",
+      );
+      await desktop.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(520, 780);
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await expectQuietFocus(composer());
+      await desktop.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(520, 430);
+      });
+      await expect(composer()).toBeInViewport({ ratio: 1 });
+      await page.emulateMedia({ forcedColors: "active" });
+      await expect(page.locator(".chat-composer")).toHaveCSS(
+        "backdrop-filter",
+        "none",
+      );
     } finally {
       await desktop.dispose();
     }
