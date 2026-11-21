@@ -1,3 +1,4 @@
+import { getCliErrorMessage } from "../cli/execution/types";
 import { ensureOnboarded, loadLocalRuntimeEnv } from "../cli/startup";
 import { captureBootLogs } from "./boot-logs";
 import { writeStderrLine } from "./output";
@@ -24,19 +25,46 @@ export async function prepareEntrypointRuntimeBoot(options: {
 
   if (shouldUseCliSurface) process.env.DOOLITTLE_MODE ??= "cli";
   const usesApi = startupMode === "api";
-  const [{ getAppContext }, server] = await Promise.all([
-    import("@doolittle/agent/runtime/bootstrap"),
-    usesApi ? import("@doolittle/agent/server") : undefined,
-  ]);
-  const { result: context, logs: bootLogs } = await captureBootLogs(
-    command === "cockpit" ||
-      ((command === "start" || command === "plain") && shellIsInteractive),
-    () =>
-      getAppContext({
-        startupMode,
-        eagerDeferredHydration: usesApi && !desktop,
-      }),
+  const bootstrap = import("@doolittle/agent/runtime/bootstrap");
+  // Let SDK activation begin as soon as the bootstrap module is available.
+  // The API can load its routes while Eliza opens the profile's database.
+  const activation = bootstrap.then(({ getAppContext }) =>
+    captureBootLogs(
+      command === "cockpit" ||
+        ((command === "start" || command === "plain") && shellIsInteractive),
+      () =>
+        getAppContext({
+          startupMode,
+          // The API controller owns readiness of connectors before listen.
+          eagerDeferredHydration: false,
+        }),
+    ),
   );
+  const api = usesApi
+    ? import("@doolittle/agent/server").catch(async (error: unknown) => {
+        // Activation may already own a store. Let the application session
+        // cancel and drain startup before reporting an API load failure.
+        const runtime = await bootstrap.catch(() => undefined);
+        try {
+          await runtime
+            ?.getApplicationSession()
+            .dispose("Doolittle API could not load", { fast: true });
+        } catch (cleanupError) {
+          throw new AggregateError(
+            [error, cleanupError],
+            "Doolittle API load and runtime cleanup failed",
+          );
+        }
+        throw error;
+      })
+    : undefined;
+  const [loadedRuntime, loadedApi] = await Promise.allSettled([
+    activation,
+    api,
+  ]);
+  if (loadedApi.status === "rejected") throw loadedApi.reason;
+  if (loadedRuntime.status === "rejected") throw loadedRuntime.reason;
+  const { result: context, logs: bootLogs } = loadedRuntime.value;
   const runtimePlan = resolveEntrypointRuntimePlan({
     ...options,
     mode: context.config.mode,
@@ -47,12 +75,10 @@ export async function prepareEntrypointRuntimeBoot(options: {
     command,
     shouldStartCli: runtimePlan.shouldStartCli,
     runtimeLogger,
-    startApiServer: server?.startApiServer,
+    startApiServer: loadedApi.value?.startApiServer,
     writeStderrLine,
     formatTopLevelError: getCliErrorMessage,
     hydrateAfterListening: desktop && usesApi,
   });
   return { context, bootLogs, runtimePlan, runtimeLogger, ...apiStartup };
 }
-
-import { getCliErrorMessage } from "../cli/execution/types";
