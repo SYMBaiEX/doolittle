@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_SHELL_SERVICE,
+  MAX_COMMAND_TIMEOUT_MS,
+} from "@doolittle/contracts";
 import { expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 import { handleOperationsRoutes } from "../../packages/agent/src/server/routes/operations";
@@ -90,6 +93,7 @@ it("binds SDK run identities to command, timeout and workspace and replays their
     expect(historyStore.read().commands[0]?.id).toBe(runId);
     vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "fixture-terminal-capability");
     vi.stubEnv("ELIZA_RUNTIME_MODE", "local-yolo");
+    vi.stubEnv("ELIZA_TERMINAL_MAX_DURATION_MS", undefined);
     const context = {
       services: { terminal: { assertExecutionAvailable: () => undefined } },
       runtime: {
@@ -100,20 +104,21 @@ it("binds SDK run identities to command, timeout and workspace and replays their
       },
     } as unknown as AppContext;
     const url = new URL("http://127.0.0.1/api/terminal/run");
-    const request = new Request(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-eliza-terminal-token": "fixture-terminal-capability",
-        "x-eliza-terminal-run-id": runId,
-      },
-      body: JSON.stringify({
-        command: "verify",
-        timeoutMs: 1000,
-        captureOutput: true,
-      }),
-    });
-    const response = await handleOperationsRoutes(context, request, url, {
+    const request = (timeoutMs: number) =>
+      new Request(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-eliza-terminal-token": "fixture-terminal-capability",
+          "x-eliza-terminal-run-id": runId,
+        },
+        body: JSON.stringify({
+          command: "verify",
+          timeoutMs,
+          captureOutput: true,
+        }),
+      });
+    const response = await handleOperationsRoutes(context, request(1000), url, {
       captureOutputRequired: true,
     });
     expect(response?.status).toBe(200);
@@ -122,7 +127,15 @@ it("binds SDK run identities to command, timeout and workspace and replays their
       stdout: "VERIFIED",
       exitCode: 0,
       truncated: false,
+      maxDurationMs: 1000,
     });
+    const invalid = await handleOperationsRoutes(
+      context,
+      request(MAX_COMMAND_TIMEOUT_MS + 1),
+      url,
+      { captureOutputRequired: true },
+    );
+    expect(invalid?.status).toBe(400);
     expect(run).toHaveBeenCalledTimes(1);
   } finally {
     vi.unstubAllEnvs();

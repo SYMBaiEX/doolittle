@@ -5,7 +5,10 @@ import {
   type LegacyMcpSettings,
 } from "@doolittle/agent/services/mcp/settings";
 import { RUN_DEPTH_ITERATION_PRESETS } from "@doolittle/agent/types";
-import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+import {
+  DEFAULT_COMMAND_TIMEOUT_MS,
+  DEFAULT_MODEL_ROUTE,
+} from "@doolittle/contracts";
 import type { GatewayConfig, PairingMode, RuntimeSettings } from "../types";
 
 export const REMOTE_TRANSPORTS = [
@@ -82,7 +85,7 @@ export function createDefaultSettings(
       modalBootstrapCommand: "",
       modalStatusCommand: "",
       modalInspectCommand: "",
-      commandTimeoutMs: 30_000,
+      commandTimeoutMs: DEFAULT_COMMAND_TIMEOUT_MS,
       healthTimeoutMs: 5_000,
       containerCpuLimit: "2",
       containerMemoryLimit: "2g",

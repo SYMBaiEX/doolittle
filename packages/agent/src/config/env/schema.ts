@@ -1,3 +1,4 @@
+import { DEFAULT_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
 import { z } from "zod";
 import { resolveCloudApiBaseUrl } from "../../runtime/linked-provider-accounts/cloud-url";
 
@@ -139,7 +140,7 @@ export const envSchema = z.object({
     .number()
     .int()
     .positive()
-    .default(30_000),
+    .default(DEFAULT_COMMAND_TIMEOUT_MS),
   DOOLITTLE_EXECUTION_HEALTH_TIMEOUT_MS: z.coerce
     .number()
     .int()

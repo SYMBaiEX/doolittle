@@ -101,6 +101,12 @@ profiles and the source checkout's `.doolittle/` state are separate. Supply
 `--user-data-dir` when you need another isolated desktop profile; see
 [development](development.md).
 
+New profiles default to 120 seconds per shell command. The terminal API uses
+the active profile's `execution.commandTimeoutMs` and caps it at 120 seconds.
+ElizaOS's terminal action also respects its own transport limit. Set
+`DOOLITTLE_EXECUTION_COMMAND_TIMEOUT_MS` to customize the startup default.
+Saved profile settings take precedence over that default.
+
 ### macOS saved accounts
 
 On macOS, opening the desktop and browsing connection status use cached account

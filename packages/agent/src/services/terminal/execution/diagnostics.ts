@@ -1,3 +1,4 @@
+import { DEFAULT_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
 import type {
   DiagnosticCheck,
   ExecutionBackendLimits,
@@ -24,7 +25,7 @@ export function buildHealthLimits(
 ): ExecutionBackendLimits {
   const execution = settings.execution;
   return {
-    commandTimeoutMs: execution.commandTimeoutMs ?? 30_000,
+    commandTimeoutMs: execution.commandTimeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS,
     healthTimeoutMs: execution.healthTimeoutMs ?? 5_000,
     containerCpuLimit: execution.containerCpuLimit ?? "2",
     containerMemoryLimit: execution.containerMemoryLimit ?? "2g",

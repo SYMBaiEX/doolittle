@@ -11,6 +11,10 @@ export const EXECUTION_BACKEND_NAMES = [
 
 export type ExecutionBackendName = (typeof EXECUTION_BACKEND_NAMES)[number];
 
+export const MIN_COMMAND_TIMEOUT_MS = 1_000;
+export const MAX_COMMAND_TIMEOUT_MS = 120_000;
+export const DEFAULT_COMMAND_TIMEOUT_MS = MAX_COMMAND_TIMEOUT_MS;
+
 export function isExecutionBackendName(
   value: unknown,
 ): value is ExecutionBackendName {

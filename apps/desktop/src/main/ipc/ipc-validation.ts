@@ -1,4 +1,8 @@
 import { isAbsolute } from "node:path";
+import {
+  MAX_COMMAND_TIMEOUT_MS,
+  MIN_COMMAND_TIMEOUT_MS,
+} from "@doolittle/contracts/execution";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
   AttachmentCleanupRequest,
@@ -43,9 +47,6 @@ export const MIN_INTERACTIVE_TERMINAL_ROWS = 5;
 export const MAX_INTERACTIVE_TERMINAL_ROWS = 200;
 
 const MAX_COMMAND_LENGTH = 4_096;
-const MIN_COMMAND_TIMEOUT_MS = 1_000;
-const MAX_COMMAND_TIMEOUT_MS = 120_000;
-const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -147,7 +148,7 @@ function serializedByteLength(value: unknown): number {
 
 export function validateDesktopCommandRequest(
   value: unknown,
-): Required<DesktopCommandRequest> {
+): DesktopCommandRequest {
   if (!isRecord(value)) {
     throw new Error("A command request is required.");
   }
@@ -163,21 +164,21 @@ export function validateDesktopCommandRequest(
   if (command.includes("\0")) {
     throw new Error("Command contains an unsupported null character.");
   }
-  const timeoutMs =
-    value.timeoutMs === undefined
-      ? DEFAULT_COMMAND_TIMEOUT_MS
-      : value.timeoutMs;
-  if (
-    typeof timeoutMs !== "number" ||
-    !Number.isSafeInteger(timeoutMs) ||
-    timeoutMs < MIN_COMMAND_TIMEOUT_MS ||
-    timeoutMs > MAX_COMMAND_TIMEOUT_MS
-  ) {
-    throw new Error(
-      `Command timeout must be an integer from ${MIN_COMMAND_TIMEOUT_MS} to ${MAX_COMMAND_TIMEOUT_MS} milliseconds.`,
-    );
+  const request: DesktopCommandRequest = { command };
+  const { timeoutMs } = value;
+  if (timeoutMs !== undefined) {
+    if (
+      typeof timeoutMs !== "number" ||
+      !Number.isSafeInteger(timeoutMs) ||
+      timeoutMs < MIN_COMMAND_TIMEOUT_MS ||
+      timeoutMs > MAX_COMMAND_TIMEOUT_MS
+    ) {
+      throw new Error(
+        `Command timeout must be an integer from ${MIN_COMMAND_TIMEOUT_MS} to ${MAX_COMMAND_TIMEOUT_MS} milliseconds.`,
+      );
+    }
+    request.timeoutMs = timeoutMs;
   }
-  const request = { command, timeoutMs };
   if (serializedByteLength(request) > MAX_COMMAND_LENGTH + 1_000) {
     throw new Error("Command request is too large.");
   }
@@ -198,7 +199,7 @@ export function validateTerminalRequestId(value: unknown): string {
 
 export function validateTerminalStreamRequest(
   value: unknown,
-): Required<TerminalStreamRequest> {
+): TerminalStreamRequest {
   if (!isRecord(value)) {
     throw new Error("A terminal stream request is required.");
   }

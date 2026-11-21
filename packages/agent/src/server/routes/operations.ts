@@ -1,4 +1,10 @@
 import { randomUUID } from "node:crypto";
+import {
+  DEFAULT_COMMAND_TIMEOUT_MS,
+  MAX_COMMAND_TIMEOUT_MS,
+  MIN_COMMAND_TIMEOUT_MS,
+} from "@doolittle/contracts/execution";
+import { resolveTerminalRunLimits } from "@elizaos/agent/api/terminal-run-limits";
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { getNativeResearchControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
 import {
@@ -27,9 +33,6 @@ import { runtimeInstanceId } from "../runtime-instance-id";
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
 const MAX_COMMAND_LENGTH = 4_096;
-const MIN_COMMAND_TIMEOUT_MS = 1_000;
-const MAX_COMMAND_TIMEOUT_MS = 120_000;
-const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;
 const MAX_TERMINAL_STREAM_BYTES = 2_000_000;
 const MAX_SDK_TERMINAL_CAPTURE_BYTES = 128 * 1024;
 const LOG_LEVELS = new Set([
@@ -44,7 +47,7 @@ const LOG_LEVELS = new Set([
 type TerminalCommandInput =
   | {
       command: string;
-      timeoutMs: number;
+      timeoutMs?: number;
     }
   | {
       error: string;
@@ -64,8 +67,8 @@ function parseTerminalCommandInput(
       status: 400,
     };
   }
-  const timeoutMs =
-    body.timeoutMs === undefined ? DEFAULT_COMMAND_TIMEOUT_MS : body.timeoutMs;
+  const { timeoutMs } = body;
+  if (timeoutMs === undefined) return { command };
   if (
     typeof timeoutMs !== "number" ||
     !Number.isSafeInteger(timeoutMs) ||
@@ -78,6 +81,22 @@ function parseTerminalCommandInput(
     };
   }
   return { command, timeoutMs };
+}
+
+function terminalRequestTimeoutMs(
+  context: AppContext,
+  requested?: number,
+  ceiling = MAX_COMMAND_TIMEOUT_MS,
+): number {
+  if (requested !== undefined) return Math.min(requested, ceiling);
+  const configured = context.services.settings.get().execution.commandTimeoutMs;
+  const timeoutMs =
+    typeof configured === "number" &&
+    Number.isSafeInteger(configured) &&
+    configured > 0
+      ? configured
+      : DEFAULT_COMMAND_TIMEOUT_MS;
+  return Math.min(ceiling, timeoutMs);
 }
 
 function terminalSessionError(error: unknown, instanceId?: string): Response {
@@ -172,7 +191,6 @@ function boundedTerminalResult<T extends { stdout: string; stderr: string }>(
 
 function sdkTerminalRunResult(
   result: Awaited<ReturnType<AppContext["services"]["terminal"]["run"]>>,
-  timeoutMs: number,
 ) {
   const stdoutBytes = new TextEncoder().encode(result.stdout).byteLength;
   const stderrBytes = new TextEncoder().encode(result.stderr).byteLength;
@@ -187,7 +205,7 @@ function sdkTerminalRunResult(
     stderr: takeUtf8Prefix(result.stderr, stderrLimit),
     timedOut: result.timedOut === true || result.exitCode === 124,
     truncated: stdoutBytes + stderrBytes > MAX_SDK_TERMINAL_CAPTURE_BYTES,
-    maxDurationMs: timeoutMs,
+    maxDurationMs: result.timeoutMs,
     durationMs: result.durationMs,
     cwd: result.cwd,
   };
@@ -352,7 +370,7 @@ export async function handleOperationsRoutes(
         result: await runEffectiveShellCommand(
           context.runtime,
           input.command,
-          input.timeoutMs,
+          terminalRequestTimeoutMs(context, input.timeoutMs),
         ),
       });
     } catch (error) {
@@ -417,7 +435,14 @@ export async function handleOperationsRoutes(
     const run = runEffectiveShellCommand(
       context.runtime,
       input.command,
-      input.timeoutMs,
+      terminalRequestTimeoutMs(
+        context,
+        input.timeoutMs,
+        Math.min(
+          MAX_COMMAND_TIMEOUT_MS,
+          resolveTerminalRunLimits().maxDurationMs,
+        ),
+      ),
       body.captureOutput === true ? request.signal : undefined,
       { requireCancellation: options.captureOutputRequired, runId },
     );
@@ -432,7 +457,7 @@ export async function handleOperationsRoutes(
       return json({ ok: true });
     }
     try {
-      return json(sdkTerminalRunResult(await run, input.timeoutMs));
+      return json(sdkTerminalRunResult(await run));
     } catch (error) {
       const unavailable = terminalExecutionError(error);
       if (unavailable) return unavailable;
@@ -457,6 +482,7 @@ export async function handleOperationsRoutes(
       throw error;
     }
 
+    const timeoutMs = terminalRequestTimeoutMs(context, input.timeoutMs);
     const runId = randomUUID();
     const originConversationId = currentConversationWorkspace()?.sessionId;
     return streamSse(async (emit) => {
@@ -504,7 +530,7 @@ export async function handleOperationsRoutes(
             onStdout: queueChunk("terminal.stdout"),
             onStderr: queueChunk("terminal.stderr"),
           },
-          input.timeoutMs,
+          timeoutMs,
           request.signal,
         );
         await emitQueue;

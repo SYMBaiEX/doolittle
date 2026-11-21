@@ -1,3 +1,4 @@
+import { MAX_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
   DesktopCommandRequest,
@@ -41,6 +42,12 @@ const MAX_SENSITIVE_RESPONSE_BYTES = 2_000_000;
 const START_POST_BOOTSTRAP_BUDGET_MS = 20_000;
 const CREATION_ATTEMPT_RETENTION_MS = 10 * 60_000;
 const MAX_CREATION_ATTEMPTS = 256;
+
+function commandTimeoutDescription(timeoutMs?: number): string {
+  return timeoutMs === undefined
+    ? `The configured command timeout applies, up to ${MAX_COMMAND_TIMEOUT_MS / 1_000} seconds.`
+    : `The timeout is ${timeoutMs / 1_000} seconds.`;
+}
 
 class TerminalRuntimeHttpError extends Error {
   constructor(
@@ -423,9 +430,7 @@ export function registerTerminalIpcHandlers(
         kind: "command",
         title: "Run command in this workspace?",
         message: request.command,
-        detail: `Doolittle will run this command in the selected workspace. It will stop after at most ${Math.round(
-          request.timeoutMs / 1_000,
-        )} seconds.`,
+        detail: `Doolittle will run this command in the selected workspace. ${commandTimeoutDescription(request.timeoutMs)}`,
         confirmLabel: "Run command",
       });
       if (!confirmed) return { status: "cancelled" };
@@ -438,7 +443,9 @@ export function registerTerminalIpcHandlers(
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(request),
-        signal: AbortSignal.timeout(request.timeoutMs + 5_000),
+        signal: AbortSignal.timeout(
+          (request.timeoutMs ?? MAX_COMMAND_TIMEOUT_MS) + 5_000,
+        ),
       });
       if (!response.ok) {
         throw new Error(
@@ -492,9 +499,7 @@ export function registerTerminalIpcHandlers(
           kind: "command",
           title: "Run command in this workspace?",
           message: request.command,
-          detail: `Doolittle will stream this command from the selected workspace. You can stop it at any time, and it will stop automatically after at most ${Math.round(
-            request.timeoutMs / 1_000,
-          )} seconds.`,
+          detail: `Doolittle will stream this command from the selected workspace. You can stop it at any time. ${commandTimeoutDescription(request.timeoutMs)}`,
           confirmLabel: "Run command",
         });
         if (!confirmed || controller.signal.aborted) {

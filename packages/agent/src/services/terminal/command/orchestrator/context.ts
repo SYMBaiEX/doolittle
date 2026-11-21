@@ -1,3 +1,4 @@
+import { DEFAULT_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import { sanitizeCommand } from "../../execution/subprocess";
 
@@ -18,6 +19,8 @@ export function resolveExecutionContext(input: {
     settings,
     safeCommand: sanitizeCommand(input.command),
     effectiveTimeoutMs:
-      input.timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000,
+      input.timeoutMs ??
+      settings.execution.commandTimeoutMs ??
+      DEFAULT_COMMAND_TIMEOUT_MS,
   };
 }

@@ -5,6 +5,10 @@ import { join } from "node:path";
 import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime, Memory } from "@elizaos/core";
 import { afterEach, expect, it, vi } from "vitest";
+import {
+  validateDesktopCommandRequest,
+  validateTerminalStreamRequest,
+} from "../../apps/desktop/src/main/ipc/ipc-validation";
 import { createCodingAction } from "../../packages/agent/src/actions/coding-action";
 import { createSdkTerminalAction } from "../../packages/agent/src/actions/sdk-terminal-action";
 import { extractCommandResultFromActionResult } from "../../packages/agent/src/runtime/action-result-metadata";
@@ -29,11 +33,44 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("runs the real SDK terminal action in its verified desktop workspace without exposing origin authority", async () => {
+const budgets = [
+  {
+    budget: "configured",
+    configuredMs: 90_000,
+    sdkLimit: undefined,
+    expectedMs: 90_000,
+  },
+  {
+    budget: "default",
+    configuredMs: undefined,
+    sdkLimit: undefined,
+    expectedMs: 120_000,
+  },
+  {
+    budget: "saved 30 second",
+    configuredMs: 30_000,
+    sdkLimit: undefined,
+    expectedMs: 30_000,
+  },
+  {
+    budget: "SDK-capped",
+    configuredMs: 90_000,
+    sdkLimit: "45000",
+    expectedMs: 45_000,
+  },
+];
+
+it.each(budgets)("honors the $budget SDK budget", async (budget) => {
+  const { configuredMs, sdkLimit, expectedMs } = budget;
   vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
   vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "");
+  vi.stubEnv("ELIZA_TERMINAL_MAX_DURATION_MS", sdkLimit);
   const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-scope-"));
-  const scope = { sessionId: randomUUID(), botId: "lead", workspacePath: root };
+  const scope = {
+    sessionId: randomUUID(),
+    botId: "lead",
+    workspacePath: root,
+  };
   resolveScope.mockResolvedValue(scope);
   const record = {
     id: "",
@@ -42,11 +79,13 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
     stdout: root,
     stderr: "",
     cwd: root,
+    timeoutMs: expectedMs,
     durationMs: 1,
     backend: "local",
   };
-  const run = vi.fn(async (_command, _timeout, signal, options) => {
+  const run = vi.fn(async (_command, timeoutMs, signal, options) => {
     expect(currentConversationWorkspace()).toEqual(scope);
+    expect(timeoutMs).toBe(expectedMs);
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal.aborted).toBe(false);
     record.id = options.runId;
@@ -60,6 +99,9 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
     redactSecrets: (value: string) => value,
   } as unknown as IAgentRuntime;
   const services = {
+    settings: {
+      get: () => ({ execution: { commandTimeoutMs: configuredMs } }),
+    },
     terminal: {
       assertExecutionAvailable: () => undefined,
       recent: () => [record],
@@ -95,6 +137,7 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
         command: "pwd",
         executedIn: root,
         exitCode: 0,
+        maxDurationMs: expectedMs,
       }),
     );
     if (!result) throw new Error("SDK terminal result was not returned");
@@ -116,6 +159,20 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+it("preserves timeout omission and explicit budgets across desktop IPC", () => {
+  expect(validateDesktopCommandRequest({ command: "pwd" })).toEqual({
+    command: "pwd",
+  });
+  const stream = { requestId: "terminal-request", command: "pwd" };
+  expect(validateTerminalStreamRequest(stream)).toEqual(stream);
+  expect(
+    validateTerminalStreamRequest({ ...stream, timeoutMs: 90_000 }),
+  ).toEqual({
+    ...stream,
+    timeoutMs: 90_000,
+  });
 });
 
 it("rejects unleased, cancelled and competing identical commands without borrowing a workspace", async () => {
