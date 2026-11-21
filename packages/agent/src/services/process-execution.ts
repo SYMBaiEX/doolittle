@@ -170,8 +170,11 @@ function processAbsent(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | undefined)?.code === "ESRCH";
 }
 
-async function confirmProcessAbsent(id: number): Promise<string | undefined> {
-  const deadline = Date.now() + TERMINATION_CONFIRMATION_MS;
+async function confirmProcessAbsent(
+  id: number,
+  timeoutMs = TERMINATION_CONFIRMATION_MS,
+): Promise<string | undefined> {
+  const deadline = Date.now() + timeoutMs;
   while (true) {
     try {
       process.kill(id, 0);
@@ -179,10 +182,11 @@ async function confirmProcessAbsent(id: number): Promise<string | undefined> {
       if (processAbsent(error)) return undefined;
       return `Process termination could not be inspected: ${boundedErrorMessage(error)}`;
     }
-    if (Date.now() >= deadline) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
       return "The owned process or process group still exists after teardown.";
     }
-    await waitForTeardown(25);
+    await waitForTeardown(Math.min(25, remaining));
   }
 }
 
@@ -196,7 +200,11 @@ async function terminateProcessGroup(
     if (processAbsent(error)) return undefined;
     signalFailure = `SIGINT failed: ${boundedErrorMessage(error)}`;
   }
-  await waitForTeardown(CANCELLATION_GRACE_MS);
+  // Most short-lived children exit immediately after SIGINT. Confirm absence
+  // during the same grace period before deciding whether escalation is needed.
+  if (!(await confirmProcessAbsent(-groupId, CANCELLATION_GRACE_MS))) {
+    return undefined;
+  }
   try {
     process.kill(-groupId, "SIGKILL");
   } catch (error) {

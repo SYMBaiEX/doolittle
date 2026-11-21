@@ -1,5 +1,5 @@
 import { lstatSync, readdirSync } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { readdir, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import type { WorkspaceEntry } from "../../types/index";
@@ -35,21 +35,12 @@ export async function listWorkspaceTreeAsync(
   maxEntries = DEFAULT_ASYNC_WORKSPACE_TREE_LIMIT,
 ): Promise<WorkspaceTreeSnapshot> {
   const entries: WorkspaceEntry[] = [];
-  const state = {
-    limit: Math.max(0, Math.floor(maxEntries)),
-    truncated: false,
-    visited: 0,
-  };
-
-  await walkWorkspaceTreeAsync(
-    workspaceDir,
-    workspaceDir,
-    0,
-    maxDepth,
-    entries,
-    state,
-  );
-  return { entries, truncated: state.truncated };
+  const limit = Math.max(0, Math.floor(maxEntries));
+  for await (const entry of iterateWorkspaceTree(workspaceDir, maxDepth)) {
+    if (entries.length >= limit) return { entries, truncated: true };
+    entries.push(entry);
+  }
+  return { entries, truncated: false };
 }
 
 export function listCompleteWorkspaceTreeAsync(
@@ -63,54 +54,75 @@ export function listCompleteWorkspaceTreeAsync(
   );
 }
 
-async function walkWorkspaceTreeAsync(
+/** Ordered, cooperative traversal that can stop before examining later directories. */
+export function iterateWorkspaceTree(
   workspaceDir: string,
+  maxDepth: number,
+  options: {
+    startDir?: string;
+    signal?: AbortSignal;
+    requireCanonicalDirectories?: boolean;
+  } = {},
+): AsyncGenerator<WorkspaceEntry> {
+  const currentDir = options.startDir ?? workspaceDir;
+  return walkWorkspaceTreeAsync(
+    currentDir,
+    workspaceRelativePath(relative(workspaceDir, currentDir)),
+    0,
+    maxDepth,
+    { visited: 0, ...options },
+  );
+}
+
+async function* walkWorkspaceTreeAsync(
   currentDir: string,
+  relativeDir: string,
   depth: number,
   maxDepth: number,
-  entries: WorkspaceEntry[],
-  state: { limit: number; truncated: boolean; visited: number },
-): Promise<void> {
-  if (depth > maxDepth || state.truncated) return;
+  state: {
+    visited: number;
+    signal?: AbortSignal;
+    requireCanonicalDirectories?: boolean;
+  },
+): AsyncGenerator<WorkspaceEntry> {
+  const { signal } = state;
+  signal?.throwIfAborted();
+  if (depth > maxDepth) return;
+  if (
+    state.requireCanonicalDirectories &&
+    (await realpath(currentDir)) !== currentDir
+  )
+    return;
 
   const dirEntries = (await readdir(currentDir, { withFileTypes: true })).sort(
     (left, right) => left.name.localeCompare(right.name),
   );
   for (const dirEntry of dirEntries) {
-    if (state.truncated) return;
-
-    const absolutePath = join(currentDir, dirEntry.name);
-    const relativePath = workspaceRelativePath(
-      relative(workspaceDir, absolutePath),
-    );
-    if (!isWorkspacePathVisible(relativePath) || dirEntry.isSymbolicLink()) {
-      continue;
+    if (++state.visited % 256 === 0) {
+      await setImmediate(undefined, { signal });
     }
-
-    if (entries.length >= state.limit) {
-      state.truncated = true;
-      return;
-    }
-
+    signal?.throwIfAborted();
     const directory = dirEntry.isDirectory();
-    entries.push({
+    if (!directory && !dirEntry.isFile()) continue;
+    const name = workspaceRelativePath(dirEntry.name);
+    // A literal backslash on POSIX would otherwise be rendered as a path
+    // separator and resolve to a different entry on the operator surface.
+    if (name.includes("/")) continue;
+    const relativePath = relativeDir ? `${relativeDir}/${name}` : name;
+    if (!isWorkspacePathVisible(relativePath)) continue;
+
+    yield {
       path: relativePath,
       type: directory ? "directory" : "file",
       depth,
-    });
-
-    state.visited += 1;
-    if (state.visited % 256 === 0) {
-      await setImmediate();
-    }
+    };
 
     if (directory) {
-      await walkWorkspaceTreeAsync(
-        workspaceDir,
-        absolutePath,
+      yield* walkWorkspaceTreeAsync(
+        join(currentDir, dirEntry.name),
+        relativePath,
         depth + 1,
         maxDepth,
-        entries,
         state,
       );
     }

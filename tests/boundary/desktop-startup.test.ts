@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import {
   existsSync,
   mkdirSync,
@@ -125,7 +126,9 @@ function desktopIpcFixture(runtime: BackendManager, bots?: BotProcessRegistry) {
     currentPath: runtime.getWorkspaceDirectory(),
     recentPaths: [],
   };
-  const sender = { sender: { id: 1 } } as IpcMainInvokeEvent;
+  const sender = {
+    sender: Object.assign(new EventEmitter(), { id: 1 }),
+  } as unknown as IpcMainInvokeEvent;
   const handlers = new Map<string, Parameters<IpcMain["handle"]>[1]>();
   const dispose = registerIpc({
     ipcMain: {
@@ -198,6 +201,47 @@ it("refuses a stale conversation inventory read without activating a stopped nam
     ).rejects.toThrow("conversation inventory is unavailable");
     expect(activate).not.toHaveBeenCalled();
   } finally {
+    dispose();
+  }
+});
+
+it("cancels a pending search before the bot runtime opens its transport", async () => {
+  const { runtime, target } = runtimeFixture();
+  const bots = new BotProcessRegistry(
+    target,
+    target.repoRoot,
+    runtime,
+    target.repoRoot,
+  );
+  let finishStart = (_runtime: BackendManager) => {};
+  const starting = new Promise<BackendManager>((resolve) => {
+    finishStart = resolve;
+  });
+  const backendFor = vi.spyOn(bots, "backendFor").mockReturnValue(starting);
+  const { dispose, handlers, sender } = desktopIpcFixture(runtime, bots);
+  try {
+    const request = handlers.get(desktopIpcChannels.invoke.agentRequest);
+    const cancel = handlers.get(desktopIpcChannels.invoke.agentRequestCancel);
+    if (!request || !cancel)
+      throw new Error("Agent transport IPC handlers are missing.");
+
+    const pending = request(sender, {
+      requestId: "superseded-search",
+      path: "/workspace/search?query=old",
+      method: "GET",
+      headers: {},
+    });
+    const cancelled = expect(pending).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    await vi.waitFor(() => expect(backendFor).toHaveBeenCalledOnce());
+    expect(() => cancel(sender, "superseded-search", "other")).toThrow(
+      "different bot",
+    );
+    cancel(sender, "superseded-search");
+    await cancelled;
+  } finally {
+    finishStart(runtime);
     dispose();
   }
 });

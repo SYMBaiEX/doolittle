@@ -35,7 +35,9 @@ export async function handleWorkspaceRoutes(
       return json({ error: "query is required" }, 400);
     }
     return json({
-      results: await context.services.workspace.search(query),
+      results: await context.services.workspace.search(query, undefined, {
+        signal: request.signal,
+      }),
     });
   }
 

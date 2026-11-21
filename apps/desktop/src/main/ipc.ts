@@ -144,7 +144,7 @@ function waitForChatSubmission(
   });
 }
 
-function waitForChatBackend<T>(
+function waitForRuntimeBackend<T>(
   startup: Promise<T>,
   signal: AbortSignal,
 ): Promise<T> {
@@ -644,72 +644,78 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       if (activeAgentRequests.has(key)) {
         throw new Error("This desktop transport request is already running.");
       }
-      if (bots) {
-        const catalogResponse = await handleBotApiRequest(
-          bots,
-          request,
-          confirmSensitiveAction,
+      const controller = new AbortController();
+      const active = { controller, botId };
+      activeAgentRequests.set(key, active);
+      const stopTrackingSender = trackSenderCleanup(event.sender, () => {
+        controller.abort(
+          new DOMException("Desktop renderer closed.", "AbortError"),
         );
-        if (catalogResponse) return catalogResponse;
-      } else if (botId !== "default") {
-        throw new Error("Named bots are unavailable.");
-      }
-      if (bots) await assertBotSessionRequest(bots, request, botId);
-      const pathname = new URL(
-        parseApiPath(request.path, request.method),
-        "http://localhost",
-      ).pathname;
-      const passiveRunRead =
-        request.method === "GET" &&
-        (pathname === "/chat/runs" || pathname.startsWith("/chat/runs/"));
-      const passiveNamedSessionList =
-        request.method === "GET" &&
-        pathname === "/sessions" &&
-        botId !== "default" &&
-        bots !== undefined &&
-        !bots.get(botId).isDefault;
-      const directWrite = isWorkspaceTransportMutation(request.method, pathname)
-        ? await authorizeComputerRequest(
-            validateComputerOwnerScope({
-              botId: request.botId,
-              originConversationId: request.originConversationId,
-              workspacePath: request.workspacePath,
-            }),
-            {
-              backend,
-              bots,
-              admission,
-              defaultWorkspaceRoot: backend.getWorkspaceDirectory(),
-            },
-            true,
-          )
-        : undefined;
+      });
       try {
-        const targetBackend = bots
-          ? passiveRunRead || passiveNamedSessionList
-            ? bots.readyBackendFor(botId)
-            : await bots.backendFor(botId)
-          : backend;
-        if (!targetBackend) {
-          throw new Error(
-            passiveNamedSessionList
-              ? "The local runtime is not live; conversation inventory is unavailable."
-              : "The local runtime is not live; run receipt is unavailable.",
+        if (bots) {
+          const catalogResponse = await handleBotApiRequest(
+            bots,
+            request,
+            confirmSensitiveAction,
           );
+          if (catalogResponse) return catalogResponse;
+        } else if (botId !== "default") {
+          throw new Error("Named bots are unavailable.");
         }
-        const controller = new AbortController();
-        activeAgentRequests.set(key, { controller, botId });
-        const cleanupDestroyedSender = () => {
-          controller.abort(
-            new DOMException("Desktop renderer closed.", "AbortError"),
-          );
-          activeAgentRequests.delete(key);
-        };
-        const stopTrackingSender = trackSenderCleanup(
-          event.sender,
-          cleanupDestroyedSender,
-        );
+        controller.signal.throwIfAborted();
+        if (bots) await assertBotSessionRequest(bots, request, botId);
+        controller.signal.throwIfAborted();
+        const pathname = new URL(
+          parseApiPath(request.path, request.method),
+          "http://localhost",
+        ).pathname;
+        const passiveRunRead =
+          request.method === "GET" &&
+          (pathname === "/chat/runs" || pathname.startsWith("/chat/runs/"));
+        const passiveNamedSessionList =
+          request.method === "GET" &&
+          pathname === "/sessions" &&
+          botId !== "default" &&
+          bots !== undefined &&
+          !bots.get(botId).isDefault;
+        const directWrite = isWorkspaceTransportMutation(
+          request.method,
+          pathname,
+        )
+          ? await authorizeComputerRequest(
+              validateComputerOwnerScope({
+                botId: request.botId,
+                originConversationId: request.originConversationId,
+                workspacePath: request.workspacePath,
+              }),
+              {
+                backend,
+                bots,
+                admission,
+                defaultWorkspaceRoot: backend.getWorkspaceDirectory(),
+              },
+              true,
+            )
+          : undefined;
         try {
+          controller.signal.throwIfAborted();
+          const targetBackend = bots
+            ? passiveRunRead || passiveNamedSessionList
+              ? bots.readyBackendFor(botId)
+              : await waitForRuntimeBackend(
+                  bots.backendFor(botId),
+                  controller.signal,
+                )
+            : backend;
+          if (!targetBackend) {
+            throw new Error(
+              passiveNamedSessionList
+                ? "The local runtime is not live; conversation inventory is unavailable."
+                : "The local runtime is not live; run receipt is unavailable.",
+            );
+          }
+          controller.signal.throwIfAborted();
           const response = await requestAgentTransport(
             targetBackend,
             sensitiveFetch,
@@ -720,11 +726,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             ? await attributeBotSessionResponse(bots, request, botId, response)
             : response;
         } finally {
-          stopTrackingSender();
-          activeAgentRequests.delete(key);
+          directWrite?.release();
         }
       } finally {
-        directWrite?.release();
+        stopTrackingSender();
+        if (activeAgentRequests.get(key) === active) {
+          activeAgentRequests.delete(key);
+        }
       }
     },
   );
@@ -818,7 +826,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       try {
         if (controller.signal.aborted) throw controller.signal.reason;
         const targetBackend = bots
-          ? await waitForChatBackend(bots.backendFor(botId), controller.signal)
+          ? await waitForRuntimeBackend(
+              bots.backendFor(botId),
+              controller.signal,
+            )
           : backend;
         if (controller.signal.aborted) throw controller.signal.reason;
         const state = targetBackend.getState();

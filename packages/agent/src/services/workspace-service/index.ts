@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import type { WorkspaceEntry } from "../../types/index";
 import {
   resolveWorkspaceDirectory,
@@ -24,7 +25,7 @@ import {
   writeWorkspaceFile,
 } from "./file-operations";
 import { resolveWorkspaceServicePath } from "./path";
-import { searchWorkspace } from "./search";
+import { searchWorkspace, type WorkspaceSearchOptions } from "./search";
 import { summarizeWorkspaceTree } from "./summary";
 import {
   listWorkspaceTree,
@@ -121,9 +122,13 @@ export class WorkspaceService {
   async search(
     query: string,
     maxResults = 25,
+    options?: WorkspaceSearchOptions,
   ): Promise<Array<{ path: string; matches: string[] }>> {
     const root = this.root();
-    return searchWorkspace(root, query, maxResults);
+    return searchWorkspace(root, query, maxResults, {
+      ...options,
+      requireCanonicalRoot: Boolean(currentConversationWorkspace()),
+    });
   }
 
   summary(maxEntries = 20): string {
