@@ -12,15 +12,6 @@ export async function handleLocalEntrypointSubcommand(input: {
 }): Promise<number | undefined> {
   const { command, rest, repoRoot } = input;
   switch (command) {
-    case "commands": {
-      const { renderCommandCatalog } = await import(
-        "@doolittle/agent/runtime/command-catalog"
-      );
-      console.log(
-        renderCommandCatalog(rest.join(" ").trim() || undefined, 80, repoRoot),
-      );
-      return 0;
-    }
     case "setup":
     case "doctor": {
       const { runOnboardingWizard } = await import("../cli/startup");

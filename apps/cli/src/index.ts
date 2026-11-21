@@ -12,6 +12,18 @@ async function main(): Promise<number> {
     case "version":
       console.log(`Doolittle ${DOOLITTLE_VERSION}`);
       return 0;
+    case "commands": {
+      const [{ getDefaultRepoRoot }, { renderCommandCatalog }] =
+        await Promise.all([
+          import("@doolittle/agent/config/env/paths"),
+          import("@doolittle/agent/runtime/command-catalog"),
+        ]);
+      const query = selection.rest.join(" ").trim();
+      console.log(
+        renderCommandCatalog(query || undefined, 80, getDefaultRepoRoot()),
+      );
+      return 0;
+    }
   }
 
   // Snapshot the launch environment before any configuration or plugins load.
