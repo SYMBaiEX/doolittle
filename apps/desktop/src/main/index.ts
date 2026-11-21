@@ -261,7 +261,11 @@ async function pickProjectFolders(purpose?: "chat") {
   return {
     canceled: result.canceled,
     kind: "folder" as const,
-    paths: result.canceled ? [] : result.filePaths,
+    paths: result.canceled
+      ? []
+      : purpose === "chat"
+        ? result.filePaths.map(normalizeWorkspaceDirectory)
+        : result.filePaths,
   };
 }
 
