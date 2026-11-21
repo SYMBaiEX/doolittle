@@ -347,7 +347,7 @@ export function writeRuntimeThirdPartyNotices(
 }
 
 /**
- * The desktop runtime is emitted as a single bundled work. Fail closed when a
+ * The desktop runtime is distributed as a bundled work. Fail closed when a
  * contributing package declares a strong-copyleft license that is not
  * compatible with Doolittle's MIT binary distribution. Source installs may
  * still load those optional packages under their own license terms.

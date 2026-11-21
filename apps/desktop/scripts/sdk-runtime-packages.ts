@@ -37,6 +37,7 @@ export const SDK_RUNTIME_PACKAGES = [
 export async function copySdkRuntimePackages(
   repoRoot: string,
   outputDir: string,
+  bundleEntries: readonly string[],
   nativePackages: readonly string[],
   sdkImports: readonly string[],
 ) {
@@ -91,11 +92,8 @@ export async function copySdkRuntimePackages(
     resolve(repoRoot, "vendor/elizaos/packages/plugin-mcp/package.json"),
   );
   entries.push(mcpRequire.resolve("ajv"), mcpRequire.resolve("ajv/dist/2020"));
-  const bundleEntries = [
-    resolve(outputDir, "doolittle-runtime.mjs"),
-    resolve(outputDir, "doolittle-acp.mjs"),
-  ];
   entries.push(...bundleEntries);
+  const bundledFiles = new Set(bundleEntries);
   const traced = await nodeFileTrace(entries, {
     base: repoRoot,
     processCwd: dirname(
@@ -150,9 +148,10 @@ export async function copySdkRuntimePackages(
           isCjs,
         );
       // Analyze external imports against their original first-party owner.
-      const owner = bundleEntries.includes(parent)
-        ? resolve(repoRoot, "packages/agent/src/index.ts")
-        : parent;
+      const owner =
+        bundledFiles.has(parent) && !id.startsWith(".")
+          ? resolve(repoRoot, "packages/agent/src/index.ts")
+          : parent;
       return resolveDependency(id, owner, job, isCjs);
     },
     async readFile(path) {

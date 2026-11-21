@@ -116,6 +116,7 @@ const runtimeBuild = await build({
   entryNames: "[name]",
   outExtension: { ".js": ".mjs" },
   bundle: true,
+  splitting: true,
   platform: "node",
   format: "esm",
   // Keep this syntax baseline compatible with the Node runtime embedded in Electron.
@@ -147,7 +148,7 @@ const runtimeBuild = await build({
     "onnxruntime-node",
     // Discord voice treats this optional lookup as best-effort and falls back
     // to a system ffmpeg/avconv binary. Do not fold the GPL executable helper
-    // into Doolittle's single-file MIT desktop runtime.
+    // into Doolittle's MIT desktop runtime.
     "ffmpeg-static",
     "@napi-rs/keyring-*",
     "@node-llama-cpp/*",
@@ -158,9 +159,13 @@ const runtimeBuild = await build({
   ],
 });
 
+const bundlePaths = Object.keys(runtimeBuild.metafile.outputs)
+  .map((file) => resolve(repoRoot, file))
+  .sort((a, b) => a.localeCompare(b));
 const tracedSdk = await copySdkRuntimePackages(
   repoRoot,
   outputDir,
+  bundlePaths,
   nativeExternalPackages,
   [
     ...new Set(
@@ -214,16 +219,19 @@ const thirdPartyNotices = {
 // Source entrypoints use `#!/usr/bin/env nub` for source-checkout launches.
 // Packaged apps execute these bundles through Electron's embedded Node, so
 // retaining that source-only launcher hint is misleading and unnecessary.
-const bundledEntries = [outputPath, acpOutputPath].map((entry) => {
-  const bundle = readFileSync(entry, "utf8");
-  const withoutShebang = bundle.replace(/^#![^\r\n]*(?:\r?\n|$)/u, "");
-  writeFileSync(entry, withoutShebang, "utf8");
-  return withoutShebang;
+const bundles = bundlePaths.map((path) => {
+  const original = readFileSync(path, "utf8");
+  const source = original.replace(/^#![^\r\n]*(?:\r?\n|$)/u, "");
+  if (source !== original) writeFileSync(path, source, "utf8");
+  return {
+    file: basename(path),
+    sha256: createHash("sha256").update(source).digest("hex"),
+    source,
+  };
 });
+const bundledSource = bundles.map(({ source }) => source).join("\n");
 
-for (const packageName of discoverDynamicCommonJsPackages(
-  bundledEntries.join("\n"),
-)) {
+for (const packageName of discoverDynamicCommonJsPackages(bundledSource)) {
   const manifestPath = resolve(
     runtimeNodeModulesDir,
     packageName,
@@ -236,9 +244,7 @@ for (const packageName of discoverDynamicCommonJsPackages(
   }
 }
 
-const referencedRuntimeAssets = discoverRuntimeAssetReferences(
-  bundledEntries.join("\n"),
-);
+const referencedRuntimeAssets = discoverRuntimeAssetReferences(bundledSource);
 const missingRuntimeAssets = referencedRuntimeAssets.filter(
   (asset) => !existsSync(resolve(outputDir, asset)),
 );
@@ -258,6 +264,7 @@ writeFileSync(
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
       assets: [...new Set(tracedSdk.files)].sort((a, b) => a.localeCompare(b)),
+      bundles: bundles.map(({ file, sha256 }) => ({ file, sha256 })),
       tracedPackages: tracedSdk.packages,
       nativeEntryPackages: [...nativeExternalPackages].sort(),
       nativePackages: copiedNativePackages,

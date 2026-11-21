@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +8,67 @@ import {
   isInstalledPackageManifestPath,
   packageNamesFromAsarEntries,
 } from "../../apps/desktop/scripts/package-composition";
+import { verifyPackagedNativeRuntime } from "../../apps/desktop/scripts/verify-package";
+
+it("fails package verification when a deferred runtime bundle is changed or missing", () => {
+  const root = mkdtempSync(join(tmpdir(), "doolittle-runtime-bundle-"));
+  try {
+    const bin = join(root, "runtime", "bin");
+    mkdirSync(bin, { recursive: true });
+    const bundleSource = "export {};\n";
+    const bundlePaths = [
+      "chunk-tools.mjs",
+      "doolittle-acp.mjs",
+      "doolittle-runtime.mjs",
+    ];
+    const sha256 = (source: string) =>
+      createHash("sha256").update(source).digest("hex");
+    for (const file of bundlePaths)
+      writeFileSync(join(bin, file), bundleSource);
+    const packages = [{ name: "fixture-package", version: "1.0.0" }];
+    const notices =
+      "Package: fixture-package\nVersion: 1.0.0\nDeclared license: MIT\nLicense file: LICENSE\n";
+    writeFileSync(join(bin, "THIRD-PARTY-NOTICES.txt"), notices);
+    writeFileSync(
+      join(bin, "runtime-manifest.json"),
+      JSON.stringify({
+        schema: 1,
+        runtime: "node",
+        node: "electron-embedded",
+        entry: "doolittle-runtime.mjs",
+        acpEntry: "doolittle-acp.mjs",
+        bundles: bundlePaths.map((file) => ({
+          file,
+          sha256: sha256(bundleSource),
+        })),
+        assets: [],
+        bundledPackages: packages,
+        nativeEntryPackages: [],
+        nativePackages: [],
+        nativeExternalPackages: [],
+        nativePackageClosure: [],
+        thirdPartyNotices: {
+          file: "THIRD-PARTY-NOTICES.txt",
+          packages,
+          sha256: sha256(notices),
+        },
+      }),
+    );
+    const asar = join(root, "app.asar");
+    expect(verifyPackagedNativeRuntime(asar)).toEqual([]);
+    const chunk = join(bin, bundlePaths[0]);
+    writeFileSync(chunk, "/* changed */\n");
+    expect(() => verifyPackagedNativeRuntime(asar)).toThrow(
+      "Packaged runtime bundle was tampered with: chunk-tools.mjs",
+    );
+    rmSync(chunk);
+    expect(() => verifyPackagedNativeRuntime(asar)).toThrow(
+      "Packaged runtime bundle is missing or unsafe: chunk-tools.mjs",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 it("inventories package roots and nested dependencies rather than internal module settings", () => {
   const paths = [

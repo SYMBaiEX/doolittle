@@ -29,6 +29,7 @@ const args = process.argv.slice(2);
 type RuntimeManifest = {
   acpEntry: string;
   assets: string[];
+  bundles?: Array<{ file: string; sha256: string }>;
   bundledPackages: RuntimeDependencyInventoryEntry[];
   tracedPackages?: RuntimeDependencyInventoryEntry[];
   entry: string;
@@ -427,6 +428,28 @@ export function validateRuntimeManifest(value: unknown): RuntimeManifest {
   if (!manifest.entry?.trim() || !manifest.acpEntry?.trim()) {
     throw new Error("Packaged runtime manifest has no runtime entrypoints.");
   }
+  // Older runtime manifests certify two standalone entry files.
+  if (manifest.bundles !== undefined) {
+    const bundles = manifest.bundles;
+    if (
+      !Array.isArray(bundles) ||
+      bundles.some(
+        (bundle) =>
+          !bundle ||
+          typeof bundle.file !== "string" ||
+          !/^[a-z0-9_-]+\.mjs$/iu.test(bundle.file) ||
+          typeof bundle.sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(bundle.sha256),
+      ) ||
+      !isSortedUniqueStringList(bundles.map(({ file }) => file)) ||
+      !bundles.some(({ file }) => file === manifest.entry) ||
+      !bundles.some(({ file }) => file === manifest.acpEntry)
+    ) {
+      throw new Error(
+        "Packaged runtime manifest has an invalid bundle inventory.",
+      );
+    }
+  }
   if (
     !manifest.thirdPartyNotices?.file?.trim() ||
     !inventoryIsStable(manifest.thirdPartyNotices?.packages) ||
@@ -562,6 +585,20 @@ export function verifyPackagedNativeRuntime(
   }
   if (!existsSync(runtimePath(runtimeBin, runtimeManifest.acpEntry))) {
     throw new Error("Packaged ACP runtime entry is missing.");
+  }
+  for (const { file, sha256 } of runtimeManifest.bundles ?? []) {
+    const path = runtimePath(runtimeBin, file);
+    let bytes: Buffer;
+    try {
+      bytes = readRegularFileSync(path);
+    } catch (error) {
+      throw new Error(`Packaged runtime bundle is missing or unsafe: ${file}`, {
+        cause: error,
+      });
+    }
+    if (createHash("sha256").update(bytes).digest("hex") !== sha256) {
+      throw new Error(`Packaged runtime bundle was tampered with: ${file}`);
+    }
   }
   const missingAssets = runtimeManifest.assets.filter(
     (asset) => !existsSync(runtimePath(runtimeBin, asset)),
