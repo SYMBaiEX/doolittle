@@ -20,6 +20,7 @@ import type {
 import type {
   SessionMessageActivityEvent,
   SessionRunTranscriptPage,
+  SessionTranscriptPage,
 } from "../messages";
 import type { SessionMetadataValue } from "../metadata";
 import type {
@@ -56,6 +57,11 @@ export interface SessionServiceApi {
     limit: number,
     offset?: number,
   ): StoredMessage[];
+  messagesPage(
+    sessionId: string,
+    limit: number,
+    offset?: number,
+  ): SessionTranscriptPage;
   recordRunTerminalBoundary(
     runId: string,
     sessionId: string,

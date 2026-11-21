@@ -218,20 +218,9 @@ export async function handleSessionRoutes(
         );
       }
     }
-    const total = context.services.sessions.countBySessionRole(sessionId);
-    const pageSize = Math.min(limit, Math.max(0, total - offset));
-    const pageOffset = Math.max(0, total - offset - pageSize);
-    const messages = context.services.sessions.messagesBySession(
-      sessionId,
-      pageSize,
-      pageOffset,
+    return json(
+      context.services.sessions.messagesPage(sessionId, limit, offset),
     );
-    return json({
-      messages,
-      hasEarlier: pageOffset > 0,
-      nextOffset: offset + messages.length,
-      totalMessages: total,
-    });
   }
 
   if (request.method === "GET" && url.pathname === "/sessions/usage") {

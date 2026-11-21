@@ -6,6 +6,7 @@ import type {
   StoredMessageAttachment,
 } from "../../../types/index";
 import type { SessionDatabase, SessionStatement } from "../database";
+import { loadSessionMessageCount } from "../read-summary/query";
 
 export interface SessionMessageActivityEvent {
   kind: "message";
@@ -29,6 +30,36 @@ export interface SessionRunTranscriptPage {
   terminalStatus: "complete" | "cancelled" | "error";
 }
 
+export interface SessionTranscriptPage {
+  messages: StoredMessage[];
+  hasEarlier: boolean;
+  nextOffset: number;
+  totalMessages: number;
+}
+
+const transcriptSelection = `
+  SELECT messages.id, messages.session_id as sessionId,
+    messages.room_id as roomId, messages.entity_id as entityId,
+    messages.role, messages.text,
+    messages.attachments_json as attachmentsJson,
+    messages.created_at as createdAt,
+    message_origins.origin_message_id as originMessageId
+  FROM messages
+  LEFT JOIN message_origins ON message_origins.message_id = messages.id
+  WHERE messages.session_id = ?1
+`;
+
+function transcriptPageWindow(total: number, limit: number, offset: number) {
+  const pageSize = Math.min(limit, Math.max(0, total - offset));
+  const oldestOffset = Math.max(0, total - offset - pageSize);
+  const newestFirst = offset <= oldestOffset;
+  return {
+    pageSize,
+    newestFirst,
+    pageOffset: newestFirst ? offset : oldestOffset,
+  };
+}
+
 export class SessionRunBoundaryUnavailableError extends Error {
   constructor() {
     super("The exact transcript boundary for this run is unavailable.");
@@ -38,6 +69,7 @@ export class SessionRunBoundaryUnavailableError extends Error {
 export class SessionMessageStore {
   private insertMessageStatement?: SessionStatement;
   private insertSearchStatement?: SessionStatement;
+  private recentMessagesStatement?: SessionStatement;
 
   constructor(
     private readonly db: SessionDatabase,
@@ -211,15 +243,7 @@ export class SessionMessageStore {
     const rows = this.db
       .query(
         `
-          SELECT messages.id, messages.session_id as sessionId,
-            messages.room_id as roomId, messages.entity_id as entityId,
-            messages.role, messages.text,
-            messages.attachments_json as attachmentsJson,
-            messages.created_at as createdAt,
-            message_origins.origin_message_id as originMessageId
-          FROM messages
-          LEFT JOIN message_origins ON message_origins.message_id = messages.id
-          WHERE messages.session_id = ?1
+          ${transcriptSelection}
           ORDER BY messages.created_at ASC, messages.rowid ASC
           LIMIT ?2
           OFFSET ?3
@@ -227,6 +251,43 @@ export class SessionMessageStore {
       )
       .all(sessionId, limit, offset) as StoredMessageRow[];
     return rows.map(toStoredMessage);
+  }
+
+  messagesPage(
+    sessionId: string,
+    limit: number,
+    offset = 0,
+  ): SessionTranscriptPage {
+    const totalMessages = loadSessionMessageCount(this.db, sessionId);
+    const { pageSize, newestFirst, pageOffset } = transcriptPageWindow(
+      totalMessages,
+      limit,
+      offset,
+    );
+    // Offset is measured from the newest end. Scan the index from the closer
+    // end, then return the small page in conversation order.
+    let messages: StoredMessage[];
+    if (newestFirst) {
+      this.recentMessagesStatement ??= this.db.query(`
+        ${transcriptSelection}
+        ORDER BY messages.created_at DESC, messages.rowid DESC
+        LIMIT ?2 OFFSET ?3
+      `);
+      const rows = this.recentMessagesStatement.all(
+        sessionId,
+        pageSize,
+        pageOffset,
+      ) as StoredMessageRow[];
+      messages = rows.reverse().map(toStoredMessage);
+    } else {
+      messages = this.messagesBySession(sessionId, pageSize, pageOffset);
+    }
+    return {
+      messages,
+      hasEarlier: offset + messages.length < totalMessages,
+      nextOffset: offset + messages.length,
+      totalMessages,
+    };
   }
 
   recordRunTerminalBoundary(
@@ -251,9 +312,6 @@ export class SessionMessageStore {
             "SELECT id FROM messages WHERE session_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 1",
           )
           .get(sessionId) as { id: string } | null;
-        const count = this.db
-          .query("SELECT COUNT(*) as count FROM messages WHERE session_id = ?1")
-          .get(sessionId) as { count: number };
         this.db
           .query(
             `INSERT INTO run_message_boundaries
@@ -264,7 +322,7 @@ export class SessionMessageStore {
             runId,
             sessionId,
             last?.id ?? null,
-            count.count,
+            loadSessionMessageCount(this.db, sessionId),
             status,
             new Date().toISOString(),
           );
@@ -314,31 +372,27 @@ export class SessionMessageStore {
       rowid: number;
     } | null;
     if (!anchor) throw new SessionRunBoundaryUnavailableError();
-    const predicate =
-      "session_id = ?1 AND (created_at < ?2 OR (created_at = ?2 AND rowid <= ?3))";
     const current = this.db
-      .query(`SELECT COUNT(*) as count FROM messages WHERE ${predicate}`)
+      .query(`
+        SELECT COUNT(*) as count FROM messages
+        WHERE session_id = ?1 AND (created_at, rowid) <= (?2, ?3)
+      `)
       .get(sessionId, anchor.createdAt, anchor.rowid) as {
       count: number;
     };
     if (current.count !== boundary.messageCount)
       throw new SessionRunBoundaryUnavailableError();
-    const pageSize = Math.min(limit, Math.max(0, current.count - offset));
-    const pageOffset = Math.max(0, current.count - offset - pageSize);
+    const { pageSize, newestFirst, pageOffset } = transcriptPageWindow(
+      current.count,
+      limit,
+      offset,
+    );
+    const order = newestFirst ? "DESC" : "ASC";
     const rows = this.db
       .query(
-        `SELECT messages.id, messages.session_id as sessionId,
-          messages.room_id as roomId, messages.entity_id as entityId,
-          messages.role, messages.text,
-          messages.attachments_json as attachmentsJson,
-          messages.created_at as createdAt,
-          message_origins.origin_message_id as originMessageId
-         FROM messages
-         LEFT JOIN message_origins ON message_origins.message_id = messages.id
-         WHERE messages.session_id = ?1 AND
-           (messages.created_at < ?2 OR
-            (messages.created_at = ?2 AND messages.rowid <= ?3))
-         ORDER BY messages.created_at ASC, messages.rowid ASC
+        `${transcriptSelection}
+         AND (messages.created_at, messages.rowid) <= (?2, ?3)
+         ORDER BY messages.created_at ${order}, messages.rowid ${order}
          LIMIT ?4 OFFSET ?5`,
       )
       .all(
@@ -349,8 +403,8 @@ export class SessionMessageStore {
         pageOffset,
       ) as StoredMessageRow[];
     return {
-      messages: rows.map(toStoredMessage),
-      hasEarlier: pageOffset > 0,
+      messages: (newestFirst ? rows.reverse() : rows).map(toStoredMessage),
+      hasEarlier: offset + rows.length < current.count,
       nextOffset: offset + rows.length,
       throughMessageId: boundary.throughMessageId,
       terminalStatus: boundary.status,

@@ -37,6 +37,7 @@ export class SessionService {
   declare recent: SessionServiceApi["recent"];
   declare recentBySession: SessionServiceApi["recentBySession"];
   declare messagesBySession: SessionServiceApi["messagesBySession"];
+  declare messagesPage: SessionServiceApi["messagesPage"];
   declare recordRunTerminalBoundary: SessionServiceApi["recordRunTerminalBoundary"];
   declare messagesThroughRun: SessionServiceApi["messagesThroughRun"];
   declare countBySessionRole: SessionServiceApi["countBySessionRole"];

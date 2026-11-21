@@ -36,6 +36,10 @@ export class SessionReadOperations {
     return this.messageStore.messagesBySession(sessionId, limit, offset);
   }
 
+  messagesPage(sessionId: string, limit: number, offset?: number) {
+    return this.messageStore.messagesPage(sessionId, limit, offset);
+  }
+
   messagesThroughRun(
     runId: string,
     sessionId: string,
