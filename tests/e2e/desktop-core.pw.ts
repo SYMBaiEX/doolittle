@@ -53,12 +53,18 @@ test.describe("fresh native desktop", () => {
           async () => (await window.doolittle.getBackendState()).phase,
         ),
       ).toBe("ready");
+      expect(desktop.startup.coreReadyMs).toBeLessThanOrEqual(
+        desktop.startup.apiReadyMs,
+      );
       await desktop.restart();
       expect(
         await desktop.page.evaluate(
           async () => (await window.doolittle.getBackendState()).phase,
         ),
       ).toBe("ready");
+      expect(desktop.startup.coreReadyMs).toBeLessThanOrEqual(
+        desktop.startup.apiReadyMs,
+      );
       expect(readFileSync(credential, "utf8")).toBe(before);
     } finally {
       await desktop.dispose();

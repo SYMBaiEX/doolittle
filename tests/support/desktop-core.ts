@@ -15,10 +15,10 @@ import {
   type Page,
 } from "@playwright/test";
 import { DESKTOP_REQUEST_TIMEOUT_MS } from "../../apps/desktop/src/shared/contracts/transport";
+import type { StartupStateSnapshot } from "../../packages/agent/src/services/startup-state-service";
 import { isolatedRuntimeEnvironment } from "./isolated-runtime-environment";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
-const desktopRoot = join(repoRoot, "apps/desktop");
 const offlineModel = {
   provider: "offline",
   model: "offline",
@@ -41,6 +41,7 @@ export interface DesktopFixture {
 export interface DesktopStartupTimings {
   workbenchMs: number;
   apiReadyMs: number;
+  apiReadyObservation: "event" | "snapshot";
   coreReadyMs: number;
   runtimeReadyMs: number;
 }
@@ -57,11 +58,19 @@ function removeOwned(path: string, prefix: string): void {
 
 export async function launchDesktop(
   executablePath?: string,
-  options: { liveCoding?: boolean; lockedAccounts?: boolean } = {},
+  options: {
+    liveCoding?: boolean;
+    lockedAccounts?: boolean;
+    sourceCheckout?: string;
+  } = {},
 ): Promise<DesktopFixture> {
   if (options.liveCoding && process.env.DOOLITTLE_RUN_LIVE_CODING !== "true") {
     throw new Error("Live coding requires explicit opt-in.");
   }
+  if (executablePath && options.sourceCheckout) {
+    throw new Error("Choose a desktop executable or a source checkout.");
+  }
+  const launchRoot = options.sourceCheckout ?? repoRoot;
   const profile = realpathSync(
     mkdtempSync(join(tmpdir(), "doolittle-fresh-profile-")),
   );
@@ -106,13 +115,14 @@ export async function launchDesktop(
   let startup: DesktopStartupTimings;
   const open = async () => {
     const started = performance.now();
+    const startedAt = Date.now();
     const elapsed = () => Math.round(performance.now() - started);
     app = await electron.launch({
       ...(executablePath ? { executablePath } : {}),
       args: executablePath
         ? [`--user-data-dir=${profile}`]
-        : [desktopRoot, `--user-data-dir=${profile}`],
-      cwd: repoRoot,
+        : [join(launchRoot, "apps/desktop"), `--user-data-dir=${profile}`],
+      cwd: launchRoot,
       env: {
         ...isolatedRuntimeEnvironment(runtime),
         // Historical builds probe their sandbox namespace under the OS temp directory.
@@ -132,7 +142,9 @@ export async function launchDesktop(
             }
           : {}),
         DOOLITTLE_DESKTOP_CWD: workspace,
-        ...(!executablePath ? { DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot } : {}),
+        ...(!executablePath
+          ? { DOOLITTLE_DESKTOP_SOURCE_ROOT: launchRoot }
+          : {}),
       },
     });
     const actualProfile = await app.evaluate(({ app }) =>
@@ -146,60 +158,104 @@ export async function launchDesktop(
       .locator("[data-session-workbench]")
       .waitFor({ state: "visible", timeout: 60_000 })
       .then(elapsed);
-    // The workbench, listening API, and hydrated runtime are separate milestones.
+    // The app verifies the listening worker before publishing its ready event.
     const waitForRuntime = async () => {
-      await expect
-        .poll(
-          () =>
-            currentPage.evaluate(
-              async () => (await window.doolittle.getBackendState()).phase,
-            ),
-          { timeout: 60_000, intervals: [25, 50, 100] },
-        )
-        .toBe("ready");
-      const apiReadyMs = elapsed();
-      let startupResult = "warming";
-      let coreReadyMs: number | undefined;
+      await currentPage.waitForFunction(() => Boolean(window.doolittle), null, {
+        timeout: 60_000,
+      });
+      const { readyAt, observation } = await currentPage.evaluate(() => {
+        const desktop = window.doolittle;
+        type BackendState = Awaited<ReturnType<typeof desktop.getBackendState>>;
+        return new Promise<{
+          readyAt: number;
+          observation: "event" | "snapshot";
+        }>((resolve, reject) => {
+          const done = () => {
+            clearTimeout(timeout);
+            unsubscribe();
+          };
+          const observe = (
+            state: BackendState,
+            observation: "event" | "snapshot",
+          ) => {
+            if (state.phase === "ready") {
+              const readyAt = Date.now();
+              done();
+              resolve({ readyAt, observation });
+            } else if (
+              state.phase === "degraded" ||
+              state.phase === "stopped"
+            ) {
+              done();
+              reject(new Error(state.detail ?? state.message));
+            }
+          };
+          const timeout = setTimeout(() => {
+            done();
+            reject(new Error("Timed out waiting for the desktop API"));
+          }, 60_000);
+          const unsubscribe = desktop.onBackendState((state) =>
+            observe(state, "event"),
+          );
+          // Subscribe first so a transition during the initial read is observed.
+          void desktop.getBackendState().then(
+            (state) => observe(state, "snapshot"),
+            (error: unknown) => {
+              done();
+              reject(error);
+            },
+          );
+        });
+      });
+      let startupSnapshot: StartupStateSnapshot | undefined;
       await expect
         .poll(
           async () => {
-            const readiness = await currentPage.evaluate(async () => {
+            startupSnapshot = await currentPage.evaluate(async () => {
               const result = await window.doolittle.requestAgent({
                 requestId: crypto.randomUUID(),
                 path: "/runtime/status",
                 method: "GET",
                 headers: {},
               });
-              if (result.status !== 200) return null;
-              const status = JSON.parse(result.body) as {
-                startup: {
-                  hotPathReady: boolean;
-                  deferredReady: boolean;
-                  phases: Record<string, { status: string }>;
-                };
-              };
-              const failed = Object.entries(status.startup.phases).find(
-                ([, phase]) => phase.status === "error",
-              );
-              return {
-                coreReady: status.startup.hotPathReady,
-                phase: failed
-                  ? `error:${failed[0]}`
-                  : status.startup.deferredReady
-                    ? "ready"
-                    : "warming",
-              };
+              if (result.status !== 200) return undefined;
+              return (
+                JSON.parse(result.body) as { startup: StartupStateSnapshot }
+              ).startup;
             });
-            if (readiness?.coreReady) coreReadyMs ??= elapsed();
-            startupResult = readiness?.phase ?? "warming";
-            return startupResult;
+            if (!startupSnapshot) return "warming";
+            const failed = Object.values(startupSnapshot.phases).find(
+              (phase) => phase.status === "error",
+            );
+            if (failed) return `error:${failed.id}`;
+            return startupSnapshot.hotPathReady && startupSnapshot.deferredReady
+              ? "ready"
+              : "warming";
           },
           { timeout: 60_000, intervals: [25, 50, 100] },
         )
         .not.toBe("warming");
-      if (startupResult !== "ready" || coreReadyMs === undefined)
-        throw new Error(`Runtime startup failed: ${startupResult}`);
-      return { apiReadyMs, coreReadyMs, runtimeReadyMs: elapsed() };
+      if (!startupSnapshot?.hotPathReady || !startupSnapshot.deferredReady) {
+        const failed = Object.values(startupSnapshot?.phases ?? {}).find(
+          (phase) => phase.status === "error",
+        );
+        throw new Error(`Runtime startup failed: ${failed?.id ?? "unknown"}`);
+      }
+      // Worker timestamps avoid charging request and poll latency to SDK boot.
+      const phases = Object.values(startupSnapshot.phases);
+      const coreReadyAt = Date.parse(startupSnapshot.phases.runtime.updatedAt);
+      const runtimeReadyAt = Math.max(
+        ...phases.map((phase) => Date.parse(phase.updatedAt)),
+      );
+      if (!Number.isFinite(runtimeReadyAt) || coreReadyAt < startedAt) {
+        throw new Error("Invalid runtime startup timestamps");
+      }
+      return {
+        apiReadyMs: readyAt - startedAt,
+        apiReadyObservation: observation,
+        coreReadyMs: coreReadyAt - startedAt,
+        runtimeReadyMs: runtimeReadyAt - startedAt,
+      };
     };
     const [workbenchMs, runtimeTimings] = await Promise.all([
       workbench,

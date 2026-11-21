@@ -113,16 +113,22 @@ the release gate clears that override to test its own repository artifact.
 
 ```sh
 nub scripts/benchmark-desktop-boot.ts --runs 5 /path/to/baseline /path/to/candidate
-nub scripts/benchmark-desktop-boot.ts --runs 5 --warm /path/to/baseline /path/to/candidate
+nub scripts/benchmark-desktop-boot.ts --runs 5 --profile both /path/to/baseline /path/to/candidate
 ```
 
-Pass two packaged executables for a comparison or omit them to measure a built
-local checkout. The benchmark uses private offline profiles and alternates
-launch order. `--warm` measures the second launch of each profile. Compare the
-median and range for the visible workbench, worker API, Eliza core, and finished
-runtime hydration. Run on the same host with comparable signing and build
-settings. Filesystem caches stay warm between launches, and provider response
-latency is outside this benchmark.
+Pass packaged executables or built source checkout directories for a comparison.
+With no targets, the benchmark uses the current build. It alternates target order
+and uses private offline profiles. The default measures fresh profiles.
+`--profile reopened` (also `--warm`) measures the second launch of each profile,
+and `--profile both` reports both launches separately.
+
+Compare the median and range for the visible workbench, verified worker API,
+Eliza core, and completed runtime hydration. The benchmark listens for the API
+readiness event and records when an initial snapshot already showed readiness.
+Eliza milestones use timestamps from `/runtime/status` so the polling interval
+doesn't count toward boot time. Run on the same host with comparable signing and
+build settings. Filesystem caches stay warm between launches, and provider
+response latency is outside this benchmark.
 A passing package smoke test does not establish installation, signing, or
 notarization on every target platform.
 
