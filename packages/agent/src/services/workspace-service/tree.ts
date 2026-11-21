@@ -1,6 +1,7 @@
 import { lstatSync, readdirSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { setImmediate } from "node:timers/promises";
 import type { WorkspaceEntry } from "../../types/index";
 import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
@@ -100,7 +101,7 @@ async function walkWorkspaceTreeAsync(
 
     state.visited += 1;
     if (state.visited % 256 === 0) {
-      await yieldToRuntime();
+      await setImmediate();
     }
 
     if (directory) {
@@ -114,10 +115,6 @@ async function walkWorkspaceTreeAsync(
       );
     }
   }
-}
-
-function yieldToRuntime(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function walkWorkspaceTree(
