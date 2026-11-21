@@ -8,6 +8,7 @@ const AGENT_ID_PATTERN =
 // Includes a <=24 KB sheet, its <=16 KB legacy persona projection, and
 // route/permission metadata. Keep the launch envelope finite.
 const MAX_PROFILE_LENGTH = 64_000;
+let validatedProfile: { raw: string; profile: BotDefinition } | undefined;
 
 function readSdkBotCharacter(value: unknown, name: string) {
   const sheet = normalizeBotCharacter(value);
@@ -26,6 +27,12 @@ export function readWorkerBotProfile(
   if (!raw || raw.length > MAX_PROFILE_LENGTH) {
     throw new Error("A named bot requires a bounded launch profile.");
   }
+  // HTTP dispatch and agent turns share the same launch payload. Return a
+  // private copy so caller mutations cannot affect later authorization.
+  if (validatedProfile?.raw === raw) {
+    return structuredClone(validatedProfile.profile);
+  }
+  validatedProfile = undefined;
   let value: unknown;
   try {
     value = JSON.parse(raw);
@@ -66,7 +73,9 @@ export function readWorkerBotProfile(
   if (profile.persona !== character.system) {
     throw new Error("The named bot character conflicts with its persona.");
   }
-  return { ...profile, character } as BotDefinition;
+  const result = { ...profile, character } as BotDefinition;
+  validatedProfile = { raw, profile: result };
+  return structuredClone(result);
 }
 
 /** Preserve Doolittle's safety baseline while applying a native character sheet. */
