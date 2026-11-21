@@ -1,14 +1,11 @@
 import type { RepositoryChange, RepositoryWorktree } from "./models";
 
-function parseStatusRecord(record: string): RepositoryChange | null {
-  if (record.length < 4) return null;
-  const indexStatus = record[0] ?? " ";
-  const worktreeStatus = record[1] ?? " ";
-  const rawPath = record.slice(3);
-  if (!rawPath) return null;
+function statusChange(status: string, path: string): RepositoryChange {
+  const indexStatus = status[0] === "." ? " " : status[0];
+  const worktreeStatus = status[1] === "." ? " " : status[1];
   const untracked = indexStatus === "?" && worktreeStatus === "?";
   return {
-    path: rawPath,
+    path,
     indexStatus,
     worktreeStatus,
     staged: !untracked && indexStatus !== " ",
@@ -17,22 +14,57 @@ function parseStatusRecord(record: string): RepositoryChange | null {
   };
 }
 
-export function parseStatusOutput(output: string): RepositoryChange[] {
-  const records = output.split("\0").filter(Boolean);
+const ordinaryStatus = /^1 (..) (?:\S+ ){6}(.+)$/su;
+const renamedStatus = /^2 (..) (?:\S+ ){7}(.+)$/su;
+const unmergedStatus = /^u (..) (?:\S+ ){8}(.+)$/su;
+const branchDivergence = /^# branch\.ab \+(\d+) -(\d+)$/u;
+
+export function parseRepositoryStatus(output: string): {
+  branch?: string;
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  changes: RepositoryChange[];
+} {
+  let branch: string | undefined;
+  let upstream: string | undefined;
+  let divergence: RegExpExecArray | null = null;
+  const records = output.split("\0");
   const changes: RepositoryChange[] = [];
   for (let index = 0; index < records.length; index += 1) {
-    const change = parseStatusRecord(records[index] ?? "");
-    if (!change) continue;
-    const renamed =
-      ["R", "C"].includes(change.indexStatus) ||
-      ["R", "C"].includes(change.worktreeStatus);
-    if (renamed && records[index + 1]) {
-      change.previousPath = records[index + 1];
-      index += 1;
+    const record = records[index];
+    if (record.startsWith("# branch.head ")) {
+      const name = record.slice("# branch.head ".length);
+      if (name !== "(detached)") branch = name;
+    } else if (record.startsWith("# branch.upstream ")) {
+      upstream = record.slice("# branch.upstream ".length);
+    } else if (record.startsWith("# branch.ab ")) {
+      divergence = branchDivergence.exec(record);
+    } else if (record.startsWith("? ")) {
+      changes.push(statusChange("??", record.slice(2)));
+    } else {
+      const match =
+        ordinaryStatus.exec(record) ??
+        renamedStatus.exec(record) ??
+        unmergedStatus.exec(record);
+      if (!match) continue;
+      const change = statusChange(match[1], match[2]);
+      if (record.startsWith("2 ")) {
+        // A rename/copy's source is a separate NUL-terminated field. Treat
+        // it as a path even when its characters resemble a status header.
+        change.previousPath = records[++index] || undefined;
+      }
+      changes.push(change);
     }
-    changes.push(change);
   }
-  return changes;
+  return {
+    branch,
+    // A configured upstream with no divergence record is missing locally.
+    upstream: divergence ? upstream : undefined,
+    ahead: Number(divergence?.[1] ?? 0),
+    behind: Number(divergence?.[2] ?? 0),
+    changes,
+  };
 }
 
 export function parseWorktrees(output: string): RepositoryWorktree[] {

@@ -21,7 +21,7 @@ import {
   RepositoryMutationExecutor,
   type RepositoryProcessRunner,
 } from "./repository/mutations";
-import { parseStatusOutput, parseWorktrees } from "./repository/parsing";
+import { parseRepositoryStatus, parseWorktrees } from "./repository/parsing";
 import {
   MAX_WORKTREE_PATH_LENGTH,
   validateBranchName,
@@ -122,12 +122,7 @@ export class RepositoryService {
 
   async changes(): Promise<RepositoryChange[]> {
     if (!this.gitRoot()) return [];
-    const output = await this.runGit(
-      ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
-      "git changes",
-      "",
-    );
-    return parseStatusOutput(output);
+    return (await this.repositoryStatus()).changes;
   }
 
   async summary(): Promise<RepositorySummary> {
@@ -141,31 +136,42 @@ export class RepositoryService {
         changedFiles: 0,
       };
     }
-    const [branch, head, upstream, aheadBehind, changes] = await Promise.all([
-      this.runGit(["branch", "--show-current"], "git branch", ""),
+    const [status, head] = await Promise.all([
+      this.repositoryStatus(),
       this.runGitOptional(["rev-parse", "--short", "HEAD"], "git head"),
-      this.runGitOptional(
-        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
-        "git upstream",
-      ),
-      this.runGitOptional(
-        ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
-        "git ahead-behind",
-      ),
-      this.changes(),
     ]);
-    const [behindRaw, aheadRaw] = aheadBehind.split(/\s+/u);
+    // Porcelain uses "(detached)" as a sentinel, which is also a legal branch
+    // name. Only the ambiguous case calls Git for the actual symbolic branch.
+    const branch =
+      status.branch ??
+      (await this.runGit(["branch", "--show-current"], "git branch", ""));
     return {
       isRepository: true,
       root,
       branch: branch || undefined,
       head: head || undefined,
-      upstream: upstream || undefined,
-      ahead: Number.parseInt(aheadRaw ?? "0", 10) || 0,
-      behind: Number.parseInt(behindRaw ?? "0", 10) || 0,
-      dirty: changes.length > 0,
-      changedFiles: changes.length,
+      upstream: status.upstream,
+      ahead: status.ahead,
+      behind: status.behind,
+      dirty: status.changes.length > 0,
+      changedFiles: status.changes.length,
     };
+  }
+
+  private async repositoryStatus() {
+    const output = await this.runGit(
+      [
+        "status",
+        "--porcelain=v2",
+        "--branch",
+        "--ahead-behind",
+        "-z",
+        "--untracked-files=all",
+      ],
+      "git repository status",
+      "",
+    );
+    return parseRepositoryStatus(output);
   }
 
   async patch(path?: string, staged = false): Promise<RepositoryPatch> {
