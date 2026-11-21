@@ -104,11 +104,13 @@ it("keeps the newest refresh and retains usable rows while reporting a real fail
   const second = batch("new");
   request.mockImplementation(first.read);
   await mount();
+  const oldSignal = request.mock.calls[0]?.[3] as AbortSignal;
   request.mockImplementation(second.read);
   let fresh!: Promise<boolean>;
   await act(async () => {
     fresh = value.refreshRuntime();
   });
+  expect(oldSignal.aborted).toBe(true);
   await act(async () => {
     second.gate.resolve();
     await fresh;

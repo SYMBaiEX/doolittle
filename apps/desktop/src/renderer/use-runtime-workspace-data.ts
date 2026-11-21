@@ -29,19 +29,26 @@ export function useRuntimeWorkspaceData(
   const [globalError, setGlobalError] = useState("");
   const backendPhaseRef = useRef(backend.phase);
   const backendSubscriptionUpdateRef = useRef(0);
-  const refreshRequestRef = useRef(0);
+  const refreshRequestRef = useRef<AbortController | null>(null);
   const sessionInventoryRevision = useRef(0);
   const mountedRef = useRef(true);
-  const applyBackend = useCallback((state: BackendState) => {
-    if (backendPhaseRef.current !== state.phase) {
-      backendPhaseRef.current = state.phase;
-      refreshRequestRef.current++;
-      // A ready catalog can only describe workers in this runtime generation.
-      if (state.phase === "ready")
-        setBackendGeneration((current) => current + 1);
-    }
-    setBackend(state);
+  const cancelRefresh = useCallback(() => {
+    refreshRequestRef.current?.abort();
+    refreshRequestRef.current = null;
   }, []);
+  const applyBackend = useCallback(
+    (state: BackendState) => {
+      if (backendPhaseRef.current !== state.phase) {
+        backendPhaseRef.current = state.phase;
+        cancelRefresh();
+        // A ready catalog can only describe workers in this runtime generation.
+        if (state.phase === "ready")
+          setBackendGeneration((current) => current + 1);
+      }
+      setBackend(state);
+    },
+    [cancelRefresh],
+  );
 
   const publishConfirmedConversation = useCallback(
     (scope: BotConversationScope) => {
@@ -79,46 +86,52 @@ export function useRuntimeWorkspaceData(
   const refreshRuntimeData = useCallback(
     async (reuseFreshCatalog: boolean) => {
       if (backendPhaseRef.current !== "ready") return false;
-      const requestId = ++refreshRequestRef.current;
+      cancelRefresh();
+      const request = new AbortController();
+      refreshRequestRef.current = request;
+      const { signal } = request;
       const sessionRevision = sessionInventoryRevision.current;
       const isCurrent = () =>
-        mountedRef.current && requestId === refreshRequestRef.current;
+        mountedRef.current && request === refreshRequestRef.current;
       setGlobalError("");
       const [status, inventory, projectList] = await Promise.allSettled([
-        desktopRequest<RuntimeStatus>("/runtime/status").then((value) => {
+        desktopRequest<RuntimeStatus>(
+          "/runtime/status",
+          "GET",
+          undefined,
+          signal,
+        ).then((value) => {
           if (isCurrent()) setRuntime(value);
         }),
-        desktopRequest<SessionsResponse>("/sessions?limit=200").then(
-          async (lead) => {
-            if (
-              !isCurrent() ||
-              sessionRevision !== sessionInventoryRevision.current
-            )
-              return;
-            const result = await loadBotSessionCatalog(
-              lead,
-              sessionsRef.current,
-              {
-                generation: backendGeneration,
-                reuseFreshCatalog,
-              },
-            );
-            if (
-              !isCurrent() ||
-              sessionRevision !== sessionInventoryRevision.current
-            )
-              return;
-            setSessions(result.sessions);
-            return result.warnings?.at(-1);
-          },
-        ),
-        desktopRequest<ProjectsResponse>("/projects?includeArchived=true").then(
-          (value) => {
-            if (isCurrent()) setProjects(value.projects);
-          },
-        ),
+        loadBotSessionCatalog(
+          desktopRequest<SessionsResponse>(
+            "/sessions?limit=200",
+            "GET",
+            undefined,
+            signal,
+          ),
+          sessionsRef.current,
+          { generation: backendGeneration, reuseFreshCatalog, signal },
+        ).then((result) => {
+          if (
+            !isCurrent() ||
+            sessionRevision !== sessionInventoryRevision.current
+          )
+            return;
+          setSessions(result.sessions);
+          return result.warnings?.at(-1);
+        }),
+        desktopRequest<ProjectsResponse>(
+          "/projects?includeArchived=true",
+          "GET",
+          undefined,
+          signal,
+        ).then((value) => {
+          if (isCurrent()) setProjects(value.projects);
+        }),
       ]);
       if (!isCurrent()) return false;
+      refreshRequestRef.current = null;
       const sessionResultIsCurrent =
         sessionRevision === sessionInventoryRevision.current;
       const failure = [
@@ -140,7 +153,7 @@ export function useRuntimeWorkspaceData(
       setGlobalError(error);
       return !failure && !warning;
     },
-    [backendGeneration],
+    [backendGeneration, cancelRefresh],
   );
 
   const refreshRuntime = useCallback(
@@ -187,9 +200,9 @@ export function useRuntimeWorkspaceData(
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      refreshRequestRef.current += 1;
+      cancelRefresh();
     };
-  }, []);
+  }, [cancelRefresh]);
 
   useEffect(() => {
     let disposed = false;
