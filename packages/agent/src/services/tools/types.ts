@@ -1,13 +1,7 @@
-import type {
-  getNativeOwnershipControlPlane,
-  getNativeOwnershipSnapshot,
-} from "../../runtime/native/service-bridge/ownership/index";
+import type { getNativeOwnershipControlPlane } from "../../runtime/native/service-bridge/ownership/index";
 
 type NativeOwnershipControlPlane = ReturnType<
   typeof getNativeOwnershipControlPlane
->;
-type NativeOwnershipSnapshot = Awaited<
-  ReturnType<typeof getNativeOwnershipSnapshot>
 >;
 
 export interface ToolRegistryDynamicState {
@@ -28,7 +22,6 @@ export interface ToolRegistryDynamicState {
     notes: string;
   }>;
   nativeOwnershipControlPlane?: NativeOwnershipControlPlane;
-  nativeOwnershipSnapshot?: NativeOwnershipSnapshot;
   nativeRuntimeLatest?: string;
   nativeRuntimeBeta?: string;
   nativeAlignedPackages?: number;

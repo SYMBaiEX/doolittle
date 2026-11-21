@@ -29,7 +29,14 @@ export function buildToolRegistrySummary(
   }));
   const nativeOwnershipControlPlane =
     dynamic.nativeOwnershipControlPlane ?? null;
-  const nativeOwnershipSnapshot = dynamic.nativeOwnershipSnapshot ?? null;
+  const skillTotals = {
+    skillsHubTotal: dynamic.skillsHubTotal ?? 0,
+    skillsHubGenerated: dynamic.skillsHubGenerated ?? 0,
+    skillsHubCatalogTotal: dynamic.skillsHubCatalogTotal ?? 0,
+    skillsHubManifestCount: dynamic.skillsHubManifestCount ?? 0,
+    skillsHubInstalledTotal: dynamic.skillsHubInstalledTotal ?? 0,
+    skillsHubFamilyTotal: dynamic.skillsHubFamilyTotal ?? 0,
+  };
 
   return {
     total: tools.length,
@@ -76,30 +83,12 @@ export function buildToolRegistrySummary(
         nativeOwnershipControlPlane?.pluginManager?.summary.official ?? 0,
       pluginManagerVendored:
         nativeOwnershipControlPlane?.pluginManager?.summary.vendored ?? 0,
-      skillHubTotal:
-        nativeOwnershipSnapshot?.skillHub.workspaceTotal ??
-        dynamic.skillsHubTotal ??
-        0,
-      skillHubGenerated:
-        nativeOwnershipSnapshot?.skillHub.generatedTotal ??
-        dynamic.skillsHubGenerated ??
-        0,
-      skillHubCatalogTotal:
-        nativeOwnershipSnapshot?.skillHub.catalogTotal ??
-        dynamic.skillsHubCatalogTotal ??
-        0,
-      skillHubManifestCount:
-        nativeOwnershipSnapshot?.skillHub.exportedManifests ??
-        dynamic.skillsHubManifestCount ??
-        0,
-      skillHubInstalledTotal:
-        nativeOwnershipSnapshot?.skillHub.installedTotal ??
-        dynamic.skillsHubInstalledTotal ??
-        0,
-      skillHubFamilyTotal:
-        nativeOwnershipSnapshot?.skillHub.familyTotal ??
-        dynamic.skillsHubFamilyTotal ??
-        0,
+      skillHubTotal: skillTotals.skillsHubTotal,
+      skillHubGenerated: skillTotals.skillsHubGenerated,
+      skillHubCatalogTotal: skillTotals.skillsHubCatalogTotal,
+      skillHubManifestCount: skillTotals.skillsHubManifestCount,
+      skillHubInstalledTotal: skillTotals.skillsHubInstalledTotal,
+      skillHubFamilyTotal: skillTotals.skillsHubFamilyTotal,
       nativeServices:
         nativeOwnershipControlPlane?.serviceResolution.filter(
           (entry) => entry.source === "native",
@@ -115,30 +104,7 @@ export function buildToolRegistrySummary(
       skillCatalogAvailable: dynamic.skillsHubCatalogProjected ?? false,
       skillCatalogSkills: dynamic.skillsHubCatalogTotal ?? 0,
       compatibilityFailures: dynamic.agentSdkCompatibilityFailures ?? 0,
-      skillsHubTotal:
-        nativeOwnershipSnapshot?.skillHub.workspaceTotal ??
-        dynamic.skillsHubTotal ??
-        0,
-      skillsHubGenerated:
-        nativeOwnershipSnapshot?.skillHub.generatedTotal ??
-        dynamic.skillsHubGenerated ??
-        0,
-      skillsHubCatalogTotal:
-        nativeOwnershipSnapshot?.skillHub.catalogTotal ??
-        dynamic.skillsHubCatalogTotal ??
-        0,
-      skillsHubManifestCount:
-        nativeOwnershipSnapshot?.skillHub.exportedManifests ??
-        dynamic.skillsHubManifestCount ??
-        0,
-      skillsHubInstalledTotal:
-        nativeOwnershipSnapshot?.skillHub.installedTotal ??
-        dynamic.skillsHubInstalledTotal ??
-        0,
-      skillsHubFamilyTotal:
-        nativeOwnershipSnapshot?.skillHub.familyTotal ??
-        dynamic.skillsHubFamilyTotal ??
-        0,
+      ...skillTotals,
       laggingLatestPackages: dynamic.nativeLaggingLatestPackages ?? 0,
     },
   };

@@ -40,7 +40,6 @@ export class NativeOwnershipCache {
     this.controlPlaneCache = undefined;
     this.snapshotValue = undefined;
     this.snapshotPromise = undefined;
-    void this.refreshSnapshot().catch(() => undefined);
   }
 
   updateGatewayConfig(gatewayConfig: GatewayConfig): void {
@@ -65,14 +64,6 @@ export class NativeOwnershipCache {
     return this.controlPlaneCache;
   }
 
-  snapshotSync(): NativeOwnershipSnapshot | undefined {
-    return this.snapshotValue;
-  }
-
-  async refreshSnapshot(): Promise<NativeOwnershipSnapshot | undefined> {
-    return this.snapshot(true);
-  }
-
   async snapshot(force = false): Promise<NativeOwnershipSnapshot | undefined> {
     if (!this.runtime || !this.services) {
       return undefined;
@@ -88,11 +79,18 @@ export class NativeOwnershipCache {
       this.services,
       this.config,
       this.gatewayConfig,
-    ).then((snapshot) => {
-      this.snapshotValue = snapshot;
-      this.snapshotPromise = undefined;
-      return snapshot;
-    });
+    )
+      .then((snapshot) => {
+        if (this.snapshotPromise === snapshotPromise) {
+          this.snapshotValue = snapshot;
+        }
+        return snapshot;
+      })
+      .finally(() => {
+        if (this.snapshotPromise === snapshotPromise) {
+          this.snapshotPromise = undefined;
+        }
+      });
     this.snapshotPromise = snapshotPromise;
     return snapshotPromise;
   }

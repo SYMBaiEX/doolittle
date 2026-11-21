@@ -27,7 +27,7 @@ export interface ToolsDynamicStateDependencies {
   acp: Pick<AcpService, "status">;
   agentSdk: Pick<AgentSdkService, "snapshot">;
   skillsHub: Pick<SkillsHubService, "summary">;
-  nativeOwnership: Pick<NativeOwnershipCache, "controlPlane" | "snapshotSync">;
+  nativeOwnership: Pick<NativeOwnershipCache, "controlPlane">;
   nativePluginCatalog(): NativeCatalogSnapshot;
   nativePackageAudit(): NativePackageAuditSnapshot;
 }
@@ -79,7 +79,6 @@ export function createToolsDynamicStateResolver(
       skillsHubInstalledTotal: skillsHubSummary.installedTotal,
       skillsHubFamilyTotal: skillsHubSummary.familyTotal,
       nativeOwnershipControlPlane: dependencies.nativeOwnership.controlPlane(),
-      nativeOwnershipSnapshot: dependencies.nativeOwnership.snapshotSync(),
     };
   };
 }

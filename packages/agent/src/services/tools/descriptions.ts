@@ -48,10 +48,9 @@ const PATCHERS: Record<string, DescriptionPatcher> = {
 
   "runtime.ownership": (tool, dynamic) => ({
     ...tool,
-    description:
-      dynamic.nativeOwnershipControlPlane || dynamic.nativeOwnershipSnapshot
-        ? `Shared ownership snapshot: services=${dynamic.nativeOwnershipControlPlane?.serviceResolution.length ?? 0} operational=${dynamic.nativeOwnershipControlPlane?.transportControl.totals.operationalTransports ?? 0} pluginManager=${dynamic.nativeOwnershipControlPlane?.pluginManager?.summary.enabled ?? 0} skillHub=${dynamic.nativeOwnershipSnapshot?.skillHub.workspaceTotal ?? dynamic.skillsHubTotal ?? 0}/${dynamic.nativeOwnershipSnapshot?.skillHub.installedTotal ?? dynamic.skillsHubInstalledTotal ?? 0}.`
-        : "Shared native ownership snapshot is unavailable in the current environment.",
+    description: dynamic.nativeOwnershipControlPlane
+      ? `Shared ownership snapshot: services=${dynamic.nativeOwnershipControlPlane.serviceResolution.length} operational=${dynamic.nativeOwnershipControlPlane.transportControl.totals.operationalTransports} pluginManager=${dynamic.nativeOwnershipControlPlane.pluginManager?.summary.enabled ?? 0} skillHub=${dynamic.skillsHubTotal ?? 0}/${dynamic.skillsHubInstalledTotal ?? 0}.`
+      : "Shared native ownership snapshot is unavailable in the current environment.",
   }),
 
   "skills.catalog": (tool, dynamic) => ({
@@ -63,30 +62,22 @@ const PATCHERS: Record<string, DescriptionPatcher> = {
 
   "skills.hub": (tool, dynamic) => ({
     ...tool,
-    description: dynamic.nativeOwnershipSnapshot
-      ? `Skills hub summary=${dynamic.nativeOwnershipSnapshot.skillHub.workspaceTotal} generated=${dynamic.nativeOwnershipSnapshot.skillHub.generatedTotal} catalog=${dynamic.nativeOwnershipSnapshot.skillHub.catalogTotal} manifests=${dynamic.nativeOwnershipSnapshot.skillHub.exportedManifests} installed=${dynamic.nativeOwnershipSnapshot.skillHub.installedTotal} families=${dynamic.nativeOwnershipSnapshot.skillHub.familyTotal}.`
-      : `Skills hub summary=${dynamic.skillsHubTotal ?? 0} generated=${dynamic.skillsHubGenerated ?? 0} catalog=${dynamic.skillsHubCatalogTotal ?? 0} manifests=${dynamic.skillsHubManifestCount ?? 0} installed=${dynamic.skillsHubInstalledTotal ?? 0} families=${dynamic.skillsHubFamilyTotal ?? 0}.`,
+    description: `Skills hub summary=${dynamic.skillsHubTotal ?? 0} generated=${dynamic.skillsHubGenerated ?? 0} catalog=${dynamic.skillsHubCatalogTotal ?? 0} manifests=${dynamic.skillsHubManifestCount ?? 0} installed=${dynamic.skillsHubInstalledTotal ?? 0} families=${dynamic.skillsHubFamilyTotal ?? 0}.`,
   }),
 
   "skills.families": (tool, dynamic) => ({
     ...tool,
-    description: dynamic.nativeOwnershipSnapshot
-      ? `Curated and generated skill families available: ${dynamic.nativeOwnershipSnapshot.skillHub.familyTotal}.`
-      : `Curated and generated skill families available: ${dynamic.skillsHubFamilyTotal ?? 0}.`,
+    description: `Curated and generated skill families available: ${dynamic.skillsHubFamilyTotal ?? 0}.`,
   }),
 
   "skills.family": (tool, dynamic) => ({
     ...tool,
-    description: dynamic.nativeOwnershipSnapshot
-      ? `Inspect a single skill family from the ${dynamic.nativeOwnershipSnapshot.skillHub.familyTotal}-family hub.`
-      : `Inspect a single skill family from the ${dynamic.skillsHubFamilyTotal ?? 0}-family hub.`,
+    description: `Inspect a single skill family from the ${dynamic.skillsHubFamilyTotal ?? 0}-family hub.`,
   }),
 
   "skills.installed": (tool, dynamic) => ({
     ...tool,
-    description: dynamic.nativeOwnershipSnapshot
-      ? `Installed skill manifests available: ${dynamic.nativeOwnershipSnapshot.skillHub.installedTotal}.`
-      : `Installed skill manifests available: ${dynamic.skillsHubInstalledTotal ?? 0}.`,
+    description: `Installed skill manifests available: ${dynamic.skillsHubInstalledTotal ?? 0}.`,
   }),
 };
 
