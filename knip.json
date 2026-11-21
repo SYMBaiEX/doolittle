@@ -13,7 +13,7 @@
     },
     "packages/agent": {
       "entry": ["src/native-tools/doolittle-probe.ts"],
-      "ignoreDependencies": ["sharp"],
+      "ignoreDependencies": ["@electric-sql/pglite", "sharp"],
       "ignoreBinaries": ["const", "mkfifo"]
     },
     "apps/desktop": {
