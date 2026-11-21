@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
 import { EngineClient } from "./engine-client";
@@ -588,6 +589,13 @@ export class BackendManager extends RuntimeEndpoint {
         message: "Local runtime ready",
       };
       this.update(next);
+      if (child.connected && !this.stopping && this.child === child) {
+        try {
+          child.send(DESKTOP_RUNTIME_READY_ACK, () => {});
+        } catch {
+          // The worker's fallback covers a host IPC disconnect.
+        }
+      }
       return next;
     } catch (error) {
       // This stop is startup cleanup, not a shutdown request. Preserve an

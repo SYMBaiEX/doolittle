@@ -2,15 +2,28 @@ import type { AppLogger } from "@doolittle/agent/logging/logger";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { readWorkerBotProfile } from "@doolittle/agent/runtime/bootstrap/bot-profile";
 import type { ApiServerAddress } from "@doolittle/agent/server";
+import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
 import {
   type EntrypointSubcommand,
   isEntrypointAliasCommand,
 } from "./subcommand";
 
-// BackendManager polls health every 250ms. Reserve two poll windows so the
-// desktop can observe a live listener before optional plugin registration does
-// synchronous work. A conversation can request its tools before this timer.
-export const DESKTOP_DEFERRED_HYDRATION_DELAY_MS = 500;
+const DESKTOP_HYDRATION_FALLBACK_MS = 500;
+
+function scheduleDesktopHydration(hydrate: () => void): void {
+  const resume = () => {
+    clearTimeout(fallback);
+    process.off("message", onMessage);
+    setImmediate(hydrate).unref();
+  };
+  const onMessage = (message: unknown) => {
+    if (message === DESKTOP_RUNTIME_READY_ACK) resume();
+  };
+  // Standalone runtimes and a disconnected host still complete hydration.
+  const fallback = setTimeout(resume, DESKTOP_HYDRATION_FALLBACK_MS);
+  fallback.unref();
+  process.on("message", onMessage);
+}
 
 export interface EntrypointCommandPlan {
   startupMode: "api" | "cli";
@@ -134,15 +147,8 @@ export function createApiStartupController(
         port,
         command,
       });
-      if (!shouldStartCli || command === "api" || command === "gateway") {
-        console.log(`${context.config.agentName} API listening on ${url}`);
-      }
       if (hydrateAfterListening) {
-        // Give the desktop's first health request an actual I/O turn before
-        // optional plugin registration begins. Some Eliza plugin starts do
-        // synchronous work before yielding even though their API is async.
-        // Conversation turns only await their own tool readiness.
-        const hydrationTimer = setTimeout(() => {
+        scheduleDesktopHydration(() => {
           void context.ensureDeferredHydration("desktop-api").catch((error) => {
             runtimeLogger.captureError(
               "background-deferred-hydration-failed",
@@ -150,8 +156,10 @@ export function createApiStartupController(
               { command },
             );
           });
-        }, DESKTOP_DEFERRED_HYDRATION_DELAY_MS);
-        hydrationTimer.unref();
+        });
+      }
+      if (!shouldStartCli || command === "api" || command === "gateway") {
+        console.log(`${context.config.agentName} API listening on ${url}`);
       }
       return true;
     } catch (error) {

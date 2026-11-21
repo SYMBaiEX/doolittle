@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
+import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
 import { describe, expect, it, vi } from "vitest";
 import { readPlainLoopLine } from "../../apps/cli/src/cli/plain-loop/input";
 import { startCli } from "../../apps/cli/src/cli/start/index";
@@ -268,6 +269,48 @@ describe("terminal application lifecycle", () => {
     await hydration;
     expect(listen).not.toHaveBeenCalled();
   });
+
+  it.each([true, false])(
+    "hydrates the desktop runtime once with host acknowledgement %s",
+    async (acknowledged) => {
+      vi.useFakeTimers();
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const hydrate = vi.fn(async () => undefined);
+      const api = createApiStartupController({
+        context: {
+          config: { agentName: "Fixture", host: "127.0.0.1", port: 1234 },
+          gateway: { startIngress: vi.fn() },
+          ensureDeferredHydration: hydrate,
+        } as unknown as AppContext,
+        command: "api",
+        runtimeLogger: { info: vi.fn() } as unknown as AppLogger,
+        shouldStartCli: false,
+        startApiServer: vi.fn(),
+        writeStderrLine: vi.fn(),
+        formatTopLevelError: String,
+        hydrateAfterListening: true,
+      });
+      const listeners = process.listenerCount("message");
+      try {
+        await expect(api.startServer()).resolves.toBe(true);
+        process.emit("message", "another IPC message");
+        await vi.advanceTimersByTimeAsync(1);
+        expect(hydrate).not.toHaveBeenCalled();
+        if (acknowledged) {
+          process.emit("message", DESKTOP_RUNTIME_READY_ACK);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(hydrate).toHaveBeenCalledOnce();
+        }
+        await vi.runAllTimersAsync();
+        expect(hydrate).toHaveBeenCalledExactlyOnceWith("desktop-api");
+        expect(process.listenerCount("message")).toBe(listeners);
+      } finally {
+        await vi.runAllTimersAsync();
+        log.mockRestore();
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("falls back once when cockpit initialization fails", async () => {
     const launchFailure = new Error("unable to initialize cockpit");

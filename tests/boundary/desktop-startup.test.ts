@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { afterEach, expect, it, vi } from "vitest";
 import { BackendManager } from "../../apps/desktop/src/main/backend";
@@ -33,20 +34,27 @@ afterEach(() => {
   }
 });
 
-function runtimeFixture() {
+function runtimeFixture(withHost = false) {
   const directory = createDirectory();
   const marker = join(directory, "launch-environment");
+  const acknowledged = join(directory, "host-acknowledged");
   const target = {
     executable: process.execPath,
     args: [
       "-e",
       `require("node:fs").writeFileSync(process.env.DOOLITTLE_TEST_MARKER, process.env.DOOLITTLE_TEST_BRIDGE ?? "");
+      if (process.connected) process.on("message", (message) => {
+        if (message === ${JSON.stringify(DESKTOP_RUNTIME_READY_ACK)}) {
+          require("node:fs").writeFileSync(process.env.DOOLITTLE_TEST_ACK, "ready");
+        }
+      });
       console.log("API listening on http://127.0.0.1:32769");
       setInterval(() => {}, 1000);`,
     ],
     repoRoot: directory,
     environment: {
       DOOLITTLE_TEST_MARKER: marker,
+      DOOLITTLE_TEST_ACK: acknowledged,
       DOOLITTLE_TEST_BRIDGE: "",
     },
   };
@@ -62,9 +70,14 @@ function runtimeFixture() {
       String(url).endsWith("/runtime/bot-identity")
         ? Response.json({ botId: "default", agentId: "test", name: "Test" })
         : Response.json({ stopped: true }),
-    { beforeSpawn },
+    {
+      beforeSpawn,
+      ...(withHost
+        ? { hostRpcBotId: "default", workerHostHandler: async () => undefined }
+        : {}),
+    },
   );
-  return { resolveBridge, marker, runtime, target };
+  return { resolveBridge, marker, acknowledged, runtime, target };
 }
 
 it("publishes booting before the capture bridge binds and starts once with its environment", async () => {
@@ -92,6 +105,19 @@ it("never launches a runtime stopped while the capture bridge was binding", asyn
   resolveBridge();
   await expect(startup).resolves.toMatchObject({ phase: "stopped" });
   expect(existsSync(marker)).toBe(false);
+});
+
+it("acknowledges readiness to the owned child over desktop IPC", async () => {
+  const { resolveBridge, acknowledged, runtime } = runtimeFixture(true);
+  resolveBridge();
+  try {
+    await expect(runtime.start()).resolves.toMatchObject({ phase: "ready" });
+    await vi.waitFor(() =>
+      expect(readFileSync(acknowledged, "utf8")).toBe("ready"),
+    );
+  } finally {
+    await runtime.stop();
+  }
 });
 
 function desktopIpcFixture(runtime: BackendManager, bots?: BotProcessRegistry) {
