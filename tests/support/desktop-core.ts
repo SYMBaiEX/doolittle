@@ -69,7 +69,9 @@ export async function launchDesktop(
     mkdtempSync(join(tmpdir(), "doolittle-fresh-workspace-")),
   );
   const runtime = join(profile, "runtime");
+  const temporary = join(profile, "tmp");
   mkdirSync(runtime, { recursive: true });
+  mkdirSync(temporary);
   if (options.lockedAccounts) {
     const accounts = join(runtime, "auth", "openai-codex");
     mkdirSync(accounts, { recursive: true });
@@ -113,6 +115,10 @@ export async function launchDesktop(
       cwd: repoRoot,
       env: {
         ...isolatedRuntimeEnvironment(runtime),
+        // Historical builds probe their sandbox namespace under the OS temp directory.
+        TMPDIR: temporary,
+        TMP: temporary,
+        TEMP: temporary,
         ...(options.lockedAccounts ? { ELIZA_VAULT_PASSPHRASE: "" } : {}),
         ...(options.liveCoding
           ? {
