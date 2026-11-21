@@ -1,4 +1,4 @@
-import { type Dirent, readdirSync } from "node:fs";
+import { type Dirent, lstatSync, readdirSync, realpathSync } from "node:fs";
 import { readdir, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { setImmediate } from "node:timers/promises";
@@ -17,9 +17,18 @@ export function listWorkspaceTree(
   workspaceDir: string,
   maxDepth: number,
   maxEntries = Number.POSITIVE_INFINITY,
+  requireCanonicalDirectories = false,
 ): WorkspaceEntry[] {
   const entries: WorkspaceEntry[] = [];
-  walkWorkspaceTree(workspaceDir, "", 0, maxDepth, maxEntries, entries);
+  walkWorkspaceTree(
+    workspaceDir,
+    "",
+    0,
+    maxDepth,
+    maxEntries,
+    entries,
+    requireCanonicalDirectories,
+  );
   return entries;
 }
 
@@ -35,11 +44,13 @@ export async function listWorkspaceTreeAsync(
   maxDepth: number,
   maxEntries = DEFAULT_ASYNC_WORKSPACE_TREE_LIMIT,
   signal?: AbortSignal,
+  requireCanonicalDirectories = false,
 ): Promise<WorkspaceTreeSnapshot> {
   const entries: WorkspaceEntry[] = [];
   const limit = Math.max(0, Math.floor(maxEntries));
   for await (const entry of iterateWorkspaceTree(workspaceDir, maxDepth, {
     signal,
+    requireCanonicalDirectories,
   })) {
     if (entries.length >= limit) return { entries, truncated: true };
     entries.push(entry);
@@ -100,11 +111,15 @@ async function* walkWorkspaceTreeAsync(
   )
     return;
 
-  const dirEntries = (await readdir(currentDir, { withFileTypes: true })).sort(
-    compareEntries,
-  );
+  const dirEntries = await readdir(currentDir, { withFileTypes: true });
   signal?.throwIfAborted();
-  for (const dirEntry of dirEntries) {
+  if (
+    state.requireCanonicalDirectories &&
+    (await realpath(currentDir)) !== currentDir
+  )
+    return;
+  signal?.throwIfAborted();
+  for (const dirEntry of dirEntries.sort(compareEntries)) {
     if (++state.visited % 256 === 0) {
       await setImmediate(undefined, { signal });
     }
@@ -133,12 +148,19 @@ function walkWorkspaceTree(
   maxDepth: number,
   maxEntries: number,
   entries: WorkspaceEntry[],
+  requireCanonicalDirectories: boolean,
 ): void {
   if (depth > maxDepth || entries.length >= maxEntries) return;
-  const dirEntries = readdirSync(currentDir, { withFileTypes: true }).sort(
-    compareEntries,
-  );
-  for (const dirEntry of dirEntries) {
+  if (
+    requireCanonicalDirectories
+      ? realpathSync(currentDir) !== currentDir
+      : depth > 0 && lstatSync(currentDir).isSymbolicLink()
+  )
+    return;
+  const dirEntries = readdirSync(currentDir, { withFileTypes: true });
+  if (requireCanonicalDirectories && realpathSync(currentDir) !== currentDir)
+    return;
+  for (const dirEntry of dirEntries.sort(compareEntries)) {
     const entry = workspaceEntry(dirEntry, relativeDir, depth);
     if (!entry) continue;
     entries.push(entry);
@@ -151,6 +173,7 @@ function walkWorkspaceTree(
         maxDepth,
         maxEntries,
         entries,
+        requireCanonicalDirectories,
       );
       if (entries.length >= maxEntries) return;
     }

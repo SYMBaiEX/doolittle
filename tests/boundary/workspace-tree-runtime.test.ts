@@ -1,8 +1,17 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
+import { runWithConversationWorkspace } from "../../packages/agent/src/runtime/workspace-scope";
 import { handleWorkspaceRoutes } from "../../packages/agent/src/server/routes/workspace";
 import { WorkspaceService } from "../../packages/agent/src/services/workspace-service";
 import {
@@ -78,5 +87,34 @@ it("caps the summary and cancels an API tree read with its request", async () =>
     expect(treeAsync).toHaveBeenCalledWith(12, undefined, request.signal);
   } finally {
     await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+it("keeps scoped summaries and tree reads inside the approved canonical root", async () => {
+  const parent = await realpath(
+    await mkdtemp(join(tmpdir(), "doolittle-workspace-rebind-")),
+  );
+  try {
+    const workspacePath = join(parent, "workspace");
+    const alternate = join(parent, "alternate");
+    await mkdir(workspacePath);
+    await mkdir(alternate);
+    await writeFile(join(alternate, "unrelated.ts"), "");
+
+    const service = new WorkspaceService(workspacePath);
+    await runWithConversationWorkspace(
+      { sessionId: "fixture", botId: "fixture", workspacePath },
+      async () => {
+        await rename(workspacePath, join(parent, "original"));
+        await symlink(alternate, workspacePath, "junction");
+        expect(service.summary()).toBe("(empty workspace)");
+        expect(await service.treeAsync()).toEqual({
+          entries: [],
+          truncated: false,
+        });
+      },
+    );
+  } finally {
+    await rm(parent, { recursive: true, force: true });
   }
 });
