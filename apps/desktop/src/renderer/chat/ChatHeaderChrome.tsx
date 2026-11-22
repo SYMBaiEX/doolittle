@@ -62,7 +62,6 @@ export function ChatHeaderChrome({
       id: "pin",
       label: selectedSession.pinned ? "Unpin conversation" : "Pin conversation",
       onSelect: onTogglePin,
-      separatorBefore: true,
     });
   }
   actions.push({

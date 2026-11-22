@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  ChevronRight,
   GitPullRequest,
   Link2,
   ListTodo,
@@ -17,8 +18,7 @@ import type {
 } from "../dashboard-helpers";
 import { Badge, ErrorBlock, LoadingBlock } from "../lib";
 import {
-  DASHBOARD_CARD_CLASS,
-  DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_SECTION_HEADING_CLASS,
   DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
 } from "./dashboard-layout";
@@ -105,14 +105,11 @@ export function DashboardPriorityPanel({
       />
 
       <div className={DASHBOARD_SPLIT_CLASS}>
-        <section className={DASHBOARD_CARD_CLASS}>
-          <div className={DASHBOARD_CARD_HEADING_CLASS}>
+        <section className="min-w-0">
+          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
             <div>
               <h2>Next actions</h2>
             </div>
-            <Badge tone={nextActions[0]?.tone === "warn" ? "warn" : "good"}>
-              {nextActions.length} queued
-            </Badge>
           </div>
           <div className="dashboard-action-list">
             {nextActions.map((action) => {
@@ -157,28 +154,11 @@ export function DashboardPriorityPanel({
           </div>
         </section>
 
-        <section className={DASHBOARD_CARD_CLASS}>
-          <div className={DASHBOARD_CARD_HEADING_CLASS}>
+        <section className="min-w-0">
+          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
             <div>
               <h2>Repository and setup</h2>
             </div>
-            <Badge
-              tone={
-                repoLoading || repoError
-                  ? "neutral"
-                  : repo.dirty || repo.behind > 0
-                    ? "warn"
-                    : "good"
-              }
-            >
-              {repoLoading
-                ? "Loading…"
-                : repoError
-                  ? "Unavailable"
-                  : repo.dirty
-                    ? "dirty"
-                    : "stable"}
-            </Badge>
           </div>
           {repoLoading ? (
             <LoadingBlock label="Reading workspace status…" />
@@ -201,9 +181,16 @@ export function DashboardPriorityPanel({
               </div>
             </div>
           )}
-          <details className="group mt-1.5 rounded-[var(--radius-xs)] bg-[color-mix(in_srgb,var(--surface-soft)_44%,transparent)] px-1">
-            <summary className="flex min-h-8.5 cursor-pointer list-none items-center justify-between gap-2.5 px-0.5 text-[length:var(--text-control)] [&::-webkit-details-marker]:hidden">
-              <span className="font-medium">Workspace diagnostics</span>
+          <details className="group mt-1.5">
+            <summary className="flex min-h-8.5 cursor-pointer list-none items-center justify-between gap-2.5 rounded-[var(--radius-sm)] px-1 text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden">
+              <span className="flex min-w-0 items-center gap-2 font-medium">
+                <UiIcon
+                  className="text-[var(--muted)] group-open:rotate-90"
+                  icon={ChevronRight}
+                  size="xs"
+                />
+                Workspace diagnostics
+              </span>
               <Badge
                 tone={
                   setupLoading || setupError

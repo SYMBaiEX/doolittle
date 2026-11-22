@@ -8,10 +8,10 @@ export interface CompactStat {
 }
 
 const STAT_TONE_CLASS_NAMES = {
-  neutral: "bg-transparent",
-  good: "bg-[var(--good)]",
-  warn: "bg-[var(--warn)]",
-  bad: "bg-[var(--bad)]",
+  neutral: "text-[var(--text)]",
+  good: "text-[var(--good)]",
+  warn: "text-[var(--warn)]",
+  bad: "text-[var(--bad)]",
 } as const;
 
 export function CompactStatStrip({
@@ -24,25 +24,21 @@ export function CompactStatStrip({
   return (
     <section
       aria-label={label}
-      className="compact-stat-strip grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] overflow-hidden border-y border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] max-[960px]:grid-cols-2 max-[540px]:grid-cols-1"
+      className="compact-stat-strip grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] items-start gap-x-4 gap-y-3"
     >
       {stats.map((stat) => (
         <div
-          className="compact-stat-strip__item relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-r border-[var(--border)] px-[13px] py-2.5 last:border-r-0 max-[960px]:even:border-r-0 max-[960px]:[&:nth-child(n+3)]:border-t max-[540px]:border-r-0 max-[540px]:border-t max-[540px]:first:border-t-0"
+          className="compact-stat-strip__item grid min-w-0 gap-0.5 py-1"
           key={stat.label}
         >
-          <i
-            aria-hidden="true"
-            className={`absolute inset-y-[9px] left-0 w-0.5 ${STAT_TONE_CLASS_NAMES[stat.tone ?? "neutral"]}`}
-          />
           <span
-            className="min-w-0 truncate font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--muted)] uppercase"
+            className="min-w-0 text-[length:var(--text-meta)] leading-snug text-[var(--muted)] [overflow-wrap:anywhere]"
             title={stat.label}
           >
             {stat.label}
           </span>
           <strong
-            className="truncate font-[var(--font-mono)] text-sm tabular-nums tracking-[-0.015em] text-[var(--text)]"
+            className={`truncate text-base leading-tight tabular-nums ${STAT_TONE_CLASS_NAMES[stat.tone ?? "neutral"]}`}
             title={
               typeof stat.value === "string" || typeof stat.value === "number"
                 ? String(stat.value)
@@ -53,7 +49,7 @@ export function CompactStatStrip({
           </strong>
           {stat.detail ? (
             <small
-              className="col-span-full truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
+              className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
               title={
                 typeof stat.detail === "string" ||
                 typeof stat.detail === "number"

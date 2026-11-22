@@ -3,10 +3,10 @@ import { RunState } from "@doolittle/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@elizaos/ui/dropdown-menu";
 import {
@@ -20,13 +20,7 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import {
-  Fragment,
-  type ReactNode,
-  type RefObject,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, type RefObject, useRef, useState } from "react";
 import { UiIcon } from "../components/UiIcon";
 import type { ProjectScope } from "../project-manager/models";
 import "./chat-sidebar-controls.css";
@@ -127,11 +121,11 @@ function SidebarChoiceMenu({
         <DropdownMenuRadioGroup onValueChange={onChange} value={value}>
           {groups
             .filter((choices) => choices.length)
-            .map((choices, index) => (
-              <Fragment key={choices[0].value}>
-                {index ? (
-                  <DropdownMenuSeparator className="dl-action-menu-separator" />
-                ) : null}
+            .map((choices) => (
+              <DropdownMenuGroup
+                className="chat-sidebar-choice-group"
+                key={choices[0].value}
+              >
                 {choices.map((choice) => (
                   <DropdownMenuRadioItem
                     aria-label={choice.label}
@@ -153,14 +147,16 @@ function SidebarChoiceMenu({
                     ) : null}
                   </DropdownMenuRadioItem>
                 ))}
-              </Fragment>
+              </DropdownMenuGroup>
             ))}
         </DropdownMenuRadioGroup>
         {children ? (
-          <>
-            <DropdownMenuSeparator className="dl-action-menu-separator" />
+          <DropdownMenuGroup
+            aria-label="Bot actions"
+            className="chat-sidebar-choice-group chat-sidebar-choice-group--actions"
+          >
             {children}
-          </>
+          </DropdownMenuGroup>
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -312,7 +308,7 @@ export function ChatProjectFilter({
       groups={[[all, GENERAL], projectChoices]}
       label="Filter chats"
       onChange={onChange}
-      trigger={{ ...selected, icon: all.icon }}
+      trigger={selected}
       value={selected.value}
     />
   );

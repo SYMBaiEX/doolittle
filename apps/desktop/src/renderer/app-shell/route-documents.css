@@ -18,8 +18,8 @@
   min-block-size: 0;
   margin: 0;
   padding: 0;
-  border-block-end: 1px solid var(--border);
-  background: var(--surface);
+  border-block-end: 0;
+  background: transparent;
 }
 
 [data-route-document] .page-header__toolbar {
@@ -95,12 +95,38 @@
 
 [data-route-document="orchestration"] .orchestration-header {
   min-block-size: 0;
-  padding: 8px var(--document-inset);
-  background: var(--surface);
+  padding: 12px var(--document-inset) 8px;
+  border-block-end: 0;
+  background: transparent;
+}
+
+[data-route-document="orchestration"] .orchestration-header-metrics {
+  column-gap: var(--document-gap);
+}
+
+[data-route-document="orchestration"] .orchestration-summary-chip {
+  border-inline-start: 0;
+  padding-inline: 0;
 }
 
 [data-route-document="orchestration"] .orchestration-nav-row {
+  border-block-end: 0;
   padding-inline: var(--document-inset);
+  padding-block-end: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-route-document="orchestration"] .orchestration-master-list {
+  padding-inline: 4px;
+}
+
+[data-route-document="orchestration"] .orchestration-master-list > li {
+  border-block-start: 0;
+}
+
+[data-route-document="orchestration"] .orchestration-master-item {
+  border-radius: var(--radius-sm);
 }
 
 [data-route-document="orchestration"]
@@ -199,6 +225,7 @@
 }
 
 [data-route-document="settings"] .dl-settings-page-heading {
+  border-block-end: 0;
   padding-inline: var(--document-inset);
 }
 
@@ -212,6 +239,7 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
+  border-block-end: 0;
   overflow-x: auto;
   padding-inline: var(--document-inset);
   scrollbar-width: thin;
@@ -234,6 +262,21 @@
 [data-route-document="settings"] .dl-settings-content .settings-section-header,
 [data-route-document="settings"] .dl-settings-group {
   padding-inline: var(--document-inset);
+}
+
+[data-route-document="settings"] .dl-settings-group {
+  row-gap: 4px;
+  padding-block: 12px;
+}
+
+[data-route-document="settings"]
+  .dl-settings-content
+  :is(
+    .dl-settings-field-row,
+    .dl-settings-preference-row,
+    .dl-settings-theme-heading
+  ) {
+  border-block-end: 0;
 }
 
 [data-route-document="settings"]
@@ -269,8 +312,7 @@
     max-block-size: min(28dvh, 15rem);
     overflow: auto;
     overscroll-behavior: contain;
-    border-block-start: 1px solid var(--border);
-    padding-block-start: 8px;
+    padding-block-start: 4px;
   }
 }
 

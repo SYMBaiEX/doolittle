@@ -87,7 +87,7 @@ export function PluginsPage({ active }: { active: boolean }) {
         </OfflineRouteState>
       ) : null}
       {active ? (
-        <div className="plugins-catalog-controls grid grid-cols-[minmax(0,1fr)_minmax(360px,0.78fr)] items-stretch gap-2 max-[1180px]:grid-cols-1 [&>.compact-stat-strip]:min-w-0 [&>.compact-stat-strip]:rounded-[var(--radius-sm)] [&>.compact-stat-strip]:border [&>.compact-stat-strip]:border-[var(--border)] [&>.compact-stat-strip]:bg-[color-mix(in_srgb,var(--surface)_78%,transparent)]">
+        <div className="plugins-catalog-controls grid grid-cols-[minmax(0,1fr)_minmax(360px,0.78fr)] items-end gap-4 max-[1180px]:grid-cols-1">
           <CompactStatStrip
             label="Plugin catalog summary"
             stats={[
@@ -101,7 +101,7 @@ export function PluginsPage({ active }: { active: boolean }) {
               { label: "Categories", value: categories.length - 1 },
             ]}
           />
-          <div className="plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)] items-end gap-x-2.5 gap-y-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] px-2 py-1.5 max-[680px]:grid-cols-1">
+          <div className="plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)] items-end gap-x-2.5 gap-y-2 max-[680px]:grid-cols-1">
             <label
               className="plugins-filter-control plugins-filter-search grid min-w-0 gap-1"
               htmlFor="plugin-search"

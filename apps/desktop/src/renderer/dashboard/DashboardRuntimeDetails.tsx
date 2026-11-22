@@ -4,9 +4,8 @@ import type { DashboardAccountPoolSummary } from "../dashboard-helpers";
 import { summarizeDashboardValue } from "../dashboard-helpers";
 import { asRecord, Badge, ErrorBlock, LoadingBlock } from "../lib";
 import {
-  DASHBOARD_CARD_CLASS,
-  DASHBOARD_CARD_HEADING_CLASS,
   DASHBOARD_DISCLOSURE_CLASS,
+  DASHBOARD_SECTION_HEADING_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
   DASHBOARD_SUMMARY_CLASS,
 } from "./dashboard-layout";
@@ -60,8 +59,8 @@ export function DashboardRuntimeDetails({
         </span>
       </summary>
       <div className="grid grid-cols-2 gap-2.5 p-2.5 max-[980px]:grid-cols-1">
-        <section className={DASHBOARD_CARD_CLASS}>
-          <div className={DASHBOARD_CARD_HEADING_CLASS}>
+        <section className="min-w-0">
+          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Runtime detail</span>
               <h2>Provider assembly</h2>
@@ -99,8 +98,8 @@ export function DashboardRuntimeDetails({
           )}
         </section>
 
-        <section className={DASHBOARD_CARD_CLASS}>
-          <div className={DASHBOARD_CARD_HEADING_CLASS}>
+        <section className="min-w-0">
+          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Spawned agents</span>
               <h2>Codex &amp; Claude account pool</h2>

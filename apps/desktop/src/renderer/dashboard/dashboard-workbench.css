@@ -2,7 +2,7 @@
   display: grid;
   min-inline-size: 0;
   align-content: start;
-  gap: var(--document-gap, 12px);
+  gap: calc(var(--document-gap, 12px) * 2);
   padding: var(--document-gap, 12px) var(--document-inset, 12px);
 }
 
@@ -10,12 +10,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   align-items: start;
-  gap: var(--document-gap, 12px);
-}
-
-.dashboard-workbench-panel {
-  padding-block: 10px 8px;
-  border-block-start: 1px solid var(--border);
+  gap: calc(var(--document-gap, 12px) * 2);
 }
 
 .dashboard-action-list {
@@ -30,15 +25,14 @@
   gap: 10px;
   min-block-size: 44px;
   padding: 6px 8px;
-  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text);
   text-align: start;
+  text-decoration: none;
 }
 
 .dashboard-action-row:hover:not(:disabled),
 .dashboard-action-row:focus-visible {
-  border-color: var(--border);
   background: var(--surface-hover);
 }
 
@@ -49,18 +43,18 @@
 
 .dashboard-action-mark {
   display: grid;
-  inline-size: 28px;
-  block-size: 28px;
+  inline-size: 24px;
+  block-size: 24px;
   place-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  background: var(--surface-soft);
   color: var(--text-soft);
 }
 
 .dashboard-action-mark[data-tone="warn"] {
   color: var(--warn);
-  background: var(--warn-soft);
+}
+
+.dashboard-action-row > svg:last-child {
+  color: var(--muted);
 }
 
 .dashboard-action-copy {

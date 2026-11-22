@@ -20,7 +20,7 @@ export const WINDOW_HISTORY_CONTROLS_CLASS =
   "window-history-controls m-0 flex shrink-0 items-center gap-px border-0 p-0 [-webkit-app-region:no-drag] [&>button]:grid [&>button]:size-10 [&>button]:place-items-center [&>button]:rounded-[var(--radius-md)] [&>button]:border-0 [&>button]:bg-transparent [&>button]:p-0 [&>button]:text-[var(--muted)] [&>button:hover:not(:disabled)]:bg-[var(--surface-hover)] [&>button:hover:not(:disabled)]:text-[var(--text)] [&>button:disabled]:cursor-default [&>button:disabled]:opacity-25 max-[760px]:[&>button]:size-11";
 
 export const WINDOW_TOOLS_CLASS =
-  "window-tools ml-auto flex shrink-0 items-center gap-1.25 [-webkit-app-region:no-drag] before:mr-1.25 before:h-4 before:w-px before:bg-[var(--line-subtle)] max-[760px]:before:hidden";
+  "window-tools ml-auto flex shrink-0 items-center gap-1.25 [-webkit-app-region:no-drag]";
 
 export const CHAT_CHROME_HOST_CLASS =
   "chat-chrome-host relative ml-auto flex min-h-0 min-w-0 shrink-0 items-center [-webkit-app-region:no-drag]";

@@ -6,8 +6,7 @@ import type {
 } from "../dashboard-helpers";
 import { Badge, displayTimestamp, ErrorBlock, LoadingBlock } from "../lib";
 import {
-  DASHBOARD_CARD_CLASS,
-  DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_SECTION_HEADING_CLASS,
   DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
 } from "./dashboard-layout";
@@ -49,17 +48,12 @@ export function DashboardActivityPanels({
 
   return (
     <div className={DASHBOARD_SPLIT_CLASS}>
-      <section
-        className={`${DASHBOARD_CARD_CLASS} ${sessions.length ? "" : "flex min-h-[72px] items-center max-[620px]:min-h-[88px]"}`}
-      >
-        <div
-          className={`${DASHBOARD_CARD_HEADING_CLASS} ${sessions.length ? "" : "mb-0 w-full"}`}
-        >
+      <section className="min-w-0">
+        <div className={DASHBOARD_SECTION_HEADING_CLASS}>
           <div>
-            <span className="eyebrow">Recent conversations</span>
-            <h2>{sessions.length ? "Sessions" : "No saved sessions"}</h2>
+            <h2>Recent conversations</h2>
             {sessions.length ? null : (
-              <small>Start a conversation to build local history.</small>
+              <small>No saved conversations yet.</small>
             )}
           </div>
           <Button
@@ -96,17 +90,10 @@ export function DashboardActivityPanels({
         ) : null}
       </section>
 
-      <section
-        className={`${DASHBOARD_CARD_CLASS} ${executionHasContent ? "" : "flex min-h-[72px] items-center max-[620px]:min-h-[88px]"}`}
-      >
-        <div
-          className={`${DASHBOARD_CARD_HEADING_CLASS} ${executionHasContent ? "" : "mb-0 w-full"}`}
-        >
+      <section className="min-w-0">
+        <div className={DASHBOARD_SECTION_HEADING_CLASS}>
           <div>
-            <span className="eyebrow">Execution queue</span>
-            <h2>
-              {executionHasContent ? "Approvals and tasks" : "Queue clear"}
-            </h2>
+            <h2>Approvals and tasks</h2>
             {executionHasContent ? null : (
               <small>No approvals or delegated tasks need attention.</small>
             )}

@@ -10,13 +10,11 @@ import {
   Clock3,
   Folder,
   FolderOpen,
-  MessageSquare,
   MessagesSquare,
   MoreHorizontal,
   Pin,
 } from "lucide-react";
 import {
-  type ComponentProps,
   type ReactNode,
   useId,
   useLayoutEffect,
@@ -154,7 +152,6 @@ function HistoryDisclosure({
   count,
   open,
   current,
-  icon,
   nested = false,
   archived = false,
   onToggle,
@@ -164,7 +161,6 @@ function HistoryDisclosure({
   count: number;
   open: boolean;
   current: boolean;
-  icon: ComponentProps<typeof UiIcon>["icon"];
   nested?: boolean;
   archived?: boolean;
   onToggle: () => void;
@@ -186,7 +182,12 @@ function HistoryDisclosure({
         onClick={onToggle}
         type="button"
       >
-        <UiIcon icon={icon} size="xs" />
+        <UiIcon
+          className="chat-history-chevron"
+          icon={ChevronRight}
+          size="xs"
+        />
+        {nested ? <UiIcon icon={open ? FolderOpen : Folder} size="xs" /> : null}
         <span className="chat-history-disclosure-title">{title}</span>
         {archived ? (
           <span className="chat-history-archived">Archived</span>
@@ -196,11 +197,6 @@ function HistoryDisclosure({
             {count}
           </span>
         ) : null}
-        <UiIcon
-          className="chat-history-chevron"
-          icon={ChevronRight}
-          size="xs"
-        />
       </button>
       <div className="chat-history-body" hidden={!open} id={bodyId}>
         {open ? children : null}
@@ -246,7 +242,6 @@ function ChatHistoryRow({
           id: "copy-title",
           label: "Copy conversation title",
           disabled: !session.title?.trim(),
-          separatorBefore: true,
           onSelect: () => void copyContextText(title),
         },
         {
@@ -276,17 +271,10 @@ function ChatHistoryRow({
             ref={register}
             type="button"
           >
-            <UiIcon
-              icon={
-                pinned
-                  ? Pin
-                  : session.conversationKind === "group"
-                    ? MessagesSquare
-                    : MessageSquare
-              }
-              size="xs"
-            />
             <span className="chat-history-row-title">{title}</span>
+            {pinned || session.conversationKind === "group" ? (
+              <UiIcon icon={pinned ? Pin : MessagesSquare} size="xs" />
+            ) : null}
           </button>
         </TooltipTrigger>
         <TooltipContent
@@ -411,7 +399,6 @@ export function ChatHistorySidebar({
         <HistoryDisclosure
           count={history.pinned.length}
           current={hasCurrent(history.pinned)}
-          icon={Pin}
           onToggle={() => toggleSection("pinned")}
           open={!collapsed.has("pinned")}
           title="Pinned"
@@ -423,7 +410,6 @@ export function ChatHistorySidebar({
           current={history.projects.some((project) =>
             hasCurrent(project.sessions),
           )}
-          icon={Folder}
           onToggle={() => toggleSection("projects")}
           open={!collapsed.has("projects")}
           title="Projects"
@@ -436,7 +422,6 @@ export function ChatHistorySidebar({
                 archived={project.archived}
                 count={project.sessions.length}
                 current={hasCurrent(project.sessions)}
-                icon={open ? FolderOpen : Folder}
                 key={project.id}
                 nested
                 onToggle={() => toggleSection(key)}
@@ -451,7 +436,6 @@ export function ChatHistorySidebar({
         <HistoryDisclosure
           count={history.recent.length}
           current={hasCurrent(history.recent)}
-          icon={Clock3}
           onToggle={() => toggleSection("recent")}
           open={!collapsed.has("recent")}
           title="Recent"
@@ -461,7 +445,6 @@ export function ChatHistorySidebar({
         <HistoryDisclosure
           count={history.general.length}
           current={hasCurrent(history.general)}
-          icon={MessageSquare}
           onToggle={() => toggleSection("general")}
           open={!collapsed.has("general")}
           title="General"

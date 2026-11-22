@@ -14,12 +14,7 @@ import {
   PageHeader,
   useApiResource,
 } from "../lib";
-import {
-  OBSERVABILITY_CARD_CLASS,
-  OBSERVABILITY_CARD_HEADING_CLASS,
-  OBSERVABILITY_EYEBROW_CLASS,
-  OBSERVABILITY_PAGE_CLASS,
-} from "../observability-layout";
+import { OBSERVABILITY_PAGE_CLASS } from "../observability-layout";
 import { compactSessionPreview } from "../session-preview";
 import "./analytics-workbench.css";
 
@@ -132,12 +127,12 @@ export function AnalyticsPage({
       ) : !hasActivity ? (
         <section
           aria-labelledby="analytics-empty-title"
-          className={`analytics-empty-landing ${OBSERVABILITY_CARD_CLASS}`}
+          className="analytics-empty-landing"
           data-analytics-empty="true"
         >
           <div className="grid min-w-0 gap-[3px]">
             <h2
-              className="text-sm font-bold text-[var(--text-strong)]"
+              className="font-semibold text-[var(--text)]"
               id="analytics-empty-title"
             >
               No local activity yet
@@ -178,15 +173,8 @@ export function AnalyticsPage({
             ]}
           />
           <div className="analytics-grid" data-analytics-grid="true">
-            <section className={OBSERVABILITY_CARD_CLASS}>
-              <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
-                <div>
-                  <span className={OBSERVABILITY_EYEBROW_CLASS}>
-                    Recent activity
-                  </span>
-                  <h2>Messages by day</h2>
-                </div>
-              </div>
+            <section>
+              <h2 className="analytics-section-heading">Messages by day</h2>
               {activity.length ? (
                 <section
                   aria-label="Daily message counts"
@@ -228,15 +216,8 @@ export function AnalyticsPage({
                 </EmptyBlock>
               )}
             </section>
-            <section className={OBSERVABILITY_CARD_CLASS}>
-              <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
-                <div>
-                  <span className={OBSERVABILITY_EYEBROW_CLASS}>
-                    Conversations
-                  </span>
-                  <h2>Recent sessions</h2>
-                </div>
-              </div>
+            <section>
+              <h2 className="analytics-section-heading">Recent sessions</h2>
               <section
                 aria-label="Session usage table"
                 className="analytics-session-scroll"
@@ -253,7 +234,7 @@ export function AnalyticsPage({
                         "Last activity",
                       ].map((label) => (
                         <th
-                          className="border-b border-[var(--border)] px-[9px] py-[7px] text-left text-[length:var(--text-meta)] uppercase tracking-[0.1em] text-[var(--muted)]"
+                          className="border-b border-[var(--border)] px-2 py-2 text-left text-[length:var(--text-meta)] text-[var(--muted)]"
                           key={label}
                           scope="col"
                         >
@@ -266,7 +247,7 @@ export function AnalyticsPage({
                     {recentSessions.length === 0 ? (
                       <tr>
                         <td
-                          className="h-[58px] border-b border-[var(--border)] px-[9px] py-[7px] text-center text-[length:var(--text-meta)] text-[var(--muted)]"
+                          className="h-14 px-2 py-2 text-center text-[length:var(--text-meta)] text-[var(--muted)]"
                           colSpan={4}
                         >
                           No session usage yet
@@ -279,15 +260,15 @@ export function AnalyticsPage({
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
                           <td
-                            className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]"
+                            className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-[length:var(--text-meta)] text-[var(--text)]"
                             title={label}
                           >
                             {label}
                           </td>
-                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="px-2 py-2 text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {asNumber(entry.messageCount)}
                           </td>
-                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="px-2 py-2 text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {compactNumber(
                               asNumber(
                                 usage.estimatedTokens,
@@ -295,7 +276,7 @@ export function AnalyticsPage({
                               ),
                             )}
                           </td>
-                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="px-2 py-2 text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {displayTimestamp(
                               asString(entry.endedAt) || undefined,
                             )}

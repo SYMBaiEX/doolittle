@@ -190,8 +190,7 @@
 }
 
 .chat-jump-count {
-  padding-inline-start: 7px;
-  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 3px;
   color: var(--muted);
   font-size: var(--text-meta);
   white-space: nowrap;
@@ -274,7 +273,6 @@
   gap: 7px;
   margin: 0 auto 12px;
   padding: 8px 0 0;
-  border-block-start: 1px solid var(--border);
   color: var(--muted);
   font-size: var(--text-control);
 }

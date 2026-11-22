@@ -15,14 +15,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding-block: 12px;
 }
 
 .analytics-workbench,
 .analytics-grid {
   display: grid;
   min-inline-size: 0;
-  gap: var(--document-gap, 12px);
+  gap: calc(var(--document-gap, 12px) * 2);
 }
 
 .analytics-grid {
@@ -31,7 +31,14 @@
 }
 
 .analytics-grid > section {
-  overflow: hidden;
+  min-inline-size: 0;
+}
+
+.analytics-section-heading {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 600;
 }
 
 .analytics-series-scroll,

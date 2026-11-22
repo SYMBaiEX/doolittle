@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DashboardPriorityPanel } from "../../apps/desktop/src/renderer/dashboard/DashboardPriorityPanel";
+import { HomeObservabilityLinks } from "../../apps/desktop/src/renderer/dashboard/HomeObservabilityLinks";
 import { RuntimeLogStream } from "../../apps/desktop/src/renderer/logs/RuntimeLogStream";
 
 const reactEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -93,6 +94,23 @@ it("opens the active conversation from a described dashboard action", () => {
   expect(review?.disabled).toBe(true);
   act(() => action?.click());
   expect(openChat).toHaveBeenCalledExactlyOnceWith("session-1");
+});
+
+it("presents Activity and Insights as native navigation links", () => {
+  act(() => root.render(<HomeObservabilityLinks />));
+
+  const links = container.querySelectorAll<HTMLAnchorElement>(
+    'nav[aria-label="Observability"] a',
+  );
+  expect(
+    [...links].map((link) => [
+      link.getAttribute("aria-label"),
+      link.getAttribute("href"),
+    ]),
+  ).toEqual([
+    ["Open activity", "#/home/activity"],
+    ["Open insights", "#/home/insights"],
+  ]);
 });
 
 it("keeps logs keyboard reachable and focuses the requested event", () => {

@@ -14,10 +14,6 @@
   padding: 0;
 }
 
-.chat-composer.dl-composer:has(.chat-composer-input:focus-visible) {
-  border-color: var(--border-strong);
-}
-
 .chat-composer-notices:empty {
   display: none;
 }
@@ -33,8 +29,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 10px;
-  padding: 7px var(--composer-inset);
-  border-block-end: 1px solid var(--line-subtle, var(--border));
+  padding: 8px var(--composer-inset) 0;
   color: var(--muted);
   font-size: var(--text-meta);
 }
@@ -59,7 +54,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
-  padding: 10px var(--composer-inset) 7px;
+  padding: 10px var(--composer-inset) 4px;
 }
 
 .chat-composer .chat-composer-input {
@@ -95,8 +90,7 @@
   align-items: center;
   gap: 5px 8px;
   min-width: 0;
-  padding: 7px max(8px, calc(var(--composer-inset) - 3px));
-  border-block-start: 1px solid var(--line-subtle, var(--border));
+  padding: 4px max(8px, calc(var(--composer-inset) - 3px)) 8px;
 }
 
 .chat-composer-tools,
@@ -110,9 +104,7 @@
 }
 
 .chat-composer-routing {
-  gap: 5px;
-  padding-inline-start: 7px;
-  border-inline-start: 1px solid var(--line-subtle, var(--border));
+  gap: 4px;
 }
 
 .composer-selector-root {
@@ -129,7 +121,7 @@
   min-height: var(--composer-control);
   padding-inline: 6px;
   overflow: hidden;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-soft);
@@ -139,7 +131,6 @@
 
 .composer-route-trigger:not(:disabled):hover,
 .composer-route-trigger[aria-expanded="true"] {
-  border-color: var(--border);
   background: var(--surface-hover);
   color: var(--text);
 }
@@ -191,6 +182,7 @@
 .chat-composer .chat-composer-icon-button {
   width: var(--composer-control);
   padding: 0;
+  border: 0;
   background: transparent;
   color: var(--text-soft);
   cursor: pointer;
@@ -205,7 +197,6 @@
 .chat-composer .chat-composer-meta-toggle[aria-expanded="true"],
 .chat-composer .chat-tools-disclosure[open] > summary,
 .chat-composer .chat-composer-icon-button:hover:not(:disabled) {
-  border-color: var(--border);
   background: var(--surface-hover);
   color: var(--text);
 }
@@ -338,8 +329,7 @@
   display: grid;
   gap: 3px;
   min-width: 0;
-  padding: 5px var(--composer-inset) 7px;
-  border-block-end: 1px solid var(--line-subtle, var(--border));
+  padding: 8px var(--composer-inset) 0;
 }
 
 .chat-message-queue-heading,
@@ -394,8 +384,7 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
-  padding: 1px 3px 1px 7px;
-  border: 1px solid var(--border);
+  padding: 2px 4px 2px 8px;
   border-radius: var(--radius-sm);
   background: var(--surface-soft);
   color: var(--text-soft);
@@ -438,7 +427,6 @@
   min-height: 30px;
   max-width: 100%;
   padding-inline: 6px 3px;
-  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-soft);
   color: var(--text-soft);
@@ -518,8 +506,7 @@
   display: grid;
   gap: 8px;
   min-width: 0;
-  padding: 8px var(--composer-inset) 10px;
-  border-block-start: 1px solid var(--line-subtle, var(--border));
+  padding: 4px var(--composer-inset) 12px;
   color: var(--muted);
   font-size: var(--text-meta);
 }
@@ -544,10 +531,10 @@
   flex: none;
   gap: 5px;
   max-width: min(240px, 85%);
-  padding: 3px 5px;
+  padding: 3px 6px;
   overflow: hidden;
-  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--surface-soft);
   color: var(--text-soft);
 }
 
@@ -604,11 +591,6 @@
 
   .chat-composer-config {
     justify-content: end;
-  }
-
-  .chat-composer-routing {
-    padding-inline-start: 0;
-    border-inline-start: 0;
   }
 
   .chat-composer-meta-toggle__label,

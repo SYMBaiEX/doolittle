@@ -11,6 +11,11 @@
   overscroll-behavior: contain;
 }
 
+.catalog-browser-index {
+  border-inline-end: 1px solid var(--border);
+  background: var(--surface);
+}
+
 .catalog-browser-item:hover,
 .catalog-browser-item[aria-selected="true"] {
   background: var(--surface-hover);

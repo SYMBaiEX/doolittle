@@ -429,7 +429,7 @@ export function DesktopSidebar({
         </nav>
         <nav
           aria-label="Workspace navigation"
-          className="grid shrink-0 gap-1 border-t border-[var(--border)] px-1 py-2 [-webkit-app-region:no-drag]"
+          className="grid shrink-0 gap-0.5 px-1 pt-3 pb-2 [-webkit-app-region:no-drag]"
         >
           {(
             [
