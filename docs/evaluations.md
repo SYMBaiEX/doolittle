@@ -65,8 +65,17 @@ alone does not attest the executed route.
 
 Doolittle records run receipts and its evaluation journal by default. Full SDK
 trajectory capture is opt-in. Set `ELIZA_TRAJECTORY_LOGGING=true` before starting
-Doolittle when an evaluation needs raw ElizaOS model and tool traces. Capture can
-store prompt contents and increase profile size, so keep the profile private.
+Doolittle when debugging or when an evaluation needs raw ElizaOS model and tool
+traces. Capture can store prompt contents, so keep the profile private.
+
+In a normal profile, raw capture stops after 30 minutes or when the trajectory
+tables reach 128 MiB, whichever the runtime detects first. Set
+`DOOLITTLE_TRACE_MAX_MINUTES` or `DOOLITTLE_TRACE_MAX_MIB` to lower those limits.
+Doolittle checks relation size at startup and every five seconds while capturing.
+An in-flight write between checks can exceed the size limit. Stopping capture
+can leave the current trace incomplete. Earlier rows, exports, and run receipts
+remain available. The isolated evaluation runner can retain complete traces
+when raw capture is enabled, including when an export spans the normal limits.
 
 Record explicit human ratings separately:
 

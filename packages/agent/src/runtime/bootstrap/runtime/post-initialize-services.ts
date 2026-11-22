@@ -6,6 +6,7 @@ import { installDatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajecto
 import type { AgentRuntime } from "@elizaos/core";
 import { TrajectoriesService } from "@elizaos/plugin-assistant";
 import { PgliteMaintenanceService } from "./pglite-maintenance";
+import { enforceTrajectoryCaptureBudget } from "./trajectory-capture-budget";
 
 /**
  * Completes configuration that requires an initialized runtime.
@@ -19,6 +20,7 @@ export async function finalizeCoreRuntimeServices(
 ): Promise<void> {
   await runtime.getServiceLoadPromise(TrajectoriesService.serviceType);
   await installDatabaseTrajectoryLogger(runtime);
+  await enforceTrajectoryCaptureBudget(runtime);
   await runtime.getServiceLoadPromise(PgliteMaintenanceService.serviceType);
   await runtime.getServiceLoadPromise(DOOLITTLE_RUN_PROGRESS_SERVICE);
   await runtime.getServiceLoadPromise(DOOLITTLE_SDK_CAPABILITIES_SERVICE);
