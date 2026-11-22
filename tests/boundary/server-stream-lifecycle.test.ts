@@ -1,6 +1,7 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { setImmediate } from "node:timers/promises";
 import { expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap/index";
@@ -144,7 +145,7 @@ it("preserves event order when replaying an out-of-order persisted journal", asy
   }
 });
 
-it("publishes all interrupted receipts and orphaned journals in one recovery write", async () => {
+it("recovers all interrupted receipts and orphaned journals durably", async () => {
   const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-recovery-"));
   try {
     const runs = new RunControllerService(dataDir);
@@ -163,44 +164,32 @@ it("publishes all interrupted receipts and orphaned journals in one recovery wri
     runs.appendTaskEvent("orphan", "response.created", { room_id: "orphan" });
     runs.dispose();
 
-    const publish = vi.fn();
-    const recovered = new RunControllerStore(dataDir, { writer: publish });
-    expect(publish).toHaveBeenCalledExactlyOnceWith(
-      join(dataDir, "run-receipts.json"),
+    const recovered = new RunControllerStore(dataDir);
+    for (const runId of ["first", "second"]) {
+      expect(recovered.getByRunId(runId)).toMatchObject({ status: "error" });
+      expect(recovered.listEvents(runId)).toEqual([
+        expect.objectContaining({ type: "response.failed", terminal: true }),
+      ]);
+    }
+    const orphan = recovered.listEvents("orphan");
+    expect(orphan).toEqual([
+      expect.objectContaining({ type: "response.created" }),
       expect.objectContaining({
-        receipts: ["first", "second"].map((runId) =>
-          expect.objectContaining({ runId, status: "error" }),
-        ),
-        events: {
-          first: [
-            expect.objectContaining({
-              type: "response.failed",
-              terminal: true,
-            }),
-          ],
-          second: [
-            expect.objectContaining({
-              type: "response.failed",
-              terminal: true,
-            }),
-          ],
-          orphan: [
-            expect.objectContaining({ type: "response.created" }),
-            expect.objectContaining({
-              id: 2,
-              type: "response.failed",
-              terminal: true,
-              data: expect.objectContaining({
-                room_id: "orphan",
-                code: "runtime_restarted",
-              }),
-            }),
-          ],
-        },
+        id: 2,
+        type: "response.failed",
+        terminal: true,
+        data: expect.objectContaining({
+          room_id: "orphan",
+          code: "runtime_restarted",
+        }),
       }),
-    );
+    ]);
     recovered.dispose();
-    expect(publish).toHaveBeenCalledOnce();
+    const reopened = new RunControllerStore(dataDir);
+    expect(reopened.listEvents("orphan")).toEqual(orphan);
+    expect(reopened.listEvents("first")).toHaveLength(1);
+    expect(reopened.listEvents("second")).toHaveLength(1);
+    reopened.dispose();
   } finally {
     await rm(dataDir, { recursive: true, force: true });
   }
@@ -230,18 +219,33 @@ it("reopens terminal receipts without rewriting the durable journal", async () =
     );
     runs.dispose();
 
-    const publish = vi.fn();
-    const restored = new RunControllerStore(dataDir, { writer: publish });
+    const db = new DatabaseSync(join(dataDir, "state.db"));
+    try {
+      for (const table of [
+        "run_receipts",
+        "task_run_journals",
+        "task_run_events",
+      ]) {
+        for (const operation of ["INSERT", "UPDATE", "DELETE"]) {
+          db.exec(`
+            CREATE TRIGGER reject_${table}_${operation} BEFORE ${operation} ON ${table}
+              BEGIN SELECT RAISE(ABORT, 'Unexpected journal rewrite'); END;
+          `);
+        }
+      }
+    } finally {
+      db.close();
+    }
+    const restored = new RunControllerStore(dataDir);
     expect(restored.getByRunId("finished")?.status).toBe("complete");
     expect(restored.getTerminalEvent("finished")).toEqual(terminal);
     restored.dispose();
-    expect(publish).not.toHaveBeenCalled();
   } finally {
     await rm(dataDir, { recursive: true, force: true });
   }
 });
 
-it("writes a normalized journal once when legacy entries are discarded", async () => {
+it("does not reimport the legacy JSON after a successful empty migration", async () => {
   const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-sanitize-"));
   try {
     const file = join(dataDir, "run-receipts.json");
@@ -253,16 +257,166 @@ it("writes a normalized journal once when legacy entries are discarded", async (
         events: { empty: [], invalid: [null], malformed: false },
       }),
     );
-    const publish = vi.fn();
-    const restored = new RunControllerStore(dataDir, { writer: publish });
-    expect(publish).toHaveBeenCalledExactlyOnceWith(file, {
-      version: 2,
-      receipts: [],
-      events: {},
-    });
+    const restored = new RunControllerStore(dataDir);
+    expect(restored.listReceipts()).toEqual([]);
+    expect(restored.hasJournal("invalid")).toBe(false);
     restored.dispose();
-    expect(publish).toHaveBeenCalledOnce();
+
+    await writeFile(file, "This stale legacy file must no longer be opened.");
+    const reopened = new RunControllerStore(dataDir);
+    expect(reopened.listReceipts()).toEqual([]);
+    reopened.dispose();
   } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("appends a terminal event in SQLite without reinserting earlier events", async () => {
+  const dataDir = await mkdtemp(
+    join(tmpdir(), "doolittle-stream-incremental-"),
+  );
+  const store = new RunControllerStore(dataDir);
+  const db = new DatabaseSync(join(dataDir, "state.db"));
+  try {
+    const created = store.appendEvent("run", "response.created", {}).event;
+    store.flushPersistence();
+    db.exec(`
+      CREATE TRIGGER preserve_events BEFORE DELETE ON task_run_events
+        BEGIN SELECT RAISE(ABORT, 'Unexpected event deletion'); END;
+      CREATE TRIGGER append_only_terminal BEFORE INSERT ON task_run_events
+        WHEN NEW.terminal = 0
+        BEGIN SELECT RAISE(ABORT, 'Unexpected event reinsertion'); END;
+    `);
+    const terminal = store.appendEvent(
+      "run",
+      "response.completed",
+      {},
+      true,
+    ).event;
+    expect(store.listEvents("run")).toEqual([created, terminal]);
+    expect(
+      db
+        .prepare("SELECT terminal FROM task_run_events ORDER BY sequence")
+        .all(),
+    ).toEqual([{ terminal: 0 }, { terminal: 1 }]);
+  } finally {
+    db.close();
+    store.dispose();
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("persists journal eviction without moving the replay cursor backward", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-eviction-"));
+  try {
+    const store = new RunControllerStore(dataDir);
+    store.appendEvent("run", "response.created", {});
+    store.flushPersistence();
+    const evicted = store.appendEvent("run", "agent.progress", {
+      detail: "x".repeat(512 * 1024),
+    }).event;
+    expect(store.listEvents("run")).toEqual([]);
+    store.dispose();
+    const restored = new RunControllerStore(dataDir);
+    expect(restored.listEvents("run")).toEqual([
+      expect.objectContaining({
+        id: evicted.id + 1,
+        type: "response.failed",
+        terminal: true,
+      }),
+    ]);
+    restored.dispose();
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("rolls back a failed migration and preserves the original JSON for retry", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-migrate-"));
+  const file = join(dataDir, "run-receipts.json");
+  const db = new DatabaseSync(join(dataDir, "state.db"));
+  try {
+    db.exec(
+      "CREATE TABLE unrelated (value INTEGER); INSERT INTO unrelated VALUES (42)",
+    );
+    const malformedDocument = '{"version":';
+    await writeFile(file, malformedDocument);
+    expect(() => new RunControllerStore(dataDir)).toThrow(SyntaxError);
+    expect(await readFile(file, "utf8")).toBe(malformedDocument);
+    expect(db.prepare("SELECT value FROM unrelated").get()).toEqual({
+      value: 42,
+    });
+    expect(
+      db
+        .prepare("SELECT name FROM sqlite_schema WHERE name = 'run_receipts'")
+        .get(),
+    ).toBeUndefined();
+
+    const terminalEvent = {
+      id: 12,
+      runId: "legacy",
+      type: "response.completed",
+      terminal: true,
+      data: { ok: true },
+      createdAt: "2026-11-20T00:00:00.000Z",
+    };
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 2,
+        receipts: [],
+        events: { legacy: [terminalEvent] },
+      }),
+    );
+    const restored = new RunControllerStore(dataDir);
+    expect(restored.listEvents("legacy")).toEqual([terminalEvent]);
+    restored.dispose();
+  } finally {
+    db.close();
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("does not publish a terminal event before its SQLite transaction succeeds", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-retry-"));
+  const runs = new RunControllerService(dataDir);
+  const db = new DatabaseSync(join(dataDir, "state.db"));
+  try {
+    const created = runs.appendTaskEvent("run", "response.created", {});
+    const observed = vi.fn();
+    runs.onTaskEvent("run", observed);
+    db.exec(`
+      CREATE TRIGGER reject_terminal BEFORE INSERT ON task_run_events
+        WHEN NEW.terminal = 1
+        BEGIN SELECT RAISE(ABORT, 'Terminal commit failed'); END;
+    `);
+    expect(() =>
+      runs.appendTaskEvent("run", "response.completed", {}, true),
+    ).toThrow("Terminal commit failed");
+    expect(runs.getTaskEvents("run")).toEqual([created]);
+    expect(runs.getTerminalTaskEvent("run")).toBeUndefined();
+    expect(observed).not.toHaveBeenCalled();
+    expect(db.prepare("SELECT terminal FROM task_run_events").all()).toEqual(
+      [],
+    );
+
+    db.exec("DROP TRIGGER reject_terminal");
+    const terminal = runs.appendTaskEvent(
+      "run",
+      "response.completed",
+      {},
+      true,
+    );
+    expect(terminal.id).toBe(created.id + 1);
+    expect(observed).toHaveBeenCalledExactlyOnceWith(terminal);
+    expect(
+      db
+        .prepare("SELECT terminal FROM task_run_events ORDER BY sequence")
+        .all(),
+    ).toEqual([{ terminal: 0 }, { terminal: 1 }]);
+  } finally {
+    db.close();
+    runs.dispose();
     await rm(dataDir, { recursive: true, force: true });
   }
 });

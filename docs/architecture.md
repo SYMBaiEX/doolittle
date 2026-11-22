@@ -180,3 +180,10 @@ empty state. `vendor/elizaos` contains qualified upstream artifacts;
 `tooling/eliza-source` defines how those artifacts are produced. See
 [SDK maintenance](sdk.md), [development](development.md), and [testing](testing.md)
 for the relevant workflows.
+
+ElizaOS owns native messages and agent memory through its persistence adapter.
+Doolittle's per-runtime SQLite database owns client records such as projects,
+conversation metadata, and run receipts. Its searchable transcript is a read
+projection of native messages. Imported and forked transcripts are staged there
+until the native room is seeded. Runtime reconciliation treats ElizaOS as the
+authority once the native room exists.

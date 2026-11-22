@@ -150,6 +150,13 @@ export class ApplicationSession {
           errors.push(error);
         }
       }
+      if (!errors.length) {
+        try {
+          this.graph?.services.runController.dispose();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
       if (errors.length) {
         throw new AggregateError(errors, "Application shutdown is incomplete.");
       }

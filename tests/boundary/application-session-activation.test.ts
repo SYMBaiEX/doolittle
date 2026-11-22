@@ -6,6 +6,7 @@ const startup = vi.hoisted(() => ({
   buildContext: vi.fn(),
   loadTeardown: vi.fn(),
   disposeRuntime: vi.fn(),
+  disposeRunController: vi.fn(),
 }));
 
 vi.mock("../../packages/agent/src/runtime/bootstrap/app-context", () => {
@@ -28,6 +29,7 @@ vi.mock("../../packages/agent/src/runtime/application/service-graph", () => ({
         bindProtocolHost: vi.fn(),
         cancelAllProtocolSessions: vi.fn(),
       },
+      runController: { dispose: startup.disposeRunController },
     },
   }),
 }));
@@ -43,6 +45,7 @@ it("keeps setup-only sessions idle and shares one runtime lifecycle on activatio
   await setupOnly.dispose();
   expect(startup.loadBootstrap).not.toHaveBeenCalled();
   expect(startup.loadTeardown).not.toHaveBeenCalled();
+  expect(startup.disposeRunController).toHaveBeenCalledOnce();
 
   const abandoned = new ApplicationSession();
   const closing = abandoned.ensureRuntime({ startupMode: "cli" });
@@ -68,6 +71,7 @@ it("keeps setup-only sessions idle and shares one runtime lifecycle on activatio
 
   await session.dispose();
   expect(startup.disposeRuntime).toHaveBeenCalledOnce();
+  expect(startup.disposeRunController).toHaveBeenCalledTimes(3);
   expect(session.phase).toBe("disposed");
   await expect(session.ensureRuntime()).rejects.toThrow("closed");
 });

@@ -1,25 +1,12 @@
-import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRunReceiptEnvelope } from "@doolittle/contracts/run";
 import { readOptionalJson } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { type JournalChange, RunJournalPersistence } from "./persistence";
 import type { RunReceiptEnvelope, RunSnapshot, TaskRunEvent } from "./types";
 import { cloneRun } from "./utils";
 
-interface PersistedRunReceipts {
-  version: 1 | 2;
-  receipts: RunReceiptEnvelope[];
-  events?: Record<string, TaskRunEvent[]>;
-}
-
-type PersistedRunWriter = (
-  filePath: string,
-  payload: PersistedRunReceipts,
-) => void;
-
 export interface RunControllerStoreOptions {
   persistenceDebounceMs?: number;
-  writer?: PersistedRunWriter;
 }
 
 interface TaskRunJournal {
@@ -43,21 +30,40 @@ export class RunControllerStore {
   private readonly receipts = new Map<string, RunReceiptEnvelope>();
   private readonly eventJournals = new Map<string, TaskRunJournal>();
   private readonly roomIndex = new Map<string, string>();
-  private readonly filePath?: string;
+  private persistence?: RunJournalPersistence;
   private readonly persistenceDebounceMs: number;
-  private readonly writer?: PersistedRunWriter;
+  private receiptChanges = new Map<string, RunReceiptEnvelope | null>();
+  private journalChanges = new Map<string, JournalChange | null>();
   private persistenceTimer?: ReturnType<typeof setTimeout>;
-  private persistenceDirty = false;
 
   constructor(dataDir?: string, options: RunControllerStoreOptions = {}) {
     this.persistenceDebounceMs =
       options.persistenceDebounceMs ??
       RunControllerStore.DEFAULT_PERSISTENCE_DEBOUNCE_MS;
-    this.writer = options.writer;
     if (!dataDir) return;
-    mkdirSync(dataDir, { recursive: true });
-    this.filePath = join(dataDir, "run-receipts.json");
-    this.loadReceipts();
+    const persistence = new RunJournalPersistence(dataDir);
+    this.persistence = persistence;
+    try {
+      persistence.initialize((persisted) => {
+        if (persisted) {
+          for (const receipt of persisted.receipts) {
+            this.receipts.set(receipt.runId, receipt);
+          }
+          for (const [runId, { events, lastId }] of persisted.journals) {
+            this.restoreJournal(runId, events, lastId);
+          }
+        } else {
+          this.importLegacyReceipts(dataDir);
+        }
+        this.recoverInterruptedRuns();
+        return { receipts: this.receiptChanges, journals: this.journalChanges };
+      });
+      this.receiptChanges.clear();
+      this.journalChanges.clear();
+    } catch (error) {
+      persistence.close();
+      throw error;
+    }
   }
 
   save(run: RunSnapshot): void {
@@ -70,9 +76,8 @@ export class RunControllerStore {
     }
     this.indexRoom(run);
     this.activeRuns.set(run.sessionId, run);
-    this.receipts.set(run.runId, cloneRun(run));
+    this.updateReceipt(cloneRun(run));
     this.trimReceipts();
-    this.persistenceDirty = true;
     this.flushPersistence();
   }
 
@@ -82,7 +87,8 @@ export class RunControllerStore {
     const receiptsBefore = new Map(this.receipts);
     const journalsBefore = new Map(this.eventJournals);
     const roomsBefore = new Map(this.roomIndex);
-    const dirtyBefore = this.persistenceDirty;
+    const receiptChangesBefore = new Map(this.receiptChanges);
+    const journalChangesBefore = new Map(this.journalChanges);
     const timerBefore = Boolean(this.persistenceTimer);
     try {
       this.save(run);
@@ -96,8 +102,9 @@ export class RunControllerStore {
         this.eventJournals.set(key, value);
       this.roomIndex.clear();
       for (const [key, value] of roomsBefore) this.roomIndex.set(key, value);
-      this.persistenceDirty = dirtyBefore;
-      if (timerBefore && dirtyBefore) this.schedulePersistence();
+      this.receiptChanges = receiptChangesBefore;
+      this.journalChanges = journalChangesBefore;
+      if (timerBefore) this.schedulePersistence();
       throw error;
     }
   }
@@ -134,15 +141,39 @@ export class RunControllerStore {
     data: unknown,
     terminal = false,
   ): { event: TaskRunEvent; appended: boolean } {
-    const { event, appended } = this.recordEvent(runId, type, data, terminal);
-    if (appended) {
-      if (terminal) {
-        this.flushPersistence();
-      } else {
-        this.schedulePersistence();
-      }
+    if (terminal && this.persistence) {
+      return this.appendDurableTerminal(runId, type, data);
     }
+    const { event, appended } = this.recordEvent(runId, type, data, terminal);
+    if (appended) this.schedulePersistence();
     return { event: cloneTaskEvent(event), appended };
+  }
+
+  private appendDurableTerminal(runId: string, type: string, data: unknown) {
+    const journal = this.eventJournals.get(runId);
+    if (journal?.terminalEvent) {
+      return { event: cloneTaskEvent(journal.terminalEvent), appended: false };
+    }
+    const previous = journal && { ...journal, events: journal.events.slice() };
+    const pending = this.journalChanges.get(runId);
+    const priorChange = pending && {
+      ...pending,
+      appended: pending.appended.slice(),
+    };
+    const timerWasScheduled = Boolean(this.persistenceTimer);
+    const { event } = this.recordEvent(runId, type, data, true);
+    try {
+      this.flushPersistence();
+    } catch (error) {
+      if (previous) this.eventJournals.set(runId, previous);
+      else this.eventJournals.delete(runId);
+      if (priorChange !== undefined)
+        this.journalChanges.set(runId, priorChange);
+      else this.journalChanges.delete(runId);
+      if (timerWasScheduled) this.schedulePersistence();
+      throw error;
+    }
+    return { event: cloneTaskEvent(event), appended: true };
   }
 
   private recordEvent(
@@ -173,9 +204,17 @@ export class RunControllerStore {
     journal.lastId = event.id;
     journal.events.push(event);
     if (terminal) journal.terminalEvent = event;
-    this.trimJournal(journal);
+    const change = this.journalChanges.get(runId) ?? {
+      lastId: 0,
+      appended: [],
+      trimmed: 0,
+      replace: this.journalChanges.has(runId),
+    };
+    change.lastId = event.id;
+    change.appended.push(event);
+    this.trimJournal(journal, change);
     this.eventJournals.set(runId, journal);
-    this.persistenceDirty = true;
+    if (this.persistence) this.journalChanges.set(runId, change);
     return { event, appended: true };
   }
 
@@ -219,10 +258,14 @@ export class RunControllerStore {
   apply(sessionId: string, next: RunSnapshot): void {
     this.indexRoom(next);
     this.activeRuns.set(sessionId, next);
-    this.receipts.set(next.runId, cloneRun(next));
+    this.updateReceipt(cloneRun(next));
     this.trimReceipts();
-    this.persistenceDirty = true;
     this.flushPersistence();
+  }
+
+  private updateReceipt(receipt: RunReceiptEnvelope): void {
+    this.receipts.set(receipt.runId, receipt);
+    if (this.persistence) this.receiptChanges.set(receipt.runId, receipt);
   }
 
   private indexRoom(run: RunSnapshot): void {
@@ -245,10 +288,14 @@ export class RunControllerStore {
       if (!oldest) return;
       this.receipts.delete(oldest);
       this.eventJournals.delete(oldest);
+      if (this.persistence) {
+        this.receiptChanges.set(oldest, null);
+        this.journalChanges.set(oldest, null);
+      }
     }
   }
 
-  private trimJournal(journal: TaskRunJournal): void {
+  private trimJournal(journal: TaskRunJournal, change?: JournalChange): void {
     const { events } = journal;
     while (
       events.length > RunControllerStore.MAX_EVENTS_PER_RUN ||
@@ -258,12 +305,17 @@ export class RunControllerStore {
       if (oldest < 0) return;
       const [removed] = events.splice(oldest, 1);
       journal.bytes -= eventBytes(removed) + (events.length ? 1 : 0);
+      if (change) {
+        if (change.appended[0] === removed) change.appended.shift();
+        else change.trimmed += 1;
+      }
     }
   }
 
-  private loadReceipts(): void {
-    if (!this.filePath || !existsSync(this.filePath)) return;
-    const parsed = readOptionalJson<unknown>(this.filePath);
+  private importLegacyReceipts(dataDir: string): void {
+    const parsed = readOptionalJson<unknown>(
+      join(dataDir, "run-receipts.json"),
+    );
     if (
       !parsed ||
       typeof parsed !== "object" ||
@@ -273,61 +325,57 @@ export class RunControllerStore {
     ) {
       return;
     }
-    // The parsed document is private to this store. Publish again only when
-    // recovery or normalization actually changes the durable representation.
-    this.persistenceDirty =
-      !("version" in parsed) ||
-      parsed.version !== 2 ||
-      Object.keys(parsed).length !== 3 ||
-      !("events" in parsed) ||
-      !parsed.events ||
-      typeof parsed.events !== "object" ||
-      Array.isArray(parsed.events);
-    const restoredAt = new Date().toISOString();
     if (
       "events" in parsed &&
       parsed.events &&
-      typeof parsed.events === "object"
+      typeof parsed.events === "object" &&
+      !Array.isArray(parsed.events)
     ) {
       for (const [runId, events] of Object.entries(parsed.events)) {
-        if (!Array.isArray(events)) {
-          this.persistenceDirty = true;
-          continue;
-        }
+        if (!Array.isArray(events)) continue;
         const validEvents = events
           .filter(isTaskRunEvent)
           .slice(-RunControllerStore.MAX_EVENTS_PER_RUN);
-        if (!validEvents.length) {
-          this.persistenceDirty = true;
-          continue;
-        }
-        const journal: TaskRunJournal = {
-          events: validEvents,
-          bytes: Buffer.byteLength(JSON.stringify(validEvents), "utf8"),
-          lastId: validEvents.at(-1)?.id ?? 0,
-          // Preserve the recorded order of older or externally edited journals.
-          ordered: validEvents.every(
-            (event, index) =>
-              index === 0 || event.id > validEvents[index - 1].id,
-          ),
-          terminalEvent: validEvents.find((event) => event.terminal),
-        };
+        if (!validEvents.length) continue;
+        const lastId = validEvents.at(-1)?.id ?? 0;
+        const journal = this.restoreJournal(runId, validEvents, lastId);
         this.trimJournal(journal);
-        if (journal.events.length !== events.length) {
-          this.persistenceDirty = true;
-        }
-        this.eventJournals.set(runId, journal);
+        this.journalChanges.set(runId, {
+          lastId,
+          appended: journal.events.slice(),
+          trimmed: 0,
+        });
       }
     }
-    const receipts = parsed.receipts
+    for (const receipt of parsed.receipts
       .filter(isRunReceiptEnvelope)
-      .slice(-RunControllerStore.MAX_RECEIPTS);
-    if (receipts.length !== parsed.receipts.length)
-      this.persistenceDirty = true;
-    for (const receipt of receipts) {
-      if (!receipt.endedAt || this.receipts.has(receipt.runId)) {
-        this.persistenceDirty = true;
-      }
+      .slice(-RunControllerStore.MAX_RECEIPTS)) {
+      this.updateReceipt(receipt);
+    }
+  }
+
+  private restoreJournal(
+    runId: string,
+    events: TaskRunEvent[],
+    lastId: number,
+  ): TaskRunJournal {
+    const journal: TaskRunJournal = {
+      events,
+      bytes: Buffer.byteLength(JSON.stringify(events), "utf8"),
+      lastId,
+      // Preserve the recorded order of older or externally edited journals.
+      ordered: events.every(
+        (event, index) => index === 0 || event.id > events[index - 1].id,
+      ),
+      terminalEvent: events.find((event) => event.terminal),
+    };
+    this.eventJournals.set(runId, journal);
+    return journal;
+  }
+
+  private recoverInterruptedRuns(): void {
+    const restoredAt = new Date().toISOString();
+    for (const receipt of this.receipts.values()) {
       const restored = receipt.endedAt
         ? receipt
         : {
@@ -339,7 +387,7 @@ export class RunControllerStore {
             updatedAt: restoredAt,
             endedAt: restoredAt,
           };
-      this.receipts.set(restored.runId, restored);
+      if (restored !== receipt) this.updateReceipt(restored);
       if (!this.eventJournals.get(restored.runId)?.terminalEvent) {
         const terminalType =
           restored.status === "complete"
@@ -377,8 +425,6 @@ export class RunControllerStore {
         true,
       );
     }
-    // Recovery publishes once, after every receipt and journal is restored.
-    this.flushPersistence();
   }
 
   flushPersistence(): void {
@@ -386,32 +432,27 @@ export class RunControllerStore {
       clearTimeout(this.persistenceTimer);
       this.persistenceTimer = undefined;
     }
-    if (!this.filePath || !this.persistenceDirty) return;
-    const payload: PersistedRunReceipts = {
-      version: 2,
-      receipts: Array.from(this.receipts.values()),
-      events: Object.fromEntries(
-        Array.from(this.eventJournals, ([runId, { events }]) => [
-          runId,
-          events,
-        ]),
-      ),
-    };
-    if (this.writer) {
-      this.writer(this.filePath, structuredClone(payload));
-    } else {
-      // The SDK writer serializes synchronously without retaining the snapshot.
-      writeJsonAtomicSync(this.filePath, payload);
-    }
-    this.persistenceDirty = false;
+    if (
+      !this.persistence ||
+      (!this.receiptChanges.size && !this.journalChanges.size)
+    )
+      return;
+    this.persistence.write({
+      receipts: this.receiptChanges,
+      journals: this.journalChanges,
+    });
+    this.receiptChanges.clear();
+    this.journalChanges.clear();
   }
 
   dispose(): void {
     this.flushPersistence();
+    this.persistence?.close();
+    this.persistence = undefined;
   }
 
   private schedulePersistence(): void {
-    if (!this.filePath || this.persistenceTimer) return;
+    if (!this.persistence || this.persistenceTimer) return;
     this.persistenceTimer = setTimeout(() => {
       this.persistenceTimer = undefined;
       this.flushPersistence();
