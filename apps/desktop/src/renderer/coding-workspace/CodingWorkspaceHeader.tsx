@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   PanelLeft,
   PanelRight,
-  RefreshCw,
   Terminal,
 } from "lucide-react";
 import { PanelTabs } from "../components/PanelTabs";
@@ -229,16 +228,6 @@ export function CodingWorkspaceHeader({
             >
               {null}
             </ContextActionMenu>
-            <button
-              aria-label="Refresh workspace"
-              className={`ide-refresh-direct ${CODING_LAYOUT_BUTTON_CLASS}`}
-              disabled={!active}
-              onClick={onRefresh}
-              title="Refresh workspace"
-              type="button"
-            >
-              <UiIcon icon={RefreshCw} />
-            </button>
           </fieldset>
         </div>
       </header>

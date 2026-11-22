@@ -11,13 +11,11 @@
 
 .workspace-patch-toolbar {
   display: flex;
-  min-height: 31px;
+  min-height: 32px;
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  padding-inline: 8px 4px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  padding-inline: 12px 8px;
   font: 500 var(--text-meta) / 1.4 var(--font-mono);
 }
 
@@ -80,7 +78,7 @@
 .workspace-patch-lines {
   width: max-content;
   min-width: 100%;
-  padding-block: 5px 14px;
+  padding-block: 4px 16px;
 }
 
 .workspace-patch-row {
@@ -94,14 +92,12 @@
 
 .workspace-patch-row code {
   min-width: 0;
-  padding-inline: 8px 16px;
+  padding-inline: 12px 16px;
   font: inherit;
 }
 
 .workspace-patch-number {
-  padding-inline-end: 5px;
-  border-inline-end: 1px solid
-    color-mix(in srgb, var(--border), transparent 42%);
+  padding-inline-end: 4px;
   color: var(--muted);
   text-align: end;
   font-variant-numeric: tabular-nums;
@@ -113,8 +109,7 @@
 }
 
 .workspace-patch-row[data-kind="hunk"] {
-  margin-block: 4px 1px;
-  border-block: 1px solid var(--border);
+  margin-block: 8px 2px;
   color: var(--text-soft);
   background: var(--surface-raised);
 }

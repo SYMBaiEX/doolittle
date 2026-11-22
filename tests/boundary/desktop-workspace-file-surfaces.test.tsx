@@ -2,6 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { OpenEditorTabs } from "../../apps/desktop/src/renderer/coding-workspace/OpenEditorTabs";
 import { WorkspaceFileTree } from "../../apps/desktop/src/renderer/components/WorkspaceFileTree";
 import {
   parseWorkspacePatch,
@@ -25,6 +26,43 @@ afterEach(() => {
   host.remove();
   environment.IS_REACT_ACT_ENVIRONMENT = originalAct;
   vi.restoreAllMocks();
+});
+
+it("returns focus to the editor canvas when the final document closes", () => {
+  let frame: FrameRequestCallback | undefined;
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frame = callback;
+    return 1;
+  });
+  const close = vi.fn(() => true);
+  const renderTabs = (path: string) =>
+    root.render(
+      <>
+        <OpenEditorTabs
+          disabled={false}
+          documents={path ? [{ path, dirty: false }] : []}
+          onClose={close}
+          onOpen={() => true}
+          panelId="editor-canvas"
+          scopeKey="workspace"
+          selectedPath={path}
+        />
+        <section aria-label="File editor" id="editor-canvas" tabIndex={-1} />
+      </>,
+    );
+
+  act(() => renderTabs("file.ts"));
+  expect(host.querySelector('[role="tablist"]')).not.toBeNull();
+  act(() =>
+    host
+      .querySelector<HTMLButtonElement>('[aria-label="Close file.ts"]')
+      ?.click(),
+  );
+  expect(close).toHaveBeenCalledExactlyOnceWith("file.ts");
+  act(() => renderTabs(""));
+  act(() => frame?.(0));
+  expect(host.querySelector(".ide-document-bar")).toBeNull();
+  expect(document.activeElement?.id).toBe("editor-canvas");
 });
 
 it("numbers real hunk rows without treating file headers as changes", () => {

@@ -67,7 +67,7 @@ import { paneTabId } from "./PaneTabs";
 import "./editor-chrome.css";
 
 const EDITOR_CONTROL_CLASS =
-  "inline-flex min-h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-xs)] border border-transparent px-1.5 font-[var(--font-sans)] text-[length:var(--text-meta)] font-medium text-[var(--text-soft)] enabled:hover:bg-[var(--surface-hover)] enabled:hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45";
+  "inline-flex min-h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-xs)] px-2 font-[var(--font-sans)] text-[length:var(--text-meta)] font-medium text-[var(--text-soft)] enabled:hover:bg-[var(--surface-hover)] enabled:hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45";
 
 const ACP_STATUS_LABELS = {
   idle: "ACP idle",
@@ -307,7 +307,9 @@ export function CodingWorkspaceEditor({
         selectedPath={selectedPath}
       />
       <ContextActionMenu
-        className="coding-editor-toolbar ide-editor-toolbar"
+        className={
+          selectedPath ? "coding-editor-toolbar ide-editor-toolbar" : "hidden"
+        }
         label="More editor actions"
         scopeKey={scopeKey}
         items={editorActions}
@@ -328,7 +330,7 @@ export function CodingWorkspaceEditor({
               <UiIcon icon={ChevronRight} size="xs" />
             </>
           ) : null}
-          <strong>{name || "No file open"}</strong>
+          <strong>{name}</strong>
         </div>
         <PanelTabList
           className="shrink-0 gap-0.5 px-0.5 py-0"
@@ -336,7 +338,7 @@ export function CodingWorkspaceEditor({
           label="Editor views"
           onSelect={onEditorPaneChange}
           selected={editorPane}
-          tabClassName={`${EDITOR_CONTROL_CLASS} aria-selected:border-[var(--border)] data-[state=active]:bg-[var(--surface-raised)] data-[state=active]:text-[var(--text)]`}
+          tabClassName={`${EDITOR_CONTROL_CLASS} aria-selected:font-semibold data-[state=active]:bg-[var(--surface-raised)] data-[state=active]:text-[var(--text)] forced-colors:aria-selected:outline forced-colors:aria-selected:outline-1`}
         />
         {editorPane === "file" && selectedPath ? (
           <button
@@ -358,7 +360,7 @@ export function CodingWorkspaceEditor({
             {selectedChange.staged && selectedChange.unstaged ? (
               <select
                 aria-label="Diff source"
-                className="min-h-7 w-21 shrink-0 cursor-pointer rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] pl-1.5 font-[var(--font-sans)] text-[length:var(--text-meta)] text-[var(--text-soft)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"
+                className="min-h-7 w-21 shrink-0 cursor-pointer rounded-[var(--radius-xs)] bg-[var(--surface-raised)] pl-2 font-[var(--font-sans)] text-[length:var(--text-meta)] text-[var(--text-soft)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"
                 disabled={editingLocked}
                 onChange={(event) =>
                   onSetStagedPatch(event.target.value === "staged")
@@ -389,7 +391,7 @@ export function CodingWorkspaceEditor({
       </ContextActionMenu>
       {editingLocked ? (
         <p
-          className="m-0 border-[var(--border)] border-b px-2.5 py-1 text-[length:var(--text-meta)] text-[var(--muted)]"
+          className="m-0 bg-[var(--surface-soft)] px-3 py-1.5 text-[length:var(--text-meta)] text-[var(--text-soft)]"
           role="status"
         >
           Switching workspace. Editing is temporarily locked.
@@ -397,7 +399,7 @@ export function CodingWorkspaceEditor({
       ) : null}
       {selectedPath && fileNotice ? (
         <p
-          className={`m-0 border-[var(--border)] border-b px-2.5 py-1 text-[length:var(--text-meta)] text-[var(--text-soft)] ${codingActionNoticeTone(fileNotice.tone)}`}
+          className={`m-0 px-3 py-1.5 text-[length:var(--text-meta)] text-[var(--text-soft)] ${codingActionNoticeTone(fileNotice.tone)}`}
           role={fileNotice.tone === "bad" ? "alert" : "status"}
         >
           {fileNotice.message}
@@ -423,15 +425,15 @@ export function CodingWorkspaceEditor({
             ? `${editorPane === "file" ? "File editor" : "Git diff"}: ${selectedPath}`
             : "File editor"
         }
-        aria-labelledby={[
-          selectedPath ? editorDocumentTabId(editorPanelId, selectedPath) : "",
-          paneTabId(editorPanelId, editorPane),
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        aria-labelledby={
+          selectedPath
+            ? `${editorDocumentTabId(editorPanelId, selectedPath)} ${paneTabId(editorPanelId, editorPane)}`
+            : undefined
+        }
         className={`${CODING_EDITOR_SURFACE_CLASS} ide-editor-viewport`}
         id={editorPanelId}
-        role="tabpanel"
+        role={selectedPath ? "tabpanel" : undefined}
+        tabIndex={selectedPath ? undefined : -1}
       >
         {!selectedPath ? (
           <EmptyBlock title="Open a file">
@@ -625,7 +627,7 @@ export function CodingWorkspaceEditor({
           },
         ]}
       >
-        <footer className="coding-editor-status flex min-h-8 min-w-0 shrink-0 items-center gap-0.5 border-[var(--border)] border-t bg-[var(--surface)] px-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+        <footer className="coding-editor-status flex min-w-0 shrink-0 items-center gap-1 bg-[var(--canvas-bg)] font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
           <div className="flex min-w-0 flex-1 items-center gap-2 truncate px-1">
             {showCursor && cursor.label ? (
               <span className="shrink-0 tabular-nums">{cursor.label}</span>

@@ -13,8 +13,8 @@
   min-height: 42px;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 9px;
-  padding: 3px 7px;
+  gap: 12px;
+  padding: 4px 8px;
   background: var(--surface);
 }
 
@@ -67,21 +67,31 @@
 
 .ide-repository-changes {
   margin-inline-start: 2px;
-  padding: 1px 4px;
-  border-radius: var(--radius-xs);
-  background: var(--surface-hover);
-  color: var(--text-soft);
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
 }
 
 .ide-workspace-controls {
-  gap: 2px;
+  gap: 4px;
   padding: 0;
   margin: 0;
   border: 0;
 }
 
-.ide-workspace-controls button[aria-label="Workspace actions"] {
-  order: 1;
+.ide-workspace-bar > [role="tablist"] {
+  gap: 4px;
+  padding: 0;
+}
+
+.ide-workspace-bar > [role="tablist"] [role="tab"] {
+  min-height: 28px;
+  padding-inline: 8px;
+  border: 0;
+  font-size: var(--text-control);
+}
+
+.ide-workspace-bar > [role="tablist"] [role="tab"][aria-selected="true"] {
+  background: var(--surface-raised);
 }
 
 .desktop-shell .ide-workspace-bar button:focus-visible {
@@ -90,8 +100,7 @@
 }
 
 .ide-runtime-notice {
-  border-block-end: 1px solid var(--border);
-  padding: 6px 10px;
+  padding: 6px 12px;
   background: var(--surface-soft);
   color: var(--text-soft);
   font-size: var(--text-control);
@@ -103,13 +112,25 @@
     padding-inline: 4px;
   }
 
-  .ide-repository-status,
-  .ide-workspace-controls .ide-refresh-direct {
+  .ide-repository-status {
     display: none;
   }
 
   .ide-repository-picker {
     max-width: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  .ide-workspace-bar > [role="tablist"] [role="tab"] {
+    min-height: 40px;
+  }
+}
+
+@media (forced-colors: active) {
+  .ide-workspace-bar > [role="tablist"] [role="tab"][aria-selected="true"] {
+    outline: 1px solid SelectedItem;
+    outline-offset: -2px;
   }
 }
 

@@ -13,6 +13,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
+  border-radius: var(--radius-xs);
   color: var(--text-soft);
   text-align: start;
 }
@@ -49,10 +50,49 @@
   font-weight: 550;
 }
 
+.ide-change-file[aria-current="true"] .ide-change-description strong {
+  font-weight: 650;
+}
+
 .ide-change-description small {
   flex: 1;
   color: var(--muted);
   font-size: var(--text-meta);
+}
+
+.coding-search > form {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 8px 8px;
+  padding: 2px 4px 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.coding-search > form:focus-within {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.coding-search > form > label {
+  min-width: 0;
+  flex: 1;
+}
+
+.coding-search > form input {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-control);
+}
+
+.coding-search > form input::placeholder {
+  color: var(--muted);
 }
 
 .coding-search .ide-search-submit {
@@ -62,7 +102,6 @@
   flex: none;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   color: var(--text-soft);
 }
@@ -72,10 +111,17 @@
   background: var(--surface-hover);
 }
 
+.coding-search-results button:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 @media (forced-colors: active) {
   .ide-change-file[aria-current="true"],
   .ide-change-file:focus-visible,
-  .ide-search-submit:focus-visible {
+  .ide-search-submit:focus-visible,
+  .coding-search > form:focus-within,
+  .coding-search-results button:focus-visible {
     outline: 1px solid Highlight;
     outline-offset: -2px;
   }

@@ -1,11 +1,11 @@
 .ide-pane-tabs {
   display: flex;
   min-width: 0;
-  min-height: 34px;
+  min-height: 32px;
   flex: 1;
-  align-items: stretch;
-  gap: 0;
-  padding: 0 2px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 2px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
@@ -13,12 +13,12 @@
 
 .ide-pane-tabs .ide-pane-tab {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 28px;
   flex: 0 0 auto;
   justify-content: center;
   gap: 4px;
   padding-inline: 7px;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   color: var(--muted);
   font-size: var(--text-meta);
   font-weight: 500;
@@ -31,7 +31,7 @@
 }
 
 .ide-pane-tabs .ide-pane-tab[aria-selected="true"] {
-  box-shadow: inset 0 -1px var(--text-soft);
+  background: var(--surface-raised);
   color: var(--text);
   font-weight: 650;
 }
@@ -55,6 +55,11 @@
 
 @media (forced-colors: active) {
   .ide-pane-tabs .ide-pane-tab[aria-selected="true"] {
-    border-block-end: 1px solid Highlight;
+    outline: 1px solid SelectedItem;
+    outline-offset: -2px;
+  }
+
+  .ide-pane-tabs .ide-pane-tab:focus-visible {
+    outline-color: Highlight;
   }
 }

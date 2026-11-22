@@ -1,19 +1,18 @@
 .ide-document-bar {
   display: flex;
   min-width: 0;
-  min-height: 35px;
+  min-height: 36px;
   flex: none;
   align-items: stretch;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--canvas-bg, var(--bg));
 }
 
 .ide-document-bar .ide-document-tabs {
   min-width: 0;
   flex: 1;
-  align-items: stretch;
-  gap: 0;
-  padding: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 2px 8px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
@@ -25,9 +24,9 @@
   min-width: 0;
   flex: 0 0 auto;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   padding-inline-end: 4px;
-  border-inline-end: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 
 .ide-document-item:hover {
@@ -35,17 +34,16 @@
 }
 
 .ide-document-item:has([aria-selected="true"]) {
-  background: var(--canvas-bg, var(--bg));
-  box-shadow: inset 0 -1px var(--text-soft);
+  background: var(--surface-raised);
 }
 
 .ide-document-item .ide-document-tab {
   min-width: 0;
-  min-height: 34px;
+  min-height: 30px;
   justify-content: flex-start;
   gap: 6px;
-  padding-inline: 9px 4px;
-  border-radius: 0;
+  padding-inline: 8px 4px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   font-size: var(--text-control);
   font-weight: 500;
@@ -112,18 +110,18 @@
   visibility: hidden;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .ide-document-item:not(:hover, :focus-within, :has([aria-selected="true"]))
+    .ide-tab-close:not([data-dirty="true"]) {
+    opacity: 0;
+  }
+}
+
 .ide-document-overflow {
   display: grid;
   flex: none;
   align-self: center;
   margin-inline: 5px;
-}
-
-.ide-document-empty {
-  align-self: center;
-  padding-inline: 9px;
-  color: var(--muted);
-  font-size: var(--text-control);
 }
 
 .ide-editor-toolbar {
@@ -132,9 +130,8 @@
   min-height: 32px;
   flex: none;
   align-items: center;
-  gap: 3px;
-  padding-inline: 6px 3px;
-  border-bottom: 1px solid var(--border);
+  gap: 4px;
+  padding: 0 8px 4px;
   background: var(--canvas-bg, var(--bg));
 }
 
@@ -144,7 +141,7 @@
   flex: 1;
   align-items: center;
   gap: 4px;
-  padding-inline-start: 2px;
+  padding-inline-start: 4px;
   color: var(--muted);
   font: 400 var(--text-meta) / 1.4 var(--font-mono);
 }
@@ -159,8 +156,8 @@
 }
 
 .coding-editor .coding-editor-status {
-  min-height: 28px;
-  padding-inline: 5px;
+  min-height: 32px;
+  padding-inline: 8px;
 }
 
 .ide-document-bar button:focus-visible {
@@ -194,7 +191,8 @@
 
 @media (forced-colors: active) {
   .ide-document-item:has([aria-selected="true"]) {
-    border-block-end: 1px solid Highlight;
+    outline: 1px solid SelectedItem;
+    outline-offset: -1px;
   }
 
   .ide-document-bar button:focus-visible {
@@ -206,9 +204,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 8px;
-  border-block-end: 1px solid var(--border);
-  color: var(--text-soft);
+  margin: 0;
+  padding: 4px 12px;
+  color: var(--warn);
+  background: var(--warn-soft);
   font-size: var(--text-meta);
 }
 

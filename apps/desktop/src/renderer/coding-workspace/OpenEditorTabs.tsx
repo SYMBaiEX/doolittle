@@ -45,6 +45,8 @@ export function OpenEditorTabs({
     tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }, [panelId, selectedPath]);
 
+  if (documents.length === 0) return null;
+
   const nameCounts = new Map<string, number>();
   const dirtyFiles = new Set<string>();
   for (const { path, dirty } of documents) {
@@ -86,108 +88,102 @@ export function OpenEditorTabs({
     requestAnimationFrame(() => {
       const control = next
         ? document.getElementById(editorDocumentTabId(panelId, next))
-        : document.getElementById(`${panelId}-file-tab`);
+        : document.getElementById(panelId);
       control?.focus();
     });
   }
 
   return (
     <div className="ide-document-bar">
-      {documents.length ? (
-        <>
-          <PanelTabList
-            className="ide-document-tabs"
-            items={items}
-            label="Open editors"
-            onSelect={(path) => {
-              if (!disabled) onOpen(path);
-            }}
-            selected={selectedPath}
-            tabClassName="ide-document-tab"
-            wrapTab={(item, tab) => {
-              const dirty = dirtyFiles.has(item.id);
-              return (
-                <ContextActionMenu
-                  key={item.id}
-                  className="ide-document-item"
-                  disabled={disabled}
-                  items={[
-                    {
-                      id: "open",
-                      label: "Open editor",
-                      onSelect: () => {
-                        onOpen(item.id);
-                      },
-                    },
-                    {
-                      id: "copy",
-                      label: "Copy relative path",
-                      onSelect: () => copyContextText(item.id),
-                    },
-                    {
-                      id: "close",
-                      label: "Close editor",
-                      onSelect: () => closeDocument(item.id),
-                    },
-                  ]}
-                  label={`Editor: ${item.id}`}
-                  scopeKey={`${scopeKey}:${item.id}`}
-                >
-                  {cloneElement(tab as ReactElement<ComponentProps<"button">>, {
-                    "aria-keyshortcuts": "Delete",
-                    disabled,
-                    onKeyDown: (event) => {
-                      if (event.key !== "Delete") return;
-                      event.preventDefault();
-                      closeDocument(item.id);
-                    },
-                    onAuxClick: (event) => {
-                      if (event.button !== 1) return;
-                      event.preventDefault();
-                      closeDocument(item.id);
-                    },
-                  })}
-                  <button
-                    aria-label={`Close ${fileName(item.id)}`}
-                    className="ide-tab-close"
-                    data-dirty={dirty || undefined}
-                    disabled={disabled}
-                    onClick={() => closeDocument(item.id)}
-                    title={
-                      dirty ? "Close editor with unsaved edits" : "Close editor"
-                    }
-                    type="button"
-                  >
-                    <UiIcon icon={X} size="xs" />
-                  </button>
-                </ContextActionMenu>
-              );
-            }}
-          />
-          <ContextActionMenu
-            className="ide-document-overflow"
-            disabled={disabled}
-            items={documents.map(({ path, dirty }) => ({
-              id: path,
-              label: dirty ? `${path} · Unsaved` : path,
-              onSelect: () => {
-                onOpen(path);
-              },
-            }))}
-            label="Open editors menu"
-            scopeKey={scopeKey}
-            trigger={
-              <button title="Open editors menu" type="button">
-                <UiIcon icon={ChevronDown} size="xs" />
+      <PanelTabList
+        className="ide-document-tabs"
+        items={items}
+        label="Open editors"
+        onSelect={(path) => {
+          if (!disabled) onOpen(path);
+        }}
+        selected={selectedPath}
+        tabClassName="ide-document-tab"
+        wrapTab={(item, tab) => {
+          const dirty = dirtyFiles.has(item.id);
+          return (
+            <ContextActionMenu
+              key={item.id}
+              className="ide-document-item"
+              disabled={disabled}
+              items={[
+                {
+                  id: "open",
+                  label: "Open editor",
+                  onSelect: () => {
+                    onOpen(item.id);
+                  },
+                },
+                {
+                  id: "copy",
+                  label: "Copy relative path",
+                  onSelect: () => copyContextText(item.id),
+                },
+                {
+                  id: "close",
+                  label: "Close editor",
+                  onSelect: () => closeDocument(item.id),
+                },
+              ]}
+              label={`Editor: ${item.id}`}
+              scopeKey={`${scopeKey}:${item.id}`}
+            >
+              {cloneElement(tab as ReactElement<ComponentProps<"button">>, {
+                "aria-keyshortcuts": "Delete",
+                disabled,
+                onKeyDown: (event) => {
+                  if (event.key !== "Delete") return;
+                  event.preventDefault();
+                  closeDocument(item.id);
+                },
+                onAuxClick: (event) => {
+                  if (event.button !== 1) return;
+                  event.preventDefault();
+                  closeDocument(item.id);
+                },
+              })}
+              <button
+                aria-label={`Close ${fileName(item.id)}`}
+                className="ide-tab-close"
+                data-dirty={dirty || undefined}
+                disabled={disabled}
+                onClick={() => closeDocument(item.id)}
+                title={
+                  dirty ? "Close editor with unsaved edits" : "Close editor"
+                }
+                type="button"
+              >
+                <UiIcon icon={X} size="xs" />
               </button>
-            }
-          >
-            <span className="sr-only">{`${documents.length} open editors`}</span>
-          </ContextActionMenu>
-        </>
-      ) : (
-        <span className="ide-document-empty">Editor</span>
-      )}
+            </ContextActionMenu>
+          );
+        }}
+      />
+      <ContextActionMenu
+        className="ide-document-overflow"
+        disabled={disabled}
+        items={documents.map(({ path, dirty }) => ({
+          id: path,
+          label: dirty ? `${path} · Unsaved` : path,
+          onSelect: () => {
+            onOpen(path);
+          },
+        }))}
+        label="Open editors menu"
+        scopeKey={scopeKey}
+        trigger={
+          <button title="Open editors menu" type="button">
+            <UiIcon icon={ChevronDown} size="xs" />
+          </button>
+        }
+      >
+        <span className="sr-only">{`${documents.length} open editors`}</span>
+      </ContextActionMenu>
     </div>
   );
 }

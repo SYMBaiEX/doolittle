@@ -534,11 +534,11 @@ export function CodeEditor({
   return (
     <div className="doolittle-code-editor absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--canvas-bg)]">
       <div
-        className="relative min-h-0 min-w-0 flex-1 [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[var(--canvas-border)] [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
+        className="relative min-h-0 min-w-0 flex-1 [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-0 [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
         ref={hostRef}
       />
       {projectSupportNotice ? (
-        <div className="flex min-h-7 min-w-0 shrink-0 items-center justify-end gap-2 border-[var(--canvas-border)] border-t px-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--canvas-text-soft)]">
+        <div className="flex min-h-7 min-w-0 shrink-0 items-center justify-end gap-2 bg-[var(--surface-soft)] px-3 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--canvas-text-soft)]">
           <span className="truncate" role="status" title={projectSupportNotice}>
             {projectSupportNotice}
           </span>

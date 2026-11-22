@@ -25,8 +25,6 @@ import {
   CODING_SEARCH_MATCH_CLASS,
   CODING_SEARCH_PATH_CLASS,
   CODING_SEARCH_RESULTS_CLASS,
-  CODING_WORKTREE_FIELD_CLASS,
-  CODING_WORKTREE_INPUT_CLASS,
 } from "./layout";
 import type {
   LeftPane,
@@ -306,10 +304,9 @@ export function CodingWorkspaceExplorer({
           >
             <div className={CODING_SEARCH_CLASS}>
               <form onSubmit={onSubmitSearch}>
-                <label className={CODING_WORKTREE_FIELD_CLASS}>
+                <label>
                   <span className="sr-only">Search workspace files</span>
                   <input
-                    className={CODING_WORKTREE_INPUT_CLASS}
                     onChange={(event) =>
                       onSearchDraftChange(event.target.value)
                     }
