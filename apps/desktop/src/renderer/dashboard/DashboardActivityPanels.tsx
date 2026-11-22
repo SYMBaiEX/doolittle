@@ -1,4 +1,9 @@
-import { Button } from "@elizaos/ui/button";
+import { CheckCircle2, ListTodo, MessageSquare, Plus } from "lucide-react";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import type {
   DashboardApprovalCard,
   DashboardSessionCard,
@@ -6,7 +11,6 @@ import type {
 } from "../dashboard-helpers";
 import { Badge, displayTimestamp, ErrorBlock, LoadingBlock } from "../lib";
 import {
-  DASHBOARD_SECTION_HEADING_CLASS,
   DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
 } from "./dashboard-layout";
@@ -48,30 +52,28 @@ export function DashboardActivityPanels({
 
   return (
     <div className={DASHBOARD_SPLIT_CLASS}>
-      <section className="min-w-0">
-        <div className={DASHBOARD_SECTION_HEADING_CLASS}>
-          <div>
-            <h2>Recent conversations</h2>
-            {sessions.length ? null : (
-              <small>No saved conversations yet.</small>
-            )}
-          </div>
-          <Button
-            disabled={!onOpenChat}
-            onClick={() => onOpenChat?.()}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            Open chat
-          </Button>
-        </div>
+      <WorkbenchSection
+        actions={
+          onOpenChat ? (
+            <WorkbenchAction
+              emphasis="quiet"
+              icon={MessageSquare}
+              onClick={() => onOpenChat()}
+            >
+              Open chat
+            </WorkbenchAction>
+          ) : undefined
+        }
+        icon={MessageSquare}
+        title="Recent conversations"
+      >
         {sessions.length ? (
           <div className="grid">
             {sessions.map((session) => (
               <button
                 className="grid min-h-[46px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-xs)] p-2 text-left hover:bg-[var(--surface-hover)]"
                 data-dashboard-session="true"
+                disabled={!onOpenChat}
                 key={session.id}
                 onClick={() => onOpenChat?.(session.id)}
                 type="button"
@@ -87,38 +89,33 @@ export function DashboardActivityPanels({
               </button>
             ))}
           </div>
-        ) : null}
-      </section>
+        ) : (
+          <WorkbenchEmpty icon={Plus} title="No saved conversations" />
+        )}
+      </WorkbenchSection>
 
-      <section className="min-w-0">
-        <div className={DASHBOARD_SECTION_HEADING_CLASS}>
-          <div>
-            <h2>Approvals and tasks</h2>
-            {executionHasContent ? null : (
-              <small>No approvals or delegated tasks need attention.</small>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Button
+      <WorkbenchSection
+        actions={
+          <>
+            <WorkbenchAction
               disabled={!onOpenReview}
+              emphasis="quiet"
               onClick={onOpenReview}
-              size="sm"
-              type="button"
-              variant="ghost"
             >
               Review
-            </Button>
-            <Button
+            </WorkbenchAction>
+            <WorkbenchAction
               disabled={!onOpenTasks}
+              emphasis="quiet"
               onClick={onOpenTasks}
-              size="sm"
-              type="button"
-              variant="ghost"
             >
               Tasks
-            </Button>
-          </div>
-        </div>
+            </WorkbenchAction>
+          </>
+        }
+        icon={ListTodo}
+        title="Approvals and tasks"
+      >
         {executionHasContent ? (
           <>
             <div className="grid">
@@ -157,8 +154,12 @@ export function DashboardActivityPanels({
               <ErrorBlock error={tasksError} retry={reloadTasks} />
             ) : null}
           </>
-        ) : null}
-      </section>
+        ) : (
+          <WorkbenchEmpty icon={CheckCircle2} title="Nothing needs attention">
+            Pending approvals and delegated tasks appear here.
+          </WorkbenchEmpty>
+        )}
+      </WorkbenchSection>
     </div>
   );
 }

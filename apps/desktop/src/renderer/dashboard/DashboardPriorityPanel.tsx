@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   ChevronRight,
+  GitBranch,
   GitPullRequest,
   Link2,
   ListTodo,
@@ -10,6 +11,7 @@ import {
 import { useId } from "react";
 import { CompactStatStrip } from "../components/CompactStatStrip";
 import { UiIcon } from "../components/UiIcon";
+import { WorkbenchSection } from "../components/workbench/Workbench";
 import type {
   DashboardNextAction,
   DashboardRepoSnapshot,
@@ -18,7 +20,6 @@ import type {
 } from "../dashboard-helpers";
 import { Badge, ErrorBlock, LoadingBlock } from "../lib";
 import {
-  DASHBOARD_SECTION_HEADING_CLASS,
   DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
 } from "./dashboard-layout";
@@ -75,44 +76,41 @@ export function DashboardPriorityPanel({
   const actionLabelId = useId();
   return (
     <>
-      <CompactStatStrip
-        label="Workspace summary"
-        stats={[
-          { label: "Agent accounts", value: agentAccounts },
-          { label: "Conversations", value: conversations },
-          { label: "Runtime plugins", value: runtimePlugins },
-          {
-            detail:
-              repoLoading || repoError
-                ? undefined
-                : repo.dirty
-                  ? `${repo.changedFiles} changed`
-                  : "Clean",
-            label: "Workspace branch",
-            tone:
-              repoLoading || repoError
-                ? "neutral"
-                : repo.dirty
-                  ? "warn"
-                  : "good",
-            value: repoLoading
-              ? "Loading…"
-              : repoError
-                ? "Unavailable"
-                : repo.branch,
-          },
-        ]}
-      />
+      <div className="dashboard-overview">
+        <CompactStatStrip
+          label="Workspace summary"
+          stats={[
+            { label: "Agent accounts", value: agentAccounts },
+            { label: "Conversations", value: conversations },
+            { label: "Runtime plugins", value: runtimePlugins },
+            {
+              detail:
+                repoLoading || repoError
+                  ? undefined
+                  : repo.dirty
+                    ? `${repo.changedFiles} changed`
+                    : "Clean",
+              label: "Workspace branch",
+              tone:
+                repoLoading || repoError
+                  ? "neutral"
+                  : repo.dirty
+                    ? "warn"
+                    : "good",
+              value: repoLoading
+                ? "Loading…"
+                : repoError
+                  ? "Unavailable"
+                  : repo.branch,
+            },
+          ]}
+        />
+      </div>
 
       <div className={DASHBOARD_SPLIT_CLASS}>
-        <section className="min-w-0">
-          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
-            <div>
-              <h2>Next actions</h2>
-            </div>
-          </div>
+        <WorkbenchSection icon={ListTodo} title="Next actions">
           <div className="dashboard-action-list">
-            {nextActions.map((action) => {
+            {nextActions.map((action, index) => {
               const handler =
                 action.target === "review"
                   ? onOpenReview
@@ -130,6 +128,7 @@ export function DashboardPriorityPanel({
                   aria-label={`Open ${action.title}`}
                   aria-describedby={`${actionLabelId}-${action.id}`}
                   className="dashboard-action-row"
+                  data-featured={index === 0 ? "true" : undefined}
                   disabled={!handler}
                   key={action.id}
                   onClick={handler}
@@ -152,14 +151,9 @@ export function DashboardPriorityPanel({
               );
             })}
           </div>
-        </section>
+        </WorkbenchSection>
 
-        <section className="min-w-0">
-          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
-            <div>
-              <h2>Repository and setup</h2>
-            </div>
-          </div>
+        <WorkbenchSection icon={GitBranch} title="Repository and setup">
           {repoLoading ? (
             <LoadingBlock label="Reading workspace status…" />
           ) : repoError ? (
@@ -241,7 +235,7 @@ export function DashboardPriorityPanel({
               </>
             )}
           </details>
-        </section>
+        </WorkbenchSection>
       </div>
     </>
   );

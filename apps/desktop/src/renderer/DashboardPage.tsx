@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/button";
+import { RefreshCw } from "lucide-react";
 import { useMemo } from "react";
 import type {
   AccountPoolResponse,
@@ -6,6 +6,7 @@ import type {
   SessionSummary,
 } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { WorkbenchAction } from "./components/workbench/Workbench";
 import { DashboardActivityPanels } from "./dashboard/DashboardActivityPanels";
 import { DashboardPriorityPanel } from "./dashboard/DashboardPriorityPanel";
 import { DashboardRuntimeDetails } from "./dashboard/DashboardRuntimeDetails";
@@ -160,9 +161,9 @@ export function DashboardPage({
           title="Dashboard"
           description="Pending decisions, recent conversations, and repository status."
           actions={
-            <Button disabled size="sm" type="button" variant="secondary">
+            <WorkbenchAction disabled icon={RefreshCw}>
               Refresh
-            </Button>
+            </WorkbenchAction>
           }
         />
         <OfflineRouteState>
@@ -179,9 +180,9 @@ export function DashboardPage({
         title="Dashboard"
         description="Pending decisions, recent conversations, and repository status."
         actions={
-          <Button onClick={refresh} size="sm" type="button" variant="secondary">
+          <WorkbenchAction icon={RefreshCw} onClick={refresh}>
             Refresh
-          </Button>
+          </WorkbenchAction>
         }
       />
 

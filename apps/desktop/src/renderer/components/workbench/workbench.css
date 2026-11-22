@@ -1,0 +1,121 @@
+.workbench-action {
+  min-block-size: 32px;
+  max-inline-size: 100%;
+  gap: 6px;
+  text-align: start;
+  white-space: normal;
+}
+
+.workbench-action:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.workbench-section {
+  --workbench-section-inset: clamp(12px, 1.8cqi, 20px);
+  display: grid;
+  align-content: start;
+  min-inline-size: 0;
+  gap: 12px;
+  padding: var(--workbench-section-inset);
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.workbench-section__header,
+.workbench-section__actions,
+.workbench-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.workbench-section__header {
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.workbench-section__heading {
+  display: flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.workbench-section__glyph,
+.workbench-empty__glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-soft);
+}
+
+.workbench-section__copy,
+.workbench-empty__copy {
+  display: grid;
+  min-inline-size: 0;
+  gap: 2px;
+  color: var(--muted);
+  font-size: var(--text-control);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.workbench-section__copy :is(h2, h3),
+.workbench-empty__copy strong {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+.workbench-section__copy p,
+.workbench-empty__copy p {
+  margin: 0;
+}
+
+.workbench-section__body {
+  min-inline-size: 0;
+}
+
+.workbench-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.workbench-empty__copy {
+  flex: 1 1 12rem;
+}
+
+.workbench-empty__glyph {
+  inline-size: 38px;
+  block-size: 38px;
+  background: var(--surface-raised);
+}
+
+@media (max-width: 760px) {
+  .workbench-action {
+    min-block-size: 44px;
+  }
+}
+
+@media (forced-colors: active) {
+  .workbench-section {
+    border-color: CanvasText;
+  }
+
+  .workbench-action:focus-visible {
+    outline-color: Highlight;
+  }
+}

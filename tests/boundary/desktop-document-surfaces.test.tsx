@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, type FormEvent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../../apps/desktop/src/renderer/components/workbench/Workbench";
 import { DashboardPriorityPanel } from "../../apps/desktop/src/renderer/dashboard/DashboardPriorityPanel";
 import { HomeObservabilityLinks } from "../../apps/desktop/src/renderer/dashboard/HomeObservabilityLinks";
 import { RuntimeLogStream } from "../../apps/desktop/src/renderer/logs/RuntimeLogStream";
@@ -25,6 +30,36 @@ afterEach(() => {
   container.remove();
   vi.restoreAllMocks();
   reactEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+});
+
+it("labels a workbench region and keeps its retry outside form submission", () => {
+  const retry = vi.fn();
+  const submit = vi.fn((event: FormEvent) => event.preventDefault());
+  act(() => {
+    root.render(
+      <form onSubmit={submit}>
+        <WorkbenchSection
+          actions={<WorkbenchAction onClick={retry}>Retry</WorkbenchAction>}
+          busy
+          headingLevel={3}
+          title="Workspace details"
+        >
+          <WorkbenchEmpty title="No details available" />
+        </WorkbenchSection>
+      </form>,
+    );
+  });
+
+  const section = container.querySelector("section");
+  const heading = section?.querySelector("h3");
+  expect(heading?.textContent).toBe("Workspace details");
+  expect(section?.getAttribute("aria-labelledby")).toBe(heading?.id);
+  expect(section?.getAttribute("aria-busy")).toBe("true");
+  const button = section?.querySelector("button");
+  expect(button?.type).toBe("button");
+  act(() => button?.click());
+  expect(retry).toHaveBeenCalledOnce();
+  expect(submit).not.toHaveBeenCalled();
 });
 
 it("opens the active conversation from a described dashboard action", () => {

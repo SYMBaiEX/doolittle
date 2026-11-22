@@ -1,8 +1,5 @@
 export const DASHBOARD_PAGE_CLASS = "page @container/dashboard";
 
-export const DASHBOARD_SECTION_HEADING_CLASS =
-  "mb-2.25 flex min-h-8 flex-wrap items-center justify-between gap-3 [&>div]:min-w-0 [&>div]:max-w-full [&>div]:first:grid [&>div]:first:gap-0.25 [&>div:last-child:not(:first-child)]:shrink-0 [&>div:last-child:not(:first-child)]:flex-wrap [&>.badge]:!whitespace-normal [&>.badge]:[overflow-wrap:anywhere] [&_h2]:m-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-[length:var(--text-body)] [&_h2]:leading-tight [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[var(--muted)]";
-
 export const DASHBOARD_SPLIT_CLASS = "dashboard-workbench-split";
 
 export const DASHBOARD_STATUS_ROW_CLASS =

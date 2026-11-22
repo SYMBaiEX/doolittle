@@ -49,7 +49,7 @@ export function CompactStatStrip({
           </strong>
           {stat.detail ? (
             <small
-              className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
+              className="text-[length:var(--text-meta)] leading-snug text-[var(--text-soft)] [overflow-wrap:anywhere]"
               title={
                 typeof stat.detail === "string" ||
                 typeof stat.detail === "number"

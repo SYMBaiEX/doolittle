@@ -1,11 +1,16 @@
-import { Button } from "@elizaos/ui/button";
+import { ChevronRight, Cpu, Link2 } from "lucide-react";
 import type { RuntimeStatus } from "../../shared/contracts";
+import { UiIcon } from "../components/UiIcon";
+import {
+  WorkbenchAction,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import type { DashboardAccountPoolSummary } from "../dashboard-helpers";
 import { summarizeDashboardValue } from "../dashboard-helpers";
 import { asRecord, Badge, ErrorBlock, LoadingBlock } from "../lib";
 import {
   DASHBOARD_DISCLOSURE_CLASS,
-  DASHBOARD_SECTION_HEADING_CLASS,
+  DASHBOARD_SPLIT_CLASS,
   DASHBOARD_STATUS_ROW_CLASS,
   DASHBOARD_SUMMARY_CLASS,
 } from "./dashboard-layout";
@@ -45,34 +50,33 @@ export function DashboardRuntimeDetails({
           {runtimePluginCount} plugins · {ownershipCount} signals ·{" "}
           {accountPool.enabled} accounts
         </span>
-        <span
-          aria-hidden="true"
-          className="font-[var(--font-mono)] text-[var(--muted)] group-open:hidden"
-        >
-          +
-        </span>
-        <span
-          aria-hidden="true"
-          className="hidden font-[var(--font-mono)] text-[var(--muted)] group-open:inline"
-        >
-          −
-        </span>
+        <UiIcon
+          className="text-[var(--muted)] group-open:rotate-90"
+          icon={ChevronRight}
+        />
       </summary>
-      <div className="grid grid-cols-2 gap-2.5 p-2.5 max-[980px]:grid-cols-1">
-        <section className="min-w-0">
-          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Runtime detail</span>
-              <h2>Provider assembly</h2>
-            </div>
+      <div className={`${DASHBOARD_SPLIT_CLASS} mt-2`}>
+        <WorkbenchSection
+          actions={
             <Badge
-              tone={runtime?.fallback?.offlineBootstrapMode ? "warn" : "good"}
+              tone={
+                !runtime
+                  ? "neutral"
+                  : runtime.fallback?.offlineBootstrapMode
+                    ? "warn"
+                    : "good"
+              }
             >
-              {runtime?.fallback?.offlineBootstrapMode
-                ? "offline bootstrap"
-                : "online"}
+              {!runtime
+                ? "Checking"
+                : runtime.fallback?.offlineBootstrapMode
+                  ? "Offline bootstrap"
+                  : "Online"}
             </Badge>
-          </div>
+          }
+          icon={Cpu}
+          title="Provider assembly"
+        >
           {runtime ? (
             <div className="grid">
               <div className={DASHBOARD_STATUS_ROW_CLASS}>
@@ -96,24 +100,21 @@ export function DashboardRuntimeDetails({
           ) : (
             <LoadingBlock />
           )}
-        </section>
+        </WorkbenchSection>
 
-        <section className="min-w-0">
-          <div className={DASHBOARD_SECTION_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Spawned agents</span>
-              <h2>Codex &amp; Claude account pool</h2>
-            </div>
-            <Button
+        <WorkbenchSection
+          actions={
+            <WorkbenchAction
               disabled={!onOpenProviders}
+              emphasis="quiet"
               onClick={onOpenProviders}
-              size="sm"
-              type="button"
-              variant="ghost"
             >
               Manage
-            </Button>
-          </div>
+            </WorkbenchAction>
+          }
+          icon={Link2}
+          title="Codex & Claude account pool"
+        >
           {accountPoolLoading ? (
             <LoadingBlock />
           ) : accountPoolError ? (
@@ -134,7 +135,7 @@ export function DashboardRuntimeDetails({
               </Badge>
             </div>
           )}
-        </section>
+        </WorkbenchSection>
       </div>
     </details>
   );

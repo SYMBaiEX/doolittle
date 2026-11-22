@@ -1,5 +1,6 @@
 import { Activity, ArrowUpRight, ChartNoAxesColumn } from "lucide-react";
 import { UiIcon } from "../components/UiIcon";
+import { WorkbenchSection } from "../components/workbench/Workbench";
 import { DASHBOARD_SPLIT_CLASS } from "./dashboard-layout";
 
 const HOME_GATEWAYS = [
@@ -25,28 +26,30 @@ const HOME_GATEWAYS = [
  */
 export function HomeObservabilityLinks() {
   return (
-    <nav
-      aria-label="Observability"
-      className={DASHBOARD_SPLIT_CLASS}
-      data-home-observability-links
-    >
-      {HOME_GATEWAYS.map((gateway) => (
-        <a
-          aria-label={gateway.label}
-          className="dashboard-action-row"
-          href={gateway.href}
-          key={gateway.href}
-        >
-          <span className="dashboard-action-mark">
-            <UiIcon icon={gateway.icon} size="sm" />
-          </span>
-          <span className="dashboard-action-copy">
-            <strong>{gateway.title}</strong>
-            <small>{gateway.description}</small>
-          </span>
-          <UiIcon icon={ArrowUpRight} size="sm" />
-        </a>
-      ))}
-    </nav>
+    <WorkbenchSection icon={Activity} title="Workspace activity">
+      <nav
+        aria-label="Observability"
+        className={DASHBOARD_SPLIT_CLASS}
+        data-home-observability-links
+      >
+        {HOME_GATEWAYS.map((gateway) => (
+          <a
+            aria-label={gateway.label}
+            className="dashboard-action-row"
+            href={gateway.href}
+            key={gateway.href}
+          >
+            <span className="dashboard-action-mark">
+              <UiIcon icon={gateway.icon} size="sm" />
+            </span>
+            <span className="dashboard-action-copy">
+              <strong>{gateway.title}</strong>
+              <small>{gateway.description}</small>
+            </span>
+            <UiIcon icon={ArrowUpRight} size="sm" />
+          </a>
+        ))}
+      </nav>
+    </WorkbenchSection>
   );
 }
