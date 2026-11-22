@@ -92,6 +92,67 @@ it("saves a valid existing token budget from closed generation controls", async 
   }
 });
 
+it("waits for the provider-readiness disclosure before requesting accounts", async () => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settings = {
+    settings: { model: { provider: "codex", model: "fixture" } },
+  };
+  const models = { providers: [], capabilities: [] };
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/settings", [true])],
+    settings,
+  );
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/runtime/models?refresh=false", [true, false])],
+    models,
+  );
+  vi.mocked(desktopRequest).mockImplementation(async (path) => {
+    if (path === "/runtime/accounts") return { accounts: {} };
+    return path === "/settings" ? settings : models;
+  });
+
+  try {
+    await act(async () =>
+      root.render(
+        <ModelsPage active runtime={null} refreshRuntime={() => {}} />,
+      ),
+    );
+    expect(
+      vi
+        .mocked(desktopRequest)
+        .mock.calls.some(([path]) => path === "/runtime/accounts"),
+    ).toBe(false);
+    const readiness = [...container.querySelectorAll("details")].find(
+      (details) =>
+        details
+          .querySelector("summary")
+          ?.textContent?.includes("Provider readiness"),
+    );
+    expect(readiness?.open).toBe(false);
+    await act(async () => {
+      if (readiness) {
+        readiness.open = true;
+        readiness.dispatchEvent(new Event("toggle"));
+      }
+    });
+    expect(
+      vi
+        .mocked(desktopRequest)
+        .mock.calls.filter(([path]) => path === "/runtime/accounts"),
+    ).toHaveLength(1);
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    desktopQueryClient.clear();
+    vi.mocked(desktopRequest).mockReset();
+  }
+});
+
 it("keeps a removed saved provider visible but unavailable until another route is selected", () => {
   expect(ROUTE_PROVIDER_OPTIONS.map((option) => option.id)).not.toContain(
     "devin",
