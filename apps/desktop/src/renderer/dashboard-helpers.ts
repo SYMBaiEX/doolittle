@@ -219,8 +219,7 @@ export function normalizeSessions(
         compactSessionPreview(session.title ?? "") ||
         compactSessionPreview(session.preview[0] ?? "") ||
         "Conversation",
-      preview:
-        compactSessionPreview(session.preview[0] ?? "") || session.sessionId,
+      preview: compactSessionPreview(session.preview[0] ?? ""),
       messageCount: session.messageCount,
       lastActivityLabel: session.endedAt ?? session.startedAt ?? "",
     }));

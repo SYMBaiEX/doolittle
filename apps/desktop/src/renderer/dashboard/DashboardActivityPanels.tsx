@@ -80,7 +80,7 @@ export function DashboardActivityPanels({
               >
                 <span className="grid min-w-0 gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
                   <strong>{session.title}</strong>
-                  <small>{session.preview}</small>
+                  {session.preview ? <small>{session.preview}</small> : null}
                 </span>
                 <span className="grid justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
                   <small>{session.messageCount} messages</small>

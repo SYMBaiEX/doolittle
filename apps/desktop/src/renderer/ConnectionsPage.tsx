@@ -1,4 +1,3 @@
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Bot, Cable, RefreshCw, Route } from "lucide-react";
 import { useState } from "react";
 import type {
@@ -143,13 +142,15 @@ export function ConnectionsPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <PagePanel className="settings-provider-section" variant="section">
-        <WorkbenchSection icon={Cable} title="Provider accounts">
-          <OfflineRouteState>
-            Provider accounts are available when the local runtime is ready.
-          </OfflineRouteState>
-        </WorkbenchSection>
-      </PagePanel>
+      <WorkbenchSection
+        className="settings-provider-section"
+        icon={Cable}
+        title="Provider accounts"
+      >
+        <OfflineRouteState>
+          Provider accounts are available when the local runtime is ready.
+        </OfflineRouteState>
+      </WorkbenchSection>
     );
   }
 
@@ -177,7 +178,7 @@ export function ConnectionsPage({ active }: { active: boolean }) {
     (provider) => provider.ready,
   ).length;
   return (
-    <PagePanel className="settings-provider-section" variant="section">
+    <div className="settings-provider-section">
       <WorkbenchSection
         actions={checkAction}
         className="provider-console provider-settings"
@@ -197,31 +198,41 @@ export function ConnectionsPage({ active }: { active: boolean }) {
         {feedback ? (
           <Notice tone={feedback.tone}>{feedback.message}</Notice>
         ) : null}
-        <ResourceStatusBar
-          resources={[
-            { label: "Accounts", resource },
-            { label: "Account pools", resource: accountPool, required: false },
-          ]}
-        >
-          {resource.error && resource.data ? (
-            <WorkbenchAction
-              emphasis="quiet"
-              onClick={resource.reload}
-              type="button"
-            >
-              Retry accounts
-            </WorkbenchAction>
-          ) : null}
-          {accountPool.error ? (
-            <WorkbenchAction
-              emphasis="quiet"
-              onClick={accountPool.reload}
-              type="button"
-            >
-              Retry pools
-            </WorkbenchAction>
-          ) : null}
-        </ResourceStatusBar>
+        {resource.data &&
+        (resource.isValidating ||
+          accountPool.isValidating ||
+          resource.error ||
+          accountPool.error) ? (
+          <ResourceStatusBar
+            resources={[
+              { label: "Accounts", resource },
+              {
+                label: "Account pools",
+                resource: accountPool,
+                required: false,
+              },
+            ]}
+          >
+            {resource.error && resource.data ? (
+              <WorkbenchAction
+                emphasis="quiet"
+                onClick={resource.reload}
+                type="button"
+              >
+                Retry accounts
+              </WorkbenchAction>
+            ) : null}
+            {accountPool.error ? (
+              <WorkbenchAction
+                emphasis="quiet"
+                onClick={accountPool.reload}
+                type="button"
+              >
+                Retry pools
+              </WorkbenchAction>
+            ) : null}
+          </ResourceStatusBar>
+        ) : null}
         {resource.loading && !resource.data ? (
           <LoadingBlock label="Loading provider status…" />
         ) : resource.error && !resource.data ? (
@@ -399,6 +410,6 @@ export function ConnectionsPage({ active }: { active: boolean }) {
           </>
         ) : null}
       </WorkbenchSection>
-    </PagePanel>
+    </div>
   );
 }
