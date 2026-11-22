@@ -1,5 +1,11 @@
+import { ArrowRight, RefreshCw, UserRound, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
 import { copyContextText } from "./context-menu-clipboard";
 import {
   asArray,
@@ -7,7 +13,6 @@ import {
   asString,
   Badge,
   desktopRequest,
-  EmptyBlock,
   ErrorBlock,
   errorMessage,
   LoadingBlock,
@@ -99,90 +104,84 @@ export function ProfilesPage({ active }: { active: boolean }) {
         },
       ],
       action: (
-        <button
-          className="secondary-button"
-          disabled={Boolean(busy)}
+        <WorkbenchAction
+          disabled={Boolean(busy) || !active}
+          emphasis="quiet"
+          icon={ArrowRight}
           onClick={() => void activate(profile.id)}
-          type="button"
         >
           {busy === profile.id ? "Activating…" : "Use profile"}
-        </button>
+        </WorkbenchAction>
       ),
     };
   });
 
   return (
-    <div className="settings-profiles-section">
-      <div className="flex w-full flex-col gap-2">
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Identity</span>
-            <h2>Profiles</h2>
-            <p>Choose Doolittle’s voice and working style.</p>
-          </div>
-        </header>
+    <div className="settings-profiles-section settings-profile-workbench">
+      <header className="settings-section-header">
+        <div>
+          <h2>Profiles</h2>
+          <p>Choose Doolittle’s voice and working style.</p>
+        </div>
+      </header>
+      <div className="settings-profile-workbench__content">
         {error ? <Notice tone="bad">{error}</Notice> : null}
         {resource.loading ? (
           <LoadingBlock label="Loading personality profiles…" />
         ) : resource.error ? (
           <ErrorBlock error={resource.error} retry={resource.reload} />
         ) : profiles.length ? (
-          <div className="profile-picker grid items-start gap-4 min-[701px]:grid-cols-[minmax(18rem,0.42fr)_minmax(0,0.58fr)]">
-            <section
-              aria-label="Active identity"
-              className="profile-current grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3 border-y border-[var(--border)] bg-transparent py-4 min-[701px]:grid-cols-[42px_minmax(0,1fr)_auto] min-[701px]:items-center min-[701px]:gap-3.5 min-[701px]:px-4 min-[701px]:py-3.5 [&>.badge]:col-start-2 [&>.badge]:justify-self-start min-[701px]:[&>.badge]:col-start-auto"
+          <div className="settings-profile-workbench__grid">
+            <WorkbenchSection
+              actions={<Badge tone="good">In use</Badge>}
+              headingLevel={3}
+              icon={UserRound}
+              title="Active identity"
             >
-              <div
-                className="profile-current__mark grid size-[38px] place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold text-[var(--accent)]"
-                aria-hidden="true"
-              >
-                {presentation.active.name.slice(0, 2).toUpperCase()}
+              <div className="settings-profile-workbench__identity">
+                <span aria-hidden="true">
+                  {Array.from(presentation.active.name)
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()}
+                </span>
+                <div>
+                  <strong>{presentation.active.name}</strong>
+                  <p>{presentation.active.description}</p>
+                </div>
               </div>
-              <div className="profile-current__copy grid min-w-0 gap-0.5">
-                <span className="eyebrow">Active identity</span>
-                <strong className="text-[var(--text-section)]">
-                  {presentation.active.name}
-                </strong>
-                <p className="m-0 break-words text-[length:var(--text-meta)] leading-[1.4] text-[var(--text-soft)]">
-                  {presentation.active.description}
-                </p>
-              </div>
-              <Badge tone="good">In use</Badge>
-            </section>
+            </WorkbenchSection>
             {profileEntries.length ? (
-              <section className="profile-alternatives grid min-w-0 gap-[7px]">
-                <header className="profile-alternatives__header flex items-center justify-between gap-3 px-0.5">
-                  <span className="eyebrow">Switch identity</span>
-                  <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                    {profileEntries.length} available
-                  </span>
-                </header>
+              <WorkbenchSection
+                actions={<Badge>{profileEntries.length} available</Badge>}
+                headingLevel={3}
+                icon={UsersRound}
+                title="Switch identity"
+              >
                 <CompactCatalogList
                   ariaLabel="Alternative personality profiles"
                   entries={profileEntries}
                   resetKey={activeProfileId}
                 />
-              </section>
+              </WorkbenchSection>
             ) : null}
           </div>
         ) : (
-          <EmptyBlock
+          <WorkbenchEmpty
+            icon={UsersRound}
             title={active ? "No profiles found" : "Profiles are offline"}
             actions={
-              <button
-                className="secondary-button"
-                disabled={!active}
-                onClick={resource.reload}
-                type="button"
-              >
-                Refresh profiles
-              </button>
+              active ? (
+                <WorkbenchAction icon={RefreshCw} onClick={resource.reload}>
+                  Refresh profiles
+                </WorkbenchAction>
+              ) : undefined
             }
           >
             {active
               ? "The runtime did not return any personality profiles. Refresh after adding one to the local workspace."
               : "Restart the local runtime to load Doolittle’s available personalities."}
-          </EmptyBlock>
+          </WorkbenchEmpty>
         )}
       </div>
     </div>

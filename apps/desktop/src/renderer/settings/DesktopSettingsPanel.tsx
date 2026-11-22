@@ -1,9 +1,13 @@
+import { Download, MonitorCog, RefreshCw } from "lucide-react";
 import type {
   DesktopLifecycleState,
   DesktopUpdateState,
 } from "../../shared/contracts";
 import {
-  SETTINGS_GROUP_CLASS,
+  WorkbenchAction,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
+import {
   SETTINGS_ROW_LAYOUT_CLASS,
   SETTINGS_SWITCH_CLASS,
   SETTINGS_SWITCH_INPUT_CLASS,
@@ -37,10 +41,11 @@ export function DesktopSettingsPanel({
   onInstallUpdate,
 }: DesktopSettingsPanelProps) {
   return (
-    <section className={SETTINGS_GROUP_CLASS}>
-      <div className="settings-group-heading">
-        <h2>Desktop</h2>
-      </div>
+    <WorkbenchSection
+      className="settings-workbench-section"
+      icon={MonitorCog}
+      title="Desktop"
+    >
       <div className="settings-rows">
         <div
           className={`${SETTINGS_ROW_LAYOUT_CLASS} dl-settings-preference-row`}
@@ -85,14 +90,14 @@ export function DesktopSettingsPanel({
               </span>
             </label>
             {lifecycleError && onLifecycleRetry ? (
-              <button
-                className="text-button"
-                type="button"
+              <WorkbenchAction
                 disabled={lifecycleBusy}
+                emphasis="quiet"
+                icon={RefreshCw}
                 onClick={onLifecycleRetry}
               >
                 Retry desktop state
-              </button>
+              </WorkbenchAction>
             ) : null}
           </div>
         </div>
@@ -132,8 +137,7 @@ export function DesktopSettingsPanel({
           </div>
           <div className="setting-control">
             <div className="button-row dl-settings-desktop-actions">
-              <button
-                className="secondary-button"
+              <WorkbenchAction
                 disabled={
                   !update ||
                   updateBusy ||
@@ -141,8 +145,8 @@ export function DesktopSettingsPanel({
                   update?.phase === "checking" ||
                   update?.phase === "downloading"
                 }
+                icon={RefreshCw}
                 onClick={onCheckUpdates}
-                type="button"
                 aria-label={
                   update?.phase === "checking"
                     ? "Checking for updates"
@@ -150,32 +154,30 @@ export function DesktopSettingsPanel({
                 }
               >
                 Check for updates
-              </button>
+              </WorkbenchAction>
               {update?.phase === "available" ? (
-                <button
-                  className="secondary-button"
+                <WorkbenchAction
                   disabled={updateBusy}
+                  icon={Download}
                   onClick={onDownloadUpdate}
-                  type="button"
                 >
                   Download
-                </button>
+                </WorkbenchAction>
               ) : null}
               {update?.phase === "downloaded" ? (
-                <button
+                <WorkbenchAction
                   aria-describedby="desktop-install-description"
-                  className="primary-button"
                   disabled={updateBusy}
+                  emphasis="primary"
                   onClick={onInstallUpdate}
-                  type="button"
                 >
                   Install and restart
-                </button>
+                </WorkbenchAction>
               ) : null}
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </WorkbenchSection>
   );
 }

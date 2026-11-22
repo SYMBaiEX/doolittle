@@ -1,8 +1,13 @@
 import { SettingsFrame, SettingsTabs } from "@doolittle/ui";
 import { BUILT_IN_THEMES } from "@doolittle/ui/themes";
+import { RefreshCw, Settings2 } from "lucide-react";
 import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { RuntimeStatus } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import {
+  WorkbenchAction,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
   APPEARANCE_APPLIED_EVENT,
@@ -59,7 +64,6 @@ import {
 import { SettingsNavigation } from "./settings/SettingsNavigation";
 import {
   SETTINGS_CONTENT_HEADER_CLASS,
-  SETTINGS_GROUP_CLASS,
   SETTINGS_PAGE_CLASS,
 } from "./settings/settings-layout";
 import {
@@ -72,6 +76,7 @@ import {
 } from "./settings/settings-sections";
 import type { SettingsResponse } from "./settings/settings-types";
 import { useDesktopPreferences } from "./settings/use-desktop-preferences";
+import "./settings/settings-workbench.css";
 
 interface ThemeResponse {
   active?: string;
@@ -390,14 +395,13 @@ export function SettingsPage({
           <p>{activeCategory.description}</p>
         </div>
         {resourcePolicy.settings ? (
-          <button
-            className="text-button"
-            onClick={reloadSettings}
+          <WorkbenchAction
             disabled={settings.loading}
-            type="button"
+            icon={RefreshCw}
+            onClick={reloadSettings}
           >
             Reload
-          </button>
+          </WorkbenchAction>
         ) : null}
       </header>
       {tabs.length > 1 ? (
@@ -497,15 +501,12 @@ export function SettingsPage({
           <DesktopSettingsPanel {...desktopPreferences} />
         ) : null}
         {resourcePolicy.settings && !settings.loading && !settings.error ? (
-          <section className={SETTINGS_GROUP_CLASS}>
-            <div className="settings-group-heading">
-              <div>
-                <h2>
-                  {category === "advanced" ? "All settings" : "Configuration"}
-                </h2>
-              </div>
-              <Badge>{visibleFields.length} fields</Badge>
-            </div>
+          <WorkbenchSection
+            actions={<Badge>{visibleFields.length} fields</Badge>}
+            className="settings-workbench-section"
+            icon={Settings2}
+            title={category === "advanced" ? "All settings" : "Configuration"}
+          >
             {savedField?.section === category ? (
               <Notice announce="status">{savedField.path} saved.</Notice>
             ) : null}
@@ -521,7 +522,7 @@ export function SettingsPage({
               }}
               query={query}
             />
-          </section>
+          </WorkbenchSection>
         ) : null}
         {!runtimeCategoryOffline && category === "execution" ? (
           <SettingsExecutionStatusPanel
