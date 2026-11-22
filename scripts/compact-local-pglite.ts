@@ -1,11 +1,20 @@
-import { constants, existsSync, lstatSync, realpathSync } from "node:fs";
-import { cp, mkdir, readdir, rename, rm } from "node:fs/promises";
+import {
+  constants,
+  existsSync,
+  linkSync,
+  lstatSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+} from "node:fs";
+import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PGliteClientManager } from "@elizaos/plugin-sql";
 import { pgliteRepairDirectory } from "../packages/agent/src/runtime/bootstrap/env/pglite";
 
 const tables = ["public.trajectories", "public.trajectory_steps"] as const;
+const ownerLock = "eliza-pglite.lock";
 
 type TableData = { rows: number; digest: string | null; bytes: number };
 type Connection = ReturnType<PGliteClientManager["getConnection"]>;
@@ -68,7 +77,7 @@ export async function compactLocalPglite(input: string) {
       throw new Error("Expected an existing PGlite cluster.");
   }
   if (
-    ["postmaster.pid", "eliza-pglite.lock"].some((name) =>
+    ["postmaster.pid", ownerLock].some((name) =>
       existsSync(join(dataDir, name)),
     )
   ) {
@@ -81,11 +90,21 @@ export async function compactLocalPglite(input: string) {
   const transaction = pgliteRepairDirectory(dataDir);
   const original = join(transaction, "original");
   const candidate = join(transaction, "candidate");
+  const lease = join(transaction, "lease");
   const rollback = `${dataDir}.before-compaction-${Date.now()}`;
   await mkdir(transaction, { mode: 0o700 });
   try {
-    const before = await withDatabase(dataDir, async (source) => {
-      const sizes = await inspectTables(source.getConnection());
+    await writeFile(
+      lease,
+      JSON.stringify({
+        pid: process.pid,
+        createdAt: new Date().toISOString(),
+        dataDir,
+      }),
+      { mode: 0o600, flag: "wx" },
+    );
+    const changes = await withDatabase(dataDir, async (source) => {
+      const before = await inspectTables(source.getConnection());
       await source.withQuiescedDataDir(async () => {
         await cp(dataDir, candidate, {
           recursive: true,
@@ -93,38 +112,39 @@ export async function compactLocalPglite(input: string) {
           force: false,
           mode: constants.COPYFILE_FICLONE,
           filter: (path) =>
-            !["postmaster.pid", "eliza-pglite.lock"].includes(basename(path)),
+            !["postmaster.pid", ownerLock].includes(basename(path)),
         });
       });
-      return sizes;
-    });
 
-    await withDatabase(candidate, async (database) => {
-      const db = database.getConnection();
-      for (const table of before.keys())
-        await db.exec(`VACUUM (FULL, ANALYZE) ${table}`);
-      await db.exec("CHECKPOINT");
-    });
-    const after = await withDatabase(candidate, (database) =>
-      inspectTables(database.getConnection()),
-    );
-    const changes = [...before].map(([table, baseline]) => {
-      const compacted = after.get(table);
-      if (
-        !compacted ||
-        baseline.rows !== compacted.rows ||
-        baseline.digest !== compacted.digest
-      ) {
-        throw new Error(
-          `Verification failed for ${table}. The original database was kept.`,
-        );
-      }
-      return {
-        table,
-        rows: Number(compacted.rows),
-        beforeBytes: Number(baseline.bytes),
-        afterBytes: Number(compacted.bytes),
-      };
+      // Keep the SDK's source lock through candidate validation so a worker
+      // that was already starting cannot write to the cluster we copied.
+      await withDatabase(candidate, async (database) => {
+        const db = database.getConnection();
+        for (const table of before.keys())
+          await db.exec(`VACUUM (FULL, ANALYZE) ${table}`);
+        await db.exec("CHECKPOINT");
+      });
+      const after = await withDatabase(candidate, (database) =>
+        inspectTables(database.getConnection()),
+      );
+      return [...before].map(([table, baseline]) => {
+        const compacted = after.get(table);
+        if (
+          !compacted ||
+          baseline.rows !== compacted.rows ||
+          baseline.digest !== compacted.digest
+        ) {
+          throw new Error(
+            `Verification failed for ${table}. The original database was kept.`,
+          );
+        }
+        return {
+          table,
+          rows: Number(compacted.rows),
+          beforeBytes: Number(baseline.bytes),
+          afterBytes: Number(compacted.bytes),
+        };
+      });
     });
     if (
       !changes.some(({ beforeBytes, afterBytes }) => beforeBytes > afterBytes)
@@ -132,15 +152,25 @@ export async function compactLocalPglite(input: string) {
       return { tables: changes, rollback: null };
     }
 
-    await rename(dataDir, original);
+    // Acquire the same exclusive lease as the SDK at the handoff. A running
+    // worker wins by creating its lock first, and promotion then aborts.
+    let lock = join(dataDir, ownerLock);
+    linkSync(lease, lock);
     try {
-      await rename(candidate, dataDir);
-      // Keep the old cluster outside the active path, with the original permissions.
-      await rename(transaction, rollback);
+      renameSync(dataDir, original);
+      lock = join(original, ownerLock);
+      renameSync(candidate, dataDir);
+      renameSync(transaction, rollback);
+      lock = join(rollback, "original", ownerLock);
     } catch (error) {
       // Keep the marker and both copies if the swap was interrupted.
-      if (!existsSync(dataDir)) await rename(original, dataDir);
+      if (!existsSync(dataDir)) {
+        renameSync(original, dataDir);
+        lock = join(dataDir, ownerLock);
+      }
       throw error;
+    } finally {
+      unlinkSync(lock);
     }
     return { tables: changes, rollback: join(rollback, "original") };
   } finally {

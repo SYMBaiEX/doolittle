@@ -41,7 +41,8 @@ export async function buildAppContext(
   ownership?: RuntimeOwnershipObserver,
 ): Promise<AppContext> {
   const { config, services, workerBot, bindRuntime } = graph;
-  assertPgliteRepairIdle(getPgliteDataDir(config));
+  const pgliteDataDir = getPgliteDataDir(config);
+  assertPgliteRepairIdle(pgliteDataDir);
   setDefaultTrajectoryCapture(process.env);
   if (process.env.DOOLITTLE_KNOWLEDGE_BROKER === "1") {
     if (
@@ -69,6 +70,7 @@ export async function buildAppContext(
     });
     ownership?.acquired(runtime);
     try {
+      assertPgliteRepairIdle(pgliteDataDir);
       await runtime.initialize();
       await runtime.getServiceLoadPromise(DocumentService.serviceType);
     } catch (error) {
@@ -172,6 +174,7 @@ export async function buildAppContext(
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");
+  assertPgliteRepairIdle(pgliteDataDir);
   const runtime = await initializeElizaRuntime(
     createRuntime,
     undefined,
