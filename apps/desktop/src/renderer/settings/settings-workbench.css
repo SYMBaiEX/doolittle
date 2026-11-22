@@ -1,3 +1,23 @@
+[data-route-document="settings"] .dl-settings-menu-icon {
+  inline-size: 26px;
+  block-size: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+[data-route-document="settings"] .dl-settings-menu-group button[aria-current] {
+  font-weight: 650;
+}
+
+[data-route-document="settings"]
+  .dl-settings-menu-group
+  button[aria-current]
+  .dl-settings-menu-icon {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
 .settings-category-panel > .settings-workbench-section {
   margin-inline: var(--document-inset, 12px);
 }
