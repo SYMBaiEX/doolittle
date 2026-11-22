@@ -1,4 +1,5 @@
 import type { SessionTransferService } from "../../session-transfer";
+import type { SessionMessageStore } from "../messages";
 import type { ProjectStore } from "../projects/store";
 import type { SessionService } from "./index";
 import type { SessionReadOperations } from "./read";
@@ -7,6 +8,7 @@ import type { SessionWriteOperations } from "./write";
 
 export interface SessionServiceState {
   writes: SessionWriteOperations;
+  messages: SessionMessageStore;
   reads: SessionReadOperations;
   summaries: SessionSummaryOperations;
   projects: ProjectStore;
@@ -30,4 +32,8 @@ export function getSessionServiceState(
     throw new Error("Session service state is unavailable");
   }
   return state;
+}
+
+export function getTranscriptCheckpointStore(service: SessionService) {
+  return sessionServiceState.get(service)?.messages;
 }

@@ -6,9 +6,15 @@ import {
   type Memory,
   type UUID,
 } from "@elizaos/core";
+import type { TranscriptCheckpoint } from "../../services/session/messages/checkpoint";
+import { getTranscriptCheckpointStore } from "../../services/session/service/state";
 import type { StoredMessage, StoredMessageAttachment } from "../../types/index";
 import type { AgentExecutionContext } from "../chat";
 import { stableRuntimeUuid } from "../stable-runtime-uuid";
+import {
+  checkpointForSnapshot,
+  nativeTranscriptReader,
+} from "./conversation-checkpoint";
 import type { TurnState } from "./state";
 
 export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";
@@ -16,6 +22,7 @@ export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const NATIVE_MEMORY_PAGE_SIZE = 2000;
+const CHECKPOINT_TAIL_LIMIT = 256;
 const hydratedNativeRooms = new WeakMap<object, Set<string>>();
 
 function nativeHydrationKey(turn: TurnState): string {
@@ -595,8 +602,114 @@ function unchangedProjection(
         previous.text === message.text &&
         previous.createdAt === message.createdAt &&
         previous.originMessageId === message.originMessageId &&
-        // Reconciliation copies descriptors by reference from these rows.
-        previous.attachments === message.attachments
+        (previous.attachments === message.attachments ||
+          canonicalMemoryValue(previous.attachments) ===
+            canonicalMemoryValue(message.attachments))
+      );
+    })
+  );
+}
+
+function projectTranscript(
+  context: AgentExecutionContext,
+  turn: TurnState,
+  native: readonly Memory[],
+  existing: readonly StoredMessage[],
+): StoredMessage[] {
+  const attachmentsById = new Map(
+    existing.map((message) => [message.id, message.attachments]),
+  );
+  return native
+    .filter(
+      (memory) =>
+        memory.id &&
+        contentText(memory.content) &&
+        isConversationMemory(context, memory),
+    )
+    .map((memory) => {
+      const metadata = memory.metadata as
+        | { doolittle?: { projectionOriginMessageId?: string } }
+        | undefined;
+      const attachmentSource =
+        metadata?.doolittle?.projectionOriginMessageId ?? String(memory.id);
+      return toProjectionMessage(
+        context,
+        turn,
+        memory,
+        attachmentsById.get(attachmentSource),
+      );
+    });
+}
+
+type TranscriptReader = NonNullable<
+  Awaited<ReturnType<typeof nativeTranscriptReader>>
+>;
+type NativeSnapshot = NonNullable<Awaited<ReturnType<TranscriptReader>>>;
+type TranscriptStore = NonNullable<
+  ReturnType<typeof getTranscriptCheckpointStore>
+>;
+
+async function reconcileCheckpointTail(
+  context: AgentExecutionContext,
+  turn: TurnState,
+  store: TranscriptStore,
+  checkpoint: TranscriptCheckpoint,
+  snapshot: NativeSnapshot,
+  readNative: TranscriptReader,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (snapshot.prefixFingerprint !== checkpoint.fingerprint) return false;
+  const { sessionId } = turn;
+  if (snapshot.fingerprint === checkpoint.fingerprint) {
+    return (
+      store.hasTranscriptCheckpoint(sessionId, checkpoint) &&
+      store.messagesAfterCheckpoint(sessionId, checkpoint, 1).length === 0
+    );
+  }
+
+  const nativeTail = await context.runtime.getMemories({
+    roomId: turn.roomId as UUID,
+    tableName: "messages",
+    cursor: {
+      createdAt: Date.parse(checkpoint.throughAt),
+      id: checkpoint.throughId as UUID,
+    },
+    limit: CHECKPOINT_TAIL_LIMIT + 1,
+    orderBy: "createdAt",
+    orderDirection: "asc",
+    includeEmbedding: false,
+  });
+  signal?.throwIfAborted();
+  if (
+    nativeTail.length !== snapshot.count - snapshot.prefixCount ||
+    nativeTail.length > CHECKPOINT_TAIL_LIMIT ||
+    nativeTail.at(-1)?.id !== snapshot.throughId ||
+    nativeTail.at(-1)?.createdAt !== snapshot.throughAtMs
+  )
+    return false;
+
+  const current = await readNative(checkpoint);
+  signal?.throwIfAborted();
+  if (current?.fingerprint !== snapshot.fingerprint) return false;
+  const next = checkpointForSnapshot(
+    current,
+    checkpoint.agentId,
+    checkpoint.roomId,
+  );
+  return (
+    !!next &&
+    store.publishTranscriptCheckpoint(sessionId, next, () => {
+      if (!store.hasTranscriptCheckpoint(sessionId, checkpoint)) return false;
+      const existing = store.messagesAfterCheckpoint(
+        sessionId,
+        checkpoint,
+        CHECKPOINT_TAIL_LIMIT + 1,
+      );
+      // A lost projection write, import, or competing writer requires the
+      // canonical rebuild so older attachments and run boundaries are handled.
+      return unchangedProjection(
+        existing,
+        projectTranscript(context, turn, nativeTail, existing),
       );
     })
   );
@@ -619,6 +732,36 @@ async function hydrateNativeRoomFromProjection(
     return;
   }
   if (isNativeRoomHydrated(context, turn)) return;
+  const store = getTranscriptCheckpointStore(context.services.sessions);
+  const agentId = String(context.runtime.agentId);
+  const roomId = String(turn.roomId);
+  const readNative = store
+    ? await nativeTranscriptReader(context.runtime, turn.roomId as UUID)
+    : undefined;
+  const saved = store?.transcriptCheckpoint(turn.sessionId);
+  const checkpoint =
+    saved?.agentId === agentId && saved.roomId === roomId ? saved : undefined;
+  const snapshot = await readNative?.(checkpoint);
+  signal?.throwIfAborted();
+  if (
+    store &&
+    readNative &&
+    checkpoint &&
+    snapshot &&
+    (await reconcileCheckpointTail(
+      context,
+      turn,
+      store,
+      checkpoint,
+      snapshot,
+      readNative,
+      signal,
+    ))
+  ) {
+    markNativeRoomHydrated(context, turn);
+    return;
+  }
+
   // Fetch the whole authoritative transcript before replacing the projection.
   // Replacing from a suffix would silently delete older cache rows.
   const nativeMessages = await nativeMemoriesInRoom(
@@ -626,39 +769,43 @@ async function hydrateNativeRoomFromProjection(
     turn.roomId as UUID,
     signal,
   );
-  const conversationMemories = nativeMessages
-    .reverse()
-    .filter(
+  if (
+    nativeMessages.some(
       (memory) =>
         memory.id &&
         contentText(memory.content) &&
         isConversationMemory(context, memory),
-    );
-  if (conversationMemories.length > 0) {
-    const existing = context.services.sessions.messagesBySession(
-      turn.sessionId,
-      Number.MAX_SAFE_INTEGER,
-    );
-    const attachmentsById = new Map(
-      existing.map((message) => [message.id, message.attachments]),
-    );
-    const projected = conversationMemories.map((memory) => {
-      const metadata = memory.metadata as
-        | { doolittle?: { projectionOriginMessageId?: string } }
-        | undefined;
-      const attachmentSource =
-        metadata?.doolittle?.projectionOriginMessageId ?? String(memory.id);
-      return toProjectionMessage(
-        context,
-        turn,
-        memory,
-        attachmentsById.get(attachmentSource),
+    )
+  ) {
+    const current = snapshot && (await readNative?.());
+    signal?.throwIfAborted();
+    const next =
+      current &&
+      current.fingerprint === snapshot?.fingerprint &&
+      current.count === nativeMessages.length &&
+      checkpointForSnapshot(current, agentId, roomId);
+    nativeMessages.reverse();
+    let projected: StoredMessage[] = [];
+    const compareProjection = () => {
+      const existing = context.services.sessions.messagesBySession(
+        turn.sessionId,
+        Number.MAX_SAFE_INTEGER,
       );
-    });
+      projected = projectTranscript(context, turn, nativeMessages, existing);
+      return unchangedProjection(existing, projected);
+    };
     // A normal reopen already has the full transcript indexed in SQLite.
     // Keep its FTS rows and saved run boundaries when native order and content
     // agree, while still replacing the projection if any row drifted.
-    if (unchangedProjection(existing, projected)) {
+    if (
+      next && store
+        ? store.publishTranscriptCheckpoint(
+            turn.sessionId,
+            next,
+            compareProjection,
+          )
+        : compareProjection()
+    ) {
       markNativeRoomHydrated(context, turn);
       return;
     }
@@ -669,6 +816,16 @@ async function hydrateNativeRoomFromProjection(
         turn.sessionId,
         projected,
       );
+      if (next && store)
+        store.publishTranscriptCheckpoint(turn.sessionId, next, () =>
+          unchangedProjection(
+            context.services.sessions.messagesBySession(
+              turn.sessionId,
+              Number.MAX_SAFE_INTEGER,
+            ),
+            projected,
+          ),
+        );
     } else {
       // Narrow doubles/old hosts do not expose a cache-replacement API.
       for (const message of projected) {

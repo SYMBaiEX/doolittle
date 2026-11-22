@@ -7,6 +7,7 @@ import type {
 } from "../../../types/index";
 import type { SessionDatabase, SessionStatement } from "../database";
 import { loadSessionMessageCount } from "../read-summary/query";
+import type { TranscriptCheckpoint } from "./checkpoint";
 
 export interface SessionMessageActivityEvent {
   kind: "message";
@@ -142,6 +143,92 @@ export class SessionMessageStore {
     for (const message of inserted) {
       this.emitActivity(message);
     }
+  }
+
+  transcriptCheckpoint(sessionId: string): TranscriptCheckpoint | undefined {
+    return this.db
+      .query(`
+      SELECT room_id AS roomId, agent_id AS agentId, through_id AS throughId,
+        through_at AS throughAt, fingerprint
+      FROM session_transcript_checkpoints WHERE session_id = ?1
+    `)
+      .get(sessionId) as TranscriptCheckpoint | undefined;
+  }
+
+  private setTranscriptCheckpoint(
+    sessionId: string,
+    checkpoint: TranscriptCheckpoint,
+  ): void {
+    this.db
+      .query(`
+      INSERT INTO session_transcript_checkpoints
+        (session_id, room_id, agent_id, through_id, through_at, fingerprint)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+      ON CONFLICT (session_id) DO UPDATE SET room_id = excluded.room_id,
+        agent_id = excluded.agent_id, through_id = excluded.through_id,
+        through_at = excluded.through_at, fingerprint = excluded.fingerprint
+    `)
+      .run(
+        sessionId,
+        checkpoint.roomId,
+        checkpoint.agentId,
+        checkpoint.throughId,
+        checkpoint.throughAt,
+        checkpoint.fingerprint,
+      );
+  }
+
+  publishTranscriptCheckpoint(
+    sessionId: string,
+    next: TranscriptCheckpoint,
+    verifyProjection: () => boolean,
+  ): boolean {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const matched = verifyProjection();
+      if (matched) this.setTranscriptCheckpoint(sessionId, next);
+      this.db.exec("COMMIT");
+      return matched;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  hasTranscriptCheckpoint(
+    sessionId: string,
+    checkpoint: TranscriptCheckpoint,
+  ): boolean {
+    const current = this.transcriptCheckpoint(sessionId);
+    return Boolean(
+      current &&
+        current.roomId === checkpoint.roomId &&
+        current.agentId === checkpoint.agentId &&
+        current.throughId === checkpoint.throughId &&
+        current.throughAt === checkpoint.throughAt &&
+        current.fingerprint === checkpoint.fingerprint,
+    );
+  }
+
+  messagesAfterCheckpoint(
+    sessionId: string,
+    checkpoint: TranscriptCheckpoint,
+    limit: number,
+  ): StoredMessage[] {
+    const rows = this.db
+      .query(`
+      ${transcriptSelection}
+      AND (messages.created_at, messages.id) > (?2, ?3)
+      ORDER BY messages.created_at ASC, messages.rowid ASC
+      LIMIT ?4
+    `)
+      .all(
+        sessionId,
+        checkpoint.throughAt,
+        checkpoint.throughId,
+        limit,
+      ) as StoredMessageRow[];
+    return rows.map(toStoredMessage);
   }
 
   private insertMessage(message: StoredMessage): boolean {

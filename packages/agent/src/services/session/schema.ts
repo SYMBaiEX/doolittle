@@ -1,8 +1,9 @@
 import { installSessionActivitySchema } from "./activity-schema";
 import type { SessionDatabase } from "./database";
+import { installTranscriptCheckpointSchema } from "./messages/checkpoint";
 
 // Older Doolittle profiles left the SQLite user version at zero.
-const SESSION_SCHEMA_VERSION = 1;
+const SESSION_SCHEMA_VERSION = 2;
 
 function readVersion(db: SessionDatabase): number {
   return (db.query("PRAGMA user_version").get() as { user_version: number })
@@ -14,9 +15,13 @@ export function migrateSessionDatabase(db: SessionDatabase): void {
   db.exec("BEGIN IMMEDIATE");
   try {
     // Another connection may have finished the upgrade before we got the lock.
-    if (readVersion(db) < SESSION_SCHEMA_VERSION) {
-      installSessionSchema(db);
-      installSessionActivitySchema(db);
+    const version = readVersion(db);
+    if (version < SESSION_SCHEMA_VERSION) {
+      if (version < 1) {
+        installSessionSchema(db);
+        installSessionActivitySchema(db);
+      }
+      installTranscriptCheckpointSchema(db);
       db.exec(`PRAGMA user_version = ${SESSION_SCHEMA_VERSION}`);
     }
     db.exec("COMMIT");

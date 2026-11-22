@@ -36,6 +36,7 @@ export function createSessionServiceState(
   );
 
   return {
+    messages: messageStore,
     writes: new SessionWriteOperations(
       db,
       messageStore,
