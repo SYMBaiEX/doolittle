@@ -6,6 +6,7 @@ import { GatewayTimelinePanel } from "../../apps/desktop/src/renderer/gateway/Ga
 import type { GatewayTimelineItem } from "../../apps/desktop/src/renderer/gateway-page-model";
 import type { ReviewItem } from "../../apps/desktop/src/renderer/review/models";
 import { ReviewQueue } from "../../apps/desktop/src/renderer/review/ReviewQueue";
+import { reviewWorkState } from "../../apps/desktop/src/renderer/review-work-state";
 
 const reactEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 const noop = () => {};
@@ -129,4 +130,14 @@ it("waits for replay confirmation and returns focus after cancellation", () => {
   act(() => opener?.click());
   act(() => button("Confirm replay")?.click());
   expect(replay).toHaveBeenCalledExactlyOnceWith(entry.id);
+});
+
+it("reports workspace changes and recorded agent runs independently", () => {
+  const cleanChecks = { failingChecks: 0, pendingApprovals: 0 };
+  expect(
+    reviewWorkState({ ...cleanChecks, changedFiles: 1, agentRuns: 0 }).detail,
+  ).toBe("1 changed file in the workspace.");
+  expect(
+    reviewWorkState({ ...cleanChecks, changedFiles: 2, agentRuns: 1 }).detail,
+  ).toBe("2 changed files in the workspace. 1 agent run recorded.");
 });

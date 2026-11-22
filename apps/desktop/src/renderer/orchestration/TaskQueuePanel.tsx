@@ -1,8 +1,18 @@
-import { type FormEvent, type RefObject, useEffect, useState } from "react";
+import { ClipboardList, Inbox, ListTodo } from "lucide-react";
+import {
+  type FormEvent,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { progressiveWindow } from "../components/progressive-window";
 import {
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
+import {
   asNumber,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   titleCase,
@@ -104,6 +114,7 @@ export function TaskQueuePanel({
     limit: TASK_QUEUE_PAGE_SIZE,
   });
   const [query, setQuery] = useState("");
+  const search = useRef<HTMLInputElement>(null);
   const [tier, setTier] = useState<TaskQueueTier>("all");
   const [bulkAction, setBulkAction] = useState<BulkTaskAction | null>(null);
   const tiers = availableTaskQueueTiers(tasks);
@@ -143,22 +154,21 @@ export function TaskQueuePanel({
   }
   if (tasks.length === 0) {
     return (
-      <section
-        aria-labelledby="orchestration-empty-queue-title"
-        className={oc("orchestration-queue-starter")}
-      >
-        <span className="eyebrow">Queue ready</span>
-        <div>
-          <strong id="orchestration-empty-queue-title">
-            {projectScope === "all"
-              ? "No tasks yet"
-              : `No tasks for ${workspaceLabel || "this project"}`}
-          </strong>
-          <small>
-            Use the task controls above to start a coding or research workflow.
-          </small>
+      <WorkbenchSection title="Task queue" icon={ListTodo}>
+        <div id="orchestration-empty-queue-title">
+          <WorkbenchEmpty
+            icon={Inbox}
+            title={
+              projectScope === "all"
+                ? "No tasks yet"
+                : `No tasks for ${workspaceLabel || "this project"}`
+            }
+          >
+            Use New task to start coding or research. Progress and results
+            appear here.
+          </WorkbenchEmpty>
         </div>
-      </section>
+      </WorkbenchSection>
     );
   }
 
@@ -180,6 +190,7 @@ export function TaskQueuePanel({
             <input
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Filter tasks"
+              ref={search}
               type="search"
               value={query}
             />
@@ -269,6 +280,7 @@ export function TaskQueuePanel({
           <TaskQueueRail
             filteredTasks={filteredTasks}
             onClearFilters={() => {
+              search.current?.focus();
               setQuery("");
               setTier("all");
             }}
@@ -288,9 +300,9 @@ export function TaskQueuePanel({
 
       <article className={oc("orchestration-detail")}>
         {!selectedTask ? (
-          <EmptyBlock title="Choose a task">
-            Task controls and evidence appear here.
-          </EmptyBlock>
+          <WorkbenchEmpty icon={ClipboardList} title="Choose a task">
+            Select a task to see its progress, actions, and evidence.
+          </WorkbenchEmpty>
         ) : (
           <TaskQueueDetail
             active={active}

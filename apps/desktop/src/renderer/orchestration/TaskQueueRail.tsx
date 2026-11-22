@@ -1,5 +1,10 @@
+import { SearchX } from "lucide-react";
 import type { ProgressiveWindow } from "../components/progressive-window";
-import { asString, Badge, EmptyBlock } from "../lib";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+} from "../components/workbench/Workbench";
+import { asString, Badge } from "../lib";
 import {
   orchestrationStatusTier,
   orchestrationTimingLabel,
@@ -28,21 +33,17 @@ export function TaskQueueRail({
 }) {
   if (filteredTasks.length === 0) {
     return (
-      <EmptyBlock
+      <WorkbenchEmpty
         actions={
-          <button
-            className="secondary-button"
-            onClick={onClearFilters}
-            type="button"
-          >
+          <WorkbenchAction onClick={onClearFilters}>
             Clear filters
-          </button>
+          </WorkbenchAction>
         }
-        density="compact"
+        icon={SearchX}
         title="No matching tasks"
       >
         Change the search or lifecycle filter.
-      </EmptyBlock>
+      </WorkbenchEmpty>
     );
   }
 

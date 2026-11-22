@@ -41,17 +41,20 @@ export function reviewWorkState({
   }
 
   if (changedFiles > 0 || agentRuns > 0) {
-    const completedWork =
-      agentRuns > 0
-        ? `${agentRuns} agent ${agentRuns === 1 ? "run" : "runs"}`
-        : "the latest work";
+    const evidence = [];
+    if (changedFiles > 0)
+      evidence.push(
+        `${changedFiles} changed ${changedFiles === 1 ? "file" : "files"} in the workspace.`,
+      );
+    if (agentRuns > 0)
+      evidence.push(
+        `${agentRuns} agent ${agentRuns === 1 ? "run" : "runs"} recorded.`,
+      );
     return {
       tone: "good",
       icon: "ready",
       title: "Ready for your review",
-      detail: `Doolittle completed ${completedWork} with ${changedFiles} changed ${
-        changedFiles === 1 ? "file" : "files"
-      }.`,
+      detail: evidence.join(" "),
     };
   }
 
