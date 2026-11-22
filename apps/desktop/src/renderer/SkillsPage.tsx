@@ -1,4 +1,4 @@
-import { Button } from "@doolittle/ui";
+import { BookOpen, RefreshCw } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { SkillsResponse } from "../shared/contracts";
 import { buildSkillCatalogEntries } from "./catalog-entry-models";
@@ -8,10 +8,14 @@ import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PanelTabs } from "./components/PanelTabs";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import {
   asArray,
   asNumber,
   asRecord,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   useApiResource,
@@ -44,31 +48,6 @@ export function SkillsPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<SkillsSection>("catalog");
   const [workshopOpened, setWorkshopOpened] = useState(false);
-  if (!active) {
-    return (
-      <div className="settings-skills-section flex min-w-0 flex-col gap-2">
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Agent</span>
-            <h2>Skill catalog</h2>
-            <p>Browse reusable skills or review proposals before activation.</p>
-          </div>
-          <button
-            className="secondary-button"
-            disabled
-            onClick={refresh}
-            type="button"
-          >
-            Refresh
-          </button>
-        </header>
-        <OfflineRouteState>
-          Skill catalog and proposal review are unavailable until the local
-          runtime is ready.
-        </OfflineRouteState>
-      </div>
-    );
-  }
   const entries = buildSkillCatalogEntries(
     asArray(catalogData?.skills).map(asRecord),
   );
@@ -92,119 +71,132 @@ export function SkillsPage({ active }: { active: boolean }) {
   const summaryValue = catalogData?.summary ?? {};
   const installedValues = asArray(catalogData?.installed);
   return (
-    <div className="settings-skills-section flex min-w-0 flex-col gap-2">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Agent</span>
-          <h2>Skill catalog</h2>
-          <p>Browse reusable skills or review proposals before activation.</p>
-        </div>
-        <button
-          className="secondary-button"
+    <WorkbenchSection
+      actions={
+        <WorkbenchAction
           disabled={!active}
+          emphasis="quiet"
+          icon={RefreshCw}
           onClick={refresh}
-          type="button"
         >
           Refresh
-        </button>
-      </header>
-      <CompactStatStrip
-        label="Skill catalog summary"
-        stats={[
-          {
-            label: "Available",
-            value: asNumber(summaryValue.total, entries.length),
-          },
-          { label: "Curated", value: asNumber(summaryValue.curated) },
-          { label: "Generated", value: asNumber(summaryValue.generated) },
-          {
-            label: "Installed",
-            value: installedValues.length,
-            tone: "good",
-          },
-        ]}
-      />
-      <ResourceStatusBar
-        resources={[{ label: "Skill catalog", resource: skills }]}
-      />
-      <div className="border-b border-[var(--border)]">
-        <PanelTabs
-          id="skills"
-          items={SKILLS_TABS}
-          label="Skills views"
-          onSelect={(nextSection) => {
-            if (nextSection === "workshop") setWorkshopOpened(true);
-            setSection(nextSection);
-          }}
-          selected={section}
-        />
-      </div>
-      <section
-        aria-labelledby="skills-catalog-tab"
-        className="skills-page-catalog grid gap-2.5"
-        hidden={section !== "catalog"}
-        id="skills-catalog-panel"
-        role="tabpanel"
-      >
-        {section === "catalog" ? (
-          <>
-            <CatalogFilterBar
-              onQueryChange={setQuery}
-              placeholder="Search skills"
-              query={query}
-              resultLabel={
-                skills.loading
-                  ? "Loading…"
-                  : skills.error
-                    ? "Unavailable"
-                    : `${filtered.length} of ${entries.length}`
-              }
-              searchLabel="Search skills"
+        </WorkbenchAction>
+      }
+      className="catalog-page"
+      description="Find reusable workflows and review skill proposals in the workshop."
+      icon={BookOpen}
+      title="Skill catalog"
+    >
+      {active ? (
+        <>
+          <div className="catalog-overview">
+            <CompactStatStrip
+              label="Skill catalog summary"
+              stats={[
+                {
+                  label: "Available",
+                  value: asNumber(summaryValue.total, entries.length),
+                },
+                { label: "Curated", value: asNumber(summaryValue.curated) },
+                { label: "Generated", value: asNumber(summaryValue.generated) },
+                {
+                  label: "Installed",
+                  value: installedValues.length,
+                  tone: "good",
+                },
+              ]}
             />
-            {skills.loading && !catalogData ? (
-              <LoadingBlock label="Reading workspace skills…" />
-            ) : skills.error && !catalogData ? (
-              <ErrorBlock error={skills.error} retry={skills.reload} />
-            ) : filtered.length ? (
-              <SkillCatalogWorkspace
-                entries={filtered}
-                resetKey={query.trim().toLowerCase()}
-              />
-            ) : (
-              <EmptyBlock
-                density="compact"
-                title={query.trim() ? "No skills match" : "No skills reported"}
-                actions={
-                  query.trim() ? (
-                    <Button
-                      onClick={() => setQuery("")}
-                      type="button"
-                      variant="secondary"
-                    >
-                      Clear search
-                    </Button>
-                  ) : undefined
-                }
+            <ResourceStatusBar
+              resources={[{ label: "Skill catalog", resource: skills }]}
+            />
+          </div>
+          <PanelTabs
+            id="skills"
+            items={SKILLS_TABS}
+            label="Skills views"
+            onSelect={(nextSection) => {
+              if (nextSection === "workshop") setWorkshopOpened(true);
+              setSection(nextSection);
+            }}
+            selected={section}
+          />
+          <section
+            aria-labelledby="skills-catalog-tab"
+            className="skills-page-catalog grid min-w-0 gap-3"
+            hidden={section !== "catalog"}
+            id="skills-catalog-panel"
+            role="tabpanel"
+          >
+            {section === "catalog" ? (
+              <>
+                <CatalogFilterBar
+                  onQueryChange={setQuery}
+                  placeholder="Search skills"
+                  query={query}
+                  resultLabel={
+                    skills.loading
+                      ? "Loading…"
+                      : skills.error
+                        ? "Unavailable"
+                        : `${filtered.length} of ${entries.length}`
+                  }
+                  searchLabel="Search skills"
+                />
+                {skills.loading && !catalogData ? (
+                  <LoadingBlock label="Reading workspace skills…" />
+                ) : skills.error && !catalogData ? (
+                  <ErrorBlock error={skills.error} retry={skills.reload} />
+                ) : filtered.length ? (
+                  <SkillCatalogWorkspace
+                    entries={filtered}
+                    resetKey={query.trim().toLowerCase()}
+                  />
+                ) : (
+                  <WorkbenchEmpty
+                    actions={
+                      query.trim() ? (
+                        <WorkbenchAction
+                          emphasis="secondary"
+                          onClick={() => setQuery("")}
+                        >
+                          Clear search
+                        </WorkbenchAction>
+                      ) : undefined
+                    }
+                    icon={BookOpen}
+                    title={
+                      query.trim() ? "No skills match" : "No skills reported"
+                    }
+                  >
+                    {query.trim()
+                      ? "Try a different skill name or command."
+                      : "Add skills to the local skill workspace to browse them here."}
+                  </WorkbenchEmpty>
+                )}
+              </>
+            ) : null}
+          </section>
+          <div
+            aria-labelledby="skills-workshop-tab"
+            hidden={section !== "workshop"}
+            id="skills-workshop-panel"
+            role="tabpanel"
+          >
+            {workshopOpened ? (
+              <Suspense
+                fallback={<LoadingBlock label="Loading skill workshop…" />}
               >
-                Change the search, or add skills to the local skill workspace.
-              </EmptyBlock>
-            )}
-          </>
-        ) : null}
-      </section>
-      <div
-        aria-labelledby="skills-workshop-tab"
-        className="motion-reduce:transition-none"
-        hidden={section !== "workshop"}
-        id="skills-workshop-panel"
-        role="tabpanel"
-      >
-        {workshopOpened ? (
-          <Suspense fallback={<LoadingBlock label="Loading skill workshop…" />}>
-            <LazySkillWorkshopPanel active={section === "workshop"} />
-          </Suspense>
-        ) : null}
-      </div>
-    </div>
+                <LazySkillWorkshopPanel active={section === "workshop"} />
+              </Suspense>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <OfflineRouteState>
+          Skill catalog and proposal review are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      )}
+    </WorkbenchSection>
   );
 }

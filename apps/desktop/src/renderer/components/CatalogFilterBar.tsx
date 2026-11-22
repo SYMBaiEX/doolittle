@@ -1,14 +1,30 @@
-import type { ReactNode } from "react";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@doolittle/ui";
+import { Search } from "lucide-react";
+import { titleCase } from "../lib";
+import { UiIcon } from "./UiIcon";
+import "./catalog-browser.css";
 
 export function CatalogFilterBar({
-  children,
+  category,
   onQueryChange,
   placeholder,
   query,
   resultLabel,
   searchLabel,
 }: {
-  children?: ReactNode;
+  category?: {
+    label: string;
+    options: readonly string[];
+    value: string;
+    onChange: (value: string) => void;
+  };
   onQueryChange: (value: string) => void;
   placeholder: string;
   query: string;
@@ -16,26 +32,35 @@ export function CatalogFilterBar({
   searchLabel: string;
 }) {
   return (
-    <div className="catalog-filter-bar flex min-w-0 items-center gap-2 max-[760px]:flex-wrap max-[760px]:items-stretch">
-      <label className="catalog-filter-bar__search min-w-[180px] flex-[1_1_320px] max-[760px]:basis-full">
-        <span className="sr-only">{searchLabel}</span>
-        <input
-          className="min-h-[34px] w-full"
+    <div className="catalog-filter-bar">
+      <div className="catalog-filter-bar__search">
+        <UiIcon icon={Search} size="md" />
+        <Input
+          aria-label={searchLabel}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder={placeholder}
           type="search"
           value={query}
         />
-      </label>
-      {children ? (
-        <div className="catalog-filter-bar__controls flex flex-[0_1_auto] gap-2 max-[760px]:min-w-0 max-[760px]:flex-[1_1_auto] max-[760px]:flex-wrap [&_select]:min-h-[34px] [&_select]:w-full [&_select]:min-w-[150px] max-[760px]:[&_select]:min-w-0 max-[760px]:[&_select]:flex-[1_1_150px]">
-          {children}
-        </div>
+      </div>
+      {category ? (
+        <Select value={category.value} onValueChange={category.onChange}>
+          <SelectTrigger
+            aria-label={category.label}
+            className="catalog-filter-bar__category"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {category.options.map((value) => (
+              <SelectItem key={value} value={value}>
+                {value === "all" ? "All categories" : titleCase(value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : null}
-      <output
-        aria-live="polite"
-        className="catalog-filter-bar__count flex-none whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]"
-      >
+      <output aria-live="polite" className="catalog-filter-bar__count">
         {resultLabel}
       </output>
     </div>

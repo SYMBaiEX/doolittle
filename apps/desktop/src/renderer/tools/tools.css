@@ -1,0 +1,60 @@
+.tools-integrations {
+  min-inline-size: 0;
+}
+
+.tools-integrations > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-block-size: 42px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  list-style: none;
+  cursor: pointer;
+}
+
+.tools-integrations > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tools-integrations > summary:hover,
+.tools-integrations[open] > summary {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.tools-integrations > summary:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.tools-integrations > summary > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  min-inline-size: 0;
+}
+
+.tools-integrations > summary strong {
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 600;
+}
+
+.tools-integrations > summary small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.tools-integrations[open] .tools-integrations__disclosure {
+  transform: rotate(90deg);
+}
+
+.tools-integrations__body {
+  display: grid;
+  gap: 12px;
+  padding: 8px 0 4px;
+}

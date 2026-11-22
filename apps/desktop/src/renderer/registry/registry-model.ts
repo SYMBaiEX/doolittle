@@ -14,6 +14,10 @@ export interface RegistryEntry {
   integrityVerified: boolean;
 }
 
+export function registryInstallKey(entry: RegistryEntry): string {
+  return JSON.stringify([entry.name, entry.packageName, entry.version]);
+}
+
 export const REGISTRY_INSTALL_CAVEAT =
   "Eliza installer · integrity and fallback source unreported by this SDK.";
 

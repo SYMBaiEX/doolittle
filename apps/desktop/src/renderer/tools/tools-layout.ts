@@ -1,8 +1,8 @@
-export const TOOLS_INTEGRATIONS_CLASS =
-  "tools-integrations overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] [&>summary]:flex [&>summary]:min-h-11 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-4 [&>summary]:px-3.25 [&>summary]:py-1.75 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:text-[length:var(--text-control)] [&>summary_strong]:text-[var(--text)] [&>summary_small]:font-[var(--font-mono)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary_small]:text-[var(--muted)] [&>summary>span:last-child]:font-[var(--font-mono)] [&>summary>span:last-child]:text-[length:var(--text-meta)] [&>summary>span:last-child]:text-[var(--accent-text)] [&>summary>span:last-child]:uppercase";
+import "./tools.css";
 
-export const TOOLS_INTEGRATIONS_BODY_CLASS =
-  "tools-integrations__body grid gap-3 border-[var(--line-subtle)] border-t px-3 pt-0 pb-3";
+export const TOOLS_INTEGRATIONS_CLASS = "tools-integrations";
+
+export const TOOLS_INTEGRATIONS_BODY_CLASS = "tools-integrations__body";
 
 export const TOOLS_INTEGRATIONS_LOADING_CLASS =
   "tools-integrations__loading mt-2.5 grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-center gap-2.25 rounded-[4px] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] px-2.5 py-2 text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[var(--accent-text)] [&>div]:grid [&>div]:gap-px";
@@ -12,7 +12,3 @@ export const TOOLS_INTEGRATIONS_LOADING_TITLE_CLASS =
 
 export const TOOLS_INTEGRATIONS_LOADING_DETAIL_CLASS =
   "tools-integrations__loading-detail text-[length:var(--text-meta)]";
-
-/** Embedded Settings can be narrow even when the window is wider than 760px. */
-export const TOOLS_FILTER_CONTAINER_CLASS =
-  "@container/tools min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar]:flex-wrap @max-[640px]/tools:[&_.catalog-filter-bar]:items-stretch @max-[640px]/tools:[&_.catalog-filter-bar>label]:min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar>label]:basis-full @max-[640px]/tools:[&_.catalog-filter-bar>div]:min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar>div]:flex-[1_1_auto] @max-[640px]/tools:[&_.catalog-filter-bar>div]:flex-wrap @max-[640px]/tools:[&_.catalog-filter-bar>div_select]:min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar>div_select]:flex-[1_1_150px]";

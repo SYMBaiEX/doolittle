@@ -1,10 +1,15 @@
+import { Package, RefreshCw } from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import {
   asString,
   desktopRequest,
-  EmptyBlock,
   ErrorBlock,
   errorMessage,
   LoadingBlock,
@@ -17,6 +22,7 @@ import {
 import {
   normalizeRegistryEntries,
   type RegistryEntry,
+  registryInstallKey,
   registryResultLabel,
 } from "./registry/registry-model";
 
@@ -70,7 +76,14 @@ export function RegistryPage({ active }: { active: boolean }) {
   };
 
   const install = async (entry: RegistryEntry) => {
-    if (!active || installing || pendingInstall !== entry.name) return;
+    if (
+      !active ||
+      installing ||
+      !entry.installable ||
+      entry.installed ||
+      pendingInstall !== registryInstallKey(entry)
+    )
+      return;
     setInstalling(true);
     setInstallNotice("");
     try {
@@ -111,25 +124,22 @@ export function RegistryPage({ active }: { active: boolean }) {
     }
   };
   return (
-    <div
-      className="settings-embedded-section gap-3"
-      data-settings-embedded="true"
-    >
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Runtime</span>
-          <h2>Plugin registry</h2>
-          <p>Review provenance before approving eligible installs.</p>
-        </div>
-        <button
-          className="text-button"
+    <WorkbenchSection
+      actions={
+        <WorkbenchAction
           disabled={!active}
+          emphasis="quiet"
+          icon={RefreshCw}
           onClick={refreshRegistry}
-          type="button"
         >
           Refresh registry
-        </button>
-      </header>
+        </WorkbenchAction>
+      }
+      className="catalog-page"
+      description="Check a package’s source, version, and runtime policy before approving an install."
+      icon={Package}
+      title="Plugin registry"
+    >
       {active ? (
         <CatalogFilterBar
           onQueryChange={setQuery}
@@ -161,7 +171,7 @@ export function RegistryPage({ active }: { active: boolean }) {
               onApproveInstall={(entry) => void install(entry)}
               onCancelInstall={() => setPendingInstall("")}
               onReviewInstall={(entry) => {
-                setPendingInstall(entry.name);
+                setPendingInstall(registryInstallKey(entry));
                 setInstallNotice("");
               }}
               pendingInstall={pendingInstall}
@@ -176,21 +186,23 @@ export function RegistryPage({ active }: { active: boolean }) {
           ) : null}
         </>
       ) : (
-        <EmptyBlock
-          density="compact"
+        <WorkbenchEmpty
+          icon={Package}
           title="No registry entries"
           actions={
-            <button
-              className="secondary-button"
+            <WorkbenchAction
+              emphasis="secondary"
+              icon={RefreshCw}
               onClick={registry.reload}
-              type="button"
             >
               Search again
-            </button>
+            </WorkbenchAction>
           }
         >
-          No registry rows returned for this query.
-        </EmptyBlock>
+          {debouncedQuery
+            ? "Try a different package name."
+            : "The registry has not returned any packages."}
+        </WorkbenchEmpty>
       )}
       {active && installNotice ? (
         <Notice
@@ -199,6 +211,6 @@ export function RegistryPage({ active }: { active: boolean }) {
           {installNotice}
         </Notice>
       ) : null}
-    </div>
+    </WorkbenchSection>
   );
 }

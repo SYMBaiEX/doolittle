@@ -1,31 +1,23 @@
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@doolittle/ui";
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
+import { Puzzle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import type { PluginsResponse } from "../shared/contracts";
+import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import {
   asArray,
   asRecord,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  titleCase,
   useApiResource,
 } from "./lib";
 import { PluginCatalogWorkspace } from "./plugins/PluginCatalogWorkspace";
 import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
-
-const PLUGIN_DESCRIPTION = "ElizaOS runtime packages.";
-const FILTER_LABEL_CLASS = "plugins-filter-label text-sm text-[var(--muted)]";
 
 export function PluginsPage({ active }: { active: boolean }) {
   const resource = useApiResource<PluginsResponse>(
@@ -41,9 +33,10 @@ export function PluginsPage({ active }: { active: boolean }) {
     "all",
     ...new Set(entries.map((entry) => entry.category).filter(Boolean)),
   ];
-  const filtered = entries.filter((entry) => {
-    const normalized = query.trim().toLowerCase();
-    return (
+  const normalized = query.trim().toLowerCase();
+  const searching = Boolean(normalized) || category !== "all";
+  const filtered = entries.filter(
+    (entry) =>
       (category === "all" || entry.category === category) &&
       (!normalized ||
         [
@@ -58,118 +51,101 @@ export function PluginsPage({ active }: { active: boolean }) {
         ]
           .join(" ")
           .toLowerCase()
-          .includes(normalized))
-    );
-  });
+          .includes(normalized)),
+  );
   const enabled = entries.filter((entry) => entry.enabled).length;
 
   return (
-    <PagePanel className="settings-plugins-section" variant="section">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Agent</span>
-          <h2>Plugin catalog</h2>
-          <p>{PLUGIN_DESCRIPTION}</p>
-        </div>
-        <Button
-          className="secondary-button"
+    <WorkbenchSection
+      actions={
+        <WorkbenchAction
           disabled={!active}
+          emphasis="quiet"
+          icon={RefreshCw}
           onClick={resource.reload}
-          type="button"
-          variant="secondary"
         >
           Refresh
-        </Button>
-      </header>
-      {!active ? (
+        </WorkbenchAction>
+      }
+      className="catalog-page"
+      description="See what ElizaOS has loaded, which plugins are inactive, and where each plugin comes from."
+      icon={Puzzle}
+      title="Plugin catalog"
+    >
+      {active ? (
+        <>
+          <div className="catalog-overview">
+            <CompactStatStrip
+              label="Plugin catalog summary"
+              stats={[
+                { label: "Catalog", value: entries.length },
+                { label: "Enabled", value: enabled, tone: "good" },
+                {
+                  label: "Inactive",
+                  value: entries.length - enabled,
+                  tone: entries.length - enabled ? "warn" : "neutral",
+                },
+                { label: "Categories", value: categories.length - 1 },
+              ]}
+            />
+          </div>
+          <CatalogFilterBar
+            category={{
+              label: "Category",
+              onChange: setCategory,
+              options: categories,
+              value: category,
+            }}
+            onQueryChange={setQuery}
+            placeholder="Search plugins"
+            query={query}
+            resultLabel={
+              resource.loading
+                ? "Loading…"
+                : resource.error
+                  ? "Unavailable"
+                  : `${filtered.length} of ${entries.length}`
+            }
+            searchLabel="Search plugins"
+          />
+          {resource.loading ? (
+            <LoadingBlock label="Inspecting native plugin assembly…" />
+          ) : resource.error ? (
+            <ErrorBlock error={resource.error} retry={resource.reload} />
+          ) : filtered.length ? (
+            <PluginCatalogWorkspace
+              entries={filtered}
+              resetKey={`${category}:${normalized}`}
+            />
+          ) : (
+            <WorkbenchEmpty
+              actions={
+                searching ? (
+                  <WorkbenchAction
+                    emphasis="secondary"
+                    onClick={() => {
+                      setQuery("");
+                      setCategory("all");
+                    }}
+                  >
+                    Clear filters
+                  </WorkbenchAction>
+                ) : undefined
+              }
+              icon={Puzzle}
+              title={searching ? "No plugins match" : "No plugins reported"}
+            >
+              {searching
+                ? "Change the search or category filter."
+                : "ElizaOS has not reported plugins for this runtime."}
+            </WorkbenchEmpty>
+          )}
+        </>
+      ) : (
         <OfflineRouteState>
           Plugin assembly is unavailable until the local runtime is ready.
         </OfflineRouteState>
-      ) : null}
-      {active ? (
-        <div className="plugins-catalog-controls grid grid-cols-[minmax(0,1fr)_minmax(360px,0.78fr)] items-end gap-4 max-[1180px]:grid-cols-1">
-          <CompactStatStrip
-            label="Plugin catalog summary"
-            stats={[
-              { label: "Catalog", value: entries.length },
-              { label: "Enabled", value: enabled, tone: "good" },
-              {
-                label: "Inactive",
-                value: entries.length - enabled,
-                tone: entries.length - enabled ? "warn" : "neutral",
-              },
-              { label: "Categories", value: categories.length - 1 },
-            ]}
-          />
-          <div className="plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)] items-end gap-x-2.5 gap-y-2 max-[680px]:grid-cols-1">
-            <label
-              className="plugins-filter-control plugins-filter-search grid min-w-0 gap-1"
-              htmlFor="plugin-search"
-            >
-              <span className={FILTER_LABEL_CLASS}>Search</span>
-              <Input
-                id="plugin-search"
-                placeholder="Search plugins"
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </label>
-            <div className="plugins-filter-control plugins-filter-category grid min-w-0 gap-1">
-              <span className={FILTER_LABEL_CLASS} id="plugin-category-label">
-                Category
-              </span>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger
-                  aria-labelledby="plugin-category-label"
-                  className="plugins-category-trigger w-full min-w-0"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {titleCase(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {active ? (
-        resource.loading ? (
-          <LoadingBlock label="Inspecting native plugin assembly…" />
-        ) : resource.error ? (
-          <ErrorBlock error={resource.error} retry={resource.reload} />
-        ) : filtered.length ? (
-          <PluginCatalogWorkspace
-            entries={filtered}
-            resetKey={`${category}:${query.trim().toLowerCase()}`}
-          />
-        ) : (
-          <EmptyBlock
-            title="No plugins to show"
-            actions={
-              query.trim() || category !== "all" ? (
-                <Button
-                  onClick={() => {
-                    setQuery("");
-                    setCategory("all");
-                  }}
-                  type="button"
-                  variant="secondary"
-                >
-                  Clear filters
-                </Button>
-              ) : undefined
-            }
-          >
-            Change the search or category filter.
-          </EmptyBlock>
-        )
-      ) : null}
-    </PagePanel>
+      )}
+    </WorkbenchSection>
   );
 }

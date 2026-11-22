@@ -18,15 +18,11 @@ export function useCatalogBrowser<T extends CatalogBrowserItem>({
 }) {
   const instanceId = useId().replaceAll(":", "");
   const listRef = useRef<HTMLDivElement>(null);
-  const [selection, setSelection] = useState({
-    key: resetKey,
-    id: items[0]?.id ?? "",
-  });
+  const [selection, setSelection] = useState(items[0]?.id ?? "");
   const [page, setPage] = useState({ key: resetKey, limit: pageSize });
-  const selectedId =
-    selection.key === resetKey && items.some((item) => item.id === selection.id)
-      ? selection.id
-      : (items[0]?.id ?? "");
+  const selectedId = items.some((item) => item.id === selection)
+    ? selection
+    : (items[0]?.id ?? "");
   const selectedIndex = Math.max(
     0,
     items.findIndex((item) => item.id === selectedId),
@@ -44,7 +40,7 @@ export function useCatalogBrowser<T extends CatalogBrowserItem>({
   const selectAt = (index: number, focus: boolean) => {
     const item = window.visible[index];
     if (!item) return;
-    setSelection({ key: resetKey, id: item.id });
+    setSelection(item.id);
     if (focus) {
       requestAnimationFrame(() => {
         listRef.current

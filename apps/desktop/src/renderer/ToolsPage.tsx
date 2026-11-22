@@ -1,5 +1,10 @@
-import { Button } from "@doolittle/ui";
-import { LoaderCircle } from "lucide-react";
+import {
+  ChevronRight,
+  LoaderCircle,
+  Plug,
+  RefreshCw,
+  Wrench,
+} from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
@@ -7,13 +12,16 @@ import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { UiIcon } from "./components/UiIcon";
 import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import {
   asArray,
   asNumber,
   asRecord,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  titleCase,
   useApiResource,
 } from "./lib";
 import {
@@ -21,7 +29,6 @@ import {
   toolEntryCategories,
 } from "./tools/tool-catalog-filter";
 import {
-  TOOLS_FILTER_CONTAINER_CLASS,
   TOOLS_INTEGRATIONS_BODY_CLASS,
   TOOLS_INTEGRATIONS_CLASS,
   TOOLS_INTEGRATIONS_LOADING_CLASS,
@@ -99,163 +106,148 @@ export function ToolsPage({ active }: { active: boolean }) {
   };
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  if (!active) {
-    return (
-      <div className="settings-tools-section flex min-w-0 flex-col gap-2">
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Agent</span>
-            <h2>Tool registry</h2>
-            <p>Search runtime capabilities and inspect integration bridges.</p>
-          </div>
-          <button
-            className="secondary-button"
-            disabled
-            onClick={refresh}
-            type="button"
-          >
-            Refresh
-          </button>
-        </header>
-        <OfflineRouteState>
-          Tool inventory and integration bridges are unavailable until the local
-          runtime is ready.
-        </OfflineRouteState>
-      </div>
-    );
-  }
   const entries = asArray(catalogData?.tools).map(asRecord);
   const categories = toolEntryCategories(entries);
   const filtered = filterToolEntries(entries, query, category);
   const totals = catalogData?.summary ?? {};
 
+  const searching = Boolean(query.trim()) || category !== "all";
   return (
-    <div className="settings-tools-section flex min-w-0 flex-col gap-2">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Agent</span>
-          <h2>Tool registry</h2>
-          <p>Search runtime capabilities and inspect integration bridges.</p>
-        </div>
-        <button
-          className="secondary-button"
+    <WorkbenchSection
+      actions={
+        <WorkbenchAction
           disabled={!active}
+          emphasis="quiet"
+          icon={RefreshCw}
           onClick={refresh}
-          type="button"
         >
           Refresh
-        </button>
-      </header>
-      <CompactStatStrip
-        label="Tool catalog summary"
-        stats={[
-          {
-            label: "Registered",
-            value: asNumber(totals.total, entries.length),
-          },
-          {
-            label: "Enabled",
-            value: asNumber(totals.enabled),
-            tone: "good",
-          },
-          { label: "Categories", value: asArray(totals.categories).length },
-          {
-            label: "Permissions",
-            value: "Per request",
-            detail: "Checked when each action runs",
-            tone: "good",
-          },
-        ]}
-      />
-      <ResourceStatusBar
-        resources={[{ label: "Tool catalog", resource: tools }]}
-      />
-      <details
-        className={TOOLS_INTEGRATIONS_CLASS}
-        onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
-      >
-        <summary>
-          <span>
-            <strong>Integration bridges</strong>
-            <small>MCP + ACP diagnostics</small>
-          </span>
-          <span>{integrationsOpen ? "Hide" : "Inspect"}</span>
-        </summary>
-        {integrationsOpen ? (
-          <div className={TOOLS_INTEGRATIONS_BODY_CLASS}>
-            <Suspense fallback={<McpControlPanelFallback />}>
-              <LazyMcpControlPanel active={active} />
-            </Suspense>
-            <Suspense fallback={<LoadingBlock label="Loading ACP bridge…" />}>
-              <LazyAcpBridgePanel active={active} />
-            </Suspense>
+        </WorkbenchAction>
+      }
+      className="catalog-page"
+      description="Find tools the agent can run and check the rules that apply to them."
+      icon={Wrench}
+      title="Tool registry"
+    >
+      {active ? (
+        <>
+          <div className="catalog-overview">
+            <CompactStatStrip
+              label="Tool catalog summary"
+              stats={[
+                {
+                  label: "Registered",
+                  value: asNumber(totals.total, entries.length),
+                },
+                {
+                  label: "Enabled",
+                  value: asNumber(totals.enabled),
+                  tone: "good",
+                },
+                {
+                  label: "Categories",
+                  value: asArray(totals.categories).length,
+                },
+                {
+                  label: "Permissions",
+                  value: "Per request",
+                  detail: "Checked when each action runs",
+                },
+              ]}
+            />
+            <ResourceStatusBar
+              resources={[{ label: "Tool catalog", resource: tools }]}
+            />
           </div>
-        ) : null}
-      </details>
-      <div className={TOOLS_FILTER_CONTAINER_CLASS}>
-        <CatalogFilterBar
-          onQueryChange={setQuery}
-          placeholder="Search tools"
-          query={query}
-          resultLabel={
-            tools.loading
-              ? "Loading…"
-              : tools.error
-                ? "Unavailable"
-                : `${filtered.length} of ${entries.length}`
-          }
-          searchLabel="Search tools"
-        >
-          <select
-            aria-label="Tool category"
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
+          <details
+            className={TOOLS_INTEGRATIONS_CLASS}
+            onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
+            open={integrationsOpen}
           >
-            {categories.map((value) => (
-              <option key={value} value={value}>
-                {titleCase(value)}
-              </option>
-            ))}
-          </select>
-        </CatalogFilterBar>
-      </div>
-      {tools.loading && !catalogData ? (
-        <LoadingBlock label="Reading tool registry…" />
-      ) : tools.error && !catalogData ? (
-        <ErrorBlock error={tools.error} retry={tools.reload} />
-      ) : filtered.length ? (
-        <Suspense fallback={<LoadingBlock label="Opening tool index…" />}>
-          <LazyToolCatalogWorkspace
-            entries={filtered}
-            resetKey={`${category}:${query.trim().toLowerCase()}`}
+            <summary>
+              <UiIcon icon={Plug} size="md" />
+              <span>
+                <strong>Integration bridges</strong>
+                <small>MCP and ACP diagnostics</small>
+              </span>
+              <UiIcon
+                className="tools-integrations__disclosure"
+                icon={ChevronRight}
+              />
+            </summary>
+            {integrationsOpen ? (
+              <div className={TOOLS_INTEGRATIONS_BODY_CLASS}>
+                <Suspense fallback={<McpControlPanelFallback />}>
+                  <LazyMcpControlPanel active={active} />
+                </Suspense>
+                <Suspense
+                  fallback={<LoadingBlock label="Loading ACP bridge…" />}
+                >
+                  <LazyAcpBridgePanel active={active} />
+                </Suspense>
+              </div>
+            ) : null}
+          </details>
+          <CatalogFilterBar
+            category={{
+              label: "Tool category",
+              onChange: setCategory,
+              options: categories,
+              value: category,
+            }}
+            onQueryChange={setQuery}
+            placeholder="Search tools"
+            query={query}
+            resultLabel={
+              tools.loading
+                ? "Loading…"
+                : tools.error
+                  ? "Unavailable"
+                  : `${filtered.length} of ${entries.length}`
+            }
+            searchLabel="Search tools"
           />
-        </Suspense>
+          {tools.loading && !catalogData ? (
+            <LoadingBlock label="Reading tool registry…" />
+          ) : tools.error && !catalogData ? (
+            <ErrorBlock error={tools.error} retry={tools.reload} />
+          ) : filtered.length ? (
+            <Suspense fallback={<LoadingBlock label="Opening tool index…" />}>
+              <LazyToolCatalogWorkspace
+                entries={filtered}
+                resetKey={`${category}:${query.trim().toLowerCase()}`}
+              />
+            </Suspense>
+          ) : (
+            <WorkbenchEmpty
+              actions={
+                searching ? (
+                  <WorkbenchAction
+                    emphasis="secondary"
+                    onClick={() => {
+                      setQuery("");
+                      setCategory("all");
+                    }}
+                  >
+                    Clear filters
+                  </WorkbenchAction>
+                ) : undefined
+              }
+              icon={Wrench}
+              title={searching ? "No tools match" : "No tools reported"}
+            >
+              {searching
+                ? "Change the search or category filter."
+                : "The runtime has not reported available tools."}
+            </WorkbenchEmpty>
+          )}
+        </>
       ) : (
-        <EmptyBlock
-          density="compact"
-          title={
-            query.trim() || category !== "all"
-              ? "No tools match"
-              : "No tools reported"
-          }
-          actions={
-            query.trim() || category !== "all" ? (
-              <Button
-                onClick={() => {
-                  setQuery("");
-                  setCategory("all");
-                }}
-                type="button"
-                variant="secondary"
-              >
-                Clear filters
-              </Button>
-            ) : undefined
-          }
-        >
-          Change the search or category filter.
-        </EmptyBlock>
+        <OfflineRouteState>
+          Tool inventory and integration bridges are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
       )}
-    </div>
+    </WorkbenchSection>
   );
 }
