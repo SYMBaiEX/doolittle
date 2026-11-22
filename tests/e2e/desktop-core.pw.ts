@@ -218,6 +218,9 @@ test.describe("fresh native desktop", () => {
       await expect(
         page.getByRole("heading", { name: "Activity", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.locator('[data-route-document="activity"] > .grid'),
+      ).toHaveCSS("gap", "12px");
       await search.click();
       await commandMenu.getByRole("combobox").fill("insights");
       await commandMenu.getByRole("option", { name: /^Insights\b/ }).click();

@@ -78,13 +78,13 @@
   flex: 1 1 min(100%, 16rem);
 }
 
-[data-activity-page] {
+[data-route-document="activity"] > .grid {
   min-block-size: 100%;
   align-content: start;
   gap: var(--document-gap);
 }
 
-[data-activity-page] > :not(.page-header, .sr-only) {
+[data-route-document="activity"] > .grid > :not(.page-header, .sr-only) {
   min-inline-size: 0;
   margin-inline: var(--document-inset);
 }
