@@ -1,15 +1,3 @@
-export const DIAGNOSTICS_PAGE_GRID_CLASS =
-  "grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] items-start gap-5";
-
-export const DIAGNOSTICS_CARD_CLASS =
-  "min-w-0 border-t border-[var(--line-subtle)] bg-transparent py-4";
-
-export const DIAGNOSTICS_CARD_HEADING_CLASS =
-  "mb-2 flex min-h-7 items-center justify-between gap-3 [&>div]:min-w-0 [&_h2]:mt-0.5 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold";
-
-export const DIAGNOSTICS_STATUS_ROW_CLASS =
-  "flex min-h-11 items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-3 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1 [&_strong]:text-[length:var(--text-control)] [&_small]:text-[length:var(--text-control)] [&_small]:leading-[1.5] [&_small]:text-[var(--muted)]";
-
 export const DIAGNOSTICS_DETAILS_CLASS =
   "group overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]";
 
@@ -18,9 +6,6 @@ export const DIAGNOSTICS_SUMMARY_CLASS =
 
 export const DIAGNOSTICS_CHEVRON_CLASS =
   "inline-block text-[var(--accent-text)] transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none";
-
-export const DIAGNOSTICS_IDLE_CLASS =
-  "grid gap-[3px] pt-3 pb-1 [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-soft)] [&_small]:max-w-[52ch] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.45] [&_small]:text-[var(--muted)]";
 
 export const COMPATIBILITY_EMPTY_CLASS =
   "grid min-h-[52px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-[11px] py-2 max-[700px]:grid-cols-[auto_minmax(0,1fr)]";

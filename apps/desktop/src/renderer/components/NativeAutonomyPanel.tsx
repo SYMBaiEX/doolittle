@@ -1,5 +1,6 @@
-import { Button } from "@elizaos/ui/button";
-import { useState } from "react";
+import { NativeSelect } from "@doolittle/ui";
+import { Brain, Play, Square } from "lucide-react";
+import { useId, useState } from "react";
 import {
   type ActionFeedback,
   type ApiResource,
@@ -13,11 +14,8 @@ import {
   LoadingBlock,
   Notice,
 } from "../lib";
-import {
-  RUNTIME_CARD_CLASS,
-  RUNTIME_CARD_HEADING_CLASS,
-  RUNTIME_STATUS_ROW_CLASS,
-} from "../runtime/runtime-layout";
+import { DiagnosticStatusRow } from "../runtime-state/DiagnosticWorkspace";
+import { WorkbenchAction, WorkbenchSection } from "./workbench/Workbench";
 
 export interface NativeAutonomyResponse {
   data?: unknown;
@@ -38,6 +36,7 @@ export function NativeAutonomyPanel({
 }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
+  const cadenceId = useId();
   const payload = asRecord(autonomy.data?.data);
   const enabled = payload.enabled === true;
   const running = payload.running === true;
@@ -69,95 +68,93 @@ export function NativeAutonomyPanel({
   }
 
   return (
-    <section
-      className={`runtime-autonomy-panel ${RUNTIME_CARD_CLASS} grid gap-2`}
-      data-runtime-autonomy="true"
-    >
-      <div className={`${RUNTIME_CARD_HEADING_CLASS} min-w-0`}>
-        <div>
-          <span className="eyebrow">Eliza native</span>
-          <h2>Autonomy loop</h2>
-        </div>
-        <Badge tone={running ? "good" : enabled ? "warn" : "neutral"}>
-          {running ? "Running" : enabled ? "Enabled" : "Off"}
-        </Badge>
-      </div>
-      {autonomy.loading ? (
-        <LoadingBlock label="Loading native autonomy…" />
-      ) : autonomy.error ? (
-        <ErrorBlock error={autonomy.error} retry={autonomy.reload} />
-      ) : (
-        <>
-          <div className={RUNTIME_STATUS_ROW_CLASS}>
-            <div>
-              <strong>{character} autonomous reasoning</strong>
-              <small>
-                Official Eliza prompt batching and action execution. Enabling it
-                can consume provider tokens in the background.
-              </small>
-            </div>
-          </div>
-          <div
-            className="runtime-autonomy-controls grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] items-end gap-2"
-            data-runtime-controls="autonomy"
-          >
-            <label className="grid min-w-0 gap-1">
-              <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase">
-                Cadence
-              </span>
-              <select
-                aria-label="Native autonomy reasoning cadence"
-                className="w-full min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] px-2 py-[7px] text-[var(--text)] focus:border-[var(--accent-border)] focus:outline-none"
-                disabled={busy || readOnly}
-                onChange={(event) =>
-                  void update("/autonomy/interval", {
-                    interval: Number(event.target.value),
-                  })
-                }
-                value={String(interval)}
-              >
-                {!AUTONOMY_INTERVAL_OPTIONS.some(
-                  (option) => option === interval,
-                ) ? (
-                  <option value={interval}>
-                    {Math.round(interval / 1000)} seconds
-                  </option>
-                ) : null}
-                {AUTONOMY_INTERVAL_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option < 60_000
-                      ? `${option / 1000} seconds`
-                      : `${option / 60_000} minute${option === 60_000 ? "" : "s"}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button
-              className="w-full min-w-0"
-              disabled={busy || readOnly}
-              onClick={() =>
-                void update(enabled ? "/autonomy/disable" : "/autonomy/enable")
-              }
-              type="button"
-              variant={enabled ? "outline" : "default"}
+    <div className="runtime-autonomy-panel" data-runtime-autonomy="true">
+      <WorkbenchSection
+        actions={
+          <Badge tone={running ? "good" : enabled ? "warn" : "neutral"}>
+            {running ? "Running" : enabled ? "Enabled" : "Off"}
+          </Badge>
+        }
+        description="Eliza reasoning and action execution in the background."
+        headingLevel={3}
+        icon={Brain}
+        title="Autonomy loop"
+      >
+        {autonomy.loading ? (
+          <LoadingBlock label="Loading native autonomy…" />
+        ) : autonomy.error ? (
+          <ErrorBlock error={autonomy.error} retry={autonomy.reload} />
+        ) : (
+          <div className="grid gap-3">
+            <DiagnosticStatusRow
+              title={`${character} autonomous reasoning`}
+              detail="Enabling it can consume provider tokens in the background."
+            />
+            <div
+              className="runtime-autonomy-controls grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] items-end gap-2"
+              data-runtime-controls="autonomy"
             >
-              {busy
-                ? "Updating…"
-                : enabled
-                  ? "Disable native autonomy"
-                  : "Enable native autonomy"}
-            </Button>
+              <label className="grid min-w-0 gap-1" htmlFor={cadenceId}>
+                <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase">
+                  Cadence
+                </span>
+                <NativeSelect
+                  aria-label="Native autonomy reasoning cadence"
+                  className="w-full min-w-0"
+                  disabled={busy || readOnly}
+                  onChange={(event) =>
+                    void update("/autonomy/interval", {
+                      interval: Number(event.target.value),
+                    })
+                  }
+                  id={cadenceId}
+                  value={String(interval)}
+                >
+                  {!AUTONOMY_INTERVAL_OPTIONS.some(
+                    (option) => option === interval,
+                  ) ? (
+                    <option value={interval}>
+                      {Math.round(interval / 1000)} seconds
+                    </option>
+                  ) : null}
+                  {AUTONOMY_INTERVAL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option < 60_000
+                        ? `${option / 1000} seconds`
+                        : `${option / 60_000} minute${option === 60_000 ? "" : "s"}`}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </label>
+              <WorkbenchAction
+                className="w-full"
+                disabled={busy || readOnly}
+                emphasis={enabled ? "secondary" : "primary"}
+                icon={enabled ? Square : Play}
+                onClick={() =>
+                  void update(
+                    enabled ? "/autonomy/disable" : "/autonomy/enable",
+                  )
+                }
+              >
+                {busy
+                  ? "Updating…"
+                  : enabled
+                    ? "Disable native autonomy"
+                    : "Enable native autonomy"}
+              </WorkbenchAction>
+            </div>
+            {readOnly ? (
+              <small className="text-[var(--muted)]">
+                Controls are disabled while the runtime is degraded.
+              </small>
+            ) : null}
+            {feedback ? (
+              <Notice tone={feedback.tone}>{feedback.message}</Notice>
+            ) : null}
           </div>
-          {readOnly ? (
-            <small className="text-[var(--muted)]">
-              Controls are disabled while the runtime is degraded.
-            </small>
-          ) : null}
-          {feedback ? (
-            <Notice tone={feedback.tone}>{feedback.message}</Notice>
-          ) : null}
-        </>
-      )}
-    </section>
+        )}
+      </WorkbenchSection>
+    </div>
   );
 }

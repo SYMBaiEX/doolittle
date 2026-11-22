@@ -1,21 +1,60 @@
 .runtime-log-filters {
-  margin-inline: var(--document-inset, 12px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.runtime-log-filters__search {
+  position: relative;
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+}
+
+.runtime-log-filters__search > svg {
+  position: absolute;
+  inset-inline-start: 10px;
+  inset-block-start: 50%;
+  translate: 0 -50%;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.runtime-log-filters__search > .runtime-log-filters__input {
+  inline-size: 100%;
+  padding-inline-start: 32px;
+}
+
+.runtime-log-filters > select {
+  flex: 0 1 9rem;
+  min-inline-size: 7rem;
 }
 
 .runtime-log-stream {
   min-inline-size: 0;
-  border-block: 1px solid var(--border);
+  overflow: hidden;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
   background: var(--surface);
 }
 
 .runtime-log-stream__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  min-block-size: 36px;
-  padding: 6px var(--document-inset, 12px);
-  border-block-end: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 12px;
+}
+
+.runtime-log-stream__header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+.runtime-log-stream__header > .compact-stat-strip {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
 }
 
 .runtime-log-stream__records {
@@ -40,10 +79,13 @@
   gap: 5px 10px;
   min-block-size: 32px;
   padding: 7px var(--document-inset, 12px);
-  border-block-end: 1px solid var(--line-subtle);
   font-family: var(--font-mono);
   font-size: var(--text-meta);
   line-height: 1.5;
+}
+
+.runtime-log-stream__row:nth-child(odd) {
+  background: var(--surface-soft);
 }
 
 .runtime-log-stream__row[data-search-target] {
@@ -70,6 +112,10 @@
 }
 
 @container observability (max-width: 580px) {
+  .runtime-log-stream__header {
+    padding-inline: 12px;
+  }
+
   .runtime-log-stream__row {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas: "level time" "message message";

@@ -1,4 +1,4 @@
-import { Button } from "@doolittle/ui";
+import { Cable, Route } from "lucide-react";
 import type {
   AccountPoolResponse,
   RuntimeStatus,
@@ -10,6 +10,10 @@ import {
 } from "../components/NativeAutonomyPanel";
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
+  WorkbenchAction,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
+import {
   type ApiResource,
   asRecord,
   asString,
@@ -18,13 +22,7 @@ import {
   LoadingBlock,
   RawDataDisclosure,
 } from "../lib";
-import {
-  RUNTIME_CARD_CLASS,
-  RUNTIME_CARD_HEADING_CLASS,
-  RUNTIME_SECTION_STACK_CLASS,
-  RUNTIME_STATUS_ROW_CLASS,
-  RUNTIME_TWO_COLUMN_GRID_CLASS,
-} from "./runtime-layout";
+import { DiagnosticStatusRow } from "../runtime-state/DiagnosticWorkspace";
 
 export function RuntimeOverview({
   active = true,
@@ -61,87 +59,86 @@ export function RuntimeOverview({
   }
 
   return (
-    <div className={RUNTIME_SECTION_STACK_CLASS}>
-      <CompactStatStrip
-        label="Runtime summary"
-        stats={[
-          {
-            label: "Provider",
-            value: asString(runtime.data?.provider, "Not set"),
-          },
-          { label: "Model", value: asString(runtime.data?.model, "Unknown") },
-          {
-            label: "Agent accounts",
-            tone:
-              accountPool.loading || accountPool.error
-                ? "neutral"
-                : enabledAccounts.length
+    <div className="grid min-h-0 gap-3">
+      <div className="diagnostic-workspace__stats">
+        <CompactStatStrip
+          label="Runtime summary"
+          stats={[
+            {
+              label: "Provider",
+              value: asString(runtime.data?.provider, "Not set"),
+            },
+            { label: "Model", value: asString(runtime.data?.model, "Unknown") },
+            {
+              label: "Agent accounts",
+              tone:
+                accountPool.loading || accountPool.error
+                  ? "neutral"
+                  : enabledAccounts.length
+                    ? "good"
+                    : "warn",
+              value: accountPool.loading
+                ? "Loading…"
+                : accountPool.error
+                  ? "Unavailable"
+                  : enabledAccounts.length,
+            },
+            {
+              label: "Autonomy",
+              tone:
+                autonomyPayload.running === true &&
+                !autonomy.loading &&
+                !autonomy.error
                   ? "good"
-                  : "warn",
-            value: accountPool.loading
-              ? "Loading…"
-              : accountPool.error
-                ? "Unavailable"
-                : enabledAccounts.length,
-          },
-          {
-            label: "Autonomy",
-            tone:
-              autonomyPayload.running === true &&
-              !autonomy.loading &&
-              !autonomy.error
-                ? "good"
-                : "neutral",
-            value: autonomy.loading
-              ? "Loading…"
-              : autonomy.error
-                ? "Unavailable"
-                : autonomyPayload.running === true
-                  ? "Running"
-                  : "Manual",
-          },
-        ]}
-      />
+                  : "neutral",
+              value: autonomy.loading
+                ? "Loading…"
+                : autonomy.error
+                  ? "Unavailable"
+                  : autonomyPayload.running === true
+                    ? "Running"
+                    : "Manual",
+            },
+          ]}
+        />
+      </div>
 
       <div
-        className={`runtime-overview-grid ${RUNTIME_TWO_COLUMN_GRID_CLASS}`}
+        className="runtime-overview-grid diagnostic-workspace__grid"
         data-runtime-layout="overview-grid"
       >
-        <section className={RUNTIME_CARD_CLASS}>
-          <div className={RUNTIME_CARD_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Spawned agents</span>
-              <h2>Account routing</h2>
-            </div>
-            <Button
-              className="text-button"
-              disabled={!onOpenProviders}
-              onClick={onOpenProviders}
-              type="button"
-              variant="ghost"
-            >
-              Manage
-            </Button>
-          </div>
+        <WorkbenchSection
+          actions={
+            onOpenProviders ? (
+              <WorkbenchAction
+                emphasis="quiet"
+                icon={Cable}
+                onClick={onOpenProviders}
+              >
+                Manage providers
+              </WorkbenchAction>
+            ) : null
+          }
+          description="Accounts available to spawned build and research sessions."
+          headingLevel={3}
+          icon={Route}
+          title="Account routing"
+        >
           {accountPool.loading ? (
             <LoadingBlock label="Loading account routing…" />
           ) : accountPool.error ? (
             <ErrorBlock error={accountPool.error} retry={accountPool.reload} />
           ) : (
-            <div className={RUNTIME_STATUS_ROW_CLASS}>
-              <div>
-                <strong>{enabledAccounts.length} enabled account(s)</strong>
-                <small>
-                  Spawned build and research sessions; separate from this
-                  conversation.
-                </small>
-              </div>
-              <Badge tone={enabledAccounts.length ? "good" : "warn"}>
-                {enabledAccounts.length ? "Ready" : "Connect"}
-              </Badge>
-            </div>
+            <DiagnosticStatusRow
+              title={`${enabledAccounts.length} enabled account${enabledAccounts.length === 1 ? "" : "s"}`}
+              status={
+                <Badge tone={enabledAccounts.length ? "good" : "warn"}>
+                  {enabledAccounts.length ? "Ready" : "Connect"}
+                </Badge>
+              }
+            />
           )}
-        </section>
+        </WorkbenchSection>
 
         <NativeAutonomyPanel autonomy={autonomy} readOnly={readOnly} />
       </div>

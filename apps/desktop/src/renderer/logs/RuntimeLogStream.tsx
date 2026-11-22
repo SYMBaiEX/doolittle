@@ -1,11 +1,7 @@
-import { useEffect, useRef } from "react";
-import {
-  Badge,
-  displayTimestamp,
-  EmptyBlock,
-  ErrorBlock,
-  LoadingBlock,
-} from "../lib";
+import { ListFilter, ScrollText } from "lucide-react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
+import { WorkbenchEmpty } from "../components/workbench/Workbench";
+import { Badge, displayTimestamp, ErrorBlock, LoadingBlock } from "../lib";
 import { logEntryTone, type RuntimeLogEntry } from "../log-viewer-mapping";
 import "./runtime-log-stream.css";
 
@@ -14,20 +10,25 @@ export function RuntimeLogStream({
   entries,
   error,
   filtered,
+  filters,
   loading,
   onRetry,
   focusedLogId,
   focusRequestId,
+  summary,
 }: {
   className?: string;
   entries: RuntimeLogEntry[];
   error?: string;
   filtered: boolean;
+  filters?: ReactNode;
   loading: boolean;
   onRetry: () => void;
   focusedLogId?: string;
   focusRequestId?: string;
+  summary?: ReactNode;
 }) {
+  const titleId = useId();
   const focusedEntryRef = useRef<HTMLElement>(null);
   const visibleTarget =
     !loading && !error && entries.some((entry) => entry.id === focusedLogId);
@@ -43,20 +44,14 @@ export function RuntimeLogStream({
 
   return (
     <section
-      aria-labelledby="runtime-log-stream-title"
+      aria-labelledby={titleId}
       className={`runtime-log-stream ${className}`}
       data-runtime-log-stream="true"
     >
       <header className="runtime-log-stream__header">
-        <h2
-          className="m-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]"
-          id="runtime-log-stream-title"
-        >
-          Runtime events
-        </h2>
-        <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-          {entries.length.toLocaleString()} records
-        </span>
+        <h3 id={titleId}>Runtime events</h3>
+        {summary}
+        {filters}
       </header>
       {loading ? (
         <LoadingBlock label="Loading log events…" />
@@ -66,14 +61,14 @@ export function RuntimeLogStream({
         </div>
       ) : entries.length === 0 ? (
         <div className="p-2.5">
-          <EmptyBlock
-            density="compact"
+          <WorkbenchEmpty
+            icon={filtered ? ListFilter : ScrollText}
             title={filtered ? "No matching log events" : "No log events"}
           >
             {filtered
               ? "The current filters did not match any recent records."
               : "Runtime events will appear here as local work runs."}
-          </EmptyBlock>
+          </WorkbenchEmpty>
         </div>
       ) : (
         <div

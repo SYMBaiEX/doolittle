@@ -1,19 +1,23 @@
-import { Button } from "@doolittle/ui";
-import { ArrowRight, ChevronRight, ExternalLink } from "lucide-react";
+import {
+  Activity,
+  BookOpen,
+  Bug,
+  ExternalLink,
+  FileText,
+  LifeBuoy,
+  ShieldCheck,
+  Terminal,
+  TriangleAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import {
-  DIAGNOSTICS_CARD_CLASS,
-  DIAGNOSTICS_CARD_HEADING_CLASS,
-  DIAGNOSTICS_CHEVRON_CLASS,
-  DIAGNOSTICS_DETAILS_CLASS,
-  DIAGNOSTICS_IDLE_CLASS,
-  DIAGNOSTICS_PAGE_GRID_CLASS,
-  DIAGNOSTICS_STATUS_ROW_CLASS,
-  DIAGNOSTICS_SUMMARY_CLASS,
-} from "./diagnostics-layout";
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
 import {
   asArray,
   asRecord,
@@ -24,6 +28,11 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import {
+  DiagnosticDisclosure,
+  DiagnosticStatusRow,
+  DiagnosticWorkspace,
+} from "./runtime-state/DiagnosticWorkspace";
 
 interface DoctorResponse {
   checks?: unknown[];
@@ -92,26 +101,28 @@ export function doctorResultState(
 }
 
 function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
+  const healthy = ["pass", "ready", "ok"].includes(check.status);
   return (
-    <div className={DIAGNOSTICS_STATUS_ROW_CLASS}>
-      <div>
-        <strong>{check.label}</strong>
-        <small>{check.detail}</small>
-      </div>
-      <Badge
-        tone={
-          ["pass", "ready", "ok"].includes(check.status)
-            ? "good"
-            : check.status === "warn"
-              ? "warn"
-              : "bad"
-        }
-      >
-        {titleCase(check.status)}
-      </Badge>
-    </div>
+    <DiagnosticStatusRow
+      title={check.label}
+      detail={check.detail}
+      status={
+        <Badge
+          tone={healthy ? "good" : check.status === "warn" ? "warn" : "bad"}
+        >
+          {titleCase(check.status)}
+        </Badge>
+      }
+    />
   );
 }
+
+const SECURITY_BOUNDARY_STEPS = [
+  { title: "React renderer", detail: "Sandboxed UI" },
+  { title: "Typed preload", detail: "Exact endpoint allowlist" },
+  { title: "Electron main", detail: "Private IPC" },
+  { title: "Doolittle runtime", detail: "127.0.0.1 ephemeral port" },
+];
 
 export function DocsPage({ active }: { active: boolean }) {
   const version = import.meta.env.VITE_DOOLITTLE_DESKTOP_VERSION;
@@ -131,211 +142,167 @@ export function DocsPage({ active }: { active: boolean }) {
     ["pass", "ready", "ok"].includes(asString(check.status).toLowerCase()),
   ).length;
 
+  const resources = [
+    { label: "Read the documentation", href: homepage, icon: BookOpen },
+    {
+      label: "View release notes",
+      href: `${homepage}/releases`,
+      icon: FileText,
+    },
+    { label: "Report an issue", href: `${homepage}/issues`, icon: Bug },
+  ];
+
   return (
-    <div className="settings-embedded-section" data-settings-embedded="true">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Help</span>
-          <h2>About Doolittle</h2>
-          <p>Doolittle Desktop {version}</p>
-        </div>
-      </header>
-      <CompactStatStrip
-        label="Application summary"
-        stats={[
-          { label: "Runtime transport", value: "Loopback" },
-          { label: "Desktop bridge", value: "Sandboxed", tone: "good" },
-          { label: "Storage", value: "Local" },
-          {
-            label: "Diagnostics",
-            value: !active
-              ? "Offline"
-              : doctorRequested
-                ? `${passing}/${checks.length}`
-                : "On demand",
-            tone:
-              active && doctorRequested && !doctor.loading && checks.length
-                ? passing === checks.length
-                  ? "good"
-                  : "warn"
-                : "neutral",
-          },
-        ]}
-      />
-      <div className={DIAGNOSTICS_PAGE_GRID_CLASS}>
-        <section className={DIAGNOSTICS_CARD_CLASS}>
-          <div className={DIAGNOSTICS_CARD_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Runtime doctor</span>
-              <h2>System checks</h2>
-            </div>
-            <Button
-              disabled={!active}
+    <DiagnosticWorkspace
+      description={
+        version ? `Doolittle Desktop ${version}` : "Doolittle Desktop"
+      }
+      icon={LifeBuoy}
+      title="About Doolittle"
+    >
+      <div className="diagnostic-workspace__stats">
+        <CompactStatStrip
+          label="Application summary"
+          stats={[
+            { label: "Runtime transport", value: "Loopback" },
+            { label: "Desktop bridge", value: "Sandboxed", tone: "good" },
+            { label: "Storage", value: "Local" },
+            {
+              label: "Diagnostics",
+              value: !active
+                ? "Offline"
+                : resultState === "loading"
+                  ? "Running…"
+                  : resultState === "error"
+                    ? "Failed"
+                    : resultState === "empty"
+                      ? "No results"
+                      : resultState === "results"
+                        ? `${passing}/${checks.length}`
+                        : "On demand",
+              tone:
+                resultState === "error"
+                  ? "bad"
+                  : resultState === "results" && active
+                    ? passing === checks.length
+                      ? "good"
+                      : "warn"
+                    : "neutral",
+            },
+          ]}
+        />
+      </div>
+      <div className="diagnostic-workspace__grid">
+        <WorkbenchSection
+          title="System checks"
+          headingLevel={3}
+          description="Check the runtime, provider connections, and local services."
+          icon={Activity}
+          actions={
+            <WorkbenchAction
+              disabled={!active || resultState === "loading"}
+              emphasis="primary"
+              icon={Activity}
               onClick={() => {
                 if (doctorRequested) doctor.reload();
                 else setDoctorRequested(true);
               }}
-              size="sm"
-              type="button"
-              variant="ghost"
             >
               {doctorRequested ? "Run again" : "Run diagnostics"}
-            </Button>
-          </div>
+            </WorkbenchAction>
+          }
+        >
           {!active ? (
             <OfflineRouteState>
               Runtime diagnostics are unavailable until the local runtime is
               ready.
             </OfflineRouteState>
           ) : resultState === "idle" ? (
-            <div className={DIAGNOSTICS_IDLE_CLASS}>
-              <strong>Checks are ready when you need them.</strong>
-              <small>
-                Doolittle avoids probing providers and local services just to
-                open this page.
-              </small>
-            </div>
+            <WorkbenchEmpty title="Diagnostics are ready" icon={Activity}>
+              Run a local check when a connection or service needs attention.
+            </WorkbenchEmpty>
           ) : resultState === "loading" ? (
             <LoadingBlock label="Running local operator diagnostics…" />
           ) : resultState === "error" ? (
             <ErrorBlock error={doctor.error} retry={doctor.reload} />
           ) : resultState === "empty" ? (
-            <div
-              aria-live="polite"
-              className={DIAGNOSTICS_IDLE_CLASS}
-              data-doctor-state="empty"
-              role="status"
-            >
-              <strong>No diagnostic results were returned.</strong>
-              <small>
-                The local runtime completed the request without reporting
-                individual checks. Run again to retry the local probe.
-              </small>
+            <div data-doctor-state="empty" role="status">
+              <WorkbenchEmpty
+                title="No diagnostic results"
+                icon={TriangleAlert}
+              >
+                The runtime returned no individual checks. Run again to retry.
+              </WorkbenchEmpty>
             </div>
           ) : (
-            <div className="grid">
-              {prioritizedChecks.visible.map((check) => (
-                <DoctorCheckRow check={check} key={check.id} />
-              ))}
-            </div>
-          )}
-          {active && prioritizedChecks.remaining.length ? (
-            <details className="group overflow-hidden">
-              <summary className="cursor-pointer list-none py-[9px] font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-soft)] [&::-webkit-details-marker]:hidden">
-                <UiIcon
-                  className={DIAGNOSTICS_CHEVRON_CLASS}
-                  icon={ChevronRight}
-                  size="xs"
-                />{" "}
-                {prioritizedChecks.remaining.length} more checks
-              </summary>
-              <div className="grid">
-                {prioritizedChecks.remaining.map((check) => (
+            <div className="grid gap-2">
+              <div className="grid gap-1">
+                {prioritizedChecks.visible.map((check) => (
                   <DoctorCheckRow check={check} key={check.id} />
                 ))}
               </div>
-            </details>
-          ) : null}
-        </section>
-        <section className={DIAGNOSTICS_CARD_CLASS}>
-          <div className={DIAGNOSTICS_CARD_HEADING_CLASS}>
-            <div>
-              <h2>Support and release notes</h2>
+              {prioritizedChecks.remaining.length ? (
+                <DiagnosticDisclosure
+                  icon={Activity}
+                  title={`${prioritizedChecks.remaining.length} more checks`}
+                >
+                  <div className="grid gap-1">
+                    {prioritizedChecks.remaining.map((check) => (
+                      <DoctorCheckRow check={check} key={check.id} />
+                    ))}
+                  </div>
+                </DiagnosticDisclosure>
+              ) : null}
             </div>
-          </div>
-          <nav aria-label="Doolittle support" className="grid gap-1">
-            {[
-              ["Read the documentation", homepage],
-              ["View release notes", `${homepage}/releases`],
-              ["Report an issue", `${homepage}/issues`],
-            ].map(([label, href]) => (
-              <a
-                className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2 py-2 text-sm hover:bg-[var(--surface-hover)]"
-                href={href}
-                key={label}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {label}
-                <UiIcon icon={ExternalLink} size="xs" />
-              </a>
-            ))}
+          )}
+        </WorkbenchSection>
+
+        <WorkbenchSection
+          title="Support and release notes"
+          headingLevel={3}
+          icon={LifeBuoy}
+        >
+          <nav aria-label="Doolittle support">
+            <ul className="diagnostic-support-links">
+              {resources.map(({ label, href, icon }) => (
+                <li key={label}>
+                  <a href={href} rel="noreferrer" target="_blank">
+                    <UiIcon icon={icon} size="md" />
+                    <span>{label}</span>
+                    <UiIcon icon={ExternalLink} size="xs" />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </nav>
           {import.meta.env.DEV ? (
-            <details className="border-t border-[var(--border)] pt-2 text-sm">
-              <summary className="cursor-pointer">Development commands</summary>
-              <p>
+            <DiagnosticDisclosure icon={Terminal} title="Development commands">
+              <p className="m-0">
                 <code>nub run desktop:dev</code> starts the desktop from source.
               </p>
-              <p>
+              <p className="m-0">
                 <code>doolittle doctor</code> checks runtime and provider
                 readiness.
               </p>
-            </details>
+            </DiagnosticDisclosure>
           ) : null}
-        </section>
+        </WorkbenchSection>
       </div>
-      <details
-        className={`architecture-disclosure ${DIAGNOSTICS_DETAILS_CLASS}`}
+
+      <DiagnosticDisclosure
+        description="How the desktop UI reaches the local runtime"
+        icon={ShieldCheck}
+        title="Desktop security boundary"
       >
-        <summary className={DIAGNOSTICS_SUMMARY_CLASS}>
-          <UiIcon
-            className={DIAGNOSTICS_CHEVRON_CLASS}
-            icon={ChevronRight}
-            size="xs"
-          />
-          <span className="grid min-w-0 flex-1 gap-1">
-            <strong>Desktop security boundary</strong>
-            <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
-              Renderer → preload → Electron → local runtime
-            </small>
-          </span>
-          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-            Inspect
-          </span>
-        </summary>
-        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-3 border-t border-[var(--border)] p-[var(--card-pad)] max-[760px]:grid-cols-1 max-[760px]:[&_i]:rotate-90">
-          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
-            <strong>React renderer</strong>
-            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-              Sandboxed UI
-            </span>
-          </div>
-          <UiIcon
-            className="mx-auto text-[var(--accent)]"
-            icon={ArrowRight}
-            size="sm"
-          />
-          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
-            <strong>Typed preload</strong>
-            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-              Exact endpoint allowlist
-            </span>
-          </div>
-          <UiIcon
-            className="mx-auto text-[var(--accent)]"
-            icon={ArrowRight}
-            size="sm"
-          />
-          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
-            <strong>Electron main</strong>
-            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-              Private IPC
-            </span>
-          </div>
-          <UiIcon
-            className="mx-auto text-[var(--accent)]"
-            icon={ArrowRight}
-            size="sm"
-          />
-          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
-            <strong>Doolittle runtime</strong>
-            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-              127.0.0.1 ephemeral port
-            </span>
-          </div>
-        </div>
-      </details>
-    </div>
+        <ol className="diagnostic-security-steps">
+          {SECURITY_BOUNDARY_STEPS.map((step) => (
+            <li key={step.title}>
+              <strong>{step.title}</strong>
+              <span>{step.detail}</span>
+            </li>
+          ))}
+        </ol>
+      </DiagnosticDisclosure>
+    </DiagnosticWorkspace>
   );
 }

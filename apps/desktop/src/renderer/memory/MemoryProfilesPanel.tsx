@@ -1,14 +1,18 @@
-import { Button } from "@elizaos/ui/button";
-import { Input } from "@elizaos/ui/input";
+import { Input } from "@doolittle/ui";
+import { Contact, RotateCw, Search, UserRound } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import {
   type ApiResource,
   asNumber,
   asRecord,
   asString,
   Badge,
-  EmptyBlock,
   ErrorBlock,
   formatBoundedPreview,
   LoadingBlock,
@@ -21,12 +25,7 @@ import {
   type MemoryMatchesResponse,
   normalizeSavedProfileMatches,
 } from "../memory-matches";
-import {
-  MEMORY_CARD_CLASS,
-  MEMORY_GRID_CLASS,
-  MEMORY_HEADING_CLASS,
-  MEMORY_PREVIEW_CLASS,
-} from "./memory-layout";
+import { MEMORY_GRID_CLASS, MEMORY_PREVIEW_CLASS } from "./memory-layout";
 import type { AgentProfileResponse, ProfileSummaryResponse } from "./models";
 
 const DESKTOP_PROFILE_USER_ID = "desktop-user";
@@ -73,18 +72,18 @@ export function MemoryProfilesPanel({
 
   return (
     <div className={MEMORY_GRID_CLASS}>
-      <section className={`${MEMORY_CARD_CLASS} min-h-0`}>
-        <div className={MEMORY_HEADING_CLASS}>
-          <div>
-            <span className="eyebrow">Operator recall</span>
-            <h2>Profile search</h2>
-          </div>
+      <WorkbenchSection
+        headingLevel={3}
+        icon={Search}
+        title="Profile search"
+        actions={
           <Badge tone={submittedRecallTooShort ? "warn" : "neutral"}>
             {recallSnapshot
               ? `${recallSnapshot.count} match${recallSnapshot.count === 1 ? "" : "es"}`
               : "Desktop user"}
           </Badge>
-        </div>
+        }
+      >
         <form
           className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[7px]"
           onSubmit={submitRecall}
@@ -99,14 +98,14 @@ export function MemoryProfilesPanel({
               value={recallDraft}
             />
           </label>
-          <Button
-            className="secondary-button"
+          <WorkbenchAction
             disabled={!active || !recallDraft.trim()}
+            emphasis="primary"
+            icon={Search}
             type="submit"
-            variant="secondary"
           >
             Recall
-          </Button>
+          </WorkbenchAction>
         </form>
         {submittedRecallTooShort ? (
           <Notice tone="warn">
@@ -120,10 +119,10 @@ export function MemoryProfilesPanel({
             retry={recallResource.reload}
           />
         ) : recallMatches.length ? (
-          <ul className="m-0 grid list-none gap-0 border-t border-[var(--line-subtle)] p-0">
+          <ul className="m-0 grid list-none gap-1 p-0">
             {recallMatches.map((match) => (
               <li
-                className="grid gap-[5px] border-0 border-b border-[var(--line-subtle)] bg-transparent px-0 py-[7px] [&_.badge]:w-fit"
+                className="grid gap-1 rounded-[var(--radius-sm)] bg-[var(--surface-soft)] px-2 py-1.5 [overflow-wrap:anywhere] [&_.badge]:w-fit"
                 key={`${match.kind}:${match.value}`}
               >
                 <Badge>{match.kind}</Badge>
@@ -132,24 +131,22 @@ export function MemoryProfilesPanel({
             ))}
           </ul>
         ) : submittedRecallQuery ? (
-          <EmptyBlock density="compact" title="No recalled matches">
+          <WorkbenchEmpty icon={Search} title="No recalled matches">
             No saved profile details matched this query.
-          </EmptyBlock>
+          </WorkbenchEmpty>
         ) : (
-          <Notice>
-            Search saved profile memory for the current desktop user.
-          </Notice>
+          <WorkbenchEmpty icon={Search} title="Search profile memory">
+            Enter at least four characters to look up saved details.
+          </WorkbenchEmpty>
         )}
-      </section>
+      </WorkbenchSection>
 
-      <section className={`${MEMORY_CARD_CLASS} min-h-0`}>
-        <div className={MEMORY_HEADING_CLASS}>
-          <div>
-            <span className="eyebrow">Profile workspace</span>
-            <h2>Rolodex summary</h2>
-          </div>
-          <Badge>{asString(summary.agentName, "Doolittle")}</Badge>
-        </div>
+      <WorkbenchSection
+        actions={<Badge>{asString(summary.agentName, "Doolittle")}</Badge>}
+        headingLevel={3}
+        icon={Contact}
+        title="Rolodex summary"
+      >
         {profileSummary.loading ? (
           <LoadingBlock label="Loading profile summary…" />
         ) : profileSummary.error ? (
@@ -171,26 +168,24 @@ export function MemoryProfilesPanel({
             ]}
           />
         )}
-      </section>
+      </WorkbenchSection>
 
-      <section
-        className={`${MEMORY_CARD_CLASS} col-span-full max-[760px]:col-auto`}
-      >
-        <div className={MEMORY_HEADING_CLASS}>
-          <div>
-            <span className="eyebrow">Agent profile</span>
-            <h2>Operator card</h2>
-          </div>
-          <Button
-            className="text-button"
+      <WorkbenchSection
+        actions={
+          <WorkbenchAction
             disabled={!active}
+            emphasis="quiet"
+            icon={RotateCw}
             onClick={agentProfile.reload}
-            type="button"
-            variant="ghost"
           >
             Refresh card
-          </Button>
-        </div>
+          </WorkbenchAction>
+        }
+        className="col-span-full"
+        headingLevel={3}
+        icon={UserRound}
+        title="Operator card"
+      >
         {agentProfile.loading ? (
           <LoadingBlock label="Loading agent profile…" />
         ) : agentProfile.error ? (
@@ -198,11 +193,11 @@ export function MemoryProfilesPanel({
         ) : agentCard ? (
           <pre className={MEMORY_PREVIEW_CLASS}>{agentCard}</pre>
         ) : (
-          <EmptyBlock density="compact" title="No agent card">
+          <WorkbenchEmpty icon={UserRound} title="No agent card">
             The runtime did not return an agent profile card.
-          </EmptyBlock>
+          </WorkbenchEmpty>
         )}
-      </section>
+      </WorkbenchSection>
     </div>
   );
 }

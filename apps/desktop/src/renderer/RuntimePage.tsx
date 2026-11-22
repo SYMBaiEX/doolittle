@@ -1,6 +1,6 @@
-import { Button } from "@elizaos/ui/button";
 import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
-import { type ReactNode, useState } from "react";
+import { Activity, Box, Cpu, Network, RotateCw } from "lucide-react";
+import { useState } from "react";
 import type {
   AccountPoolResponse,
   PluginsResponse,
@@ -8,6 +8,7 @@ import type {
 } from "../shared/contracts";
 import type { NativeAutonomyResponse } from "./components/NativeAutonomyPanel";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { WorkbenchAction } from "./components/workbench/Workbench";
 import { type UnknownRecord, useApiResource } from "./lib";
 import {
   type GatewayHealthResponse,
@@ -18,41 +19,32 @@ import {
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
 import { RuntimeInventory } from "./runtime/RuntimeInventory";
 import { RuntimeOverview } from "./runtime/RuntimeOverview";
-import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
+import { DiagnosticWorkspace } from "./runtime-state/DiagnosticWorkspace";
+import {
+  RuntimeSectionNav,
+  type RuntimeSectionOption,
+} from "./runtime-state/RuntimeSectionNav";
 
-const RUNTIME_SECTIONS: Array<{
-  id: RuntimeSection;
-  label: string;
-  detail: string;
-}> = [
-  { id: "overview", label: "Overview", detail: "Model, accounts, autonomy" },
-  { id: "gateway", label: "Gateway", detail: "Transports and deliveries" },
-  { id: "inventory", label: "Inventory", detail: "Plugins and ecosystem" },
+const RUNTIME_SECTIONS: RuntimeSectionOption<RuntimeSection>[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    detail: "Model, accounts, autonomy",
+    icon: Activity,
+  },
+  {
+    id: "gateway",
+    label: "Gateway",
+    detail: "Transports and deliveries",
+    icon: Network,
+  },
+  {
+    id: "inventory",
+    label: "Inventory",
+    detail: "Plugins and ecosystem",
+    icon: Box,
+  },
 ];
-
-function RuntimePageFrame({ children }: { children: ReactNode }) {
-  return (
-    <div
-      className="settings-embedded-section @container/runtime min-w-0"
-      data-settings-embedded="true"
-    >
-      {children}
-    </div>
-  );
-}
-
-function RuntimePageHeader({ actions }: { actions: ReactNode }) {
-  return (
-    <header className="settings-section-header">
-      <div>
-        <span className="eyebrow">Runtime</span>
-        <h2>Runtime</h2>
-        <p>Inspect the model, services, gateway, and capabilities.</p>
-      </div>
-      {actions}
-    </header>
-  );
-}
 
 export function RuntimePage({
   active,
@@ -110,83 +102,66 @@ export function RuntimePage({
     if (policy.insights) insights.reload();
   };
 
-  if (!active) {
-    return (
-      <RuntimePageFrame>
-        <RuntimePageHeader
-          actions={
-            <Button
-              className="text-button"
-              disabled
-              onClick={reloadVisibleSection}
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          }
-        />
+  return (
+    <DiagnosticWorkspace
+      actions={
+        <WorkbenchAction
+          disabled={!active}
+          icon={RotateCw}
+          onClick={reloadVisibleSection}
+        >
+          Refresh{" "}
+          {RUNTIME_SECTIONS.find((entry) => entry.id === section)?.label}
+        </WorkbenchAction>
+      }
+      className="@container/runtime"
+      description="Inspect the active model, local services, and gateway."
+      icon={Cpu}
+      title="Runtime"
+    >
+      {!active ? (
         <OfflineRouteState>
           Runtime diagnostics and capability inventory are unavailable until the
           local runtime is ready.
         </OfflineRouteState>
-      </RuntimePageFrame>
-    );
-  }
-
-  return (
-    <RuntimePageFrame>
-      <RuntimePageHeader
-        actions={
-          <Button
-            className="text-button"
-            disabled={!active}
-            onClick={reloadVisibleSection}
-            type="button"
-            variant="ghost"
-          >
-            Refresh{" "}
-            {RUNTIME_SECTIONS.find((entry) => entry.id === section)?.label}
-          </Button>
-        }
-      />
-
-      <Tabs
-        className="grid min-h-0 gap-3"
-        onValueChange={(value) => setSection(value as RuntimeSection)}
-        value={section}
-      >
-        <RuntimeSectionNav
-          ariaLabel="Runtime sections"
-          sections={RUNTIME_SECTIONS}
-        />
-
-        <TabsContent className="min-h-0" value="overview">
-          <RuntimeOverview
-            active={active}
-            accountPool={accountPool}
-            autonomy={autonomy}
-            onOpenProviders={onOpenProviders}
-            runtime={runtime}
-            readOnly={readOnly}
+      ) : (
+        <Tabs
+          className="grid min-h-0 gap-3"
+          onValueChange={(value) => setSection(value as RuntimeSection)}
+          value={section}
+        >
+          <RuntimeSectionNav
+            ariaLabel="Runtime sections"
+            sections={RUNTIME_SECTIONS}
           />
-        </TabsContent>
-        <TabsContent className="min-h-0" value="gateway">
-          <RuntimeGateway
-            active={active}
-            gatewayHealth={gatewayHealth}
-            gatewayRuntime={gatewayRuntime}
-          />
-        </TabsContent>
-        <TabsContent className="min-h-0" value="inventory">
-          <RuntimeInventory
-            active={active}
-            ecosystem={ecosystem}
-            insights={insights}
-            plugins={plugins}
-          />
-        </TabsContent>
-      </Tabs>
-    </RuntimePageFrame>
+
+          <TabsContent className="min-h-0" value="overview">
+            <RuntimeOverview
+              active={active}
+              accountPool={accountPool}
+              autonomy={autonomy}
+              onOpenProviders={onOpenProviders}
+              runtime={runtime}
+              readOnly={readOnly}
+            />
+          </TabsContent>
+          <TabsContent className="min-h-0" value="gateway">
+            <RuntimeGateway
+              active={active}
+              gatewayHealth={gatewayHealth}
+              gatewayRuntime={gatewayRuntime}
+            />
+          </TabsContent>
+          <TabsContent className="min-h-0" value="inventory">
+            <RuntimeInventory
+              active={active}
+              ecosystem={ecosystem}
+              insights={insights}
+              plugins={plugins}
+            />
+          </TabsContent>
+        </Tabs>
+      )}
+    </DiagnosticWorkspace>
   );
 }

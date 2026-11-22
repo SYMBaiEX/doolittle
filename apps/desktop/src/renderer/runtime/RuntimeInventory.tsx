@@ -1,27 +1,24 @@
+import { Box, Boxes, ShieldCheck } from "lucide-react";
 import type { PluginsResponse } from "../../shared/contracts";
 import { CompactStatStrip } from "../components/CompactStatStrip";
 import { OfflineRouteState } from "../components/OfflineRouteState";
+import {
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import {
   type ApiResource,
   asArray,
   asRecord,
   asString,
   Badge,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   RawDataDisclosure,
   titleCase,
   type UnknownRecord,
 } from "../lib";
-import {
-  RUNTIME_CARD_CLASS,
-  RUNTIME_CARD_HEADING_CLASS,
-  RUNTIME_COMPACT_LIST_CLASS,
-  RUNTIME_INVENTORY_GRID_CLASS,
-  RUNTIME_SECTION_STACK_CLASS,
-  RUNTIME_STATUS_ROW_CLASS,
-} from "./runtime-layout";
+import { DiagnosticStatusRow } from "../runtime-state/DiagnosticWorkspace";
 
 export function RuntimeInventory({
   active = true,
@@ -49,82 +46,72 @@ export function RuntimeInventory({
   const ownershipPayload = asRecord(insightPayload.ownership);
 
   return (
-    <div className={RUNTIME_SECTION_STACK_CLASS}>
-      <CompactStatStrip
-        label="Runtime inventory summary"
-        stats={[
-          { label: "Plugins", value: catalog.length },
-          {
-            label: "Ecosystem fields",
-            value: Object.keys(ecosystemPayload).length,
-          },
-          {
-            label: "Ownership signals",
-            value: Object.keys(ownershipPayload).length,
-          },
-        ]}
-      />
-
-      <div className={RUNTIME_INVENTORY_GRID_CLASS}>
-        <section className={RUNTIME_CARD_CLASS}>
-          <div className={RUNTIME_CARD_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Plugins</span>
-              <h2>Capability catalog</h2>
-            </div>
-            <Badge>{catalog.length}</Badge>
-          </div>
+    <div className="grid min-h-0 gap-3">
+      <div className="diagnostic-workspace__stats">
+        <CompactStatStrip
+          label="Runtime inventory summary"
+          stats={[
+            { label: "Plugins", value: catalog.length },
+            {
+              label: "Ecosystem fields",
+              value: Object.keys(ecosystemPayload).length,
+            },
+            {
+              label: "Ownership signals",
+              value: Object.keys(ownershipPayload).length,
+            },
+          ]}
+        />
+      </div>
+      <div className="diagnostic-workspace__grid">
+        <WorkbenchSection
+          actions={<Badge>{catalog.length}</Badge>}
+          headingLevel={3}
+          icon={Box}
+          title="Capability catalog"
+        >
           {plugins.loading ? (
             <LoadingBlock label="Loading plugin catalog…" />
           ) : plugins.error ? (
             <ErrorBlock error={plugins.error} retry={plugins.reload} />
           ) : catalog.length ? (
-            <div className={RUNTIME_COMPACT_LIST_CLASS}>
+            <div className="grid gap-1">
               {catalog.slice(0, 12).map((entry, index) => (
-                <div
-                  className={RUNTIME_STATUS_ROW_CLASS}
+                <DiagnosticStatusRow
+                  title={asString(entry.name, asString(entry.id, "Plugin"))}
+                  detail={asString(entry.id, "No ID")}
                   key={asString(entry.id, String(index))}
-                >
-                  <div>
-                    <strong>
-                      {asString(entry.name, asString(entry.id, "Plugin"))}
-                    </strong>
-                    <small>{asString(entry.id, "No id")}</small>
-                  </div>
-                </div>
+                />
               ))}
             </div>
           ) : (
-            <EmptyBlock density="compact" title="No plugin entries">
+            <WorkbenchEmpty icon={Box} title="No plugin entries">
               Runtime is available but has no catalog payload.
-            </EmptyBlock>
+            </WorkbenchEmpty>
           )}
-        </section>
+        </WorkbenchSection>
 
-        <section className={RUNTIME_CARD_CLASS}>
-          <div className={RUNTIME_CARD_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Ecosystem</span>
-              <h2>Runtime snapshot</h2>
-            </div>
-            <Badge>{Object.keys(ecosystemPayload).length}</Badge>
-          </div>
+        <WorkbenchSection
+          actions={<Badge>{Object.keys(ecosystemPayload).length}</Badge>}
+          headingLevel={3}
+          icon={Boxes}
+          title="Runtime snapshot"
+        >
           {ecosystem.loading ? (
             <LoadingBlock label="Loading ecosystem snapshot…" />
           ) : ecosystem.error ? (
             <ErrorBlock error={ecosystem.error} retry={ecosystem.reload} />
           ) : (
             <>
-              <div className={RUNTIME_COMPACT_LIST_CLASS}>
+              <div className="grid gap-1">
                 {Object.entries(ecosystemPayload)
                   .slice(0, 8)
                   .map(([key, value]) => (
-                    <div className={RUNTIME_STATUS_ROW_CLASS} key={key}>
-                      <div>
-                        <strong>{titleCase(key)}</strong>
-                        <small>{describeInventoryValue(value)}</small>
-                      </div>
-                    </div>
+                    <DiagnosticStatusRow
+                      detail={describeInventoryValue(value)}
+                      key={key}
+                      title={titleCase(key)}
+                    />
                   ))}
               </div>
               <RawDataDisclosure
@@ -133,32 +120,29 @@ export function RuntimeInventory({
               />
             </>
           )}
-        </section>
+        </WorkbenchSection>
 
-        <section className={RUNTIME_CARD_CLASS}>
-          <div className={RUNTIME_CARD_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Operator</span>
-              <h2>Ownership insight</h2>
-            </div>
-            <Badge>{Object.keys(ownershipPayload).length}</Badge>
-          </div>
+        <WorkbenchSection
+          actions={<Badge>{Object.keys(ownershipPayload).length}</Badge>}
+          headingLevel={3}
+          icon={ShieldCheck}
+          title="Ownership insight"
+        >
           {insights.loading ? (
             <LoadingBlock label="Loading operator insight…" />
           ) : insights.error ? (
             <ErrorBlock error={insights.error} retry={insights.reload} />
           ) : (
             <>
-              <div className={RUNTIME_COMPACT_LIST_CLASS}>
+              <div className="grid gap-1">
                 {Object.entries(ownershipPayload)
                   .slice(0, 8)
                   .map(([key, value]) => (
-                    <div className={RUNTIME_STATUS_ROW_CLASS} key={key}>
-                      <div>
-                        <strong>{titleCase(key)}</strong>
-                        <small>{describeInventoryValue(value)}</small>
-                      </div>
-                    </div>
+                    <DiagnosticStatusRow
+                      detail={describeInventoryValue(value)}
+                      key={key}
+                      title={titleCase(key)}
+                    />
                   ))}
               </div>
               <RawDataDisclosure
@@ -167,7 +151,7 @@ export function RuntimeInventory({
               />
             </>
           )}
-        </section>
+        </WorkbenchSection>
       </div>
     </div>
   );

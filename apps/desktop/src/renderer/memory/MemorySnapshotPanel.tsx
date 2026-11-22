@@ -1,5 +1,10 @@
-import { Button } from "@elizaos/ui/button";
+import { BookOpen, Brain, FileText, RotateCw, UserRound } from "lucide-react";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import {
   type ApiResource,
   asArray,
@@ -7,18 +12,11 @@ import {
   asRecord,
   asString,
   Badge,
-  EmptyBlock,
   ErrorBlock,
   formatBoundedPreview,
   LoadingBlock,
-  Notice,
 } from "../lib";
-import {
-  MEMORY_CARD_CLASS,
-  MEMORY_GRID_CLASS,
-  MEMORY_HEADING_CLASS,
-  MEMORY_PREVIEW_CLASS,
-} from "./memory-layout";
+import { MEMORY_PREVIEW_CLASS } from "./memory-layout";
 import type { MemoryResponse, MemorySummary } from "./models";
 
 const SNAPSHOT_CHARACTER_LIMIT = 1_400;
@@ -43,6 +41,7 @@ export function MemorySnapshotPanel({
 }) {
   const targetLabel =
     target === "memory" ? "Doolittle private memory" : "User memory";
+  const targetIcon = target === "memory" ? Brain : UserRound;
   const summary = asRecord(resource.data?.summary) as MemorySummary;
   const snapshot = asString(resource.data?.snapshot, "");
   const entryCount = asNumber(summary.entries, 0);
@@ -60,115 +59,108 @@ export function MemorySnapshotPanel({
   }
   if (!resource.data) {
     return (
-      <EmptyBlock
-        title={
-          active ? "Memory is ready for its first entry" : "Memory is offline"
-        }
-        actions={
-          <Button
-            className="secondary-button"
-            disabled={!active}
-            onClick={resource.reload}
-            type="button"
-            variant="secondary"
-          >
-            Refresh memory
-          </Button>
-        }
-      >
-        {active
-          ? "Start a conversation or save an operator detail, then refresh this workspace."
-          : "Restart the local runtime to load this memory target."}
-      </EmptyBlock>
+      <WorkbenchSection headingLevel={3} icon={targetIcon} title={targetLabel}>
+        <WorkbenchEmpty
+          icon={targetIcon}
+          title={
+            active ? "Memory is ready for its first entry" : "Memory is offline"
+          }
+          actions={
+            <WorkbenchAction
+              disabled={!active}
+              icon={RotateCw}
+              onClick={resource.reload}
+            >
+              Refresh memory
+            </WorkbenchAction>
+          }
+        >
+          {active
+            ? "Start a conversation or save an operator detail, then refresh."
+            : "Restart the local runtime to load this memory target."}
+        </WorkbenchEmpty>
+      </WorkbenchSection>
     );
   }
 
   return (
-    <div className={MEMORY_GRID_CLASS}>
-      <section
-        className={`${MEMORY_CARD_CLASS} ${
-          empty
-            ? "col-span-full grid grid-cols-[minmax(180px,0.5fr)_minmax(0,1.5fr)] items-stretch gap-x-3 gap-y-2 max-[760px]:grid-cols-1 [&>.compact-stat-strip]:self-stretch [&>.compact-stat-strip]:border-0 [&>.compact-stat-strip_.compact-stat-strip__item]:min-h-[46px] [&>.compact-stat-strip_.compact-stat-strip__item]:py-[7px]"
-            : ""
-        }`}
-        data-memory-empty={empty ? "true" : undefined}
+    <div className="grid gap-3">
+      <WorkbenchSection
+        actions={<Badge>{target === "memory" ? "Private" : "User"}</Badge>}
+        headingLevel={3}
+        icon={targetIcon}
+        title={targetLabel}
       >
         <div
-          className={`${MEMORY_HEADING_CLASS} ${
-            empty
-              ? "m-0 min-h-0 border-r border-[var(--line-subtle)] pr-3 max-[760px]:border-r-0 max-[760px]:pr-0"
-              : ""
-          }`}
+          className="grid gap-2"
+          data-memory-empty={empty ? "true" : undefined}
         >
-          <div>
-            <span className="eyebrow">Summary</span>
-            <h2>{targetLabel}</h2>
-          </div>
-          <Badge>{target === "memory" ? "Private" : "User"}</Badge>
+          <CompactStatStrip
+            label={`${targetLabel} summary`}
+            stats={[
+              { label: "Entries", value: entryCount },
+              { label: "Characters", value: asNumber(summary.characters, 0) },
+              {
+                label: "Target",
+                value:
+                  asString(summary.target, target) === "memory"
+                    ? "Private"
+                    : "User",
+              },
+            ]}
+          />
+          {empty ? (
+            <WorkbenchEmpty icon={BookOpen} title="No stored entries yet">
+              Memory appears after a conversation or saved operator detail.
+            </WorkbenchEmpty>
+          ) : null}
         </div>
-        <CompactStatStrip
-          label={`${targetLabel} summary`}
-          stats={[
-            { label: "Entries", value: entryCount },
-            { label: "Characters", value: asNumber(summary.characters, 0) },
-            {
-              label: "Target",
-              value:
-                asString(summary.target, target) === "memory"
-                  ? "Private"
-                  : "User",
-            },
-          ]}
-        />
-        {empty ? (
-          <div className="col-span-full mt-0 grid min-h-[30px] gap-x-3.5 gap-y-2 border-t border-[var(--line-subtle)] pt-2 text-[var(--muted)] max-[760px]:col-auto [&_span]:text-[11px] [&_strong]:flex-none [&_strong]:text-xs [&_strong]:text-[var(--text)]">
-            <strong>No stored entries yet</strong>
-            <span>
-              Memory appears here after a conversation or saved operator detail.
-            </span>
-          </div>
-        ) : null}
-      </section>
-
-      {preview.length ? (
-        <section className={MEMORY_CARD_CLASS}>
-          <div className={MEMORY_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Recent entries</span>
-              <h2>Preview</h2>
-            </div>
-          </div>
-          <ul>
-            {preview.map((entry) => (
-              <li key={entry}>{entry}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      </WorkbenchSection>
 
       {!empty ? (
-        <section
-          className={`${MEMORY_CARD_CLASS} col-span-full max-[760px]:col-auto`}
+        <div
+          className={preview.length ? "diagnostic-workspace__grid" : undefined}
         >
-          <div className={MEMORY_HEADING_CLASS}>
-            <div>
-              <span className="eyebrow">Readable snapshot</span>
-              <h2>Latest bounded snapshot</h2>
-            </div>
-            <Notice tone={snapshotAvailable ? "good" : "warn"}>
-              {snapshotAvailable ? "Loaded" : "Unavailable"}
-            </Notice>
-          </div>
-          {snapshotAvailable ? (
-            <pre className={MEMORY_PREVIEW_CLASS}>
-              {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
-            </pre>
-          ) : (
-            <EmptyBlock density="compact" title="No snapshot">
-              Snapshot is empty.
-            </EmptyBlock>
-          )}
-        </section>
+          <WorkbenchSection
+            actions={
+              <Badge tone={snapshotAvailable ? "good" : "warn"}>
+                {snapshotAvailable ? "Loaded" : "Unavailable"}
+              </Badge>
+            }
+            headingLevel={3}
+            icon={FileText}
+            title="Latest bounded snapshot"
+          >
+            {snapshotAvailable ? (
+              <pre className={MEMORY_PREVIEW_CLASS}>
+                {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
+              </pre>
+            ) : (
+              <WorkbenchEmpty icon={FileText} title="No snapshot">
+                The runtime did not return a readable snapshot.
+              </WorkbenchEmpty>
+            )}
+          </WorkbenchSection>
+          {preview.length ? (
+            <WorkbenchSection
+              headingLevel={3}
+              icon={BookOpen}
+              title="Recent entries"
+            >
+              <ul className="m-0 grid list-none gap-1 p-0">
+                {preview.map((entry, index) => (
+                  <li
+                    className="rounded-[var(--radius-sm)] bg-[var(--surface-soft)] px-3 py-2 [overflow-wrap:anywhere]"
+                    // biome-ignore lint/suspicious/noArrayIndexKey: These text-only preview entries may repeat and arrive without identifiers.
+                    key={`${index}:${entry}`}
+                  >
+                    {entry}
+                  </li>
+                ))}
+              </ul>
+            </WorkbenchSection>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

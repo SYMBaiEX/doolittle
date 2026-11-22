@@ -1,22 +1,18 @@
-import { Button } from "@elizaos/ui/button";
+import { Radio, RotateCw, SquareTerminal } from "lucide-react";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import {
   type ApiResource,
   asString,
   Badge,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   type UnknownRecord,
 } from "../lib";
-import {
-  OBSERVABILITY_CARD_CLASS,
-  OBSERVABILITY_CARD_HEADING_CLASS,
-  OBSERVABILITY_EYEBROW_CLASS,
-} from "../observability-layout";
-
-const TRACE_LIST_CLASS = "grid";
-const TRACE_ROW_CLASS =
-  "flex items-start justify-between gap-3 border-b border-[var(--border)] py-2 last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1 [&_strong]:truncate [&_small]:truncate [&_small]:text-[var(--muted)]";
+import { DiagnosticStatusRow } from "../runtime-state/DiagnosticWorkspace";
 
 interface DeliveriesResponse {
   deliveries?: unknown[];
@@ -38,71 +34,68 @@ export function OperationsTracePanel({
   terminalHistory: ApiResource<TerminalHistoryResponse>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 p-2 max-[920px]:grid-cols-1">
-      <section className={`${OBSERVABILITY_CARD_CLASS} p-3`}>
-        <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
-          <div>
-            <span className={OBSERVABILITY_EYEBROW_CLASS}>Delivery state</span>
-            <h2>Recent deliveries</h2>
-          </div>
-          <Button onClick={deliveries.reload} type="button" variant="ghost">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] items-start gap-3">
+      <WorkbenchSection
+        title="Recent deliveries"
+        headingLevel={3}
+        icon={Radio}
+        actions={
+          <WorkbenchAction
+            aria-label="Refresh recent deliveries"
+            emphasis="quiet"
+            icon={RotateCw}
+            onClick={deliveries.reload}
+          >
             Refresh
-          </Button>
-        </div>
+          </WorkbenchAction>
+        }
+      >
         {deliveries.loading ? (
           <LoadingBlock />
         ) : deliveries.error ? (
           <ErrorBlock error={deliveries.error} retry={deliveries.reload} />
         ) : deliveryEntries.length ? (
-          <div className={TRACE_LIST_CLASS}>
+          <div className="grid gap-1">
             {deliveryEntries.slice(0, 12).map((entry, index) => (
-              <div
-                className={TRACE_ROW_CLASS}
+              <DiagnosticStatusRow
+                title={asString(
+                  entry.platform,
+                  asString(entry.channel, "Delivery"),
+                )}
+                detail={asString(
+                  entry.preview,
+                  asString(entry.detail, asString(entry.message, "No preview")),
+                )}
+                status={
+                  <Badge>
+                    {asString(entry.status, asString(entry.state, "Recorded"))}
+                  </Badge>
+                }
                 key={`${asString(entry.id, "delivery")}:${String(index)}`}
-              >
-                <div>
-                  <strong>
-                    {asString(
-                      entry.platform,
-                      asString(entry.channel, "Delivery"),
-                    )}
-                  </strong>
-                  <small>
-                    {asString(
-                      entry.preview,
-                      asString(
-                        entry.detail,
-                        asString(entry.message, "No preview"),
-                      ),
-                    )}
-                  </small>
-                </div>
-                <Badge>
-                  {asString(entry.status, asString(entry.state, "recorded"))}
-                </Badge>
-              </div>
+              />
             ))}
           </div>
         ) : (
-          <EmptyBlock density="compact" title="No deliveries recorded">
-            Delivery traces will appear here once gateway or home outputs run.
-          </EmptyBlock>
+          <WorkbenchEmpty icon={Radio} title="No deliveries recorded">
+            Deliveries appear after gateway or home outputs run.
+          </WorkbenchEmpty>
         )}
-      </section>
-      <section className={`${OBSERVABILITY_CARD_CLASS} p-3`}>
-        <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
-          <div>
-            <span className={OBSERVABILITY_EYEBROW_CLASS}>Command trail</span>
-            <h2>Terminal history</h2>
-          </div>
-          <Button
+      </WorkbenchSection>
+      <WorkbenchSection
+        title="Terminal history"
+        headingLevel={3}
+        icon={SquareTerminal}
+        actions={
+          <WorkbenchAction
+            aria-label="Refresh terminal history"
+            emphasis="quiet"
+            icon={RotateCw}
             onClick={terminalHistory.reload}
-            type="button"
-            variant="ghost"
           >
             Refresh
-          </Button>
-        </div>
+          </WorkbenchAction>
+        }
+      >
         {terminalHistory.loading ? (
           <LoadingBlock />
         ) : terminalHistory.error ? (
@@ -111,40 +104,38 @@ export function OperationsTracePanel({
             retry={terminalHistory.reload}
           />
         ) : commandEntries.length ? (
-          <div className={TRACE_LIST_CLASS}>
+          <div className="grid gap-1">
             {commandEntries.slice(0, 12).map((entry, index) => (
-              <div
-                className={TRACE_ROW_CLASS}
+              <DiagnosticStatusRow
+                title={asString(entry.command, "Unknown command")}
+                detail={
+                  [
+                    asString(entry.backend),
+                    asString(entry.cwd),
+                    asString(entry.status),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "No command metadata"
+                }
+                status={
+                  <Badge tone={entry.ok === false ? "bad" : "neutral"}>
+                    {entry.ok === false
+                      ? "Failed"
+                      : entry.ok === true
+                        ? "OK"
+                        : asString(entry.exitCode, "Recorded")}
+                  </Badge>
+                }
                 key={`${asString(entry.command, "command")}:${String(index)}`}
-              >
-                <div>
-                  <strong>{asString(entry.command, "Unknown command")}</strong>
-                  <small>
-                    {[
-                      asString(entry.backend),
-                      asString(entry.cwd),
-                      asString(entry.status),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "No command metadata"}
-                  </small>
-                </div>
-                <Badge tone={entry.ok === false ? "bad" : "neutral"}>
-                  {entry.ok === false
-                    ? "Failed"
-                    : entry.ok === true
-                      ? "OK"
-                      : asString(entry.exitCode, "Recorded")}
-                </Badge>
-              </div>
+              />
             ))}
           </div>
         ) : (
-          <EmptyBlock density="compact" title="No recent commands">
-            Local terminal execution history has not been recorded yet.
-          </EmptyBlock>
+          <WorkbenchEmpty icon={SquareTerminal} title="No recent commands">
+            Local terminal commands appear here after execution.
+          </WorkbenchEmpty>
         )}
-      </section>
+      </WorkbenchSection>
     </div>
   );
 }

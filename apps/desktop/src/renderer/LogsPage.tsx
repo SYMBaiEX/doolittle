@@ -1,11 +1,10 @@
-import { Button } from "@elizaos/ui/button";
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
-import { Input } from "@elizaos/ui/input";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Input, NativeSelect } from "@doolittle/ui";
+import { ListFilter, RotateCw, Search, SquareTerminal, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
+import { WorkbenchAction } from "./components/workbench/Workbench";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
   asArray,
@@ -19,9 +18,9 @@ import { toLogViewerEntries } from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
 import { RuntimeLogStream } from "./logs/RuntimeLogStream";
 import {
-  OBSERVABILITY_CONTROL_CLASS,
-  OBSERVABILITY_FILTER_CLASS,
-} from "./observability-layout";
+  DiagnosticDisclosure,
+  DiagnosticWorkspace,
+} from "./runtime-state/DiagnosticWorkspace";
 
 interface LogsResponse {
   logs?: unknown[];
@@ -34,9 +33,6 @@ interface DeliveriesResponse {
 interface TerminalHistoryResponse {
   commands?: unknown[];
 }
-
-const EMBEDDED_LOGS_CLASS =
-  "settings-logs-section @container/observability min-w-0";
 
 type RuntimeLogIntent = Extract<
   DesktopNavigationIntent,
@@ -52,6 +48,7 @@ export function LogsPage({
   runtimeLogIntent?: RuntimeLogIntent | null;
   onConsumeNavigationIntent?: (id: string) => void;
 }) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [level, setLevel] = useState("all");
   const [query, setQuery] = useState("");
   const [logSelection, setLogSelection] = useState<RuntimeLogIntent | null>(
@@ -104,128 +101,136 @@ export function LogsPage({
     }
   };
 
-  if (!active) {
-    return (
-      <PagePanel className={EMBEDDED_LOGS_CLASS} variant="section">
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Operations</span>
-            <h2>Logs</h2>
-            <p>Redacted runtime events and local operational traces.</p>
-          </div>
-          <Button disabled onClick={refresh} type="button" variant="secondary">
-            Refresh
-          </Button>
-        </header>
+  const hasFilters = Boolean(query || selectedLog || level !== "all");
+  const clearFilters = () => {
+    setLogSelection(null);
+    setQuery("");
+    setLevel("all");
+    searchInputRef.current?.focus();
+  };
+
+  return (
+    <DiagnosticWorkspace
+      actions={
+        <WorkbenchAction disabled={!active} icon={RotateCw} onClick={refresh}>
+          Refresh
+        </WorkbenchAction>
+      }
+      className="@container/observability"
+      description="Search the local runtime’s redacted events, delivery traces, and command history."
+      icon={ListFilter}
+      title="Logs"
+    >
+      {!active ? (
         <OfflineRouteState>
           Runtime logs and secondary traces are unavailable until the local
           runtime is ready.
         </OfflineRouteState>
-      </PagePanel>
-    );
-  }
-
-  return (
-    <PagePanel className={EMBEDDED_LOGS_CLASS} variant="section">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Operations</span>
-          <h2>Logs</h2>
-          <p>Redacted runtime events and local operational traces.</p>
-        </div>
-        <Button onClick={refresh} type="button" variant="secondary">
-          Refresh
-        </Button>
-      </header>
-      <CompactStatStrip
-        label="Operations summary"
-        stats={[
-          { label: "Log records", value: entries.length },
-          { label: "Warnings", value: warningCount, tone: "warn" },
-          { label: "Errors", value: errorCount, tone: "bad" },
-        ]}
-      />
-      <div className={`${OBSERVABILITY_FILTER_CLASS} runtime-log-filters`}>
-        <label htmlFor="runtime-log-search">
-          <span className="sr-only">Search runtime logs</span>
-          <Input
-            className="h-[34px]"
-            id="runtime-log-search"
-            placeholder="Search logs"
-            type="search"
-            value={selectedLog?.target.query ?? query}
-            onChange={(event) => {
-              setLogSelection(null);
-              setQuery(event.target.value);
-            }}
+      ) : (
+        <>
+          {selectedLog &&
+          resource.status === "ready" &&
+          !logEntries.some((entry) => entry.id === selectedLog.target.logId) ? (
+            <Notice tone="neutral">
+              This event is no longer in the recent log history.
+            </Notice>
+          ) : null}
+          <RuntimeLogStream
+            entries={logEntries}
+            error={resource.error || undefined}
+            filtered={Boolean(effectiveQuery || effectiveLevel !== "all")}
+            loading={resource.loading}
+            onRetry={resource.reload}
+            focusedLogId={selectedLog?.target.logId}
+            focusRequestId={selectedLog?.id}
+            summary={
+              !resource.loading && !resource.error ? (
+                <CompactStatStrip
+                  label="Visible events summary"
+                  stats={[
+                    { label: "Log records", value: entries.length },
+                    {
+                      label: "Warnings",
+                      value: warningCount,
+                      tone: warningCount ? "warn" : "neutral",
+                    },
+                    {
+                      label: "Errors",
+                      value: errorCount,
+                      tone: errorCount ? "bad" : "neutral",
+                    },
+                  ]}
+                />
+              ) : null
+            }
+            filters={
+              <div className="runtime-log-filters">
+                <div className="runtime-log-filters__search">
+                  <UiIcon icon={Search} />
+                  <Input
+                    aria-label="Search runtime logs"
+                    className="runtime-log-filters__input"
+                    id="runtime-log-search"
+                    placeholder="Search logs"
+                    ref={searchInputRef}
+                    type="search"
+                    value={selectedLog?.target.query ?? query}
+                    onChange={(event) => {
+                      setLogSelection(null);
+                      setQuery(event.target.value);
+                    }}
+                  />
+                </div>
+                <NativeSelect
+                  aria-label="Log level"
+                  value={effectiveLevel}
+                  onChange={(event) => {
+                    setLogSelection(null);
+                    setLevel(event.target.value);
+                  }}
+                >
+                  <option value="all">All levels</option>
+                  <option value="trace">Trace</option>
+                  <option value="debug">Debug</option>
+                  <option value="info">Info</option>
+                  <option value="warn">Warnings</option>
+                  <option value="error">Errors</option>
+                  <option value="fatal">Fatal</option>
+                </NativeSelect>
+                {hasFilters ? (
+                  <WorkbenchAction
+                    emphasis="quiet"
+                    icon={X}
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </WorkbenchAction>
+                ) : null}
+              </div>
+            }
           />
-        </label>
-        <select
-          aria-label="Log level"
-          className={OBSERVABILITY_CONTROL_CLASS}
-          value={effectiveLevel}
-          onChange={(event) => {
-            setLogSelection(null);
-            setLevel(event.target.value);
-          }}
-        >
-          <option value="all">All levels</option>
-          <option value="trace">Trace</option>
-          <option value="debug">Debug</option>
-          <option value="info">Info</option>
-          <option value="warn">Warnings</option>
-          <option value="error">Errors</option>
-          <option value="fatal">Fatal</option>
-        </select>
-      </div>
-      {selectedLog &&
-      resource.status === "ready" &&
-      !logEntries.some((entry) => entry.id === selectedLog.target.logId) ? (
-        <Notice tone="neutral">
-          This event is no longer in the recent log history.
-        </Notice>
-      ) : null}
-      <RuntimeLogStream
-        entries={logEntries}
-        error={resource.error || undefined}
-        filtered={Boolean(effectiveQuery || effectiveLevel !== "all")}
-        loading={resource.loading}
-        onRetry={resource.reload}
-        focusedLogId={selectedLog?.target.logId}
-        focusRequestId={selectedLog?.id}
-      />
-      <details
-        className="operations-trace-details overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] open:[&>summary]:border-b open:[&>summary]:border-[var(--border)]"
-        data-operations-traces="true"
-        onToggle={(event) => setHistoryOpen(event.currentTarget.open)}
-      >
-        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-[18px] px-2.5 py-[7px] [&::-webkit-details-marker]:hidden">
-          <span className="grid min-w-0 gap-px">
-            <strong>Delivery and terminal history</strong>
-            <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-              Secondary operational traces
-            </small>
-          </span>
-          <span className="ml-auto font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-            {historyOpen
-              ? `${deliveryEntries.length} deliveries · ${commandEntries.length} commands`
-              : "Open to load"}
-          </span>
-          <UiIcon
-            className="text-[var(--muted)]"
-            icon={historyOpen ? ChevronDown : ChevronRight}
-            size="xs"
-          />
-        </summary>
-        {historyOpen ? (
-          <OperationsTracePanel
-            commandEntries={commandEntries}
-            deliveries={deliveries}
-            deliveryEntries={deliveryEntries}
-            terminalHistory={terminalHistory}
-          />
-        ) : null}
-      </details>
-    </PagePanel>
+          <DiagnosticDisclosure
+            description="Recent gateway deliveries and local commands"
+            icon={SquareTerminal}
+            meta={
+              historyOpen
+                ? `${deliveryEntries.length} deliveries · ${commandEntries.length} commands`
+                : undefined
+            }
+            onToggle={setHistoryOpen}
+            title="Delivery and terminal history"
+          >
+            {historyOpen ? (
+              <OperationsTracePanel
+                commandEntries={commandEntries}
+                deliveries={deliveries}
+                deliveryEntries={deliveryEntries}
+                terminalHistory={terminalHistory}
+              />
+            ) : null}
+          </DiagnosticDisclosure>
+        </>
+      )}
+    </DiagnosticWorkspace>
   );
 }
