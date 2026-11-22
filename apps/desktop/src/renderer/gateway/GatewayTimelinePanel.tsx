@@ -1,20 +1,29 @@
-import { Button } from "@elizaos/ui/button";
-import { Input } from "@elizaos/ui/input";
-import { useState } from "react";
+import { Input, NativeSelect } from "@doolittle/ui";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronDown,
+  Inbox,
+  MessagesSquare,
+  RotateCw,
+  SearchX,
+  TriangleAlert,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
+import { UiIcon } from "../components/UiIcon";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import {
   GATEWAY_HISTORY_LIMIT,
   type GatewayTimelineItem,
   gatewayStatusTone,
 } from "../gateway-page-model";
-import { Badge, displayTimestamp, EmptyBlock, titleCase } from "../lib";
-import {
-  GATEWAY_ENTRY_CLASS,
-  GATEWAY_FILTER_CONTROL_CLASS,
-  GATEWAY_HISTORY_STATE_CLASS,
-  GATEWAY_META_CLASS,
-  GATEWAY_TIMELINE_CLASS,
-} from "./gateway-layout";
+import { Badge, displayTimestamp, LoadingBlock, titleCase } from "../lib";
+import "../orchestration/work-surfaces.css";
 
 export type GatewayTimelineDirection = "all" | "inbox" | "outbox";
 
@@ -59,36 +68,33 @@ export function GatewayTimelinePanel({
 }: GatewayTimelinePanelProps) {
   const [confirmReplayId, setConfirmReplayId] = useState("");
   const [confirmRetryId, setConfirmRetryId] = useState("");
+  const search = useRef<HTMLInputElement>(null);
+  const confirmationTrigger = useRef<HTMLButtonElement>(null);
 
   return (
-    <section
-      aria-labelledby="gateway-timeline-title"
-      className="gateway-timeline-panel panel min-w-0"
-    >
-      <div className="panel-heading items-center">
-        <div>
-          <h2 className="m-0 text-sm" id="gateway-timeline-title">
-            Message history
-          </h2>
-          <p className={GATEWAY_META_CLASS}>
-            Latest {GATEWAY_HISTORY_LIMIT} records in each direction
-          </p>
-        </div>
-        {loading && !entries.length ? (
-          <span className={GATEWAY_META_CLASS}>Reading…</span>
-        ) : entries.length ? (
-          <span className={GATEWAY_META_CLASS}>
+    <WorkbenchSection
+      className="gateway-timeline-panel"
+      icon={MessagesSquare}
+      title="Message history"
+      description={`Latest ${GATEWAY_HISTORY_LIMIT} records in each direction`}
+      actions={
+        entries.length ? (
+          <span className="work-list-count">
             {visibleEntries.length} of {entries.length}
           </span>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
       {entries.length > 0 ? (
-        <fieldset className="gateway-timeline-filters m-0 grid min-w-0 gap-2.25 border-x-0 border-y border-[var(--border)] px-0 py-2.25">
+        <fieldset className="gateway-timeline-filters work-gateway-filters">
           <legend className="sr-only">Gateway record filters</legend>
-          <label className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]">
+          <label
+            className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]"
+            htmlFor="gateway-record-direction"
+          >
             Direction
-            <select
-              className={GATEWAY_FILTER_CONTROL_CLASS}
+            <NativeSelect
+              id="gateway-record-direction"
               onChange={(event) =>
                 onDirectionChange(
                   event.target.value as GatewayTimelineDirection,
@@ -99,12 +105,15 @@ export function GatewayTimelinePanel({
               <option value="all">All directions</option>
               <option value="inbox">Inbox only</option>
               <option value="outbox">Outbox only</option>
-            </select>
+            </NativeSelect>
           </label>
-          <label className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]">
+          <label
+            className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]"
+            htmlFor="gateway-record-platform"
+          >
             Platform
-            <select
-              className={GATEWAY_FILTER_CONTROL_CLASS}
+            <NativeSelect
+              id="gateway-record-platform"
               onChange={(event) => onPlatformChange(event.target.value)}
               value={platform}
             >
@@ -114,7 +123,7 @@ export function GatewayTimelinePanel({
                   {titleCase(entry)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label
             className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]"
@@ -122,10 +131,10 @@ export function GatewayTimelinePanel({
           >
             Find record
             <Input
-              className={GATEWAY_FILTER_CONTROL_CLASS}
               id="gateway-record-query"
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Message, room, thread, or route"
+              ref={search}
               type="search"
               value={query}
             />
@@ -133,196 +142,172 @@ export function GatewayTimelinePanel({
         </fieldset>
       ) : null}
 
-      {loading && !entries.length ? (
+      {!entries.length ? (
         <div
-          aria-busy="true"
-          aria-live="polite"
-          className={GATEWAY_HISTORY_STATE_CLASS}
-          data-gateway-history-state="loading"
-          role="status"
+          data-gateway-history-state={
+            loading ? "loading" : historyUnavailable ? "unavailable" : "empty"
+          }
         >
-          <span
-            aria-hidden="true"
-            className="size-1.75 animate-pulse rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_10%,transparent)] motion-reduce:animate-none"
-          />
-          <span className="grid min-w-0 gap-0.5">
-            <strong className="text-[13px] font-semibold">
-              Reading message history
-            </strong>
-            <small className={GATEWAY_META_CLASS}>
-              Checking the local inbox and outbox.
-            </small>
-          </span>
-          <span
-            className={`${GATEWAY_META_CLASS} whitespace-nowrap uppercase max-[620px]:col-start-2`}
-          >
-            Local only
-          </span>
+          {loading ? (
+            <LoadingBlock label="Reading message history" />
+          ) : historyUnavailable ? (
+            <div role="status">
+              <WorkbenchEmpty
+                title="Gateway history is unavailable"
+                icon={TriangleAlert}
+                actions={
+                  onRetryHistory ? (
+                    <WorkbenchAction
+                      emphasis="quiet"
+                      icon={RotateCw}
+                      onClick={onRetryHistory}
+                    >
+                      Retry history
+                    </WorkbenchAction>
+                  ) : null
+                }
+              >
+                {historyError || "The local inbox or outbox could not be read."}
+              </WorkbenchEmpty>
+            </div>
+          ) : (
+            <WorkbenchEmpty title="Waiting for gateway traffic" icon={Inbox}>
+              Inbound and outbound messages appear here when your connectors
+              receive or send them.
+            </WorkbenchEmpty>
+          )}
         </div>
-      ) : null}
-      {!loading && !entries.length && historyUnavailable ? (
-        <div
-          aria-live="polite"
-          className={GATEWAY_HISTORY_STATE_CLASS}
-          data-gateway-history-state="unavailable"
-          role="status"
-        >
-          <span
-            aria-hidden="true"
-            className="size-1.75 rounded-full bg-[var(--warn)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--warn)_10%,transparent)]"
-          />
-          <span className="grid min-w-0 gap-0.5">
-            <strong className="text-[13px] font-semibold">
-              Gateway history is unavailable
-            </strong>
-            <small className={GATEWAY_META_CLASS}>
-              {historyError ||
-                "The local inbox or outbox could not be read. Retry the local read to check for records."}
-            </small>
-          </span>
-          {onRetryHistory ? (
-            <Button
-              className="justify-self-start max-[620px]:col-start-2"
-              onClick={onRetryHistory}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Retry history
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-      {!loading && !entries.length && !historyUnavailable ? (
-        <div
-          aria-live="polite"
-          className={GATEWAY_HISTORY_STATE_CLASS}
-          data-gateway-history-state="empty"
-          role="status"
-        >
-          <span
-            aria-hidden="true"
-            className="size-1.75 rounded-full bg-[color-mix(in_srgb,var(--muted)_72%,transparent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--muted)_8%,transparent)]"
-          />
-          <span className="grid min-w-0 gap-0.5">
-            <strong className="text-[13px] font-semibold">
-              Waiting for gateway traffic
-            </strong>
-            <small className={GATEWAY_META_CLASS}>
-              Real inbound and outbound records appear here. This view never
-              creates test sends.
-            </small>
-          </span>
-          <span
-            className={`${GATEWAY_META_CLASS} whitespace-nowrap uppercase max-[620px]:col-start-2`}
-          >
-            0 records
-          </span>
-        </div>
-      ) : null}
-      {entries.length > 0 && !visibleEntries.length ? (
-        <EmptyBlock
+      ) : !visibleEntries.length ? (
+        <WorkbenchEmpty
+          title="No recent records match"
+          icon={SearchX}
           actions={
-            <Button
+            <WorkbenchAction
               onClick={() => {
                 onDirectionChange("all");
                 onPlatformChange("all");
                 onQueryChange("");
-                document.getElementById("gateway-record-query")?.focus();
+                search.current?.focus();
               }}
-              size="sm"
-              type="button"
-              variant="secondary"
             >
               Clear filters
-            </Button>
+            </WorkbenchAction>
           }
-          density="compact"
-          title="No recent records match"
         >
           Search covers the latest {GATEWAY_HISTORY_LIMIT} inbound and{" "}
           {GATEWAY_HISTORY_LIMIT} outbound records.
-        </EmptyBlock>
+        </WorkbenchEmpty>
       ) : null}
-      <ol className={GATEWAY_TIMELINE_CLASS}>
+      <ol aria-label="Recent messages" className="work-gateway-records">
         {visibleEntries.map((entry) => (
           <li
-            className={GATEWAY_ENTRY_CLASS}
+            className="work-gateway-record"
             key={`${entry.direction}:${entry.id}`}
           >
-            <div className="flex flex-wrap items-center gap-1.75 [&>span:not(.badge)]:font-mono [&>span:not(.badge)]:text-[length:var(--text-control)] [&>span:not(.badge)]:text-[var(--muted)] [&>time]:font-mono [&>time]:text-[length:var(--text-control)] [&>time]:text-[var(--muted)]">
-              <Badge tone={entry.direction === "inbox" ? "warn" : "neutral"}>
-                {entry.direction === "inbox" ? "Inbound" : "Outbound"}
-              </Badge>
-              <Badge tone={gatewayStatusTone(entry.status)}>
-                {titleCase(entry.status)}
-              </Badge>
-              <span>{titleCase(entry.platform)}</span>
-              <time dateTime={entry.at}>{displayTimestamp(entry.at)}</time>
-              {entry.direction === "inbox" ? (
-                <Button
-                  aria-label={`Replay inbound ${titleCase(entry.platform)} message`}
-                  className="ml-auto min-h-10 px-2 py-1 text-[length:var(--text-control)]"
-                  disabled={Boolean(replayingId)}
-                  onClick={() => setConfirmReplayId(entry.id)}
-                  size="sm"
-                  type="button"
-                  variant="link"
-                >
-                  {replayingId === entry.id ? "Replaying…" : "Replay"}
-                </Button>
-              ) : null}
-              {entry.retryable ? (
-                <Button
-                  aria-label={`Retry rejected ${titleCase(entry.platform)} delivery`}
-                  className="ml-auto min-h-10 px-2 py-1 text-[length:var(--text-control)]"
-                  disabled={Boolean(retryingDeliveryId)}
-                  onClick={() => setConfirmRetryId(entry.id)}
-                  size="sm"
-                  type="button"
-                  variant="link"
-                >
-                  {retryingDeliveryId === entry.id
-                    ? "Retrying…"
-                    : "Retry delivery"}
-                </Button>
-              ) : entry.retryCompleted ? (
-                <span>Retry delivered</span>
-              ) : null}
-            </div>
-            <p className="m-0 whitespace-pre-wrap text-[var(--text)] leading-normal">
-              {entry.preview}
-            </p>
-            <details className="group block pt-px font-mono text-[length:var(--text-control)] text-[var(--muted)]">
-              <summary className="flex w-fit cursor-pointer list-none items-center gap-1.25 [&::-webkit-details-marker]:hidden">
-                <span aria-hidden="true" className="group-open:hidden">
-                  +
+            <div className="work-gateway-record__header">
+              <span className="work-row-glyph">
+                <UiIcon
+                  icon={
+                    entry.direction === "inbox" ? ArrowDownLeft : ArrowUpRight
+                  }
+                  size="md"
+                />
+              </span>
+              <div className="work-gateway-record__identity">
+                <strong>{titleCase(entry.platform)}</strong>
+                <span>
+                  {entry.direction === "inbox" ? "Inbound" : "Outbound"}
+                  {" · "}
+                  <time dateTime={entry.at}>{displayTimestamp(entry.at)}</time>
                 </span>
-                <span aria-hidden="true" className="hidden group-open:inline">
-                  −
-                </span>
-                Route details
-              </summary>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1.5">
-                <span>Route: {entry.sessionId || "Not recorded"}</span>
-                <span>Room: {entry.roomId || "Not recorded"}</span>
-                {entry.threadId ? <span>Thread: {entry.threadId}</span> : null}
-                {entry.author ? <span>From: {entry.author}</span> : null}
-                {entry.attachmentCount ? (
-                  <span>
-                    {entry.attachmentCount} attachment
-                    {entry.attachmentCount === 1 ? "" : "s"}
-                  </span>
+              </div>
+              <div className="work-gateway-record__actions">
+                <Badge tone={gatewayStatusTone(entry.status)}>
+                  {titleCase(entry.status)}
+                </Badge>
+                {entry.direction === "inbox" ? (
+                  <WorkbenchAction
+                    aria-label={`Replay inbound ${titleCase(entry.platform)} message`}
+                    emphasis="quiet"
+                    icon={RotateCw}
+                    disabled={Boolean(replayingId)}
+                    onClick={(event) => {
+                      confirmationTrigger.current = event.currentTarget;
+                      setConfirmRetryId("");
+                      setConfirmReplayId(entry.id);
+                    }}
+                  >
+                    {replayingId === entry.id ? "Replaying…" : "Replay"}
+                  </WorkbenchAction>
+                ) : null}
+                {entry.retryable ? (
+                  <WorkbenchAction
+                    aria-label={`Retry rejected ${titleCase(entry.platform)} delivery`}
+                    emphasis="quiet"
+                    icon={RotateCw}
+                    disabled={Boolean(retryingDeliveryId)}
+                    onClick={(event) => {
+                      confirmationTrigger.current = event.currentTarget;
+                      setConfirmReplayId("");
+                      setConfirmRetryId(entry.id);
+                    }}
+                  >
+                    {retryingDeliveryId === entry.id
+                      ? "Retrying…"
+                      : "Retry delivery"}
+                  </WorkbenchAction>
+                ) : entry.retryCompleted ? (
+                  <span>Retry delivered</span>
                 ) : null}
               </div>
-            </details>
+            </div>
+            <div className="work-gateway-record__body">
+              <p>{entry.preview}</p>
+              <details className="work-route-details">
+                <summary>
+                  <UiIcon icon={ChevronDown} size="xs" />
+                  Route details
+                </summary>
+                <dl>
+                  <div>
+                    <dt>Route</dt>
+                    <dd>{entry.sessionId || "Not recorded"}</dd>
+                  </div>
+                  <div>
+                    <dt>Room</dt>
+                    <dd>{entry.roomId || "Not recorded"}</dd>
+                  </div>
+                  {entry.threadId ? (
+                    <div>
+                      <dt>Thread</dt>
+                      <dd>{entry.threadId}</dd>
+                    </div>
+                  ) : null}
+                  {entry.author ? (
+                    <div>
+                      <dt>From</dt>
+                      <dd>{entry.author}</dd>
+                    </div>
+                  ) : null}
+                  {entry.attachmentCount ? (
+                    <div>
+                      <dt>Attachments</dt>
+                      <dd>{entry.attachmentCount}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </details>
+            </div>
             {confirmReplayId === entry.id ? (
               <InlineActionConfirmation
                 busy={replayingId === entry.id}
                 busyLabel="Replaying…"
                 confirmLabel="Confirm replay"
                 detail="Reprocesses this record on its original route and may produce a new external reply."
-                onCancel={() => setConfirmReplayId("")}
+                onCancel={() => {
+                  confirmationTrigger.current?.focus();
+                  setConfirmReplayId("");
+                }}
                 onConfirm={() => {
                   setConfirmReplayId("");
                   void onReplay(entry.id);
@@ -337,7 +322,10 @@ export function GatewayTimelinePanel({
                 busyLabel="Retrying…"
                 confirmLabel="Confirm delivery retry"
                 detail="Resends the stored outbound payload on its original route without rerunning the agent or its tools."
-                onCancel={() => setConfirmRetryId("")}
+                onCancel={() => {
+                  confirmationTrigger.current?.focus();
+                  setConfirmRetryId("");
+                }}
                 onConfirm={() => {
                   setConfirmRetryId("");
                   void onRetryDelivery(entry.id);
@@ -349,6 +337,6 @@ export function GatewayTimelinePanel({
           </li>
         ))}
       </ol>
-    </section>
+    </WorkbenchSection>
   );
 }

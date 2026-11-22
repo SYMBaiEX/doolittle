@@ -47,28 +47,30 @@ export function ReviewApprovalPanel({
       </dl>
       {selected.status === "pending" ? (
         <div className={REVIEW_ACTIONS_CLASS}>
-          <button
-            className="primary-button"
+          <WorkbenchAction
+            emphasis="primary"
+            icon={Check}
             disabled={Boolean(busy)}
             onClick={() => onDecision("approve")}
             type="button"
           >
             {busy === "approve" ? "Approving…" : "Approve"}
-          </button>
-          <button
-            className="danger-button"
+          </WorkbenchAction>
+          <WorkbenchAction
+            emphasis="danger"
+            icon={X}
             disabled={Boolean(busy)}
             onClick={() => onDecision("deny")}
             type="button"
           >
             {busy === "deny" ? "Denying…" : "Deny"}
-          </button>
-          <small>
-            Approval records permission only. It does not execute a command from
-            this screen.
-          </small>
+          </WorkbenchAction>
+          <small>Approval permits the agent to run the matching command.</small>
         </div>
       ) : null}
     </div>
   );
 }
+
+import { Check, X } from "lucide-react";
+import { WorkbenchAction } from "../components/workbench/Workbench";

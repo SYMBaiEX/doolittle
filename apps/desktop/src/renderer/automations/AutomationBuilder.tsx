@@ -1,5 +1,6 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
-import { Button, Input, NativeSelect, Textarea } from "@doolittle/ui";
+import { Input, NativeSelect, Textarea } from "@doolittle/ui";
+import { Bot, ListFilter, Play, Plus, Save, Zap } from "lucide-react";
 import { type FormEvent, useEffect, useRef } from "react";
 import type {
   AutomationActionChoice,
@@ -8,18 +9,19 @@ import type {
   AutomationTriggerChoice,
 } from "../automation-model";
 import {
+  WorkbenchAction,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
+import {
   AUTOMATION_BUILDER_CLASS,
   AUTOMATION_BUILDER_FOOTER_CLASS,
   AUTOMATION_BUILDER_GRID_CLASS,
-  AUTOMATION_BUILDER_HEADER_CLASS,
-  AUTOMATION_BUILDER_SECTION_CLASS,
   AUTOMATION_CHOICE_BUTTON_CLASS,
   AUTOMATION_CHOICE_GRID_CLASS,
   AUTOMATION_CHOICE_SELECTED_CLASS,
-  AUTOMATION_FIELD_CONTROL_CLASS,
   AUTOMATION_FIELD_LABEL_CLASS,
-  AUTOMATION_SECTION_HEADING_CLASS,
 } from "./layout";
+import "../orchestration/work-surfaces.css";
 
 function ChoiceButtons({
   choices,
@@ -112,52 +114,56 @@ export function AutomationBuilder({
       id="automation-builder"
       onSubmit={onSubmit}
     >
-      <div className={AUTOMATION_BUILDER_HEADER_CLASS}>
-        <h3 className="m-0 text-sm font-semibold">
-          {editing ? "Edit automation" : "New automation"}
-        </h3>
-        <label
-          className={`automation-name-field ${AUTOMATION_FIELD_LABEL_CLASS}`}
-          htmlFor="automation-name"
-        >
-          <span>Name</span>
-          <Input
-            disabled={busy === "saving"}
-            id="automation-name"
-            ref={nameInput}
-            value={draft.name}
-            onChange={(event) => onUpdate("name", event.target.value)}
-            placeholder="Release readiness"
-          />
-        </label>
-      </div>
-
-      <div className="grid gap-2 px-4 pb-4">
-        <label className="grid gap-2 text-sm" htmlFor="automation-target-bot">
-          Run as
-          <NativeSelect
-            id="automation-target-bot"
-            value={draft.targetBotId || "default"}
-            disabled={busy === "saving" || editing}
-            onChange={(event) => onUpdate("targetBotId", event.target.value)}
+      <WorkbenchSection
+        className="work-flow-identity"
+        title={editing ? "Edit automation" : "New automation"}
+        headingLevel={3}
+        icon={Bot}
+      >
+        <div className="work-flow-identity__fields">
+          <label
+            className={`automation-name-field ${AUTOMATION_FIELD_LABEL_CLASS}`}
+            htmlFor="automation-name"
           >
-            <option value="default">
-              {bots.find((bot) => bot.isDefault)?.name ?? "Doolittle"}
-            </option>
-            {namedTarget && !targetAvailable ? (
-              <option value={draft.targetBotId}>
-                {botsLoading ? "Loading bot…" : "Unavailable bot"}
+            <span>Name</span>
+            <Input
+              disabled={busy === "saving"}
+              id="automation-name"
+              ref={nameInput}
+              value={draft.name}
+              onChange={(event) => onUpdate("name", event.target.value)}
+              placeholder="Release readiness"
+            />
+          </label>
+          <label
+            className={AUTOMATION_FIELD_LABEL_CLASS}
+            htmlFor="automation-target-bot"
+          >
+            Run as
+            <NativeSelect
+              id="automation-target-bot"
+              value={draft.targetBotId || "default"}
+              disabled={busy === "saving" || editing}
+              onChange={(event) => onUpdate("targetBotId", event.target.value)}
+            >
+              <option value="default">
+                {bots.find((bot) => bot.isDefault)?.name ?? "Doolittle"}
               </option>
-            ) : null}
-            {bots
-              .filter((bot) => !bot.isDefault && !bot.archivedAt)
-              .map((bot) => (
-                <option key={bot.id} value={bot.id}>
-                  {bot.name}
+              {namedTarget && !targetAvailable ? (
+                <option value={draft.targetBotId}>
+                  {botsLoading ? "Loading bot…" : "Unavailable bot"}
                 </option>
-              ))}
-          </NativeSelect>
-        </label>
+              ) : null}
+              {bots
+                .filter((bot) => !bot.isDefault && !bot.archivedAt)
+                .map((bot) => (
+                  <option key={bot.id} value={bot.id}>
+                    {bot.name}
+                  </option>
+                ))}
+            </NativeSelect>
+          </label>
+        </div>
         {botsError || (!botsLoading && !targetAvailable) ? (
           <p role="alert" className="m-0 text-sm text-[var(--bad)]">
             {botsError || "This automation’s bot is no longer active."}
@@ -171,7 +177,7 @@ export function AutomationBuilder({
             creation.
           </p>
         ) : null}
-      </div>
+      </WorkbenchSection>
 
       <fieldset
         className="automation-builder__fieldset m-0 min-w-0 border-0 p-0"
@@ -179,61 +185,67 @@ export function AutomationBuilder({
       >
         <legend className="sr-only">Automation definition</legend>
         <div className={AUTOMATION_BUILDER_GRID_CLASS}>
-          <section className={AUTOMATION_BUILDER_SECTION_CLASS}>
-            <div className={AUTOMATION_SECTION_HEADING_CLASS}>
-              <strong>Trigger</strong>
-              <small>Starts the workflow</small>
+          <WorkbenchSection
+            className="work-flow-stage"
+            title="Trigger"
+            headingLevel={3}
+            icon={Zap}
+            description={triggerHelp}
+          >
+            <div className="work-flow-stage__fields">
+              <div className="automation-builder__field grid gap-1.5">
+                <span className="text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
+                  Start when
+                </span>
+                <ChoiceButtons
+                  choices={[
+                    ["schedule", "Schedule"],
+                    ["manual", "Manual"],
+                    ["webhook", "Webhook"],
+                  ]}
+                  label="Choose a trigger"
+                  disabled={namedTarget ? ["webhook"] : []}
+                  selected={draft.triggerType}
+                  onSelect={(value) =>
+                    onUpdate("triggerType", value as AutomationTriggerChoice)
+                  }
+                />
+              </div>
+              {draft.triggerType === "schedule" ? (
+                <label
+                  className={AUTOMATION_FIELD_LABEL_CLASS}
+                  htmlFor="automation-schedule"
+                >
+                  <span>Schedule</span>
+                  <Input
+                    id="automation-schedule"
+                    required
+                    value={draft.schedule}
+                    onChange={(event) =>
+                      onUpdate("schedule", event.target.value)
+                    }
+                    placeholder="0 9 * * 1-5 or every 2h"
+                  />
+                </label>
+              ) : null}
             </div>
-            <div className="automation-builder__field grid gap-1.5">
-              <span className="text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
-                Start when
-              </span>
-              <ChoiceButtons
-                choices={[
-                  ["schedule", "Schedule"],
-                  ["manual", "Manual"],
-                  ["webhook", "Webhook"],
-                ]}
-                label="Choose a trigger"
-                disabled={namedTarget ? ["webhook"] : []}
-                selected={draft.triggerType}
-                onSelect={(value) =>
-                  onUpdate("triggerType", value as AutomationTriggerChoice)
-                }
-              />
-            </div>
-            {draft.triggerType === "schedule" ? (
+          </WorkbenchSection>
+
+          <WorkbenchSection
+            className="work-flow-stage"
+            title="Condition"
+            headingLevel={3}
+            icon={ListFilter}
+            description={conditionHelp}
+          >
+            <div className="automation-builder__inline-grid grid gap-3">
               <label
                 className={AUTOMATION_FIELD_LABEL_CLASS}
-                htmlFor="automation-schedule"
+                htmlFor="automation-condition-type"
               >
-                <span>Schedule</span>
-                <Input
-                  id="automation-schedule"
-                  required
-                  value={draft.schedule}
-                  onChange={(event) => onUpdate("schedule", event.target.value)}
-                  placeholder="0 9 * * 1-5 or every 2h"
-                />
-              </label>
-            ) : null}
-            <p className="automation-builder__hint m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]">
-              {triggerHelp}
-            </p>
-          </section>
-
-          <section
-            className={`${AUTOMATION_BUILDER_SECTION_CLASS} automation-builder__section--condition`}
-          >
-            <div className={AUTOMATION_SECTION_HEADING_CLASS}>
-              <strong>Condition</strong>
-              <small>Guards the action</small>
-            </div>
-            <div className="automation-builder__inline-grid grid gap-3">
-              <label className={AUTOMATION_FIELD_LABEL_CLASS}>
                 <span>Continue when</span>
-                <select
-                  className={AUTOMATION_FIELD_CONTROL_CLASS}
+                <NativeSelect
+                  id="automation-condition-type"
                   value={draft.conditionType}
                   onChange={(event) =>
                     onUpdate(
@@ -246,7 +258,7 @@ export function AutomationBuilder({
                   <option value="exists">Payload field exists</option>
                   <option value="equals">Payload field equals</option>
                   <option value="contains">Payload field contains</option>
-                </select>
+                </NativeSelect>
               </label>
               {draft.conditionType !== "always" ? (
                 <label
@@ -282,71 +294,67 @@ export function AutomationBuilder({
                 </label>
               ) : null}
             </div>
-            <p className="automation-builder__hint m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]">
-              {conditionHelp}
-            </p>
-          </section>
+          </WorkbenchSection>
 
-          <section
-            className={`${AUTOMATION_BUILDER_SECTION_CLASS} automation-builder__section--action`}
+          <WorkbenchSection
+            className="work-flow-stage"
+            title="Action"
+            headingLevel={3}
+            icon={Play}
+            description={actionHelp}
           >
-            <div className={AUTOMATION_SECTION_HEADING_CLASS}>
-              <strong>Action</strong>
-              <small>Performs the work</small>
-            </div>
-            <div className="automation-builder__field grid gap-1.5">
-              <span className="text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
-                Then do
-              </span>
-              <ChoiceButtons
-                choices={[
-                  ["run-agent", "Run agent"],
-                  ["prompt", "Prompt"],
-                  ["webhook", "Webhook"],
-                ]}
-                label="Choose an action"
-                disabled={namedTarget ? ["webhook"] : []}
-                selected={draft.actionType}
-                onSelect={(value) =>
-                  onUpdate("actionType", value as AutomationActionChoice)
-                }
-              />
-            </div>
-            {draft.actionType === "webhook" ? (
-              <label
-                className={AUTOMATION_FIELD_LABEL_CLASS}
-                htmlFor="automation-webhook-url"
-              >
-                <span>Destination URL</span>
-                <Input
-                  id="automation-webhook-url"
-                  type="url"
-                  value={draft.webhookUrl}
-                  onChange={(event) =>
-                    onUpdate("webhookUrl", event.target.value)
+            <div className="work-flow-stage__fields">
+              <div className="automation-builder__field grid gap-1.5">
+                <span className="text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
+                  Then do
+                </span>
+                <ChoiceButtons
+                  choices={[
+                    ["run-agent", "Run agent"],
+                    ["prompt", "Prompt"],
+                    ["webhook", "Webhook"],
+                  ]}
+                  label="Choose an action"
+                  disabled={namedTarget ? ["webhook"] : []}
+                  selected={draft.actionType}
+                  onSelect={(value) =>
+                    onUpdate("actionType", value as AutomationActionChoice)
                   }
-                  placeholder="https://example.com/hooks/doolittle"
                 />
-              </label>
-            ) : (
-              <label
-                className={AUTOMATION_FIELD_LABEL_CLASS}
-                htmlFor="automation-prompt"
-              >
-                <span>Prompt</span>
-                <Textarea
-                  id="automation-prompt"
-                  rows={4}
-                  value={draft.prompt}
-                  onChange={(event) => onUpdate("prompt", event.target.value)}
-                  placeholder="Review the latest work and produce an operator-ready receipt."
-                />
-              </label>
-            )}
-            <p className="automation-builder__hint m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]">
-              {actionHelp}
-            </p>
-          </section>
+              </div>
+              {draft.actionType === "webhook" ? (
+                <label
+                  className={AUTOMATION_FIELD_LABEL_CLASS}
+                  htmlFor="automation-webhook-url"
+                >
+                  <span>Destination URL</span>
+                  <Input
+                    id="automation-webhook-url"
+                    type="url"
+                    value={draft.webhookUrl}
+                    onChange={(event) =>
+                      onUpdate("webhookUrl", event.target.value)
+                    }
+                    placeholder="https://example.com/hooks/doolittle"
+                  />
+                </label>
+              ) : (
+                <label
+                  className={AUTOMATION_FIELD_LABEL_CLASS}
+                  htmlFor="automation-prompt"
+                >
+                  <span>Prompt</span>
+                  <Textarea
+                    id="automation-prompt"
+                    rows={4}
+                    value={draft.prompt}
+                    onChange={(event) => onUpdate("prompt", event.target.value)}
+                    placeholder="Review the latest work and produce an operator-ready receipt."
+                  />
+                </label>
+              )}
+            </div>
+          </WorkbenchSection>
         </div>
       </fieldset>
 
@@ -354,7 +362,12 @@ export function AutomationBuilder({
         <span>
           Output and each phase result stay in the local trace archive.
         </span>
-        <Button disabled={Boolean(busy) || !targetAvailable} type="submit">
+        <WorkbenchAction
+          emphasis="primary"
+          icon={editing ? Save : Plus}
+          disabled={Boolean(busy) || !targetAvailable}
+          type="submit"
+        >
           {busy === "saving"
             ? editing
               ? "Saving…"
@@ -362,7 +375,7 @@ export function AutomationBuilder({
             : editing
               ? "Save changes"
               : "Create automation"}
-        </Button>
+        </WorkbenchAction>
       </div>
     </form>
   );

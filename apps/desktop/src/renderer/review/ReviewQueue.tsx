@@ -3,14 +3,16 @@ import {
   CircleCheck,
   ExternalLink,
   GitCompareArrows,
+  Inbox,
   Search,
   TriangleAlert,
   X,
 } from "lucide-react";
 import type { KeyboardEvent, RefObject } from "react";
 import { UiIcon } from "../components/UiIcon";
+import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
-import { Badge, displayTimestamp, EmptyBlock } from "../lib";
+import { Badge, displayTimestamp } from "../lib";
 import {
   REVIEW_LIST_BUTTON_CLASS,
   REVIEW_LIST_BUTTON_SELECTED_CLASS,
@@ -73,7 +75,11 @@ export function ReviewQueue({
   };
 
   return (
-    <aside className={REVIEW_RAIL_CLASS} data-review="queue">
+    <aside
+      aria-label="Review queue"
+      className={REVIEW_RAIL_CLASS}
+      data-review="queue"
+    >
       <div
         aria-label="Review filters"
         className={REVIEW_TABS_CLASS}
@@ -120,7 +126,7 @@ export function ReviewQueue({
           </button>
         ))}
       </div>
-      <label className={REVIEW_SEARCH_CLASS}>
+      <search className={REVIEW_SEARCH_CLASS}>
         <UiIcon icon={Search} size="sm" />
         <input
           aria-label="Search review queue"
@@ -133,7 +139,10 @@ export function ReviewQueue({
         {query ? (
           <button
             aria-label="Clear review search"
-            onClick={() => onQueryChange("")}
+            onClick={() => {
+              searchRef.current?.focus();
+              onQueryChange("");
+            }}
             type="button"
           >
             <UiIcon icon={X} size="xs" />
@@ -141,7 +150,7 @@ export function ReviewQueue({
         ) : (
           <kbd>{platform === "darwin" ? "⌘F" : "Ctrl F"}</kbd>
         )}
-      </label>
+      </search>
       <div
         aria-labelledby={`review-filter-${filter}`}
         className={REVIEW_LIST_CLASS}
@@ -149,9 +158,14 @@ export function ReviewQueue({
         role="tabpanel"
       >
         {visibleItems.length === 0 ? (
-          <EmptyBlock title="No matching work">
-            Completed agent work will appear here as it happens.
-          </EmptyBlock>
+          <WorkbenchEmpty
+            title={items.length > 0 ? "No matching work" : "Queue is empty"}
+            icon={items.length > 0 ? Search : Inbox}
+          >
+            {items.length > 0
+              ? "Change the filter or search to see other review items."
+              : "New decisions, checks, and file changes will appear here."}
+          </WorkbenchEmpty>
         ) : (
           visibleItems.map((item) => (
             <ContextActionMenu
@@ -189,7 +203,7 @@ export function ReviewQueue({
             >
               <button
                 aria-current={selectedId === item.id}
-                className={`${REVIEW_LIST_BUTTON_CLASS} ${
+                className={`review-queue-row ${REVIEW_LIST_BUTTON_CLASS} ${
                   selectedId === item.id
                     ? REVIEW_LIST_BUTTON_SELECTED_CLASS
                     : ""

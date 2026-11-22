@@ -1,5 +1,9 @@
 import { Check, CircleDashed, Clock3, TriangleAlert } from "lucide-react";
-import { UiIcon } from "../components/UiIcon";
+import { CompactStatStrip } from "../components/CompactStatStrip";
+import {
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import { Badge, displayTimestamp } from "../lib";
 import type {
   ReviewRecordEvent,
@@ -11,12 +15,10 @@ import {
   REVIEW_BRANCH_EVIDENCE_CLASS,
   REVIEW_BRANCH_HEADING_CLASS,
   REVIEW_BRANCH_RECORD_CLASS,
-  REVIEW_WORK_METRICS_CLASS,
-  REVIEW_WORK_OUTCOME_CLASS,
-  REVIEW_WORK_REVISION_CLASS,
   reviewOverviewClass,
 } from "./layout";
 import { recordEventLabel } from "./models";
+import "../orchestration/work-surfaces.css";
 
 const workStateIcons = {
   attention: TriangleAlert,
@@ -53,48 +55,47 @@ export function ReviewOverview({
       aria-label="Current agent work outcome"
       className={reviewOverviewClass(workState.tone, empty)}
       data-review-empty={empty || undefined}
+      data-review-tone={workState.tone}
     >
-      <div className={REVIEW_WORK_OUTCOME_CLASS}>
-        <i aria-hidden="true">
-          <UiIcon icon={workStateIcons[workState.icon]} size="sm" />
-        </i>
-        <span>
-          <small>{empty ? "Review ready" : "Current workset"}</small>
-          <strong>{workState.title}</strong>
-          <p>{workState.detail}</p>
-        </span>
-      </div>
-      {!empty ? (
-        <>
-          <dl className={REVIEW_WORK_METRICS_CLASS}>
-            <div>
-              <dt>Agent runs</dt>
-              <dd>{agentRunCount}</dd>
-            </div>
-            <div>
-              <dt>Files changed</dt>
-              <dd>{changedFileCount}</dd>
-            </div>
-            <div>
-              <dt>Checks passed</dt>
-              <dd>{checksPassing}</dd>
-            </div>
-            <div className={openCommentCount ? "warn" : ""}>
-              <dt>Open notes</dt>
-              <dd>{openCommentCount}</dd>
-            </div>
-          </dl>
-          <div className={REVIEW_WORK_REVISION_CLASS}>
-            <small>Revision</small>
-            <strong>
-              {branchScope?.branch ?? reviewBranch ?? "workspace"}
-            </strong>
-            <code>
-              {(branchScope?.head ?? reviewHead ?? "working-tree").slice(0, 12)}
-            </code>
-          </div>
-        </>
-      ) : null}
+      {empty ? (
+        <WorkbenchEmpty title={workState.title} icon={workStateIcons.empty}>
+          {workState.detail}
+        </WorkbenchEmpty>
+      ) : (
+        <WorkbenchSection
+          className="review-outcome-heading"
+          title={workState.title}
+          description={workState.detail}
+          icon={workStateIcons[workState.icon]}
+          actions={
+            <span className="review-outcome-revision">
+              <strong>
+                {branchScope?.branch ?? reviewBranch ?? "workspace"}
+              </strong>
+              <code>
+                {(branchScope?.head ?? reviewHead ?? "working-tree").slice(
+                  0,
+                  12,
+                )}
+              </code>
+            </span>
+          }
+        >
+          <CompactStatStrip
+            label="Review summary"
+            stats={[
+              { label: "Agent runs", value: agentRunCount },
+              { label: "Files changed", value: changedFileCount },
+              { label: "Checks passed", value: checksPassing },
+              {
+                label: "Open notes",
+                value: openCommentCount,
+                tone: openCommentCount ? "warn" : "neutral",
+              },
+            ]}
+          />
+        </WorkbenchSection>
+      )}
     </section>
   );
 }

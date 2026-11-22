@@ -1,5 +1,12 @@
-import { Button, ContextActionMenu } from "@doolittle/ui";
+import { ContextActionMenu } from "@doolittle/ui";
+import { ChevronDown, History, RotateCw, ScrollText } from "lucide-react";
 import { useMemo } from "react";
+import { UiIcon } from "../components/UiIcon";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
 import {
   asArray,
@@ -7,7 +14,6 @@ import {
   asString,
   Badge,
   displayTimestamp,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   titleCase,
@@ -18,8 +24,8 @@ import {
   AUTOMATION_RUN_BUTTON_CLASS,
   AUTOMATION_RUNS_PANEL_CLASS,
   AUTOMATION_STATUS_DOT_CLASS,
-  AUTOMATION_TRACE_CLASS,
 } from "./layout";
+import "../orchestration/work-surfaces.css";
 
 function runTone(status: string): "good" | "warn" | "bad" | "neutral" {
   if (status === "failed") return "bad";
@@ -45,26 +51,24 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
     [entry.trace],
   );
   return (
-    <div className={AUTOMATION_TRACE_CLASS}>
-      <header className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="eyebrow">Selected receipt</span>
-          <strong className="truncate text-[length:var(--text-control)]">
-            {asString(entry.jobName, "Automation run")}
-          </strong>
-        </div>
-        <Badge tone={runTone(status)}>{titleCase(status)}</Badge>
-      </header>
-      <div className="automation-trace-steps relative flex flex-col before:absolute before:inset-y-3.25 before:left-0.75 before:w-px before:bg-[var(--border-strong)]">
+    <WorkbenchSection
+      className="automation-trace"
+      title={asString(entry.jobName, "Automation run")}
+      icon={ScrollText}
+      headingLevel={3}
+      actions={<Badge tone={runTone(status)}>{titleCase(status)}</Badge>}
+    >
+      <ol className="work-trace-steps">
         {trace.length ? (
           trace.map((step, index) => {
             const stepStatus = asString(step.status, "completed");
             return (
-              <div
+              <li
                 className="automation-trace-step relative grid grid-cols-[8px_minmax(0,1fr)_auto] items-start gap-2.5 py-2"
                 key={asString(step.id, String(index))}
               >
                 <span
+                  aria-hidden="true"
                   className={`${runStatusClass(stepStatus)} relative z-1 mt-0.75`}
                 />
                 <div className="automation-trace-step__content min-w-0">
@@ -75,14 +79,14 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
                     {asString(step.message, titleCase(stepStatus))}
                   </p>
                 </div>
-                <small className="automation-trace-step__index font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
-                  {String(index + 1).padStart(2, "0")}
+                <small className="work-trace-step-status">
+                  {titleCase(stepStatus)}
                 </small>
-              </div>
+              </li>
             );
           })
         ) : (
-          <div className="automation-trace-step relative grid grid-cols-[8px_minmax(0,1fr)_auto] items-start gap-2.5 py-2">
+          <li className="automation-trace-step relative grid grid-cols-[8px_minmax(0,1fr)_auto] items-start gap-2.5 py-2">
             <span
               className={`${runStatusClass(status)} relative z-1 mt-0.75`}
             />
@@ -94,16 +98,16 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
                 This run predates phase-level trace capture.
               </p>
             </div>
-          </div>
+          </li>
         )}
-      </div>
+      </ol>
       <details className="automation-trace-output mt-2.5">
         <summary className={AUTOMATION_DETAILS_SUMMARY_CLASS}>Output</summary>
         <pre className="m-0 max-h-42.5 overflow-auto whitespace-pre-wrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2.5 font-[var(--font-mono)] text-[length:var(--text-control)] leading-[1.5] text-[var(--text-soft)]">
           {asString(entry.output, "No output was recorded.")}
         </pre>
       </details>
-    </div>
+    </WorkbenchSection>
   );
 }
 
@@ -130,29 +134,35 @@ export function AutomationRunHistory({
 }) {
   return (
     <details
-      className={`content-card ${AUTOMATION_RUNS_PANEL_CLASS}${quiet ? " is-quiet border-dashed bg-transparent" : ""}`}
+      className={`content-card work-disclosure ${AUTOMATION_RUNS_PANEL_CLASS}${quiet ? " is-quiet" : ""}`}
       onToggle={(event) => onOpenChange(event.currentTarget.open)}
       open={open}
     >
       <summary>
-        <span>
+        <span className="work-disclosure__identity">
+          <UiIcon icon={History} size="md" />
           <strong>Run history</strong>
         </span>
-        <span className="automation-runs-panel__meta font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
+        <span className="work-disclosure__meta">
           {open
             ? `${runs.length} loaded`
             : quiet
               ? "View past runs"
               : "Open to load"}
+          <UiIcon icon={ChevronDown} />
         </span>
       </summary>
       {open ? (
         <div className="automation-runs-body m-4 mt-3.5">
           <div className="automation-runs-toolbar mb-2.5 flex items-center justify-between gap-3 text-[length:var(--text-control)] text-[var(--muted)]">
             <span>Recent runs</span>
-            <Button onClick={onReload} size="sm" type="button" variant="ghost">
+            <WorkbenchAction
+              emphasis="quiet"
+              icon={RotateCw}
+              onClick={onReload}
+            >
               Refresh
-            </Button>
+            </WorkbenchAction>
           </div>
           {runsLoading ? (
             <LoadingBlock label="Loading traces…" />
@@ -187,7 +197,7 @@ export function AutomationRunHistory({
                       >
                         <button
                           aria-pressed={asString(selectedRun?.id) === id}
-                          className={AUTOMATION_RUN_BUTTON_CLASS}
+                          className={`work-receipt-row ${AUTOMATION_RUN_BUTTON_CLASS}`}
                           onClick={() => onSelectRun(id)}
                           type="button"
                         >
@@ -221,10 +231,10 @@ export function AutomationRunHistory({
               {selectedRun ? <AutomationTrace entry={selectedRun} /> : null}
             </div>
           ) : (
-            <EmptyBlock density="compact" title="No trace receipts">
+            <WorkbenchEmpty icon={ScrollText} title="No trace receipts">
               Run an automation to inspect its trigger, condition, action, and
               delivery phases.
-            </EmptyBlock>
+            </WorkbenchEmpty>
           )}
         </div>
       ) : null}

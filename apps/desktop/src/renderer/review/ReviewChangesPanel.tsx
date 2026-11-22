@@ -1,4 +1,6 @@
+import { PanelTop, Send } from "lucide-react";
 import type { RefObject } from "react";
+import { WorkbenchAction } from "../components/workbench/Workbench";
 import type { ApiResource } from "../lib";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
 import type { RepositoryPatchResponse } from "../repository-resource-models";
@@ -72,21 +74,21 @@ export function ReviewChangesPanel({
       <div className={REVIEW_DETAIL_TOOLBAR_CLASS}>
         <span>{selected.path}</span>
         <div>
-          <button
-            className="text-button"
+          <WorkbenchAction
+            emphasis="quiet"
+            icon={PanelTop}
             onClick={onOpenWorkspace}
-            type="button"
           >
             Open workspace
-          </button>
-          <button
-            className="primary-button"
+          </WorkbenchAction>
+          <WorkbenchAction
+            emphasis="primary"
+            icon={Send}
             disabled={!patch.data?.patch?.patch}
             onClick={onAskDoolittle}
-            type="button"
           >
             Ask Doolittle
-          </button>
+          </WorkbenchAction>
         </div>
       </div>
       <ReviewCommentsPanel

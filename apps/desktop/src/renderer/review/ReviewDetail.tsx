@@ -1,12 +1,22 @@
 import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
+import {
+  CircleCheck,
+  GitCompareArrows,
+  Inbox,
+  ShieldCheck,
+} from "lucide-react";
 import type { RefObject } from "react";
 import type { RepositoryReview } from "../../shared/contracts";
+import {
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
 import type { ApiResource } from "../lib";
-import { Badge, EmptyBlock } from "../lib";
+import { Badge } from "../lib";
 import type { RepositoryPatchResponse } from "../repository-resource-models";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
-import { REVIEW_DETAIL_CLASS, REVIEW_DETAIL_HEADER_CLASS } from "./layout";
+import { REVIEW_DETAIL_CLASS } from "./layout";
 import { type ReviewItem, statusTone } from "./models";
 import { ReviewApprovalPanel } from "./ReviewApprovalPanel";
 import { ReviewChangesPanel } from "./ReviewChangesPanel";
@@ -125,31 +135,27 @@ export function ReviewDetail({
     >
       <section className={REVIEW_DETAIL_CLASS} data-review="detail">
         {!selected ? (
-          <EmptyBlock title="No review items yet">
-            Decisions, changed files, and verification results appear here.
-            Completed run history stays in the Runs tab.
-          </EmptyBlock>
+          <WorkbenchEmpty title="Select an item to review" icon={Inbox}>
+            Choose a decision, file, or check from the review queue.
+          </WorkbenchEmpty>
         ) : (
-          <>
-            <header className={REVIEW_DETAIL_HEADER_CLASS}>
-              <div>
-                <span>
-                  {selected.kind === "approvals"
-                    ? "decision required"
-                    : selected.kind === "ci"
-                      ? "verification"
-                      : selected.kind === "changes"
-                        ? "file changed"
-                        : "agent work event"}
-                </span>
-                <h2>{selected.title}</h2>
-                <p>{selected.description}</p>
-              </div>
+          <WorkbenchSection
+            title={selected.title}
+            description={selected.description}
+            icon={
+              selected.kind === "approvals"
+                ? ShieldCheck
+                : selected.kind === "changes"
+                  ? GitCompareArrows
+                  : CircleCheck
+            }
+            actions={
               <Badge tone={statusTone(selected.status)}>
                 {selected.status}
               </Badge>
-            </header>
-
+            }
+            className="review-selection"
+          >
             {selected.kind === "approvals" ? (
               <ReviewApprovalPanel
                 busy={busy}
@@ -183,7 +189,7 @@ export function ReviewDetail({
             {selected.kind === "ci" ? (
               <ReviewCiPanel review={review} selected={selected} />
             ) : null}
-          </>
+          </WorkbenchSection>
         )}
       </section>
     </ContextActionMenu>
