@@ -197,3 +197,22 @@ Report exactly which commands ran and their results. Distinguish static checks,
 unit/DOM tests, real process or Electron journeys, packaged acceptance, and live
 provider execution. Include failures and untested surfaces; a successful build
 is not evidence for every product behavior.
+
+### Reclaim space in a local ElizaOS profile
+
+Quit Doolittle and any CLI workers using the profile, then pass the absolute
+PGlite directory to the operator utility:
+
+```sh
+nub scripts/compact-local-pglite.ts "/absolute/path/to/runtime/pglite"
+```
+
+It fingerprints the trajectory rows, compacts only the trajectory tables on a
+staged copy, then reopens and verifies the copy before replacing the database.
+It prints the original cluster's rollback path. Keep that copy until the app
+reopens its conversations and memory. Rewriting takes extra disk space.
+
+An interrupted transaction leaves a sibling `.repair-in-progress` directory.
+Keep all runtimes stopped. If it contains `original`, move any cluster at the
+normal path aside, then move `original` back to that path. Move the repair
+directory aside after verifying the normal path contains the intended cluster.

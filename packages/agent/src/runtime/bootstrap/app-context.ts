@@ -22,6 +22,7 @@ import { normalizePlugin } from "../native/plugin-registry/support";
 import { composeWorkerCharacter } from "./bot-profile";
 import { configureBootstrapContext } from "./context";
 import { buildPluginSettings, getPgliteDataDir } from "./env/index";
+import { assertPgliteRepairIdle } from "./env/pglite";
 import { setDefaultTrajectoryCapture } from "./env/trajectory-capture";
 import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "./runtime/capability-options";
 import {
@@ -40,6 +41,7 @@ export async function buildAppContext(
   ownership?: RuntimeOwnershipObserver,
 ): Promise<AppContext> {
   const { config, services, workerBot, bindRuntime } = graph;
+  assertPgliteRepairIdle(getPgliteDataDir(config));
   setDefaultTrajectoryCapture(process.env);
   if (process.env.DOOLITTLE_KNOWLEDGE_BROKER === "1") {
     if (
