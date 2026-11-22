@@ -8,8 +8,6 @@ import {
   WorkbenchSection,
 } from "./components/workbench/Workbench";
 import {
-  asString,
-  desktopRequest,
   ErrorBlock,
   errorMessage,
   LoadingBlock,
@@ -23,14 +21,6 @@ import {
   normalizeRegistryEntries,
   type RegistryEntry,
   registryInstallKey,
-  registryResultLabel,
-} from "./registry/registry-model";
-
-export type { RegistryEntry } from "./registry/registry-model";
-export {
-  normalizeRegistryEntries,
-  REGISTRY_INSTALL_CAVEAT,
-  registryCatalogPresentation,
   registryResultLabel,
 } from "./registry/registry-model";
 
@@ -87,34 +77,10 @@ export function RegistryPage({ active }: { active: boolean }) {
     setInstalling(true);
     setInstallNotice("");
     try {
-      const result = await desktopRequest<{
-        installed?: {
-          name?: string;
-          version?: string;
-          requiresRestart?: boolean;
-        };
-      }>(
-        "/runtime/registry/install",
-        "POST",
-        {
-          name: entry.name,
-          packageName: entry.packageName,
-          version: entry.version,
-          approved: true,
-        },
-        undefined,
-        120_000,
+      const { installRegistryPackage } = await import(
+        "./registry/registry-install"
       );
-      setInstallNotice(
-        `${asString(result.installed?.name, entry.name)} ${asString(
-          result.installed?.version,
-          entry.version,
-        )} installed through Eliza.${
-          result.installed?.requiresRestart
-            ? " Restart the local runtime to activate it."
-            : ""
-        }`,
-      );
+      setInstallNotice(await installRegistryPackage(entry));
       setPendingInstall("");
       registry.reload();
     } catch (cause) {
