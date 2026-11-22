@@ -123,7 +123,11 @@ it("links the active shell to the viewport and provides keyboard actions and aut
   const defaultTab = tabRefs.current[activeTab.id];
   if (!defaultTab) throw new Error("Expected terminal tab");
   expect(defaultTab.tabIndex).toBe(0);
+  expect(defaultTab.getAttribute("aria-description")).toBe("Running");
   expect(tabRefs.current[tabs[1].id]?.tabIndex).toBe(-1);
+  expect(tabRefs.current[tabs[1].id]?.getAttribute("aria-description")).toBe(
+    "Ready to open",
+  );
   const viewport = host.querySelector('[role="tabpanel"]');
   expect(viewport?.id).toBe(defaultTab.getAttribute("aria-controls"));
   expect(viewport?.getAttribute("aria-labelledby")).toBe(defaultTab.id);

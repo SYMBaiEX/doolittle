@@ -88,14 +88,13 @@ export function InteractiveTerminalSurface({
       />
       {!running && !activeTab?.output ? (
         <div className="interactive-terminal-empty">
-          <UiIcon icon={Terminal} />
-          <span>Workspace shell</span>
           <button
             className={INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS}
             disabled={!active || starting}
             onClick={onStart}
             type="button"
           >
+            <UiIcon icon={Terminal} size="sm" />
             {starting
               ? "Opening…"
               : pendingStart

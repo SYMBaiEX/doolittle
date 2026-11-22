@@ -75,7 +75,7 @@ export function CompanionInspector({
     <InspectorFrame
       id={`${id}-inspector`}
       title="Conversation inspector"
-      className={`workspace-inspector workspace-inspector--chat relative flex h-full min-h-0 w-[var(--inspector-width,320px)] ${width !== undefined || resize ? "max-w-none" : "max-w-[40vw]"} flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : ""}`}
+      className={`workspace-inspector workspace-inspector--chat relative flex h-full min-h-0 w-[var(--inspector-width,320px)] ${width !== undefined || resize ? "max-w-none" : "max-w-[40vw]"} flex-col overflow-hidden max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : " border-s border-[var(--border)] max-[720px]:border-s-0"}`}
       style={
         !fullWidth && (width !== undefined || resize)
           ? { width: width ?? resize?.value }

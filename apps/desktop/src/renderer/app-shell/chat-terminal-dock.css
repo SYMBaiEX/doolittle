@@ -4,7 +4,7 @@
   flex: none;
   min-width: 0;
   min-height: 0;
-  border-block-start: 1px solid var(--border-strong);
+  border-block-start: 1px solid var(--border);
   background: var(--canvas-bg);
 }
 
@@ -56,9 +56,8 @@
 .chat-terminal-compact-toolbar {
   height: 100%;
   justify-content: space-between;
-  padding-inline: 6px;
+  padding-inline: 8px;
   color: var(--text-soft);
-  background: var(--surface-raised);
 }
 
 .chat-terminal-compact-toolbar button,

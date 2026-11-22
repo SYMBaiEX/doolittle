@@ -1,5 +1,15 @@
 .interactive-terminal {
   --terminal-control: 28px;
+  --terminal-control-hover: color-mix(
+    in srgb,
+    var(--canvas-text) 8%,
+    var(--canvas-bg)
+  );
+  --terminal-control-active: color-mix(
+    in srgb,
+    var(--canvas-text) 13%,
+    var(--canvas-bg)
+  );
   container: terminal / inline-size;
   display: grid;
   height: 100%;
@@ -14,14 +24,12 @@
 .interactive-terminal-header {
   display: grid;
   min-width: 0;
-  min-height: 36px;
+  min-height: 38px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 2px 6px 2px 10px;
-  border-block-end: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--text-soft);
+  gap: 12px;
+  padding: 4px 8px 2px 12px;
+  color: var(--canvas-text-soft);
 }
 
 .interactive-terminal-heading,
@@ -38,11 +46,11 @@
 .interactive-terminal-heading {
   gap: 6px;
   font-size: var(--text-meta);
-  font-weight: 650;
+  font-weight: 580;
 }
 
 .interactive-terminal-tabs {
-  gap: 2px;
+  gap: 4px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
@@ -51,9 +59,7 @@
 
 .interactive-terminal-actions {
   align-self: stretch;
-  gap: 1px;
-  padding-inline-start: 5px;
-  border-inline-start: 1px solid var(--border);
+  gap: 2px;
 }
 
 .interactive-terminal-tab {
@@ -63,13 +69,12 @@
   max-width: 15rem;
   min-height: var(--terminal-control);
   border-radius: var(--radius-xs);
-  color: var(--muted);
+  color: var(--canvas-text-soft);
 }
 
 .interactive-terminal-tab:has([aria-selected="true"]) {
-  color: var(--text);
-  background: var(--surface-soft);
-  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--canvas-text);
+  background: var(--terminal-control-active);
 }
 
 .interactive-terminal-tab-select,
@@ -149,10 +154,9 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-color: var(--border);
   padding: 4px 10px;
-  background: var(--surface-soft);
-  color: var(--text);
+  background: var(--terminal-control-active);
+  color: var(--canvas-text);
   font-size: var(--text-meta);
   font-weight: 620;
 }
@@ -169,8 +173,8 @@
     .interactive-terminal-open,
     .interactive-terminal-retry
   ):hover:not(:disabled) {
-  color: var(--text);
-  background: var(--surface-hover);
+  color: var(--canvas-text);
+  background: var(--terminal-control-hover);
 }
 
 .interactive-terminal :is(button, input):disabled {
@@ -199,11 +203,9 @@
   min-height: 25px;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 11px;
-  padding-inline: 8px;
-  border-block-start: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--muted);
+  gap: 12px;
+  padding-inline: 12px;
+  color: var(--canvas-text-soft);
   font-size: var(--text-meta);
 }
 
@@ -213,7 +215,6 @@
 }
 
 .interactive-terminal-mode {
-  color: var(--text-soft);
   white-space: nowrap;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -245,7 +246,7 @@
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 7px 8px 5px;
+  padding: 8px 12px 4px;
 }
 
 .interactive-terminal-viewport .xterm-helper-textarea {
@@ -263,8 +264,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 6px 8px;
+  padding: 8px 12px;
   overflow: auto;
   background: var(--canvas-bg);
   color: var(--canvas-text-soft);
@@ -282,8 +282,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 8px;
-  border-block-end: 1px solid var(--border);
+  margin: 4px 12px 0;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
   background: var(--surface-soft);
   color: var(--text-soft);
   font-size: var(--text-meta);
@@ -311,8 +312,13 @@
   }
 
   .interactive-terminal-header {
-    gap: 4px;
-    padding-inline-start: 6px;
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .interactive-terminal-viewport .xterm,
+  .interactive-terminal-status {
+    padding-inline: 8px;
   }
 }
 

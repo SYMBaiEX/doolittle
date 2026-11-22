@@ -33,7 +33,6 @@ import {
   WORKBENCH_CHECKPOINT_DETAILS_CLASS,
   WORKBENCH_CHECKPOINT_LIST_CLASS,
   WORKBENCH_CHECKPOINTS_BODY_CLASS,
-  WORKBENCH_TEXT_BUTTON_CLASS,
 } from "./layout";
 import type { WorkbenchController } from "./models";
 import { ResourceState } from "./ResourceState";
@@ -195,7 +194,7 @@ export function ChangesPanel({
           <div className={WORKBENCH_CHECKPOINTS_BODY_CLASS}>
             {checkpoints.data?.support?.supported ? (
               <button
-                className={WORKBENCH_TEXT_BUTTON_CLASS}
+                className="workspace-inspector-action"
                 disabled={checkpointBusy}
                 onClick={() => void createCheckpoint()}
                 type="button"
@@ -233,6 +232,7 @@ export function ChangesPanel({
                           </small>
                         </span>
                         <button
+                          className="workspace-inspector-action"
                           disabled={checkpointBusy}
                           onClick={() => void restoreCheckpoint(id)}
                           type="button"

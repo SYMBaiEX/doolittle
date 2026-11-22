@@ -244,6 +244,7 @@ function BriefPanel({
                 </BriefEmpty>
               )}
               <button
+                className="workspace-inspector-action"
                 onClick={() =>
                   insert(
                     "Brief plan summary added",
@@ -308,7 +309,9 @@ function BriefPanel({
                       <span>{title}</span>
                       <small>
                         <Badge tone={statusTone(status)}>{status}</Badge>
-                        {asString(entry.profile)}
+                        {entry.profile ? (
+                          <span>{asString(entry.profile)}</span>
+                        ) : null}
                       </small>
                     </button>
                   );
@@ -343,7 +346,7 @@ function BriefPanel({
                       }
                       type="button"
                     >
-                      <span>{compactRailLabel(command)}</span>
+                      <code title={command}>{compactRailLabel(command)}</code>
                       <small>
                         {displayTimestamp(asString(approval.createdAt))}
                       </small>
@@ -386,8 +389,14 @@ function BriefPanel({
                       }
                       type="button"
                     >
-                      <span>$ {asString(entry.command, "command")}</span>
-                      <small>{asString(entry.startedAt, "No timestamp")}</small>
+                      <code title={asString(entry.command)}>
+                        {asString(entry.command, "Command")}
+                      </code>
+                      {entry.startedAt ? (
+                        <small>
+                          {displayTimestamp(asString(entry.startedAt))}
+                        </small>
+                      ) : null}
                     </button>
                   );
                 })
@@ -402,12 +411,14 @@ function BriefPanel({
             <div className={WORKBENCH_QUICK_NAV_CLASS}>
               {QUICK_NAVIGATION.map((item) => (
                 <button
+                  aria-description={item.blurb}
                   key={item.label}
                   onClick={() => onOpenFullView(item.view)}
                   title={item.blurb}
                   type="button"
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  <UiIcon icon={ArrowUpRight} size="sm" />
                 </button>
               ))}
             </div>
@@ -476,20 +487,24 @@ function SettingsPanel({
             </div>
           </section>
           <details
-            className={WORKBENCH_SETTINGS_NAV_CLASS}
+            className={`${WORKBENCH_SETTINGS_NAV_CLASS} workspace-inspector-disclosure`}
             data-thread-workbench="settings-navigation"
           >
-            <summary>Open a full page</summary>
-            <div>
+            <summary>
+              <UiIcon icon={ChevronRight} size="sm" />
+              Open a full page
+            </summary>
+            <div className={WORKBENCH_QUICK_NAV_CLASS}>
               {QUICK_NAVIGATION.map((item) => (
                 <button
+                  aria-description={item.blurb}
                   key={item.label}
                   onClick={() => onOpenFullView(item.view)}
                   title={item.blurb}
                   type="button"
                 >
-                  <strong>{item.label}</strong>
-                  <small>{item.blurb}</small>
+                  <span>{item.label}</span>
+                  <UiIcon icon={ArrowUpRight} size="sm" />
                 </button>
               ))}
             </div>

@@ -158,6 +158,7 @@ export function InteractiveTerminalHeader({
             >
               <button
                 aria-controls={selected ? panelId : undefined}
+                aria-description={status}
                 aria-label={`${tab.name} terminal tab`}
                 aria-selected={selected}
                 className="interactive-terminal-tab-select"
@@ -282,7 +283,6 @@ export function InteractiveTerminalHeader({
             {
               id: "clear-output",
               label: "Clear terminal view",
-              separatorBefore: true,
               disabled: !outputAvailable,
               onSelect: onClearOutput,
             },
