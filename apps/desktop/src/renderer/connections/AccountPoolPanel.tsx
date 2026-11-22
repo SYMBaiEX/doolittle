@@ -1,5 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/button";
+import { ChevronDown, Play, Wrench } from "lucide-react";
 import { useState } from "react";
 import type {
   AccountPoolAccount,
@@ -11,10 +11,13 @@ import type {
 import type { DisplayAccount } from "../account-pool-ui";
 import type { AccountImportDraft } from "../agent-pages-helpers";
 import { accountPoolProgress } from "../agent-pages-helpers";
-import { Badge, EmptyBlock } from "../lib";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+} from "../components/workbench/Workbench";
+import { Badge } from "../lib";
 import { AccountPoolDirectory } from "./AccountPoolDirectory";
 import {
-  PROVIDER_IDENTITY_MARK_CLASS,
   PROVIDER_POOL_BODY_CLASS,
   PROVIDER_POOL_HEADER_ACTIONS_CLASS,
   PROVIDER_POOL_HEADER_CLASS,
@@ -25,6 +28,7 @@ import {
   PROVIDER_POOL_TITLE_CLASS,
   PROVIDER_POOL_TOOLBAR_CLASS,
 } from "./layout";
+import { ProviderIdentity } from "./ProviderIdentity";
 import { RotationStrategyPicker } from "./RotationStrategyPicker";
 
 export function AccountPoolPanel({
@@ -85,14 +89,10 @@ export function AccountPoolPanel({
     return (
       <section
         aria-label={`${descriptor.label} spawned-agent account pool`}
-        className={`${PROVIDER_POOL_PANEL_CLASS} is-unavailable [&>.empty-block]:m-4.5`}
+        className={`${PROVIDER_POOL_PANEL_CLASS} is-unavailable`}
       >
-        <div
-          className={`${PROVIDER_POOL_HEADER_CLASS} border-[var(--line-subtle)] border-b`}
-        >
-          <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
-            {descriptor.shortLabel}
-          </div>
+        <div className={PROVIDER_POOL_HEADER_CLASS}>
+          <ProviderIdentity initials={descriptor.shortLabel} />
           <div>
             <span className="eyebrow">Spawned-agent routing</span>
             <h3>{descriptor.label}</h3>
@@ -101,9 +101,9 @@ export function AccountPoolPanel({
             <Badge tone="warn">Pool unavailable</Badge>
           </div>
         </div>
-        <EmptyBlock title="Account pool is not available">
+        <WorkbenchEmpty title="Account pool is not available">
           Refresh runtime services, then return here to configure agent routing.
-        </EmptyBlock>
+        </WorkbenchEmpty>
       </section>
     );
   }
@@ -147,12 +147,8 @@ export function AccountPoolPanel({
             : []),
         ]}
       >
-        <header
-          className={`${PROVIDER_POOL_HEADER_CLASS} ${expanded ? "border-[var(--line-subtle)] border-b" : ""}`}
-        >
-          <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
-            {descriptor.shortLabel}
-          </div>
+        <header className={PROVIDER_POOL_HEADER_CLASS}>
+          <ProviderIdentity initials={descriptor.shortLabel} />
           <div className={PROVIDER_POOL_TITLE_CLASS}>
             <h3>{descriptor.label}</h3>
             <p>
@@ -164,24 +160,26 @@ export function AccountPoolPanel({
               {bridgeInstalled ? "Eliza native" : "Unavailable"}
             </Badge>
             {needsAuthRepair && authProvider ? (
-              <Button
+              <WorkbenchAction
                 onClick={() => authProvider && onSignIn(authProvider)}
                 disabled={Boolean(busy)}
+                emphasis="secondary"
+                icon={Wrench}
                 type="button"
-                variant="secondary"
               >
                 Repair auth
-              </Button>
+              </WorkbenchAction>
             ) : null}
-            <Button
+            <WorkbenchAction
               aria-controls={`provider-pool-${descriptor.provider}`}
               aria-expanded={expanded}
+              emphasis="quiet"
+              icon={ChevronDown}
               onClick={() => setExpanded((current) => !current)}
               type="button"
-              variant="secondary"
             >
               {expanded ? "Done" : "Manage"}
-            </Button>
+            </WorkbenchAction>
           </div>
         </header>
       </ContextActionMenu>
@@ -233,15 +231,16 @@ export function AccountPoolPanel({
               providerId={descriptor.provider}
               value={snapshot.strategy}
             />
-            <Button
-              className="secondary-button shrink-0"
+            <WorkbenchAction
+              className="shrink-0"
               onClick={onPreview}
               disabled={Boolean(busy) || progress.enabled === 0}
+              emphasis="secondary"
+              icon={Play}
               type="button"
-              variant="secondary"
             >
               Preview
-            </Button>
+            </WorkbenchAction>
           </div>
         </div>
 

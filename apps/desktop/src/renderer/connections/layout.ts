@@ -1,58 +1,8 @@
-export const PROVIDER_CONSOLE_CLASS =
-  "provider-console @container/providers min-w-0 grid gap-4";
+export const PROVIDER_POOL_STACK_CLASS = "provider-pool-stack";
 
-export const PROVIDER_SURFACE_CLASS = "provider-surface grid gap-2.25 pt-0.5";
+export const PROVIDER_POOL_PANEL_CLASS = "provider-pool-panel";
 
-export const PROVIDER_SECTION_HEADING_CLASS =
-  "provider-section-heading flex items-center justify-between gap-4 px-0.5 @max-[680px]/providers:items-start @max-[680px]/providers:flex-col @max-[680px]/providers:gap-1.75 [&>div]:grid [&>div]:gap-1 [&_h2]:m-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-[650] [&_h2]:tracking-[-0.02em]";
-
-export const PROVIDER_ROSTER_CLASS =
-  "provider-roster overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)]";
-
-export const PROVIDER_ROUTE_SUMMARY_CLASS =
-  "provider-route-summary grid min-w-0 grid-cols-[repeat(2,minmax(0,auto))] overflow-hidden rounded-[4px] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-raised)_64%,transparent)] @max-[680px]/providers:w-full @max-[680px]/providers:grid-cols-2 [&>div]:grid [&>div]:min-w-0 [&>div]:grid-cols-[auto_auto] [&>div]:items-baseline [&>div]:gap-2 [&>div]:border-[var(--line-subtle)] [&>div]:border-l [&>div]:px-2.5 [&>div]:py-1.5 [&>div:first-child]:border-l-0 [&_dt]:font-[var(--font-mono)] [&_dt]:text-[length:var(--text-meta)] [&_dt]:tracking-[0.06em] [&_dt]:text-[var(--muted)] [&_dt]:uppercase [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:truncate [&_dd]:text-[length:var(--text-control)] [&_dd]:font-semibold [&_dd]:text-[var(--text-soft)]";
-
-export const PROVIDER_CONNECTION_ROW_CLASS =
-  "provider-connection-row relative grid min-h-16 grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2.75 border-[var(--line-subtle)] border-b px-3 py-2 transition-colors last:border-b-0 hover:bg-[color-mix(in_srgb,var(--surface-raised)_74%,transparent)] @max-[680px]/providers:grid-cols-[38px_minmax(0,1fr)]";
-
-export const PROVIDER_CONNECTION_DEFAULT_CLASS =
-  "is-default [&_h3]:font-semibold";
-
-export const PROVIDER_IDENTITY_MARK_CLASS =
-  "provider-identity-mark grid size-8.5 place-items-center rounded-[4px] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-raised))] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.08em] text-[var(--accent-text)]";
-
-export const PROVIDER_CONNECTION_COPY_CLASS =
-  "provider-connection-copy grid min-w-0 gap-0.75";
-
-export const PROVIDER_CONNECTION_TITLE_CLASS =
-  "provider-connection-title flex items-center gap-2.25 [&_h3]:m-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-[13px] [&_h3]:font-[650] [&_h3]:tracking-[-0.01em]";
-
-export const PROVIDER_STATUS_LINE_CLASS =
-  "provider-connection-status-line flex min-w-0 items-center gap-1.75 text-[var(--muted)] [&>span]:size-1.5 [&>span]:shrink-0 [&>span]:rounded-full [&>p]:m-0 [&>p]:truncate [&>p]:text-[length:var(--text-meta)]";
-
-export const PROVIDER_FACTS_CLASS =
-  "provider-connection-facts m-0 flex min-w-0 overflow-hidden text-[var(--muted)] @max-[480px]/providers:flex-wrap [&>div]:flex [&>div]:min-w-0 [&>div]:items-center [&>div+div]:before:px-1.5 [&>div+div]:before:text-[var(--line-strong)] [&>div+div]:before:content-['·'] [&_dd]:m-0 [&_dd]:max-w-[min(28vw,260px)] [&_dd]:truncate [&_dd]:text-[length:var(--text-meta)]";
-
-export const PROVIDER_CONNECTION_ACTIONS_CLASS =
-  "provider-connection-actions relative flex flex-wrap items-center justify-end gap-2 @max-[680px]/providers:col-start-2 @max-[680px]/providers:justify-start [&_button]:min-h-[var(--control-height)] max-[760px]:[&_button]:min-h-11";
-
-export const PROVIDER_CONNECTION_MORE_CLASS =
-  "provider-connection-more font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[1px] text-[var(--text-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-raised)] focus-visible:text-[var(--text)] data-[state=open]:bg-[var(--surface-raised)] data-[state=open]:text-[var(--text)]";
-
-export const PROVIDER_ROUTING_DISCLOSURE_CLASS =
-  "provider-routing-disclosure overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] pt-0 [&>summary]:flex [&>summary]:min-h-14.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-4.5 [&>summary]:px-3.25 [&>summary]:py-2.25 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:font-[var(--font-display)] [&>summary_strong]:text-sm [&>summary_small]:text-[var(--muted)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary>span:last-child]:font-[var(--font-mono)] [&>summary>span:last-child]:text-[var(--accent-text)] [&>summary>span:last-child]:text-[length:var(--text-meta)] [&>summary>span:last-child]:uppercase";
-
-export const PROVIDER_ROUTING_CONTENT_CLASS =
-  "provider-routing-content border-[var(--line-subtle)] border-t p-2.5";
-
-export const PROVIDER_POOL_STACK_CLASS =
-  "provider-pool-stack grid items-start gap-2.5 @min-[900px]/providers:grid-cols-2";
-
-export const PROVIDER_POOL_PANEL_CLASS =
-  "provider-pool-panel overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_94%,transparent)]";
-
-export const PROVIDER_POOL_HEADER_CLASS =
-  "provider-pool-panel__header grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.75 bg-[color-mix(in_srgb,var(--surface-raised)_54%,transparent)] px-3.25 py-2.75 @max-[480px]/providers:grid-cols-[38px_minmax(0,1fr)]";
+export const PROVIDER_POOL_HEADER_CLASS = "provider-pool-panel__header";
 
 export const PROVIDER_POOL_TITLE_CLASS =
   "provider-pool-panel__title grid gap-0.5 [&_h3]:m-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-[13px] [&_h3]:font-[650] [&_h3]:tracking-[-0.01em] [&_p]:m-0 [&_p]:text-[length:var(--text-meta)] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]";
@@ -62,8 +12,7 @@ export const PROVIDER_POOL_HEADER_ACTIONS_CLASS =
 
 export const PROVIDER_POOL_BODY_CLASS = "provider-pool-body grid min-w-0";
 
-export const PROVIDER_POOL_TOOLBAR_CLASS =
-  "provider-pool-toolbar grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center justify-between gap-2.5 border-[var(--line-subtle)] border-b bg-[color-mix(in_srgb,var(--surface-soft)_76%,transparent)] px-3.25 py-2 @max-[900px]/providers:grid-cols-1 @max-[900px]/providers:items-start @max-[900px]/providers:gap-3 @max-[480px]/providers:px-3.5";
+export const PROVIDER_POOL_TOOLBAR_CLASS = "provider-pool-toolbar";
 
 export const PROVIDER_POOL_SUMMARY_CLASS =
   "provider-pool-summary m-0 flex shrink-0 items-center @max-[480px]/providers:w-full @max-[480px]/providers:justify-between [&>div]:flex [&>div]:min-w-17 [&>div]:items-baseline [&>div]:gap-1.5 [&>div]:border-[var(--line-subtle)] [&>div]:border-l [&>div]:px-2.5 @max-[480px]/providers:[&>div]:min-w-0 [&>div:first-child]:border-l-0 [&>div:first-child]:pl-0 [&_dt]:font-[var(--font-mono)] [&_dt]:text-[length:var(--text-meta)] [&_dt]:tracking-[0.08em] [&_dt]:text-[var(--muted)] [&_dt]:uppercase [&_dd]:m-0 [&_dd]:font-[var(--font-display)] [&_dd]:text-sm [&_dd]:font-[650] [&_dd]:text-[var(--text)]";

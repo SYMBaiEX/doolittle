@@ -71,3 +71,58 @@ it("serializes credential edits and ignores a pending reveal after hiding", asyn
     vi.mocked(desktopRequest).mockReset();
   }
 });
+
+it("opens a fresh key editor without carrying forward a revealed value", async () => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const visibility = vi
+    .spyOn(document, "visibilityState", "get")
+    .mockReturnValue("visible");
+  const saved = { keys: ["FIXTURE_KEY", "OTHER_FIXTURE_KEY"] };
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/secrets", [true])],
+    saved,
+  );
+  vi.mocked(desktopRequest).mockImplementation(async (path) =>
+    path === "/secrets/get" ? { value: "synthetic-test-value" } : saved,
+  );
+  const button = (label: string) =>
+    [...container.querySelectorAll("button")].find(
+      (item) => item.textContent === label,
+    );
+  try {
+    await act(async () => root.render(<KeysPage active />));
+    await act(async () => button("Reveal value")?.click());
+    const name = container.querySelector<HTMLInputElement>("#secret-key-name");
+    const value =
+      container.querySelector<HTMLInputElement>("#secret-key-value");
+    expect(value?.value).toBe("synthetic-test-value");
+
+    act(() => button("New key")?.click());
+    expect(name?.value).toBe("");
+    expect(document.activeElement).toBe(name);
+    expect(value?.value).toBe("");
+    expect(value?.type).toBe("password");
+    expect(button("Save key")?.disabled).toBe(true);
+    expect(container.querySelector('[aria-pressed="true"]')).toBeNull();
+
+    act(() => button("OTHER_FIXTURE_KEY")?.click());
+    expect(name?.value).toBe("OTHER_FIXTURE_KEY");
+    expect(value?.value).toBe("");
+    expect(
+      vi
+        .mocked(desktopRequest)
+        .mock.calls.filter(([path]) => path === "/secrets/get"),
+    ).toHaveLength(1);
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    desktopQueryClient.clear();
+    visibility.mockRestore();
+    vi.mocked(desktopRequest).mockReset();
+  }
+});

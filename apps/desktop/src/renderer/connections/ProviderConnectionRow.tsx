@@ -1,22 +1,12 @@
-import { Button, type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { MoreHorizontal } from "lucide-react";
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
+import { LogIn, MoreHorizontal, Plug, Route } from "lucide-react";
 import type {
   ProviderAuthProvider,
   ProviderAuthState,
 } from "../../shared/contracts";
-import { UiIcon } from "../components/UiIcon";
+import { WorkbenchAction } from "../components/workbench/Workbench";
 import { asString, Badge } from "../lib";
-import {
-  PROVIDER_CONNECTION_ACTIONS_CLASS,
-  PROVIDER_CONNECTION_COPY_CLASS,
-  PROVIDER_CONNECTION_DEFAULT_CLASS,
-  PROVIDER_CONNECTION_MORE_CLASS,
-  PROVIDER_CONNECTION_ROW_CLASS,
-  PROVIDER_CONNECTION_TITLE_CLASS,
-  PROVIDER_FACTS_CLASS,
-  PROVIDER_IDENTITY_MARK_CLASS,
-  PROVIDER_STATUS_LINE_CLASS,
-} from "./layout";
+import { ProviderIdentity } from "./ProviderIdentity";
 
 export interface ProviderConnectionDescriptor {
   key: string;
@@ -149,13 +139,7 @@ export function ProviderConnectionRow({
       : nativeReady
         ? "good"
         : "warn";
-  const statusClass = signingIn
-    ? "is-pending [&>span]:animate-pulse [&>span]:bg-[var(--accent)] motion-reduce:[&>span]:animate-none"
-    : fallbackReady
-      ? "is-fallback [&>span]:bg-[var(--warn)]"
-      : ready
-        ? "is-ready [&>span]:bg-[var(--good)]"
-        : "is-offline [&>span]:bg-[var(--muted)]";
+  const usingProvider = ready && !signingIn && isDefault;
   const contextActions: ContextAction[] = [
     ...(primaryAction
       ? [
@@ -163,7 +147,7 @@ export function ProviderConnectionRow({
             id: "primary",
             label: primaryAction.label,
             onSelect: primaryAction.onClick,
-            disabled: busy || (ready && !signingIn && isDefault),
+            disabled: busy || usingProvider,
           },
         ]
       : []),
@@ -187,19 +171,17 @@ export function ProviderConnectionRow({
       scopeKey={menuScope}
     >
       <article
-        className={`${PROVIDER_CONNECTION_ROW_CLASS} ${isDefault ? PROVIDER_CONNECTION_DEFAULT_CLASS : ""}`}
+        className={`provider-connection-row${isDefault ? " is-default" : ""}`}
         data-provider-connection="true"
       >
-        <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
-          {descriptor.shortLabel}
-        </div>
-        <div className={PROVIDER_CONNECTION_COPY_CLASS}>
-          <div className={PROVIDER_CONNECTION_TITLE_CLASS}>
+        <ProviderIdentity initials={descriptor.shortLabel} />
+        <div className="provider-connection-copy">
+          <div className="provider-connection-title">
             <h3>{descriptor.label}</h3>
             <Badge tone={badgeTone}>{stateLabel}</Badge>
           </div>
           <div
-            className={`${PROVIDER_STATUS_LINE_CLASS} ${statusClass}`}
+            className="provider-connection-status-line"
             data-provider-status={
               signingIn
                 ? "pending"
@@ -213,29 +195,41 @@ export function ProviderConnectionRow({
             }
             aria-live="polite"
           >
-            <span aria-hidden="true" />
-            <p title={detail}>{detail}</p>
+            <p>{detail}</p>
           </div>
-          <dl className={PROVIDER_FACTS_CLASS}>
-            {facts.map((fact) => (
-              <div key={fact.label} title={`${fact.label}: ${fact.value}`}>
-                <dt className="sr-only">{fact.label}</dt>
-                <dd>{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
+          {facts.length ? (
+            <dl className="provider-connection-facts">
+              {facts.map((fact) => (
+                <div key={fact.label} title={`${fact.label}: ${fact.value}`}>
+                  <dt className="sr-only">{fact.label}</dt>
+                  <dd>{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
         </div>
-        <div className={PROVIDER_CONNECTION_ACTIONS_CLASS}>
-          {primaryAction ? (
-            <Button
+        <div className="provider-connection-actions">
+          {primaryAction && !usingProvider ? (
+            <WorkbenchAction
               onClick={primaryAction.onClick}
-              disabled={busy || (ready && !signingIn && isDefault)}
+              disabled={busy}
+              emphasis={
+                primaryAction.variant === "secondary" ? "secondary" : "primary"
+              }
+              icon={
+                signingIn
+                  ? undefined
+                  : ready
+                    ? Route
+                    : authProvider
+                      ? LogIn
+                      : Plug
+              }
               size="sm"
               type="button"
-              variant={primaryAction.variant}
             >
               {primaryAction.label}
-            </Button>
+            </WorkbenchAction>
           ) : null}
           {secondaryAction ? (
             <ContextActionMenu
@@ -243,17 +237,15 @@ export function ProviderConnectionRow({
               label={`More actions for ${descriptor.label}`}
               scopeKey={menuScope}
               trigger={
-                <Button
+                <WorkbenchAction
                   aria-label={`More actions for ${descriptor.label}`}
-                  className={PROVIDER_CONNECTION_MORE_CLASS}
                   disabled={busy}
+                  emphasis="quiet"
+                  icon={MoreHorizontal}
                   size="icon-sm"
                   title={`More actions for ${descriptor.label}`}
                   type="button"
-                  variant="ghost"
-                >
-                  <UiIcon icon={MoreHorizontal} size="sm" />
-                </Button>
+                />
               }
             >
               {null}

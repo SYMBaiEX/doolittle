@@ -1,5 +1,5 @@
-import { Button } from "@doolittle/ui";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
+import { Bot, Cable, RefreshCw, Route } from "lucide-react";
 import { useState } from "react";
 import type {
   AccountPoolProvider,
@@ -8,17 +8,14 @@ import type {
 } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
-import { AccountPoolPanel } from "./connections/AccountPoolPanel";
 import {
-  PROVIDER_CONSOLE_CLASS,
-  PROVIDER_POOL_STACK_CLASS,
-  PROVIDER_ROSTER_CLASS,
-  PROVIDER_ROUTING_CONTENT_CLASS,
-  PROVIDER_ROUTING_DISCLOSURE_CLASS,
-  PROVIDER_SECTION_HEADING_CLASS,
-  PROVIDER_SURFACE_CLASS,
-} from "./connections/layout";
+  WorkbenchAction,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import { AccountPoolPanel } from "./connections/AccountPoolPanel";
+import { PROVIDER_POOL_STACK_CLASS } from "./connections/layout";
 import { ProviderConnectionRow } from "./connections/ProviderConnectionRow";
+import { ProviderDisclosure } from "./connections/ProviderDisclosure";
 import { ProviderRouteSummary } from "./connections/ProviderRouteSummary";
 import {
   type AccountsResponse,
@@ -129,38 +126,29 @@ export function ConnectionsPage({ active }: { active: boolean }) {
   } = useConnectionsActions({ accountPool, active, accounts: resource });
 
   const checkingSaved = busy === "all:refresh";
-  const description =
-    "Check for existing provider sign-ins or connect a new account.";
   const pendingSignIn = Object.values(authStates).some(
     (state) => state.phase === "launching" || state.phase === "waiting",
   );
   const checkAction = active ? (
-    <Button
+    <WorkbenchAction
       disabled={Boolean(busy) || pendingSignIn}
+      emphasis="secondary"
+      icon={RefreshCw}
       onClick={() => void mutate("all", "refresh")}
       type="button"
-      variant="secondary"
     >
       {checkingSaved ? "Checking saved accounts…" : "Check saved accounts"}
-    </Button>
+    </WorkbenchAction>
   ) : null;
-  const header = (
-    <header className="settings-section-header">
-      <div>
-        <h2>Provider accounts</h2>
-        <p>{description}</p>
-      </div>
-      {checkAction}
-    </header>
-  );
 
   if (!active) {
     return (
       <PagePanel className="settings-provider-section" variant="section">
-        {header}
-        <OfflineRouteState>
-          Provider accounts are available when the local runtime is ready.
-        </OfflineRouteState>
+        <WorkbenchSection icon={Cable} title="Provider accounts">
+          <OfflineRouteState>
+            Provider accounts are available when the local runtime is ready.
+          </OfflineRouteState>
+        </WorkbenchSection>
       </PagePanel>
     );
   }
@@ -190,60 +178,62 @@ export function ConnectionsPage({ active }: { active: boolean }) {
   ).length;
   return (
     <PagePanel className="settings-provider-section" variant="section">
-      {header}
-      {(!resource.data ||
-        inventory === "unchecked" ||
-        inventory === "unavailable" ||
-        providerViews.some((entry) => entry.status.checked === false)) &&
-      window.doolittle.platform === "darwin" ? (
-        <p className="m-0 text-sm text-[var(--muted)]">
-          Checking saved accounts may open a macOS Keychain prompt.
-        </p>
-      ) : null}
-      {feedback ? (
-        <Notice tone={feedback.tone}>{feedback.message}</Notice>
-      ) : null}
-      <ResourceStatusBar
-        resources={[
-          { label: "Accounts", resource },
-          { label: "Account pools", resource: accountPool, required: false },
-        ]}
+      <WorkbenchSection
+        actions={checkAction}
+        className="provider-console provider-settings"
+        description="Connect accounts and choose the provider used for new chats."
+        icon={Cable}
+        title="Provider accounts"
       >
-        {resource.error && resource.data ? (
-          <button
-            className="text-button"
-            onClick={resource.reload}
-            type="button"
-          >
-            Retry accounts
-          </button>
+        {(!resource.data ||
+          inventory === "unchecked" ||
+          inventory === "unavailable" ||
+          providerViews.some((entry) => entry.status.checked === false)) &&
+        window.doolittle.platform === "darwin" ? (
+          <p className="m-0 text-sm text-[var(--muted)]">
+            Checking saved accounts may open a macOS Keychain prompt.
+          </p>
         ) : null}
-        {accountPool.error ? (
-          <button
-            className="text-button"
-            onClick={accountPool.reload}
-            type="button"
-          >
-            Retry pools
-          </button>
+        {feedback ? (
+          <Notice tone={feedback.tone}>{feedback.message}</Notice>
         ) : null}
-      </ResourceStatusBar>
-      {resource.loading && !resource.data ? (
-        <LoadingBlock label="Loading provider status…" />
-      ) : resource.error && !resource.data ? (
-        <ErrorBlock error={resource.error} retry={resource.reload} />
-      ) : null}
-      {resource.data ? (
-        <div className={`${PROVIDER_CONSOLE_CLASS} is-embedded`}>
-          <section
-            className={PROVIDER_SURFACE_CLASS}
-            aria-labelledby="provider-connections-title"
-          >
-            <header className={PROVIDER_SECTION_HEADING_CLASS}>
-              <div>
-                <span className="eyebrow">Chat routing</span>
-                <h2 id="provider-connections-title">Provider connections</h2>
-              </div>
+        <ResourceStatusBar
+          resources={[
+            { label: "Accounts", resource },
+            { label: "Account pools", resource: accountPool, required: false },
+          ]}
+        >
+          {resource.error && resource.data ? (
+            <WorkbenchAction
+              emphasis="quiet"
+              onClick={resource.reload}
+              type="button"
+            >
+              Retry accounts
+            </WorkbenchAction>
+          ) : null}
+          {accountPool.error ? (
+            <WorkbenchAction
+              emphasis="quiet"
+              onClick={accountPool.reload}
+              type="button"
+            >
+              Retry pools
+            </WorkbenchAction>
+          ) : null}
+        </ResourceStatusBar>
+        {resource.loading && !resource.data ? (
+          <LoadingBlock label="Loading provider status…" />
+        ) : resource.error && !resource.data ? (
+          <ErrorBlock error={resource.error} retry={resource.reload} />
+        ) : null}
+        {resource.data ? (
+          <>
+            <WorkbenchSection
+              headingLevel={3}
+              icon={Route}
+              title="Chat routing"
+            >
               <ProviderRouteSummary
                 activeProvider={providerSelectionLabel({
                   configuredProvider,
@@ -255,44 +245,36 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                 ready={readyProviderCount}
                 total={providerViews.length}
               />
-            </header>
-            <div className={PROVIDER_ROSTER_CLASS}>
-              {providerViews.map((entry) => (
-                <ProviderConnectionRow
-                  authState={entry.authState}
-                  busy={Boolean(busy)}
-                  descriptor={entry.provider}
-                  isDefault={entry.isDefault}
-                  key={entry.provider.key}
-                  onCancelSignIn={(provider) =>
-                    void cancelAccountSignIn(provider)
-                  }
-                  onConnect={() => void mutate(entry.provider.key, "connect")}
-                  onSetDefault={() => void mutate(entry.provider.key, "use")}
-                  onSignIn={(provider) => void startAccountSignIn(provider)}
-                  onSubmitCode={(provider) =>
-                    void submitAccountSignInCode(provider)
-                  }
-                  ready={entry.ready}
-                  status={entry.status}
-                />
-              ))}
-            </div>
-          </section>
+              <div className="provider-roster">
+                {providerViews.map((entry) => (
+                  <ProviderConnectionRow
+                    authState={entry.authState}
+                    busy={Boolean(busy)}
+                    descriptor={entry.provider}
+                    isDefault={entry.isDefault}
+                    key={entry.provider.key}
+                    onCancelSignIn={(provider) =>
+                      void cancelAccountSignIn(provider)
+                    }
+                    onConnect={() => void mutate(entry.provider.key, "connect")}
+                    onSetDefault={() => void mutate(entry.provider.key, "use")}
+                    onSignIn={(provider) => void startAccountSignIn(provider)}
+                    onSubmitCode={(provider) =>
+                      void submitAccountSignInCode(provider)
+                    }
+                    ready={entry.ready}
+                    status={entry.status}
+                  />
+                ))}
+              </div>
+            </WorkbenchSection>
 
-          <details
-            className={`${PROVIDER_SURFACE_CLASS} ${PROVIDER_ROUTING_DISCLOSURE_CLASS}`}
-            onToggle={(event) => setPoolOpen(event.currentTarget.open)}
-          >
-            <summary>
-              <span>
-                <span className="eyebrow">Agent routing</span>
-                <strong>Subscription account pools</strong>
-                <small>Codex and Claude rotation for spawned agents</small>
-              </span>
-              <span>{poolOpen ? "Hide" : "Manage"}</span>
-            </summary>
-            <div className={PROVIDER_ROUTING_CONTENT_CLASS}>
+            <ProviderDisclosure
+              description="Choose and rotate the accounts used by spawned agents."
+              icon={Bot}
+              onToggle={(event) => setPoolOpen(event.currentTarget.open)}
+              title="Account pools"
+            >
               {accountPool.data?.bridgeInstalled &&
               (inventory === "unchecked" || inventory === "unavailable") ? (
                 <Notice tone={inventory === "unavailable" ? "warn" : "neutral"}>
@@ -413,10 +395,10 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                   ))}
                 </div>
               )}
-            </div>
-          </details>
-        </div>
-      ) : null}
+            </ProviderDisclosure>
+          </>
+        ) : null}
+      </WorkbenchSection>
     </PagePanel>
   );
 }

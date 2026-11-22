@@ -1,5 +1,15 @@
-import { Button } from "@elizaos/ui/button";
-import { Input } from "@elizaos/ui/input";
+import { Input } from "@doolittle/ui";
+import {
+  Check,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Plus,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import {
   type FormEvent,
   useCallback,
@@ -10,10 +20,14 @@ import {
 } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
+  WorkbenchAction,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import { ProviderIdentity } from "./connections/ProviderIdentity";
+import {
   type ActionFeedback,
   asArray,
   asString,
-  Badge,
   desktopRequest,
   ErrorBlock,
   errorMessage,
@@ -21,12 +35,6 @@ import {
   Notice,
   useApiResource,
 } from "./lib";
-
-const KEYS_TOOLBAR_CLASS =
-  "flex items-start justify-between gap-4 [&>div]:grid [&>div]:gap-0.5 [&_h2]:mt-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";
-
-const KEYS_FIELD_CLASS =
-  "flex min-w-0 flex-col gap-2 [&>span]:text-[length:var(--text-control)] [&>span]:font-medium [&>span]:text-[var(--text-soft)]";
 
 interface SecretsResponse {
   keys?: unknown[];
@@ -41,7 +49,8 @@ export function KeysPage({ active }: { active: boolean }) {
   const secrets = useApiResource<SecretsResponse>(active ? "/secrets" : null, [
     active,
   ]);
-  const [selectedKey, setSelectedKey] = useState("");
+  // undefined picks the first loaded key; null keeps the new-key form open.
+  const [selectedKey, setSelectedKey] = useState<string | null>();
   const [draftKey, setDraftKey] = useState("");
   const [draftValue, setDraftValue] = useState("");
   const [revealedValue, setRevealedValue] = useState("");
@@ -50,6 +59,7 @@ export function KeysPage({ active }: { active: boolean }) {
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const operationInFlight = useRef(false);
   const revealRevision = useRef(0);
+  const keyNameRef = useRef<HTMLInputElement>(null);
   const clearSensitiveValue = useCallback(() => {
     revealRevision.current += 1;
     setDraftValue("");
@@ -69,7 +79,7 @@ export function KeysPage({ active }: { active: boolean }) {
     !secrets.loading && !secrets.error && keys.length === 0;
 
   useEffect(() => {
-    if (!selectedKey && keys[0]) {
+    if (selectedKey === undefined && keys[0]) {
       setSelectedKey(keys[0]);
       setDraftKey(keys[0]);
     }
@@ -159,24 +169,21 @@ export function KeysPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="settings-keys-section @container/keys flex min-w-0 flex-col gap-4">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Credentials</span>
-          <h2>Secret store</h2>
-          <p>
-            Inspect, reveal, and update credentials in the local secret store.
-          </p>
-        </div>
-        <Button
+    <WorkbenchSection
+      actions={
+        <WorkbenchAction
           disabled={!active}
+          icon={RefreshCw}
           onClick={secrets.reload}
-          type="button"
-          variant="secondary"
         >
           Refresh
-        </Button>
-      </header>
+        </WorkbenchAction>
+      }
+      className="settings-keys-section provider-settings provider-settings--keys provider-settings--unframed"
+      description="Manage credentials stored on this computer. The inventory loads key names only."
+      icon={KeyRound}
+      title="Secret store"
+    >
       {active && feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}
@@ -186,37 +193,39 @@ export function KeysPage({ active }: { active: boolean }) {
           ready.
         </OfflineRouteState>
       ) : (
-        <div
-          className={
-            inventoryEmpty
-              ? "grid min-h-0 w-[min(100%,1120px)] flex-none self-center grid-cols-1 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]"
-              : "grid min-h-0 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] overflow-auto rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]"
-          }
-          data-inventory-empty={inventoryEmpty ? "true" : undefined}
-        >
-          {inventoryEmpty ? null : (
-            <section className="flex max-h-[min(36svh,360px)] min-h-0 min-w-0 flex-col border-b border-[var(--border)] p-[9px]">
-              <div className={KEYS_TOOLBAR_CLASS}>
-                <div>
-                  <span className="eyebrow">Known keys</span>
-                  <h2>Secret inventory</h2>
-                </div>
-                <Badge>{keys.length}</Badge>
-              </div>
+        <div className="keys-workspace" data-inventory-empty={inventoryEmpty}>
+          {!inventoryEmpty ? (
+            <WorkbenchSection
+              actions={
+                <WorkbenchAction
+                  disabled={Boolean(busy)}
+                  emphasis="quiet"
+                  icon={Plus}
+                  onClick={() => {
+                    setSelectedKey(null);
+                    setDraftKey("");
+                    clearSensitiveValue();
+                    setFeedback(null);
+                    keyNameRef.current?.focus();
+                  }}
+                >
+                  New key
+                </WorkbenchAction>
+              }
+              description={keys.length ? `${keys.length} stored` : undefined}
+              headingLevel={3}
+              title="Secret inventory"
+            >
               {secrets.loading ? (
                 <LoadingBlock label="Loading secret names…" />
               ) : secrets.error ? (
                 <ErrorBlock error={secrets.error} retry={secrets.reload} />
               ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+                <div className="keys-inventory-list">
                   {keys.map((key) => (
                     <button
                       aria-pressed={selectedKey === key}
-                      className={`relative grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-[var(--border-subtle)] px-3 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] ${
-                        selectedKey === key
-                          ? "font-semibold [&_strong]:font-semibold text-[var(--text)]"
-                          : "bg-transparent hover:bg-[var(--surface-hover)]"
-                      }`}
+                      className="keys-inventory-row"
                       disabled={Boolean(busy)}
                       key={key}
                       onClick={() => {
@@ -227,56 +236,40 @@ export function KeysPage({ active }: { active: boolean }) {
                       }}
                       type="button"
                     >
-                      <span className="flex min-w-0 flex-col gap-1 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
-                        <strong>{key}</strong>
-                        <small>Stored locally</small>
-                      </span>
+                      <ProviderIdentity icon={KeyRound} />
+                      <strong>{key}</strong>
+                      {selectedKey === key ? (
+                        <Check aria-hidden="true" size={15} />
+                      ) : null}
                     </button>
                   ))}
                 </div>
               )}
-            </section>
-          )}
-          <section
-            className={
+            </WorkbenchSection>
+          ) : null}
+          <WorkbenchSection
+            description={
               inventoryEmpty
-                ? "grid min-h-0 min-w-0 grid-cols-[minmax(180px,0.42fr)_minmax(0,1.58fr)] gap-x-3.5 gap-y-2 p-[11px_13px] @max-[700px]/keys:grid-cols-1"
-                : "flex min-h-0 min-w-0 flex-col overflow-auto p-4 [scrollbar-gutter:stable]"
+                ? "Save the first credential in this local store."
+                : "Values stay concealed until you choose to reveal them."
             }
+            headingLevel={3}
+            icon={ShieldCheck}
+            title={selectedKey ?? "Add a key"}
           >
-            <div
-              className={`${KEYS_TOOLBAR_CLASS} ${
-                inventoryEmpty
-                  ? "col-start-1 row-start-1 border-r border-[var(--border)] py-[3px] pr-[13px] @max-[700px]/keys:col-start-1 @max-[700px]/keys:row-auto @max-[700px]/keys:border-r-0 @max-[700px]/keys:border-b @max-[700px]/keys:px-0 @max-[700px]/keys:pt-0 @max-[700px]/keys:pb-2"
-                  : "border-b border-[var(--border)] pb-[15px]"
-              } [&_small]:max-w-[34rem] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:text-[var(--muted)]`}
-            >
-              <div>
-                <span className="eyebrow">Local secret store</span>
-                <h2>{draftKey || "Add or update a key"}</h2>
-                <small>
-                  {inventoryEmpty
-                    ? "No stored keys. Save the first credential here."
-                    : "Values remain concealed until you request one."}
-                </small>
-              </div>
-            </div>
             <form
               aria-busy={Boolean(busy)}
-              className={`keys-editor-form bg-transparent py-4 ${
-                inventoryEmpty
-                  ? "col-start-2 row-start-1 @max-[700px]/keys:col-start-1 @max-[700px]/keys:row-auto"
-                  : "mt-4"
-              }`}
+              className="keys-editor-form"
               onSubmit={saveValue}
             >
-              <div className="grid grid-cols-[minmax(220px,0.65fr)_minmax(0,1.35fr)] gap-x-5 gap-y-4 @max-[700px]/keys:grid-cols-1">
-                <label className={KEYS_FIELD_CLASS} htmlFor="secret-key-name">
+              <div className="model-fields keys-fields">
+                <label htmlFor="secret-key-name">
                   <span>Key name</span>
                   <Input
                     disabled={Boolean(busy)}
                     id="secret-key-name"
                     placeholder="OPENAI_API_KEY"
+                    ref={keyNameRef}
                     value={draftKey}
                     onChange={(event) => {
                       const nextKey = event.target.value;
@@ -286,7 +279,7 @@ export function KeysPage({ active }: { active: boolean }) {
                     }}
                   />
                 </label>
-                <label className={KEYS_FIELD_CLASS} htmlFor="secret-key-value">
+                <label htmlFor="secret-key-value">
                   <span>Value</span>
                   <Input
                     autoComplete="off"
@@ -299,42 +292,43 @@ export function KeysPage({ active }: { active: boolean }) {
                   />
                 </label>
               </div>
-              <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
-                <Button
+              <div className="provider-form-actions">
+                <WorkbenchAction
                   disabled={Boolean(busy) || !draftKey.trim()}
+                  icon={Eye}
                   onClick={() => void loadValue()}
-                  type="button"
-                  variant="secondary"
                 >
                   {busy === "load" ? "Loading…" : "Reveal value"}
-                </Button>
-                <Button
+                </WorkbenchAction>
+                <WorkbenchAction
                   disabled={Boolean(busy) || !draftKey.trim()}
+                  emphasis="primary"
+                  icon={Save}
                   type="submit"
                 >
                   {busy === "save" ? "Saving…" : "Save key"}
-                </Button>
+                </WorkbenchAction>
                 {draftValue ? (
-                  <Button
+                  <WorkbenchAction
+                    emphasis="quiet"
+                    icon={valueVisible ? EyeOff : Eye}
                     onClick={() => setValueVisible((current) => !current)}
-                    type="button"
-                    variant="ghost"
                   >
                     {valueVisible ? "Hide value" : "Show value"}
-                  </Button>
+                  </WorkbenchAction>
                 ) : null}
               </div>
             </form>
             {revealedValue ? (
               <Notice tone="warn">
                 The selected value is loaded into the protected editor above.
-                <Button
+                <WorkbenchAction
+                  emphasis="quiet"
+                  icon={X}
                   onClick={clearSensitiveValue}
-                  type="button"
-                  variant="ghost"
                 >
                   Clear from renderer
-                </Button>
+                </WorkbenchAction>
               </Notice>
             ) : (
               <Notice tone="warn">
@@ -342,9 +336,9 @@ export function KeysPage({ active }: { active: boolean }) {
                 renderer. Only do that when you need to inspect or replace it.
               </Notice>
             )}
-          </section>
+          </WorkbenchSection>
         </div>
       )}
-    </div>
+    </WorkbenchSection>
   );
 }

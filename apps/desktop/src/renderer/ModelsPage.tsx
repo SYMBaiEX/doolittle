@@ -1,5 +1,13 @@
-import { Button } from "@doolittle/ui";
-import { type FormEvent, useMemo, useState } from "react";
+import { Input, NativeSelect } from "@doolittle/ui";
+import {
+  Cable,
+  Cpu,
+  ListChecks,
+  Radar,
+  Save,
+  SlidersHorizontal,
+} from "lucide-react";
+import { type FormEvent, useId, useMemo, useState } from "react";
 import type {
   RuntimeModelsResponse,
   RuntimeReasoningEffort,
@@ -7,6 +15,13 @@ import type {
 } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "./components/workbench/Workbench";
+import { ProviderDisclosure } from "./connections/ProviderDisclosure";
+import { ProviderIdentity } from "./connections/ProviderIdentity";
 import {
   type AccountsResponse,
   accountProviders,
@@ -25,19 +40,6 @@ import {
   useApiResource,
 } from "./lib";
 import { linkedProviderAccess } from "./model-routing";
-import {
-  MODEL_DIAGNOSTIC_BODY_CLASS,
-  MODEL_DIAGNOSTIC_CLASS,
-  MODEL_DIAGNOSTIC_COPY_CLASS,
-  MODEL_FORM_ACTIONS_CLASS,
-  MODEL_TUNING_BODY_CLASS,
-  MODEL_TUNING_CLASS,
-  MODELS_DIAGNOSTICS_CLASS,
-  MODELS_FORM_CLASS,
-  MODELS_PAGE_CLASS,
-  MODELS_ROW_ACTIONS_CLASS,
-  MODELS_WORKSPACE_CLASS,
-} from "./models/models-layout";
 import { modelRequests } from "./resource-request-policy";
 import type { SettingsResponse } from "./settings/settings-types";
 
@@ -52,6 +54,7 @@ export function ModelsPage({
   refreshRuntime: () => void;
   onOpenProviders?: () => void;
 }) {
+  const fieldId = useId();
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [tuningOpen, setTuningOpen] = useState(false);
   const [liveDiscovery, setLiveDiscovery] = useState(false);
@@ -193,30 +196,45 @@ export function ModelsPage({
     }
   };
 
+  const activeProvider = runtime?.provider || asString(model?.provider);
+  const activeModel = runtime?.model || asString(model?.model);
+
   return (
-    <div className={`settings-model-section ${MODELS_PAGE_CLASS}`}>
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Inference</span>
-          <h2>Provider & model</h2>
-          <p>Choose the provider and model used by the next turn.</p>
-        </div>
-        <div className={MODELS_ROW_ACTIONS_CLASS}>
-          {active && runtime ? (
-            <Badge tone="good">
-              {runtime.provider} · {runtime.model}
-            </Badge>
-          ) : null}
-          <button
-            className="text-button"
+    <div className="settings-model-section provider-settings provider-settings--models">
+      <WorkbenchSection
+        actions={
+          <WorkbenchAction
             disabled={!active}
+            icon={Radar}
             onClick={discoverModels}
-            type="button"
           >
             {liveDiscovery ? "Refresh catalog" : "Discover live models"}
-          </button>
-        </div>
-      </header>
+          </WorkbenchAction>
+        }
+        description="Set the provider and model used by the next turn."
+        icon={Cpu}
+        title="Provider & model"
+      >
+        {active && (activeProvider || activeModel) ? (
+          <dl className="model-route-card" aria-label="Current model route">
+            <div>
+              <dt>
+                {runtime?.provider ? "Current provider" : "Saved provider"}
+              </dt>
+              <dd>
+                {models.data?.providers.find(
+                  (entry) => entry.id === activeProvider,
+                )?.label ??
+                  (titleCase(activeProvider) || "None selected")}
+              </dd>
+            </div>
+            <div>
+              <dt>{runtime?.model ? "Current model" : "Saved model"}</dt>
+              <dd>{activeModel || "None selected"}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </WorkbenchSection>
       {!active ? (
         <OfflineRouteState>
           Model settings and provider catalogs are unavailable until the local
@@ -236,31 +254,19 @@ export function ModelsPage({
             ]}
           >
             {settings.error && settings.data ? (
-              <button
-                className="text-button"
-                onClick={settings.reload}
-                type="button"
-              >
+              <WorkbenchAction emphasis="quiet" onClick={settings.reload}>
                 Retry settings
-              </button>
+              </WorkbenchAction>
             ) : null}
             {models.error ? (
-              <button
-                className="text-button"
-                onClick={models.reload}
-                type="button"
-              >
+              <WorkbenchAction emphasis="quiet" onClick={models.reload}>
                 Retry catalog
-              </button>
+              </WorkbenchAction>
             ) : null}
             {accounts.error ? (
-              <button
-                className="text-button"
-                onClick={accounts.reload}
-                type="button"
-              >
+              <WorkbenchAction emphasis="quiet" onClick={accounts.reload}>
                 Retry readiness
-              </button>
+              </WorkbenchAction>
             ) : null}
           </ResourceStatusBar>
           {settings.loading && !settings.data ? (
@@ -268,228 +274,233 @@ export function ModelsPage({
           ) : settings.error && !settings.data ? (
             <ErrorBlock error={settings.error} retry={settings.reload} />
           ) : settings.data ? (
-            <div className={MODELS_WORKSPACE_CLASS}>
-              <form
-                aria-busy={saving}
-                className={MODELS_FORM_CLASS}
-                noValidate
-                onSubmit={save}
+            <div className="model-workspace">
+              <WorkbenchSection
+                description="Changes take effect after you save the route."
+                headingLevel={3}
+                title="Active model"
               >
-                <div className="card-heading">
-                  <div>
-                    <span className="eyebrow">Primary inference</span>
-                    <h2>Active model</h2>
-                  </div>
-                </div>
-                <div className="field-grid">
-                  <label>
-                    <span>Provider</span>
-                    <select
-                      value={selectedProviderId}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          provider: event.target.value,
-                          model:
-                            models.data?.providers.find(
-                              (provider) => provider.id === event.target.value,
-                            )?.models[0]?.id ?? "",
-                          reasoningEffort: "",
-                        }))
-                      }
-                    >
-                      {!models.data?.providers.some(
-                        (provider) => provider.id === selectedProviderId,
-                      ) && selectedProviderId ? (
-                        <option value={selectedProviderId}>
-                          {titleCase(selectedProviderId)}
-                        </option>
-                      ) : null}
-                      {(models.data?.providers ?? []).map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.label}
-                          {provider.discovery === "live" ? " · Live" : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <small>
-                      {selectedProvider?.detail ??
-                        "Provider availability is detected from this machine."}
-                    </small>
-                  </label>
-                  <label>
-                    <span>Model</span>
-                    <select
-                      value={selectedModelId}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          model: event.target.value,
-                          reasoningEffort: "",
-                        }))
-                      }
-                    >
-                      {selectedProvider?.models.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.label}
-                          {entry.source === "discovered" ? " · Discovered" : ""}
-                        </option>
-                      ))}
-                      {!selectedProvider?.models.some(
-                        (entry) => entry.id === selectedModelId,
-                      ) && selectedModelId ? (
-                        <option value={selectedModelId}>
-                          {selectedModelId}
-                        </option>
-                      ) : null}
-                    </select>
-                    {models.loading ? (
-                      <small>Refreshing model catalog…</small>
-                    ) : null}
-                    {models.error ? <small>{models.error}</small> : null}
-                  </label>
-                </div>
-                <details
-                  className={MODEL_TUNING_CLASS}
-                  data-model-tuning="true"
-                  onToggle={(event) => setTuningOpen(event.currentTarget.open)}
-                  open={tuningOpen}
+                <form
+                  aria-busy={saving}
+                  className="model-route-form"
+                  noValidate
+                  onSubmit={save}
                 >
-                  <summary>
-                    <span>
-                      <strong>Generation controls</strong>
+                  <div className="model-fields">
+                    <label htmlFor={`${fieldId}-provider`}>
+                      <span>Provider</span>
+                      <NativeSelect
+                        id={`${fieldId}-provider`}
+                        value={selectedProviderId}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            provider: event.target.value,
+                            model:
+                              models.data?.providers.find(
+                                (provider) =>
+                                  provider.id === event.target.value,
+                              )?.models[0]?.id ?? "",
+                            reasoningEffort: "",
+                          }))
+                        }
+                      >
+                        {!models.data?.providers.some(
+                          (provider) => provider.id === selectedProviderId,
+                        ) && selectedProviderId ? (
+                          <option value={selectedProviderId}>
+                            {titleCase(selectedProviderId)}
+                          </option>
+                        ) : null}
+                        {(models.data?.providers ?? []).map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.label}
+                            {provider.discovery === "live" ? " · Live" : ""}
+                          </option>
+                        ))}
+                      </NativeSelect>
                       <small>
-                        Reasoning, endpoint, temperature, and output
+                        {selectedProvider?.detail ??
+                          "Provider availability is detected from this machine."}
                       </small>
-                    </span>
-                    <Badge>{tuningOpen ? "Open" : "Advanced"}</Badge>
-                  </summary>
-                  <div className={MODEL_TUNING_BODY_CLASS}>
-                    {reasoningOptions.length ? (
-                      <label>
-                        <span>Reasoning effort</span>
-                        <select
-                          value={selectedReasoningEffort ?? ""}
+                    </label>
+                    <label htmlFor={`${fieldId}-model`}>
+                      <span>Model</span>
+                      <NativeSelect
+                        id={`${fieldId}-model`}
+                        value={selectedModelId}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            model: event.target.value,
+                            reasoningEffort: "",
+                          }))
+                        }
+                      >
+                        {selectedProvider?.models.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.label}
+                            {entry.source === "discovered"
+                              ? " · Discovered"
+                              : ""}
+                          </option>
+                        ))}
+                        {!selectedProvider?.models.some(
+                          (entry) => entry.id === selectedModelId,
+                        ) && selectedModelId ? (
+                          <option value={selectedModelId}>
+                            {selectedModelId}
+                          </option>
+                        ) : null}
+                      </NativeSelect>
+                      {models.loading ? (
+                        <small>Refreshing model catalog…</small>
+                      ) : null}
+                      {models.error ? <small>{models.error}</small> : null}
+                    </label>
+                  </div>
+                  <ProviderDisclosure
+                    data-model-tuning="true"
+                    description="Reasoning, endpoint, temperature, and output"
+                    icon={SlidersHorizontal}
+                    onToggle={(event) =>
+                      setTuningOpen(event.currentTarget.open)
+                    }
+                    open={tuningOpen}
+                    title="Generation controls"
+                  >
+                    <div className="model-fields">
+                      {reasoningOptions.length ? (
+                        <label htmlFor={`${fieldId}-reasoning`}>
+                          <span>Reasoning effort</span>
+                          <NativeSelect
+                            id={`${fieldId}-reasoning`}
+                            value={selectedReasoningEffort ?? ""}
+                            onChange={(event) =>
+                              setDraft((current) => ({
+                                ...current,
+                                reasoningEffort: event.target.value,
+                              }))
+                            }
+                          >
+                            {reasoningOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </NativeSelect>
+                          <small>
+                            {
+                              reasoningOptions.find(
+                                (option) =>
+                                  option.id === selectedReasoningEffort,
+                              )?.description
+                            }
+                          </small>
+                        </label>
+                      ) : null}
+                      <label
+                        className="field-span"
+                        htmlFor={`${fieldId}-base-url`}
+                      >
+                        <span>Base URL</span>
+                        <Input
+                          id={`${fieldId}-base-url`}
+                          value={fieldValue(
+                            "baseUrl",
+                            selectedProvider?.baseUrl ?? model?.baseUrl,
+                          )}
                           onChange={(event) =>
                             setDraft((current) => ({
                               ...current,
-                              reasoningEffort: event.target.value,
+                              baseUrl: event.target.value,
                             }))
                           }
-                        >
-                          {reasoningOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <small>
-                          {
-                            reasoningOptions.find(
-                              (option) => option.id === selectedReasoningEffort,
-                            )?.description
-                          }
-                        </small>
+                          placeholder="http://127.0.0.1:11434/v1"
+                        />
                       </label>
-                    ) : null}
-                    <label className="field-span">
-                      <span>Base URL</span>
-                      <input
-                        value={fieldValue(
-                          "baseUrl",
-                          selectedProvider?.baseUrl ?? model?.baseUrl,
-                        )}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            baseUrl: event.target.value,
-                          }))
-                        }
-                        placeholder="http://127.0.0.1:11434/v1"
-                      />
-                    </label>
-                    <label>
-                      <span>Temperature</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="2"
-                        step="any"
-                        value={fieldValue("temperature", model?.temperature)}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            temperature: event.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label>
-                      <span>Maximum tokens</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={fieldValue("maxTokens", model?.maxTokens)}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            maxTokens: event.target.value,
-                          }))
-                        }
-                      />
-                    </label>
+                      <label htmlFor={`${fieldId}-temperature`}>
+                        <span>Temperature</span>
+                        <Input
+                          id={`${fieldId}-temperature`}
+                          type="number"
+                          min="0"
+                          max="2"
+                          step="any"
+                          value={fieldValue("temperature", model?.temperature)}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              temperature: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label htmlFor={`${fieldId}-token-limit`}>
+                        <span>Maximum tokens</span>
+                        <Input
+                          id={`${fieldId}-token-limit`}
+                          type="number"
+                          min="1"
+                          value={fieldValue("maxTokens", model?.maxTokens)}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              maxTokens: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  </ProviderDisclosure>
+                  {feedback ? (
+                    <Notice tone={feedback.tone}>{feedback.message}</Notice>
+                  ) : null}
+                  <div className="provider-form-actions">
+                    <WorkbenchAction
+                      disabled={saving}
+                      emphasis="primary"
+                      icon={Save}
+                      type="submit"
+                    >
+                      {saving ? "Saving…" : "Save model"}
+                    </WorkbenchAction>
                   </div>
-                </details>
-                {feedback ? (
-                  <Notice tone={feedback.tone}>{feedback.message}</Notice>
-                ) : null}
-                <div className={MODEL_FORM_ACTIONS_CLASS}>
-                  <button
-                    className="primary-button"
-                    disabled={saving}
-                    type="submit"
-                  >
-                    {saving ? "Saving…" : "Save model"}
-                  </button>
-                </div>
-              </form>
+                </form>
+              </WorkbenchSection>
               <aside
-                className={MODELS_DIAGNOSTICS_CLASS}
+                className="model-diagnostics"
                 aria-label="Model diagnostics"
               >
-                <details
-                  className={MODEL_DIAGNOSTIC_CLASS}
+                <ProviderDisclosure
                   data-model-diagnostic="true"
+                  description="Signed-in accounts and local fallbacks"
+                  icon={Cable}
                   onToggle={(event) =>
                     setReadinessOpen(event.currentTarget.open)
                   }
                   open={readinessOpen}
-                >
-                  <summary>
-                    <span className={MODEL_DIAGNOSTIC_COPY_CLASS}>
-                      <strong>Provider readiness</strong>
-                      <small>Native accounts and local fallbacks</small>
-                    </span>
-                    <Badge
-                      tone={
-                        readinessOpen
-                          ? usableProviderCount
+                  status={
+                    readinessOpen ? (
+                      <Badge
+                        tone={
+                          usableProviderCount
                             ? "good"
                             : hasUncheckedAccounts
                               ? "neutral"
                               : "warn"
-                          : "neutral"
-                      }
-                    >
-                      {readinessOpen
-                        ? hasUncheckedAccounts && !usableProviderCount
+                        }
+                      >
+                        {hasUncheckedAccounts && !usableProviderCount
                           ? "Accounts unchecked"
-                          : `${usableProviderCount}/${linkedAccounts.length} usable`
-                        : "Open to load"}
-                    </Badge>
-                  </summary>
+                          : `${usableProviderCount}/${linkedAccounts.length} usable`}
+                      </Badge>
+                    ) : null
+                  }
+                  title="Provider readiness"
+                >
                   {readinessOpen ? (
-                    <div className={MODEL_DIAGNOSTIC_BODY_CLASS}>
+                    <div className="model-diagnostic-list">
                       {accounts.loading ? (
                         <LoadingBlock />
                       ) : accounts.error ? (
@@ -500,14 +511,13 @@ export function ModelsPage({
                       ) : (
                         <div className="stack-list">
                           {hasUncheckedAccounts && onOpenProviders ? (
-                            <Button
+                            <WorkbenchAction
+                              emphasis="quiet"
+                              icon={Cable}
                               onClick={onOpenProviders}
-                              size="sm"
-                              type="button"
-                              variant="secondary"
                             >
                               Manage provider accounts
-                            </Button>
+                            </WorkbenchAction>
                           ) : null}
                           {linkedAccounts.map(
                             ({ access, provider, status }) => {
@@ -515,7 +525,13 @@ export function ModelsPage({
                               const selected =
                                 accounts.data?.activeProvider === provider.key;
                               return (
-                                <div className="status-row" key={provider.key}>
+                                <div
+                                  className="model-diagnostic-row"
+                                  key={provider.key}
+                                >
+                                  <ProviderIdentity
+                                    initials={provider.shortLabel}
+                                  />
                                   <div>
                                     <strong>{provider.label}</strong>
                                     <small>
@@ -554,37 +570,41 @@ export function ModelsPage({
                       )}
                     </div>
                   ) : null}
-                </details>
-                <details
-                  className={MODEL_DIAGNOSTIC_CLASS}
+                </ProviderDisclosure>
+                <ProviderDisclosure
                   data-model-diagnostic="true"
+                  description="Model tasks the local runtime can route"
+                  icon={ListChecks}
+                  status={
+                    models.data ? (
+                      <Badge
+                        tone={
+                          registeredCapabilityCount ===
+                          (models.data?.capabilities ?? []).length
+                            ? "good"
+                            : "warn"
+                        }
+                      >
+                        {registeredCapabilityCount}/
+                        {(models.data?.capabilities ?? []).length}
+                      </Badge>
+                    ) : null
+                  }
+                  title="Registered capabilities"
                 >
-                  <summary>
-                    <span className={MODEL_DIAGNOSTIC_COPY_CLASS}>
-                      <strong>Registered capabilities</strong>
-                      <small>Runtime handler truth</small>
-                    </span>
-                    <Badge
-                      tone={
-                        registeredCapabilityCount ===
-                        (models.data?.capabilities ?? []).length
-                          ? "good"
-                          : "warn"
-                      }
-                    >
-                      {registeredCapabilityCount}/
-                      {(models.data?.capabilities ?? []).length}
-                    </Badge>
-                  </summary>
-                  <div className={MODEL_DIAGNOSTIC_BODY_CLASS}>
+                  <div className="model-diagnostic-list">
                     {models.loading ? (
                       <LoadingBlock />
                     ) : models.error ? (
                       <ErrorBlock error={models.error} retry={models.reload} />
-                    ) : (
+                    ) : models.data?.capabilities?.length ? (
                       <div className="stack-list">
                         {(models.data?.capabilities ?? []).map((capability) => (
-                          <div className="status-row" key={capability.id}>
+                          <div
+                            className="model-diagnostic-row"
+                            key={capability.id}
+                          >
+                            <ProviderIdentity icon={Cpu} />
                             <div>
                               <strong>{capability.label}</strong>
                               <small>{capability.detail}</small>
@@ -601,9 +621,11 @@ export function ModelsPage({
                           </div>
                         ))}
                       </div>
+                    ) : (
+                      <WorkbenchEmpty title="No capabilities reported" />
                     )}
                   </div>
-                </details>
+                </ProviderDisclosure>
               </aside>
             </div>
           ) : null}
