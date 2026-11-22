@@ -10,7 +10,6 @@ import type {
   CodexGenerateParams,
   CodexGenerateResult,
 } from "@elizaos/plugin-codex-cli/src/codex-backend";
-import OpenAI from "openai";
 import type {
   Response,
   ResponseCreateParamsStreaming,
@@ -129,6 +128,8 @@ export class CodexResponsesBackend {
             }
           : {}),
     };
+    const { default: OpenAI } = await import("openai");
+    params.abortSignal?.throwIfAborted();
     const path = this.options.authPath ?? defaultAuthPath();
     let auth = await (this.options.loadAuth ?? loadCodexAuth)(path);
     for (let attempt = 0; attempt < 2; attempt++) {

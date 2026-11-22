@@ -32,9 +32,7 @@ import {
 } from "./server/request-body";
 import { createRequestAbortController } from "./server/request-lifecycle";
 import { json, runResponsePostCommit } from "./server/responses";
-import { dispatchRouteHandlers } from "./server/router";
-import { apiRouteHandlers, webhookRoutes } from "./server/routes/index";
-import { handleOperationsRoutes } from "./server/routes/operations";
+import { dispatchRouteHandlers, onDemandRoute } from "./server/router";
 import { runtimeIdentity } from "./server/routes/runtime/identity";
 import { withDirectConversationWorkspace } from "./server/routes/workspace-scope";
 import { isWorkerApiRouteAllowed } from "./server/worker-route-policy";
@@ -49,8 +47,37 @@ const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
 const INTERACTIVE_TERMINAL_OUTPUT_PATH = "/terminal/session/output";
 const RUNTIME_IDENTITY_PATH = "/runtime/bot-identity";
 
+// The health and identity probes can use the already-initialized SDK runtime
+// without loading terminal execution or the product route registry.
+const productRoutes = onDemandRoute<AppContext>(
+  () => true,
+  async () => {
+    const { apiRouteHandlers } = await import("./server/routes/index");
+    return (context, request, url) =>
+      dispatchRouteHandlers(context, request, url, apiRouteHandlers);
+  },
+);
+
+const providerWebhookRoutes = onDemandRoute<AppContext>(
+  () => true,
+  async () => (await import("./server/routes/webhooks")).handleWebhookRoutes,
+);
+
+async function dispatchTerminalRoute(
+  context: AppContext,
+  request: Request,
+  url: URL,
+  options?: Parameters<
+    typeof import("./server/routes/operations").handleOperationsRoutes
+  >[3],
+): Promise<Response | null> {
+  const { handleOperationsRoutes } = await import("./server/routes/operations");
+  request.signal.throwIfAborted();
+  return handleOperationsRoutes(context, request, url, options);
+}
+
 const interactiveTerminalRoutes = withDirectConversationWorkspace(
-  handleOperationsRoutes,
+  dispatchTerminalRoute,
   () => true,
 );
 
@@ -429,12 +456,12 @@ export async function createApiServer(
             // handlers so a runtime plugin cannot intercept a public endpoint
             // or observe a synthetic API authorization result.
             response = security.terminalOnly
-              ? ((await handleOperationsRoutes(context, request, url, {
+              ? ((await dispatchTerminalRoute(context, request, url, {
                   captureOutputRequired: true,
                   expectedTerminalToken: terminalCapability,
                 })) ?? json({ error: "Not found" }, 404))
               : providerAuthenticatedWebhook
-                ? ((await webhookRoutes(context, request, url)) ??
+                ? ((await providerWebhookRoutes(context, request, url)) ??
                   json({ error: "Not found" }, 404))
                 : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
                     requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
@@ -459,12 +486,7 @@ export async function createApiServer(
                         url,
                         isAuthorized: () => authorized,
                       })) ??
-                      (await dispatchRouteHandlers(
-                        context,
-                        request,
-                        url,
-                        apiRouteHandlers,
-                      )) ??
+                      (await productRoutes(context, request, url)) ??
                       json({ error: "Not found" }, 404));
           }
           if (security.terminalOnly)

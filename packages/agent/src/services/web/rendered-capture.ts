@@ -1,12 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  closeBrowserWorkspaceTab,
-  getBrowserWorkspaceSnapshot,
-  openBrowserWorkspaceTab,
-  snapshotBrowserWorkspaceTab,
-} from "@elizaos/plugin-browser";
 import type { ModelAnalysisImage } from "../model-analysis-port";
 import type {
   BrowserConfig,
@@ -328,12 +322,21 @@ export function createSdkRenderedCapturePort(
   return {
     async available() {
       try {
+        const { getBrowserWorkspaceSnapshot } = await import(
+          "@elizaos/plugin-browser"
+        );
         return (await getBrowserWorkspaceSnapshot(env)).mode === "desktop";
       } catch {
         return false;
       }
     },
     async capture(target, viewport, abortSignal) {
+      abortSignal?.throwIfAborted();
+      const {
+        closeBrowserWorkspaceTab,
+        openBrowserWorkspaceTab,
+        snapshotBrowserWorkspaceTab,
+      } = await import("@elizaos/plugin-browser");
       abortSignal?.throwIfAborted();
       let id: string | undefined;
       try {
