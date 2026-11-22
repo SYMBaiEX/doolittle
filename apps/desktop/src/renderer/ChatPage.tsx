@@ -186,6 +186,7 @@ export interface ChatPageProps {
   projects?: readonly ProjectLike[];
   onChooseRepository?: (sessionId?: string) => void | Promise<void>;
   onOpenProjectManager?: () => void;
+  onConfirmProjectAccess?: (sessionId: string) => void;
   onSelectProjectForNewChat?: (
     scope: ProjectScope,
     sourceSessionId?: string,
@@ -231,6 +232,7 @@ export function ChatSessionPanel({
   projects,
   onChooseRepository,
   onOpenProjectManager,
+  onConfirmProjectAccess,
   onSelectProjectForNewChat,
   onRequestNewConversation,
   onActivateSessionProject,
@@ -383,6 +385,13 @@ export function ChatSessionPanel({
     selectedScope?.kind === "confirmed"
       ? selectedScope.conversation
       : undefined;
+  const pendingProject =
+    selectedScope?.kind === "pending" && selectedScope.projectId
+      ? projects?.find(
+          (project) =>
+            project.id === selectedScope.projectId && !project.archived,
+        )
+      : undefined;
   const workspaceTarget: ChatWorkspaceTarget = confirmedWorkspace?.projectId
     ? {
         kind: "local",
@@ -392,10 +401,12 @@ export function ChatSessionPanel({
           workspaceName(confirmedWorkspace.workspacePath),
         path: confirmedWorkspace.workspacePath,
       }
-    : confirmedWorkspace ||
-        (selectedScope?.kind === "pending" && !selectedScope.projectId)
-      ? { kind: "private" }
-      : { kind: "unconfirmed" };
+    : pendingProject
+      ? { kind: "pending", name: pendingProject.name }
+      : confirmedWorkspace ||
+          (selectedScope?.kind === "pending" && !selectedScope.projectId)
+        ? { kind: "private" }
+        : { kind: "unconfirmed" };
   const workspaceBindingBlocked = selectedScope
     ? selectedScope.kind === "unknown" ||
       (selectedScope.kind === "pending" && Boolean(selectedScope.projectId))
@@ -1782,29 +1793,36 @@ export function ChatSessionPanel({
                   {workspaceBindingBlocked ? (
                     <ChatNotice
                       action={
-                        foreignProject && onActivateSessionProject
+                        pendingProject?.primaryPath && onConfirmProjectAccess
                           ? {
-                              label: "Activate workspace",
-                              invoke: () =>
-                                onActivateSessionProject(
-                                  selectedId,
-                                  foreignProject.id,
-                                ),
+                              label: "Confirm project access",
+                              invoke: () => onConfirmProjectAccess(selectedId),
                             }
-                          : {
-                              label: "Resolve repository",
-                              invoke: () => {
-                                if (onChooseRepository)
-                                  void onChooseRepository(selectedId);
-                                else onOpenProjectManager?.();
-                              },
-                            }
+                          : foreignProject && onActivateSessionProject
+                            ? {
+                                label: "Activate workspace",
+                                invoke: () =>
+                                  onActivateSessionProject(
+                                    selectedId,
+                                    foreignProject.id,
+                                  ),
+                              }
+                            : {
+                                label: "Resolve repository",
+                                invoke: () => {
+                                  if (onChooseRepository)
+                                    void onChooseRepository(selectedId);
+                                  else onOpenProjectManager?.();
+                                },
+                              }
                       }
                       tone="warning"
                     >
-                      {foreignProject
-                        ? `Activate ${foreignProject.name} to send in this conversation.`
-                        : "Confirm this conversation’s workspace before sending."}
+                      {pendingProject
+                        ? `Confirm access to ${pendingProject.name} before sending.`
+                        : foreignProject
+                          ? `Activate ${foreignProject.name} to send in this conversation.`
+                          : "Confirm this conversation’s workspace before sending."}
                     </ChatNotice>
                   ) : null}
                   {!botReady && currentBot && !activeRequest ? (
@@ -1993,13 +2011,13 @@ export function ChatSessionPanel({
             width={isNarrowWorkbench ? undefined : inspectorWidth}
             workspacePath={workspacePath}
             workspaceLabel={
-              activeProject?.name ??
-              (selectedScope?.kind === "confirmed"
+              selectedScope?.kind === "confirmed"
                 ? selectedScope.conversation.projectId
                   ? (selectedScope.conversation.projectContext?.name ??
                     "Project workspace")
                   : "Private scratch"
-                : workspacePath || "Workspace unconfirmed")
+                : (pendingProject?.name ??
+                  (workspacePath || "Workspace unconfirmed"))
             }
           />
         </div>

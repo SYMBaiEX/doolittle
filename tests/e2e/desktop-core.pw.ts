@@ -1276,6 +1276,123 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("opens the selected chat project in IDE View before the first message", async () => {
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
+    const { app, page, workspace } = desktop;
+    const alpha = {
+      name: "Alpha fixture project",
+      root: join(workspace, "alpha-local"),
+      file: "alpha-only.ts",
+      marker: "alphaProjectSource",
+    };
+    const beta = {
+      name: "Beta fixture project",
+      root: join(workspace, "beta-local"),
+      file: "beta-only.ts",
+      marker: "betaProjectSource",
+    };
+
+    try {
+      for (const project of [alpha, beta]) {
+        mkdirSync(project.root);
+        writeFileSync(
+          join(project.root, project.file),
+          `export const ${project.marker} = true;\n`,
+        );
+        runFixtureGit(project.root, "init", "-qb", "main");
+      }
+      const alphaId = await makeProject(page, alpha.name, alpha.root);
+      const betaId = await makeProject(page, beta.name, beta.root);
+      await installProjectDialog(app, alpha.root);
+      await openProjectChat(page, alphaId);
+
+      const views = page.getByRole("group", { name: "Workbench view" });
+      const chatView = views.getByRole("button", { name: "Agent View" });
+      const ideView = views.getByRole("button", { name: "IDE View" });
+      const ide = page.locator('[data-view="code"]:not([hidden])');
+      const tree = ide.getByRole("tree", { name: "Workspace files" });
+      const composerWorkspace = page.getByRole("button", {
+        name: /^Choose workspace\. Current workspace/u,
+      });
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const composerSession = () =>
+        composer.evaluate((node) =>
+          node
+            .closest("[data-session-panel]")
+            ?.getAttribute("data-session-panel"),
+        );
+      const openInIde = async (project: typeof alpha) => {
+        await ideView.click();
+        await expect(
+          ide.getByRole("button", { name: "Change repository" }),
+        ).toHaveAttribute("title", project.root);
+        await tree
+          .getByRole("treeitem", { name: project.file, exact: true })
+          .click();
+        await expect(ide.locator(".monaco-editor .view-lines")).toContainText(
+          project.marker,
+        );
+      };
+      const selectedProject = () =>
+        page.evaluate(
+          async () => (await window.doolittle.ui?.getSelection())?.projectId,
+        );
+
+      await openInIde(alpha);
+      await chatView.click();
+      await expect(composerWorkspace).toHaveAttribute("title", alpha.root);
+
+      // Beta has no conversation yet. Activate it from Chat while the previous
+      // IDE and the fixture's default workspace have different roots.
+      await installProjectDialog(app, beta.root, "cancel");
+      await page.getByRole("button", { name: "Search", exact: true }).click();
+      const palette = page.getByRole("dialog", { name: "Command menu" });
+      await palette.getByRole("combobox").fill(beta.name);
+      await palette
+        .getByRole("option", { name: `${beta.name} 0 conversations` })
+        .click();
+      await expect(composerWorkspace).toHaveAccessibleName(
+        `Choose workspace. Current workspace ${beta.name} · Approval needed.`,
+      );
+      const betaDraft = "Review the selected project's source.";
+      await composer.fill(betaDraft);
+      const betaSession = await composerSession();
+      expect(betaSession).toBeTruthy();
+
+      await ideView.click();
+      await expect(
+        page.getByText("Project access was not confirmed", { exact: true }),
+      ).toBeVisible();
+      await expect(ide).toHaveCount(0);
+      await expect(composer).toHaveValue(betaDraft);
+      expect(await composerSession()).toBe(betaSession);
+      expect(await projectDialogCount(app)).toBe(1);
+
+      await installProjectDialog(app, beta.root);
+      await openInIde(beta);
+      await expect.poll(selectedProject).toBe(betaId);
+      expect(await projectDialogCount(app)).toBe(1);
+
+      // Selecting a saved workspace from the composer must retarget the
+      // editor to that chat as well, without waiting for a model turn.
+      await chatView.click();
+      await expect(composerWorkspace).toHaveAttribute("title", beta.root);
+      await expect(composer).toHaveValue(betaDraft);
+      expect(await composerSession()).toBe(betaSession);
+      await composerWorkspace.click();
+      await page
+        .getByRole("dialog", { name: "Choose a workspace for a new chat" })
+        .getByRole("button", { name: new RegExp(`^${alpha.name}\\b`, "u") })
+        .click();
+      await openInIde(alpha);
+      await expect.poll(selectedProject).toBe(alphaId);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("keeps IDE buffers, chat drafts, and the workspace shell through view changes", async () => {
     test.setTimeout(90_000);
     const desktop = await launchDesktop(

@@ -107,7 +107,6 @@ import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import {
   type ComputerOrigin,
   computerOriginKey,
-  ensureComputerOriginOwnerBinding,
   resolveTerminalConversationOrigin,
   sameComputerOrigin,
 } from "./computer-origin";
@@ -155,7 +154,6 @@ import {
   UTILITY_DRAWER_WIDTH_KEY,
 } from "./panel-layout";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
-import { projectNavigationTarget } from "./project-navigation";
 import { resolveSessionConversationScope } from "./session-conversation-scope";
 import { compactSessionPreview } from "./session-preview";
 import {
@@ -505,13 +503,17 @@ export function App() {
   }, [localBotBindings]);
   const [localProjectBindings, setLocalProjectBindings] = useState<
     Record<string, string | null>
-  >(() => ({
-    ...loadSessionProjectBindings(localStorage),
-    [initialConversation]:
-      projectScope === "all" || projectScope === "unscoped"
-        ? null
-        : projectScope,
-  }));
+  >(() => {
+    const bindings = loadSessionProjectBindings(localStorage);
+    if (Object.hasOwn(bindings, initialConversation)) return bindings;
+    return {
+      ...bindings,
+      [initialConversation]:
+        projectScope === "all" || projectScope === "unscoped"
+          ? null
+          : projectScope,
+    };
+  });
   const [confirmedConversationScopes, setConfirmedConversationScopes] =
     useState<Record<string, BotConversationScope>>({});
   useEffect(() => {
@@ -1072,21 +1074,12 @@ export function App() {
       if (computer && wasComputer && !skipDirtyCheck)
         origin ??= previous.computerOrigin;
       if (computer && !origin) {
-        const owner = sessionBotId(
-          selectedSession,
-          sessions,
-          localBotBindings,
-          defaultBotId,
-        );
         const scope = scopeForSession(selectedSession);
-        if (owner) {
+        if (scope.kind === "confirmed" && scope.conversation.botId) {
           origin = {
-            botId: owner,
+            botId: scope.conversation.botId,
             originConversationId: selectedSession,
-            workspacePath:
-              scope.kind === "confirmed"
-                ? scope.conversation.workspacePath
-                : "",
+            workspacePath: scope.conversation.workspacePath,
           };
         }
       }
@@ -1140,9 +1133,6 @@ export function App() {
       workspace.currentPath,
       setMobileSidebarOpen,
       selectedSession,
-      sessions,
-      localBotBindings,
-      defaultBotId,
       scopeForSession,
       setCodeWorkspaceDirty,
     ],
@@ -1172,92 +1162,121 @@ export function App() {
   );
 
   const openComputerView = useCallback(
-    async (next: View, origin?: ComputerOrigin) => {
-      const selectionAtRequest = { ...newChatNavigationRef.current };
-      const selectionToken = chatSelectionRevision.current;
-      const routeAtRequest = routeRef.current;
-      const stillCurrent = () =>
-        routeRef.current === routeAtRequest &&
-        selectionToken === chatSelectionRevision.current &&
-        newChatNavigationRef.current.revision === selectionAtRequest.revision &&
-        newChatNavigationRef.current.selectedSession ===
-          selectionAtRequest.selectedSession;
-      const scope = origin && scopeForSession(origin.originConversationId);
+    async (
+      next: View,
+      requested?: ComputerOrigin,
+      restoreParkedView = false,
+    ): Promise<ComputerOrigin | undefined> => {
+      if (newChatBusyRef.current) return;
+      const sessionId = requested?.originConversationId ?? selectedSession;
       if (
-        !origin ||
-        scope?.kind !== "confirmed" ||
-        scope.conversation.botId !== origin.botId ||
-        scope.conversation.workspacePath !== origin.workspacePath
+        groupSessions.some((session) => session.sessionId === sessionId) ||
+        (!requested && viewingGroups)
+      )
+        return;
+
+      const scope = scopeForSession(sessionId);
+      const project =
+        scope.kind === "pending" && scope.projectId
+          ? projects.find(
+              (entry) => entry.id === scope.projectId && !entry.archivedAt,
+            )
+          : undefined;
+      const botId =
+        scope.kind === "confirmed"
+          ? scope.conversation.botId
+          : localBotBindings[sessionId];
+      const workspacePath =
+        scope.kind === "confirmed"
+          ? scope.conversation.workspacePath
+          : project?.primaryPath;
+      if (
+        !botId ||
+        !workspacePath ||
+        (requested &&
+          (requested.botId !== botId ||
+            (requested.workspacePath &&
+              !pathsEqual(requested.workspacePath, workspacePath))))
       ) {
         pushToast({
           tone: "warning",
           title: "Choose a workspace for this chat",
-          message:
-            "Open a chat in the intended repository, then switch to IDE View.",
+          message: "Start a chat in the intended project to open its IDE.",
         });
-        return false;
+        return;
       }
-      const { projectId } = scope.conversation;
-      try {
-        await ensureComputerOriginOwnerBinding(origin, {
-          savedSessionIds: new Set(
-            sessions.map((session) => session.sessionId),
-          ),
-          localBotBindings,
-          projectId,
-          bind: async (botId, sessionId, boundProjectId) => {
-            const { conversation } =
-              await desktopRequest<BotConversationScopeResponse>(
-                `/bots/${encodeURIComponent(botId)}/conversations`,
-                "POST",
-                {
-                  sessionId,
-                  ...(boundProjectId ? { projectId: boundProjectId } : {}),
-                },
-              );
-            if (
-              conversation.botId !== botId ||
-              conversation.sessionId !== sessionId ||
-              conversation.workspacePath !== origin.workspacePath ||
-              conversation.projectId !== boundProjectId
-            )
-              throw new Error("Conversation scope changed");
-          },
-        });
-        if (!stillCurrent()) return false;
-        return setView(next, { computerOrigin: origin });
-      } catch {
-        if (stillCurrent())
-          pushToast({
-            tone: "error",
-            title: "IDE access could not be confirmed",
-            message: "Your chat was kept. Reopen it and try IDE View again.",
-          });
-        return false;
+
+      let origin = { botId, originConversationId: sessionId, workspacePath };
+      if (project) {
+        const routeAtRequest = routeRef.current;
+        const selectionAtRequest = chatSelectionRevision.current;
+        const revisionAtRequest = newChatNavigationRef.current.revision;
+        const stillCurrent = () =>
+          routeRef.current === routeAtRequest &&
+          chatSelectionRevision.current === selectionAtRequest &&
+          newChatNavigationRef.current.revision === revisionAtRequest;
+        newChatBusyRef.current = true;
+        setNewChatBusy(true);
+        try {
+          const { conversation } =
+            await desktopRequest<BotConversationScopeResponse>(
+              `/bots/${encodeURIComponent(botId)}/conversations`,
+              "POST",
+              { sessionId, projectId: project.id, consent: true },
+            );
+          if (
+            conversation.botId !== botId ||
+            conversation.sessionId !== sessionId ||
+            conversation.projectId !== project.id ||
+            !pathsEqual(conversation.workspacePath, workspacePath)
+          )
+            throw new Error("Conversation scope changed.");
+          // Record a confirmed grant even if focus moved while the dialog was open.
+          recordConversationScope(conversation);
+          if (!stillCurrent()) return;
+          origin = { ...origin, workspacePath: conversation.workspacePath };
+        } catch {
+          if (stillCurrent())
+            pushToast({
+              tone: "warning",
+              title: "Project access was not confirmed",
+              message: "Your chat and draft were kept.",
+            });
+          return;
+        } finally {
+          newChatBusyRef.current = false;
+          setNewChatBusy(false);
+        }
       }
+
+      if (next === "chat") return origin;
+      const parked = parkedEditorRef.current;
+      const target =
+        restoreParkedView &&
+        parked &&
+        sameComputerOrigin(origin, parked.computerOrigin)
+          ? parked.view
+          : next;
+      if (setView(target, { computerOrigin: origin })) return origin;
     },
-    [localBotBindings, pushToast, scopeForSession, sessions, setView],
+    [
+      groupSessions,
+      localBotBindings,
+      projects,
+      pushToast,
+      recordConversationScope,
+      scopeForSession,
+      selectedSession,
+      setView,
+      viewingGroups,
+    ],
   );
 
   const changeWorkbenchView = useCallback(
     (next: WorkbenchView) => {
       const current = routeRef.current;
       if (next === "ide") {
-        const origin = scopeForSession(selectedSession);
-        const ownedOrigin =
-          origin.kind === "confirmed"
-            ? {
-                botId: origin.conversation.botId,
-                originConversationId: selectedSession,
-                workspacePath: origin.conversation.workspacePath,
-              }
-            : undefined;
-        const parked = parkedEditorRef.current;
-        const target =
-          ownedOrigin && sameComputerOrigin(ownedOrigin, parked?.computerOrigin)
-            ? (parked?.view ?? "code")
-            : "code";
-        void openComputerView(target, ownedOrigin);
+        void openComputerView("code", undefined, true);
         return;
       }
       if (renderedViewForView(current.view) !== "code") {
@@ -1276,13 +1295,7 @@ export function App() {
           setSelectedSession(origin.originConversationId);
       }
     },
-    [
-      openComputerView,
-      scopeForSession,
-      selectedSession,
-      setSelectedSession,
-      setView,
-    ],
+    [openComputerView, selectedSession, setSelectedSession, setView],
   );
 
   useEffect(() => {
@@ -1489,12 +1502,10 @@ export function App() {
     switchToRecentWorkspace,
     transitionToProjectScope,
   } = useWorkspaceProjectNavigation({
-    backendReady: backend.phase === "ready",
     createSessionId: newConversationId,
     setCodeEditingLocked,
     pathsEqual,
     projects,
-    projectScope,
     pushToast,
     selectedSession,
     sessions,
@@ -1519,26 +1530,58 @@ export function App() {
 
   const selectProjectScope = useCallback(
     (scope: ProjectScope) => {
-      const matches = sessions
-        .filter((session) =>
-          scope === "all"
-            ? true
-            : scope === "unscoped"
-              ? !session.projectId
-              : session.projectId === scope,
+      const botId = selectedBot?.id;
+      if (!botId) return;
+      const projectId = scope === "all" || scope === "unscoped" ? null : scope;
+      const matchesProject = (id: string | null | undefined) =>
+        scope === "all" || (id ?? null) === projectId;
+      const currentScope = scopeForSession(selectedSession);
+      const currentProject =
+        currentScope.kind === "confirmed"
+          ? currentScope.conversation.projectId
+          : currentScope.kind === "pending"
+            ? currentScope.projectId
+            : undefined;
+      if (
+        !viewingGroups &&
+        currentScope.kind !== "unknown" &&
+        matchesProject(currentProject)
+      ) {
+        setProjectScope(scope);
+        return;
+      }
+      const session = directSessions
+        .filter(
+          (entry) =>
+            (entry.botId ?? defaultBotId) === botId &&
+            matchesProject(entry.projectId) &&
+            (!projectId || Boolean(entry.workspacePath)),
         )
         .sort((left, right) =>
           (right.endedAt ?? right.startedAt ?? "").localeCompare(
             left.endedAt ?? left.startedAt ?? "",
           ),
-        );
-      transitionToProjectScope(
-        scope,
-        matches.at(0)?.sessionId ?? newConversationId(),
-        projectNavigationTarget("select-scope"),
-      );
+        )[0];
+      const id = session?.sessionId ?? newConversationId();
+      if (!session) {
+        setLocalBotBindings((current) => ({ ...current, [id]: botId }));
+        captureSessionProject(id, projectId);
+      }
+      // The browser selection establishes draft intent, while the host grants
+      // the exact bot and project when the user opens its workspace.
+      setProjectScope(scope);
+      setSelectedSession(id);
     },
-    [sessions, transitionToProjectScope],
+    [
+      captureSessionProject,
+      defaultBotId,
+      directSessions,
+      scopeForSession,
+      selectedBot?.id,
+      selectedSession,
+      setSelectedSession,
+      viewingGroups,
+    ],
   );
 
   const confirmNewChat = useCallback(async () => {
@@ -1865,6 +1908,7 @@ export function App() {
       );
       if (!botId) throw new Error("Chat owner unavailable");
       newChatBusyRef.current = true;
+      setNewChatBusy(true);
       try {
         const sessionId = newConversationId();
         const response = await desktopRequest<BotConversationScopeResponse>(
@@ -1950,6 +1994,7 @@ export function App() {
         return response.conversation;
       } finally {
         newChatBusyRef.current = false;
+        setNewChatBusy(false);
       }
     },
     [
@@ -2060,7 +2105,7 @@ export function App() {
         });
         return undefined;
       }
-      return (await openComputerView("code", origin)) ? origin : undefined;
+      return openComputerView("code", origin);
     },
     openScopedContextChat: async (resolution, onActivated) => {
       const selection = { ...newChatNavigationRef.current };
@@ -2707,7 +2752,13 @@ export function App() {
           startConversation(projectScope, defaultBotId),
         startChatInProject: async (projectId, sourceSessionId) => {
           try {
-            await startChatInProject(projectId, sourceSessionId);
+            await startChatInProject(
+              projectId,
+              sourceSessionId,
+              "chat",
+              projects.find((project) => project.id === projectId)
+                ?.primaryPath ?? undefined,
+            );
           } catch {
             pushToast({
               tone: "error",
@@ -2724,6 +2775,12 @@ export function App() {
         selectSession: setSelectedSession,
         setView,
         openComputerView,
+        confirmProjectAccess: (sessionId) =>
+          void openComputerView("chat", {
+            botId: botIdForSession(sessionId),
+            originConversationId: sessionId,
+            workspacePath: "",
+          }),
         transitionToProjectScope,
       }}
       onConsumeContextHandoff={consumeChatContext}
@@ -3009,7 +3066,16 @@ export function App() {
           onSelectGroups={openGroups}
           onAddBot={openCreateBot}
           onRetryBots={botResource.reload}
-          onSetView={setView}
+          onSetView={(target) => {
+            if (
+              target === "code" &&
+              renderedView === "chat" &&
+              selectedConversationScope.kind === "pending" &&
+              selectedConversationScope.projectId
+            )
+              void openComputerView("code");
+            else setView(target);
+          }}
         />
       </Suspense>
       <section
@@ -3029,6 +3095,7 @@ export function App() {
             {(chatVisible || editorVisible) && (
               <WorkbenchViewSwitch
                 view={editorVisible ? "ide" : "agent"}
+                ideUnavailable={newChatBusy || Boolean(viewingGroups)}
                 onChange={changeWorkbenchView}
               />
             )}

@@ -1,0 +1,66 @@
+.workbench-view-switch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  -webkit-app-region: no-drag;
+}
+
+.workbench-view-switch > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-block-size: 30px;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-control);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.workbench-view-switch > button[aria-pressed="true"],
+.workbench-view-switch > button:enabled:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.workbench-view-switch > button:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.workbench-view-switch > button:disabled {
+  opacity: 0.55;
+}
+
+.workbench-view-switch > button > svg {
+  flex: none;
+}
+
+@media (max-width: 560px) {
+  .workbench-view-switch > button {
+    min-block-size: 40px;
+    min-inline-size: 40px;
+    padding-inline: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .workbench-view-switch > button[aria-pressed="true"] {
+    outline: 1px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .workbench-view-switch > button:focus-visible {
+    outline-color: CanvasText;
+    outline-offset: 1px;
+  }
+}

@@ -18,7 +18,7 @@ import {
 } from "../computer-origin";
 import { renderedViewForView, type View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
-import { type ApiResource, LoadingBlock } from "../lib";
+import type { ApiResource } from "../lib";
 import type { LinkedWorkTab, WorkTabId } from "../OrchestrationPage";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import type { SessionConversationScope } from "../session-conversation-scope";
@@ -62,6 +62,7 @@ export interface DesktopRouteNavigation {
   ) => Promise<void>;
   openChatTerminal: () => void;
   openComputerView?: (view: View, origin?: ComputerOrigin) => void;
+  confirmProjectAccess: (sessionId: string) => void;
   transitionToProjectScope: (
     scope: ProjectScope,
     sessionId: string,
@@ -207,6 +208,7 @@ export function DesktopRouteContent({
               )
             }
             onOpenProjectManager={navigation.openProjectManager}
+            onConfirmProjectAccess={navigation.confirmProjectAccess}
             onRequestNewConversation={navigation.createConversation}
             onActivateSessionProject={(
               sessionId: string,
@@ -277,16 +279,19 @@ export function DesktopRouteContent({
           />
         );
       case "code": {
-        if (!computerOrigin)
-          return (
-            <LoadingBlock label="Resolving this conversation’s Computer access…" />
-          );
+        // An unbound editor can show the folder picker without a route owner.
+        // The empty path disables workspace operations until the host binds one.
+        const editorOrigin = computerOrigin ?? {
+          botId: botIdForSession(selectedSession),
+          originConversationId: selectedSession,
+          workspacePath: "",
+        };
         const chooseRepository = async (
           hasUnsavedChanges?: boolean,
           expectedWorkspacePath?: string,
         ): Promise<WorkspacePickResult> => {
           const conversation = await navigation.chooseRepositoryForConversation(
-            computerOrigin.originConversationId,
+            editorOrigin.originConversationId,
             "code",
             hasUnsavedChanges,
             expectedWorkspacePath,
@@ -295,28 +300,28 @@ export function DesktopRouteContent({
             canceled: !conversation,
             state: {
               currentPath:
-                conversation?.workspacePath ?? computerOrigin.workspacePath,
+                conversation?.workspacePath ?? editorOrigin.workspacePath,
               recentPaths: [],
             },
           };
         };
         return (
           <Route
-            active={active}
+            active={active && Boolean(editorOrigin.botId)}
             visible={routeVisible}
             canCreateWorktree={Boolean(
               bots.find((bot) =>
-                computerOrigin.botId === "default"
+                editorOrigin.botId === "default"
                   ? bot.isDefault
-                  : bot.id === computerOrigin.botId,
+                  : bot.id === editorOrigin.botId,
               )?.permissions.allowMutation,
             )}
             editingLocked={codeEditingLocked}
             key={focusScope}
-            origin={computerOrigin}
+            origin={editorOrigin}
             previewEvidenceAvailable={
-              computerOrigin.botId === defaultBotId ||
-              computerOrigin.botId === "default"
+              editorOrigin.botId === defaultBotId ||
+              editorOrigin.botId === "default"
             }
             focusState={focusForScope?.code}
             onFocusStateChange={(state: CodingWorkspaceFocusState) => {

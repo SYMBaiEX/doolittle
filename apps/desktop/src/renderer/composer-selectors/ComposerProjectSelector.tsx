@@ -39,6 +39,7 @@ import {
 
 export type ChatWorkspaceTarget =
   | { kind: "local"; projectId: string; name: string; path: string }
+  | { kind: "pending"; name: string }
   | { kind: "private" }
   | { kind: "unconfirmed" };
 
@@ -94,9 +95,11 @@ export function ComposerProjectSelector({
   const label =
     target.kind === "local"
       ? `This computer · ${target.name}`
-      : target.kind === "private"
-        ? "Private workspace"
-        : "Workspace not confirmed";
+      : target.kind === "pending"
+        ? `${target.name} · Approval needed`
+        : target.kind === "private"
+          ? "Private workspace"
+          : "Workspace not confirmed";
   const savedFolders = useMemo(
     () =>
       projects
@@ -168,11 +171,13 @@ export function ComposerProjectSelector({
               }
             />
             <span className="composer-route-label">
-              {target.kind === "local" ? target.name : label}
+              {target.kind === "local" || target.kind === "pending"
+                ? target.name
+                : label}
             </span>
-            {target.kind === "local" ? (
+            {target.kind === "local" || target.kind === "pending" ? (
               <span aria-hidden="true" className="composer-route-mode">
-                Local
+                {target.kind === "local" ? "Local" : "Approval needed"}
               </span>
             ) : null}
             <UiIcon icon={ChevronDown} size="xs" />
@@ -280,9 +285,7 @@ export function ComposerProjectSelector({
                   </p>
                 ) : null}
               </section>
-              <div
-                className={`${COMPOSER_PROJECT_LIST_CLASS} mt-1 border-[var(--border)] border-t pt-1`}
-              >
+              <div className={`${COMPOSER_PROJECT_LIST_CLASS} mt-2`}>
                 <button
                   aria-current={target.kind === "private" ? "true" : undefined}
                   onClick={() => select("unscoped")}

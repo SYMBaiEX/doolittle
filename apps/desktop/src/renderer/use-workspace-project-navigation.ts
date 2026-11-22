@@ -1,10 +1,4 @@
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import { type Dispatch, type SetStateAction, useCallback, useRef } from "react";
 import type {
   Project,
   SessionSummary,
@@ -116,13 +110,11 @@ export async function runWorkspaceRequest<T>({
 }
 
 interface UseWorkspaceProjectNavigationOptions {
-  readonly backendReady: boolean;
   /** Disables Code mutations while an approved workspace switch is pending. */
   readonly setCodeEditingLocked: (locked: boolean) => void;
   readonly createSessionId: () => string;
   readonly pathsEqual: (left: string | undefined, right: string) => boolean;
   readonly projects: readonly Project[];
-  readonly projectScope: ProjectScope;
   readonly pushToast: (toast: ToastInput) => string;
   readonly selectedSession: string;
   readonly sessions: readonly SessionSummary[];
@@ -166,12 +158,10 @@ export interface WorkspaceProjectNavigation {
 }
 
 export function useWorkspaceProjectNavigation({
-  backendReady,
   setCodeEditingLocked,
   createSessionId,
   pathsEqual,
   projects,
-  projectScope,
   pushToast,
   selectedSession,
   sessions,
@@ -500,38 +490,6 @@ export function useWorkspaceProjectNavigation({
     },
     [applyWorkspaceSelection, coordinator],
   );
-
-  useEffect(() => {
-    if (
-      !backendReady ||
-      coordinator.snapshot().pendingScope !== null ||
-      projectScope === "all" ||
-      projectScope === "unscoped"
-    ) {
-      return;
-    }
-    const project = projects.find(
-      (entry) => entry.id === projectScope && !entry.archivedAt,
-    );
-    const projectPath = project?.primaryPath;
-    if (
-      !projectPath ||
-      pathsEqual(projectPath, workspace.currentPath) ||
-      !workspace.recentPaths.some((path) => pathsEqual(path, projectPath))
-    ) {
-      return;
-    }
-    void switchToRecentWorkspace(projectPath, { announce: false });
-  }, [
-    backendReady,
-    coordinator,
-    pathsEqual,
-    projectScope,
-    projects,
-    switchToRecentWorkspace,
-    workspace.currentPath,
-    workspace.recentPaths,
-  ]);
 
   return {
     chooseWorkspace,
