@@ -34,6 +34,7 @@ async function fixture() {
   let adapter = native();
   let sessions = new SessionService(directory);
   const reads: Array<{ limit?: number; direction?: string }> = [];
+  let afterNativeRead: (() => Promise<void>) | undefined;
   await adapter.initialize();
   await adapter.getRawConnection().exec(`
     CREATE TABLE memories (
@@ -65,9 +66,15 @@ async function fixture() {
         agentId,
         adapter,
         createMemory: remember,
-        getMemories: (params: Parameters<typeof adapter.getMemories>[0]) => {
+        getMemories: async (
+          params: Parameters<typeof adapter.getMemories>[0],
+        ) => {
           reads.push({ limit: params.limit, direction: params.orderDirection });
-          return adapter.getMemories(params);
+          const rows = await adapter.getMemories(params);
+          const finish = afterNativeRead;
+          afterNativeRead = undefined;
+          await finish?.();
+          return rows;
         },
       },
       services: { sessions },
@@ -95,6 +102,14 @@ async function fixture() {
     metadata: { doolittle: { role: "user" } },
   });
   sessions.storeMessage(original);
+  const editNativePrefix = async () => {
+    await adapter
+      .getRawConnection()
+      .query("UPDATE memories SET content = $1::jsonb WHERE id = $2::uuid", [
+        JSON.stringify({ text: "Native edit" }),
+        originalId,
+      ]);
+  };
   return {
     reads,
     sessionId,
@@ -124,13 +139,18 @@ async function fixture() {
       currentContext = context();
       reads.length = 0;
     },
-    async editNativePrefix() {
-      await adapter
-        .getRawConnection()
-        .query("UPDATE memories SET content = $1::jsonb WHERE id = $2::uuid", [
-          JSON.stringify({ text: "Native edit" }),
-          originalId,
-        ]);
+    editNativePrefix,
+    editNativePrefixAfterNextRead() {
+      afterNativeRead = editNativePrefix;
+    },
+    async addUnprojectedNativeTail(count: number) {
+      await adapter.getRawConnection().query(
+        `INSERT INTO memories (id, type, created_at, content, entity_id, agent_id, room_id)
+         SELECT gen_random_uuid(), 'messages', now() + n * interval '1 millisecond',
+           jsonb_build_object('text', 'Tail ' || n), $1::uuid, $2::uuid, $3::uuid
+         FROM generate_series(1, $4::int) n`,
+        [entityId, agentId, roomId, count],
+      );
     },
     async close() {
       await adapter.close();
@@ -152,7 +172,7 @@ it("reuses a durable checkpoint for a matching reopened tail and preserves saved
       ),
     ).toBeDefined();
     await f.turn("Written after reopening");
-    expect(f.reads).toEqual([{ limit: 257, direction: "asc" }]);
+    expect(f.reads).toEqual([{ limit: 2, direction: "asc" }]);
     expect(
       f.sessions
         .messagesThroughRun("old-run", f.sessionId, 10)
@@ -182,6 +202,39 @@ it("repairs an edited native prefix even when the row count and time are unchang
       "Native edit",
     ]);
     expect(f.sessions.search("Original", 10)).toEqual([]);
+  } finally {
+    await f.close();
+  }
+});
+
+it("skips the incremental read when the native suffix already exceeds its budget", async () => {
+  const f = await fixture();
+  try {
+    await f.turn("First turn");
+    await f.addUnprojectedNativeTail(257);
+    await f.reopen();
+    await f.turn("Second turn");
+    expect(f.reads).toEqual([{ limit: 2000, direction: "desc" }]);
+    expect(f.sessions.messagesBySession(f.sessionId, 300)).toHaveLength(260);
+  } finally {
+    await f.close();
+  }
+});
+
+it("leaves the projection intact when the native history changes mid-reconciliation", async () => {
+  const f = await fixture();
+  try {
+    f.editNativePrefixAfterNextRead();
+    await expect(f.turn("First try")).rejects.toThrow(
+      /changed during reconciliation/,
+    );
+    expect(
+      f.sessions.messagesBySession(f.sessionId, 10).map((row) => row.text),
+    ).toEqual(["Original text"]);
+    await f.turn("Retried turn");
+    expect(
+      f.sessions.messagesBySession(f.sessionId, 10).map((row) => row.text),
+    ).toEqual(["Native edit", "Retried turn"]);
   } finally {
     await f.close();
   }

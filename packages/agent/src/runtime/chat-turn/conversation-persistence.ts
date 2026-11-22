@@ -667,6 +667,10 @@ async function reconcileCheckpointTail(
     );
   }
 
+  const newMemoryCount = snapshot.count - snapshot.prefixCount;
+  if (newMemoryCount < 1 || newMemoryCount > CHECKPOINT_TAIL_LIMIT)
+    return false;
+
   const nativeTail = await context.runtime.getMemories({
     roomId: turn.roomId as UUID,
     tableName: "messages",
@@ -674,15 +678,14 @@ async function reconcileCheckpointTail(
       createdAt: Date.parse(checkpoint.throughAt),
       id: checkpoint.throughId as UUID,
     },
-    limit: CHECKPOINT_TAIL_LIMIT + 1,
+    limit: newMemoryCount + 1,
     orderBy: "createdAt",
     orderDirection: "asc",
     includeEmbedding: false,
   });
   signal?.throwIfAborted();
   if (
-    nativeTail.length !== snapshot.count - snapshot.prefixCount ||
-    nativeTail.length > CHECKPOINT_TAIL_LIMIT ||
+    nativeTail.length !== newMemoryCount ||
     nativeTail.at(-1)?.id !== snapshot.throughId ||
     nativeTail.at(-1)?.createdAt !== snapshot.throughAtMs
   )
@@ -769,6 +772,17 @@ async function hydrateNativeRoomFromProjection(
     turn.roomId as UUID,
     signal,
   );
+  const current = snapshot && (await readNative?.());
+  signal?.throwIfAborted();
+  if (
+    current &&
+    (current.fingerprint !== snapshot?.fingerprint ||
+      current.count !== nativeMessages.length)
+  ) {
+    throw new Error(
+      "Native conversation history changed during reconciliation. Retry the turn.",
+    );
+  }
   if (
     nativeMessages.some(
       (memory) =>
@@ -777,13 +791,7 @@ async function hydrateNativeRoomFromProjection(
         isConversationMemory(context, memory),
     )
   ) {
-    const current = snapshot && (await readNative?.());
-    signal?.throwIfAborted();
-    const next =
-      current &&
-      current.fingerprint === snapshot?.fingerprint &&
-      current.count === nativeMessages.length &&
-      checkpointForSnapshot(current, agentId, roomId);
+    const next = current && checkpointForSnapshot(current, agentId, roomId);
     nativeMessages.reverse();
     let projected: StoredMessage[] = [];
     const compareProjection = () => {
