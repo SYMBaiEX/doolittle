@@ -132,11 +132,11 @@ const ORCHESTRATION_CLASS = {
   "orchestration-control-footnote":
     "orchestration-control-footnote flex items-baseline gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2.5 text-[length:var(--text-meta)] text-[var(--muted)] [&_strong]:text-[var(--text-soft)]",
   "orchestration-runs-layout":
-    "orchestration-runs-layout grid h-full min-h-0 grid-cols-[260px_minmax(230px,27%)_minmax(0,1fr)] max-[1180px]:grid-cols-[230px_minmax(210px,30%)_minmax(0,1fr)] max-[900px]:grid-cols-[220px_minmax(0,1fr)] max-[680px]:flex max-[680px]:flex-col max-[680px]:overflow-auto",
+    "orchestration-runs-layout grid h-full min-h-0 grid-cols-[300px_minmax(230px,27%)_minmax(0,1fr)]",
   "orchestration-launcher":
-    "orchestration-launcher min-h-0 min-w-0 overflow-auto border-[var(--border)] border-r bg-[var(--surface)] max-[680px]:min-h-60 max-[680px]:max-h-[42vh] max-[680px]:border-r-0 max-[680px]:border-b",
+    "orchestration-launcher min-h-0 min-w-0 overflow-auto border-[var(--border)] border-r bg-[var(--surface)]",
   "orchestration-run-browser":
-    "orchestration-run-browser flex min-h-0 min-w-0 flex-col overflow-hidden border-[var(--border)] border-r bg-[var(--surface)] max-[680px]:min-h-60 max-[680px]:max-h-[42vh] max-[680px]:border-r-0 max-[680px]:border-b",
+    "orchestration-run-browser flex min-h-0 min-w-0 flex-col overflow-hidden border-[var(--border)] border-r bg-[var(--surface)]",
   "orchestration-mode-grid":
     "orchestration-mode-grid m-0 grid min-w-0 grid-cols-2 gap-0 border-0 px-2 py-1.25 [&>legend]:sr-only [&_button]:grid [&_button]:min-h-10 [&_button]:gap-0.5 [&_button]:rounded-none [&_button]:border [&_button]:border-transparent [&_button]:border-b-[var(--border)] [&_button]:bg-transparent [&_button]:p-1.5 [&_button]:text-left [&_button]:text-[var(--muted)] [&_button:hover]:bg-[var(--surface-hover)] [&_button:focus-visible]:bg-[var(--surface-hover)]  [&_button.selected]:font-semibold [&_button.selected]:text-[var(--text)] [&_strong]:text-[length:var(--text-control)] [&_span]:text-[length:var(--text-meta)] [&_span]:leading-[1.35] [&_span]:text-[var(--muted)]",
   "orchestration-codegen-form": `orchestration-codegen-form grid gap-2.25 px-2.5 pt-0.5 pb-2.5 ${FORM_LABEL} [&_input]:w-full [&_textarea]:w-full [&_textarea]:resize-y`,
@@ -147,8 +147,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-workflow-list":
     "orchestration-workflow-list min-h-27.5 max-h-[42%] overflow-auto px-1 [&_button]:grid [&_button]:w-full [&_button]:gap-1 [&_button]:rounded-none [&_button]:border-0 [&_button]:border-[color-mix(in_srgb,var(--border)_70%,transparent)] [&_button]:border-b [&_button]:bg-transparent [&_button]:px-2.25 [&_button]:py-2 [&_button]:text-left [&_button]:text-[var(--text-soft)] [&_button:hover]:bg-[var(--surface-hover)] [&_button:focus-visible]:bg-[var(--surface-hover)]  [&_button.selected]:font-semibold [&_button.selected]:text-[var(--text)]  [&_button>span]:flex [&_button>span]:min-w-0 [&_button>span]:items-center [&_button>span]:justify-between [&_button>span]:gap-1.75 [&_strong]:truncate [&_strong]:text-[length:var(--text-control)] [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]",
   "orchestration-run-list": "orchestration-run-list min-h-0 max-h-none flex-1",
-  "orchestration-run-detail":
-    "orchestration-run-detail max-[900px]:col-span-full max-[900px]:border-[var(--border)] max-[900px]:border-t",
+  "orchestration-run-detail": "orchestration-run-detail",
   "orchestration-run-toolbar":
     "orchestration-run-toolbar flex max-w-245 items-center justify-between gap-3 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2 text-[length:var(--text-meta)] text-[var(--muted)] max-[680px]:flex-col max-[680px]:items-start",
   "orchestration-run-actions":

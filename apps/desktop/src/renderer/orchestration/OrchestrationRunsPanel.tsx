@@ -35,6 +35,7 @@ import { orchestrationClass as oc } from "./layout";
 import type { CodegenMode } from "./orchestration-runs-model";
 import { runArtifacts } from "./orchestration-runs-model";
 import { OrchestrationLauncher } from "./runs-panel/OrchestrationLauncher";
+import "./runs-panel/runs-layout.css";
 
 type CodegenRuntimeResponse = {
   execution?: {
@@ -135,8 +136,15 @@ export function OrchestrationRunsPanel({
   onLoadBundle,
   onCancelRun,
 }: OrchestrationRunsPanelProps) {
+  const emptyHistory =
+    !codegenWorkflowsResource.loading &&
+    !codegenWorkflowsResource.error &&
+    workflows.length === 0 &&
+    visibleRuns.length === 0 &&
+    !selectedWorkflow;
+
   return (
-    <div className={oc("orchestration-runs-layout")}>
+    <div className={oc("orchestration-runs-layout")} data-empty={emptyHistory}>
       <OrchestrationLauncher
         active={active}
         workspaceLabel={workspaceLabel}
@@ -160,7 +168,7 @@ export function OrchestrationRunsPanel({
         onSubmitCodegen={onSubmitCodegen}
       />
 
-      <aside className={oc("orchestration-run-browser")}>
+      <aside className={oc("orchestration-run-browser")} hidden={emptyHistory}>
         <div className={oc("orchestration-pane-heading")}>
           <span>Workflows</span>
           <small>{workflows.length}</small>
@@ -324,6 +332,7 @@ export function OrchestrationRunsPanel({
 
       <article
         className={oc("orchestration-detail", "orchestration-run-detail")}
+        hidden={emptyHistory}
       >
         {!selectedWorkflow ? (
           <EmptyBlock title="Choose a workflow">
