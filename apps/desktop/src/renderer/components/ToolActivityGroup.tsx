@@ -38,7 +38,7 @@ const statusIcons = {
   pending: Clock3,
 };
 
-function ToolPayload({
+export function ToolPayload({
   label,
   text,
   copyLabel,

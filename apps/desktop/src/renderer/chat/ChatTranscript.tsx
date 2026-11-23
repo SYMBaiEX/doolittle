@@ -76,6 +76,7 @@ interface TranscriptMessageRowProps {
   copyState?: CopyState;
   forkingMessageId: string;
   message: DisplayMessage;
+  progress?: string;
   receipt: RunReceiptStore[string] | undefined;
   speakingMessageId: string;
   speechSupported: boolean;
@@ -91,6 +92,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   copyState,
   forkingMessageId,
   message,
+  progress,
   receipt,
   speakingMessageId,
   speechSupported,
@@ -141,6 +143,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
           />
         }
         message={message}
+        progress={progress}
         onRetry={
           canRetry
             ? () => callbacks.current.onRetryMessage?.(message)
@@ -277,6 +280,7 @@ export function ChatTranscript({
             forkingMessageId={forkingMessageId}
             key={message.id}
             message={message}
+            progress={runId && runId === activeRequest ? progress : undefined}
             receipt={runId ? runReceipts[runId] : undefined}
             speakingMessageId={speakingMessageId}
             speechSupported={speechSupported}
@@ -285,6 +289,7 @@ export function ChatTranscript({
       }),
     [
       messages,
+      progress,
       firstMessageIndex,
       botName,
       activeRequest,
@@ -331,14 +336,11 @@ export function ChatTranscript({
     sessionId,
   ]);
 
-  const latestMessage = messages.at(-1);
-  const latestRunId = latestMessage ? messageRunId(latestMessage) : undefined;
   const showStandaloneProgress = Boolean(
     progress &&
       (!activeRequest ||
-        !latestRunId ||
-        latestRunId !== activeRequest ||
-        !runReceipts[latestRunId]),
+        !runReceipts[activeRequest] ||
+        !messages.some((message) => messageRunId(message) === activeRequest)),
   );
 
   return (

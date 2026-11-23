@@ -77,6 +77,7 @@ export function messageContentAfterReceipt(
 export function ChatMessage({
   message,
   botName = "Doolittle",
+  progress,
   receipt,
   actions,
   retryDisabled,
@@ -84,6 +85,7 @@ export function ChatMessage({
 }: {
   message: DisplayMessage;
   botName?: string;
+  progress?: string;
   receipt?: RunReceipt;
   actions: ReactNode;
   retryDisabled?: boolean;
@@ -102,6 +104,13 @@ export function ChatMessage({
     [assistant, visibleContent],
   );
   const hasToolActivity = Boolean(parsedAgentMessage?.tools.length);
+  const hasRecordedActivity = Boolean(
+    receipt?.events.some((event) => event.activity),
+  );
+  const renderedContent =
+    parsedAgentMessage && hasRecordedActivity && hasToolActivity
+      ? { ...parsedAgentMessage, tools: [] }
+      : (parsedAgentMessage ?? visibleContent);
   const receiptNeedsAttention = Boolean(
     receipt &&
       (receipt.latest.run.pendingApprovals > 0 ||
@@ -110,12 +119,14 @@ export function ChatMessage({
         receipt.latest.run.status === "cancelled"),
   );
   const showRunReceipt = Boolean(
-    receipt &&
+    assistant &&
+      receipt &&
       (receiptNeedsAttention ||
+        message.pending ||
+        hasRecordedActivity ||
         (!hasToolActivity &&
           ((receipt.latest.run.status === "complete" &&
             receipt.latest.run.observedActionCount > 0) ||
-            message.pending ||
             receipt.latest.run.localMutations.length > 0))),
   );
   const messageState =
@@ -164,6 +175,7 @@ export function ChatMessage({
             botName={botName}
             onRetry={onRetry}
             pending={Boolean(message.pending)}
+            progress={progress}
             receipt={receipt}
             retryDisabled={retryDisabled}
           />
@@ -185,10 +197,7 @@ export function ChatMessage({
           </p>
         ) : null}
         {visibleContent ? (
-          <MessageContent
-            content={parsedAgentMessage ?? visibleContent}
-            pending={message.pending}
-          />
+          <MessageContent content={renderedContent} pending={message.pending} />
         ) : message.pending && !receipt ? (
           <span className="chat-turn-working" role="status">
             <UiIcon icon={LoaderCircle} size="sm" />

@@ -1,3 +1,7 @@
+import {
+  isTransientRunUpdate,
+  RUN_ACTIVITY_REPLAY_LIMIT,
+} from "@doolittle/contracts/run";
 import type {
   DesktopRunUpdate,
   ManagedAttachmentDescriptor,
@@ -72,6 +76,7 @@ export function isDesktopRunUpdate(value: unknown): value is DesktopRunUpdate {
       update.run &&
         typeof update.run === "object" &&
         typeof update.run.runId === "string" &&
+        Array.isArray(update.run.localMutations) &&
         typeof update.run.status === "string",
     )
   );
@@ -79,7 +84,7 @@ export function isDesktopRunUpdate(value: unknown): value is DesktopRunUpdate {
 
 export function runEventKey(update: DesktopRunUpdate): string {
   const mutation = update.run.localMutations.at(-1);
-  return [
+  return JSON.stringify([
     update.type,
     update.run.observedActionCount,
     update.run.activeAction,
@@ -88,7 +93,17 @@ export function runEventKey(update: DesktopRunUpdate): string {
     update.run.pendingApprovals,
     mutation?.recordedAt,
     update.run.walletActivities?.at(-1)?.id,
-  ].join(":");
+    update.activity,
+  ]);
+}
+
+/** Preserve activity details while high-frequency stream and liveness updates pass. */
+export function retainRunEvents(
+  events: DesktopRunUpdate[],
+): DesktopRunUpdate[] {
+  return events
+    .filter((update) => !isTransientRunUpdate(update.type))
+    .slice(-RUN_ACTIVITY_REPLAY_LIMIT);
 }
 
 /** Rebuild the compact activity timeline retained for a completed desktop run. */
@@ -132,7 +147,7 @@ export function historicalRunReceipt(
     });
   const terminalKey = runEventKey(terminal);
   if (!seen.has(terminalKey)) events.push(terminal);
-  return { latest: terminal, events: events.slice(-30) };
+  return { latest: terminal, events: retainRunEvents(events) };
 }
 
 export interface RunEventCopy {
@@ -167,7 +182,22 @@ export function runActionLabel(action: string | null | undefined): string {
 }
 
 export function runEventCopy(update: DesktopRunUpdate): RunEventCopy {
-  const { run, type } = update;
+  const { activity, run, type } = update;
+  if (activity) {
+    return {
+      label:
+        activity.title || runActionLabel(activity.action) || "Tool activity",
+      detail: activity.summary || activity.command || activity.directory || "",
+      tone:
+        activity.phase === "failed"
+          ? "bad"
+          : activity.phase === "completed"
+            ? "good"
+            : activity.phase === "cancelled"
+              ? "warn"
+              : "neutral",
+    };
+  }
   const mutation = run.localMutations.at(-1);
   switch (type) {
     case "started":

@@ -36,14 +36,23 @@
   padding: 5px 10px;
 }
 
+.chat-run-receipt .chat-activity-trigger {
+  min-height: 48px;
+  padding-block: 8px;
+}
+
 .chat-activity-row {
   min-height: 34px;
   padding: 4px 8px;
   border-radius: var(--radius-xs, 5px);
 }
 
+.chat-activity-row:not(button) {
+  cursor: default;
+}
+
 .chat-activity-trigger:hover,
-.chat-activity-row:hover,
+button.chat-activity-row:hover,
 .chat-activity-row[aria-expanded="true"] {
   background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
   color: var(--text);
@@ -54,6 +63,11 @@
   min-width: 0;
   align-items: baseline;
   gap: 7px;
+}
+
+.chat-run-receipt .chat-activity-trigger .chat-activity-title {
+  display: grid;
+  gap: 3px;
 }
 
 .chat-activity-title > strong,
@@ -92,6 +106,18 @@
 
 .chat-activity [data-status="waiting"] {
   color: color-mix(in srgb, var(--warn) 75%, var(--text-soft));
+}
+
+.chat-activity :is([data-status="queued"], [data-status="cancelled"]) {
+  color: var(--muted);
+}
+
+.chat-run-receipt [data-step-status="running"] > .chat-activity-row {
+  background: color-mix(in srgb, var(--surface-hover) 45%, transparent);
+}
+
+.chat-run-receipt [data-tool-origin="delegated"] > .chat-activity-row {
+  padding-inline-start: 15px;
 }
 
 .chat-activity [data-status="failed"],
@@ -180,6 +206,7 @@
 
 .chat-activity-facts div {
   display: flex;
+  min-width: 0;
   gap: 5px;
 }
 
@@ -189,8 +216,20 @@
 }
 
 .chat-activity-facts dd {
+  min-width: 0;
   margin: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.chat-activity-directory {
+  flex-basis: 100%;
+  flex-wrap: wrap;
+}
+
+.chat-activity-directory code {
+  padding: 0;
+  background: transparent;
+  overflow-wrap: anywhere;
 }
 
 .chat-activity-payload {
@@ -367,6 +406,22 @@
 .chat-activity-empty,
 .chat-activity-files {
   padding: 8px 10px;
+}
+
+.chat-activity-progress {
+  padding: 8px 10px 3px;
+}
+
+.chat-activity-tool-summary {
+  white-space: pre-wrap;
+}
+
+.chat-activity-paths {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .chat-activity-files {

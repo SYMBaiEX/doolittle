@@ -3,7 +3,11 @@ import {
   chatFailureDisposition,
   markChatReplayGap,
 } from "../../apps/desktop/src/renderer/chat/chat-terminal-events";
-import type { RunReceipt } from "../../apps/desktop/src/renderer/chat/models";
+import {
+  historicalRunReceipt,
+  type RunReceipt,
+  runEventKey,
+} from "../../apps/desktop/src/renderer/chat/models";
 import { queuedMessageRemovalTargets } from "../../apps/desktop/src/renderer/chat/queued-message-removal";
 import {
   isTerminalClaimReceipt,
@@ -16,7 +20,10 @@ import {
 import { pendingApprovalsForSession } from "../../apps/desktop/src/renderer/chat/session-approvals";
 import type { PersistedQueuedMessage } from "../../apps/desktop/src/renderer/conversation-persistence";
 import { ChatWorkspaceStore } from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
-import type { ChatEvent } from "../../apps/desktop/src/shared/contracts";
+import type {
+  ChatEvent,
+  DesktopRunUpdate,
+} from "../../apps/desktop/src/shared/contracts";
 
 const runId = "run-a";
 const sessionId = "conversation-a";
@@ -45,6 +52,38 @@ const receipt: RunReceipt = {
   },
   events: [],
 };
+
+it("keeps exact parallel tool activity through a long reconnect", () => {
+  const progress = (id: string): DesktopRunUpdate => ({
+    ...receipt.latest,
+    type: "action-progress",
+    activity: {
+      id,
+      origin: "delegated",
+      action: "TASKS_SPAWN_AGENT",
+      phase: "running",
+      title: "Reading source",
+    },
+  });
+  const first = progress("native-call-1");
+  const second = progress("native-call-2");
+  const heartbeats = Array.from(
+    { length: 80 },
+    (_, index): DesktopRunUpdate => ({
+      ...receipt.latest,
+      type: "heartbeat",
+      run: { ...receipt.latest.run, statusDetail: `Waiting ${index}` },
+    }),
+  );
+  const replay = historicalRunReceipt(receipt.latest.run, [
+    first,
+    second,
+    first,
+    ...heartbeats,
+  ]);
+  expect(runEventKey(first)).not.toBe(runEventKey(second));
+  expect(replay?.events).toEqual([first, second, receipt.latest]);
+});
 
 it("retains a run claim across a duplicate inventory refresh while Stop verifies the receipt", () => {
   const claims = new RunClaims();

@@ -3,11 +3,11 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { RunReceipt } from "../../apps/desktop/src/renderer/chat/models";
+import { RunReceiptView } from "../../apps/desktop/src/renderer/chat/RunReceiptView";
 import {
   formatRunElapsed,
-  RunReceiptView,
   runActivityItems,
-} from "../../apps/desktop/src/renderer/chat/RunReceiptView";
+} from "../../apps/desktop/src/renderer/chat/run-activity";
 import type { ToolActivity } from "../../apps/desktop/src/renderer/components/message-output";
 import { ToolActivityGroup } from "../../apps/desktop/src/renderer/components/ToolActivityGroup";
 import { toolActivityDetails } from "../../apps/desktop/src/renderer/components/tool-activity-details";
@@ -86,7 +86,14 @@ function step(
 }
 
 it("keeps the same activity row selected as a matched action returns", () => {
-  const action = step("action-started", 1, 100, { activeAction: "WRITE_FILE" });
+  const action = {
+    ...step("action-started", 1, 100, { activeAction: "WRITE_FILE" }),
+    activity: {
+      action: "WRITE_FILE",
+      phase: "running" as const,
+      paths: ["/approved/src/config.ts"],
+    },
+  };
   const events = [action];
   const draw = (receipt: RunReceipt) =>
     act(() =>
@@ -113,6 +120,113 @@ it("keeps the same activity row selected as a matched action returns", () => {
   expect(host.textContent).toContain("Returned");
   expect(host.textContent).toContain("Duration125 ms");
   expect(formatRunElapsed(225)).toBe("225 ms");
+});
+
+it("shows actual delegated progress and keeps inspected output open when another same-kind tool returns", async () => {
+  const workspace = "/private/temporary/workspace";
+  const activity = {
+    id: "worker:tool:one",
+    action: "TASKS_SPAWN_AGENT",
+    origin: "delegated" as const,
+    kind: "execute",
+    phase: "running" as const,
+    command: "nub run test:scope",
+    directory: workspace,
+  };
+  const running = {
+    ...step("action-progress", 1, 100, {
+      activeAction: "TASKS_SPAWN_AGENT",
+      lastMeaningfulActivityAt: new Date().toISOString(),
+    }),
+    activity,
+  };
+  const peer = {
+    ...step("action-progress", 1, 200, {
+      activeAction: "TASKS_SPAWN_AGENT",
+      lastMeaningfulActivityAt: new Date().toISOString(),
+    }),
+    activity: {
+      ...activity,
+      id: "worker:tool:two",
+      command: undefined,
+      directory: undefined,
+    },
+  };
+  act(() =>
+    root.render(
+      <RunReceiptView
+        pending
+        receipt={{ latest: peer, events: [running, peer] }}
+      />,
+    ),
+  );
+  const runningRow = button("Show Shell command details");
+  expect(runningRow.textContent).toContain("nub run test:scope");
+  expect(
+    host.querySelectorAll('[data-step-status="running"] > button'),
+  ).toHaveLength(1);
+  const detailsId = runningRow.getAttribute("aria-controls");
+  runningRow.focus();
+  act(() => runningRow.click());
+  expect(host.textContent).toContain(workspace);
+
+  const returned = {
+    ...step("action-progress", 1, 400, {
+      activeAction: "TASKS_SPAWN_AGENT",
+      lastMeaningfulActivityAt: new Date().toISOString(),
+    }),
+    activity: {
+      id: activity.id,
+      action: activity.action,
+      origin: activity.origin,
+      phase: "failed" as const,
+      summary: "One check failed.",
+      output: "assertion failed",
+      exitCode: 1,
+      durationMs: 300,
+    },
+  };
+  act(() =>
+    root.render(
+      <RunReceiptView
+        pending
+        receipt={{
+          latest: returned,
+          events: [running, peer, returned, running],
+        }}
+      />,
+    ),
+  );
+  const openRow = button("Hide Shell command details");
+  expect(openRow).toBe(runningRow);
+  expect(document.activeElement).toBe(openRow);
+  expect(openRow.getAttribute("aria-controls")).toBe(detailsId);
+  expect(openRow.textContent).toContain("Exit 1");
+  expect(host.textContent).toContain("One check failed.");
+  expect(host.textContent).toContain("assertion failed");
+  await act(async () => button("Copy output").click());
+  expect(writeText).toHaveBeenCalledExactlyOnceWith("assertion failed");
+});
+
+it("announces queued progress without adding clickable empty rows", () => {
+  const queued = step("waiting", 0, 100, {
+    status: "waiting",
+    statusDetail: "Waiting for execution capacity",
+    lastMeaningfulActivityAt: new Date().toISOString(),
+  });
+  act(() =>
+    root.render(
+      <RunReceiptView
+        pending
+        progress="Waiting for an execution slot."
+        receipt={{ latest: queued, events: [queued] }}
+      />,
+    ),
+  );
+  const status = host.querySelector('[role="status"]');
+  expect(status?.textContent).toContain("Queued");
+  expect(status?.textContent).toContain("Waiting for an execution slot.");
+  expect(host.querySelector('[aria-label="Run steps"]')).toBeNull();
 });
 
 it("avoids assigning timing to overlapping actions or reporting a missing result as returned", () => {

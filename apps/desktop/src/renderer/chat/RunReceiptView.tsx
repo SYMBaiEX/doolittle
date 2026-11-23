@@ -11,248 +11,30 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
-import type { DesktopRunUpdate } from "../../shared/contracts";
+import { ToolPayload } from "../components/ToolActivityGroup";
 import { toolActionLabel } from "../components/tool-activity-details";
 import { UiIcon } from "../components/UiIcon";
 import { displayTimestamp } from "../lib";
-import type { RunReceipt } from "./models";
+import { fileName, type RunReceipt } from "./models";
+import {
+  type ActivityStatus,
+  ended,
+  formatCount,
+  formatRunElapsed,
+  lastMutation,
+  type RunActivityItem,
+  runActivityItems,
+  runElapsed,
+  runIsStalled,
+  runReceiptState,
+} from "./run-activity";
 import "./chat-activity.css";
-
-type ActivityStatus =
-  | "running"
-  | "complete"
-  | "failed"
-  | "waiting"
-  | "unreported";
-
-export interface RunActivityItem {
-  id: string;
-  label: string;
-  detail: string;
-  status: ActivityStatus;
-  update: DesktopRunUpdate;
-  durationMs?: number;
-}
-
-interface OpenAction {
-  index: number;
-  name: string;
-  started: number;
-  timingAvailable: boolean;
-}
-
-function actionName(update: DesktopRunUpdate): string {
-  return (
-    (update.type === "action-started"
-      ? update.run.activeAction
-      : update.run.lastAction) || ""
-  );
-}
-
-function lastMutation(run: DesktopRunUpdate["run"]) {
-  return run.localMutations?.at(-1);
-}
-
-function ended(update: DesktopRunUpdate): boolean {
-  return Boolean(
-    update.run.endedAt ||
-      update.run.terminalReason ||
-      ["complete", "cancelled", "error"].includes(update.run.status),
-  );
-}
-
-/** Project only the evidence recorded for this run, without inferring tool results. */
-export function runActivityItems(receipt: RunReceipt): RunActivityItem[] {
-  const items: RunActivityItem[] = [];
-  const indexed = new Map<string, number>();
-  const open = new Map<string, OpenAction>();
-  const observedReturns = new Set<string>();
-  function upsert(item: RunActivityItem) {
-    const existing = indexed.get(item.id);
-    if (existing !== undefined) {
-      items[existing] = item;
-      return existing;
-    }
-    const index = items.length;
-    indexed.set(item.id, index);
-    items.push(item);
-    return index;
-  }
-
-  for (const update of receipt.events) {
-    const { run, type } = update;
-    if (type === "action-started" || type === "action-completed") {
-      const name = actionName(update);
-      const id = `action:${run.observedActionCount}:${name}`;
-      const timestamp = Date.parse(run.updatedAt);
-      const label = toolActionLabel(name) || "Agent action";
-      if (type === "action-started") {
-        if (indexed.has(id)) continue;
-        const timingAvailable = open.size === 0;
-        for (const previous of open.values()) previous.timingAvailable = false;
-        open.set(id, {
-          index: upsert({ id, label, detail: "", status: "running", update }),
-          name,
-          started: timestamp,
-          timingAvailable,
-        });
-      } else {
-        const returnId = `return:${id}`;
-        if (observedReturns.has(returnId)) continue;
-        observedReturns.add(returnId);
-
-        // The count is shared for the whole run and advances when any tool
-        // starts, so a return can carry another invocation's count.
-        const matches = name
-          ? [...open].filter(([, action]) => action.name === name)
-          : [];
-        const match = matches.length === 1 ? matches[0] : undefined;
-        if (matches.length > 1) {
-          for (const [, { index }] of matches) {
-            items[index] = { ...items[index], status: "unreported" };
-          }
-        }
-
-        const elapsed = match ? timestamp - match[1].started : Number.NaN;
-        const durationMs =
-          match?.[1].timingAvailable && Number.isFinite(elapsed) && elapsed >= 0
-            ? elapsed
-            : undefined;
-        upsert({
-          id: match?.[0] ?? returnId,
-          label,
-          detail: matches.length > 1 ? "Invocation unknown" : "",
-          status: "complete",
-          update,
-          durationMs,
-        });
-        if (match) open.delete(match[0]);
-      }
-    } else if (type === "local-mutation") {
-      const mutation = lastMutation(run);
-      if (!mutation) continue;
-      const path =
-        mutation.resolvedPath || mutation.requestedPath || "Workspace";
-      upsert({
-        id: `mutation:${run.localMutations.length}:${mutation.recordedAt}`,
-        label: mutation.success ? "Workspace changed" : "Change failed",
-        detail: path,
-        status: mutation.success ? "complete" : "failed",
-        update,
-      });
-    } else if (type === "approvals") {
-      const pending = run.pendingApprovals;
-      const previous = items.at(-1);
-      if (
-        previous?.update.type === type &&
-        previous.update.run.pendingApprovals === pending
-      ) {
-        continue;
-      }
-      const label =
-        pending > 0 ? "Approval requested" : "Approval queue cleared";
-      upsert({
-        id: `approval:${run.updatedAt}:${pending}`,
-        label,
-        detail:
-          pending > 0 ? `${formatCount(pending, "decision")} pending` : "",
-        status: pending > 0 ? "waiting" : "complete",
-        update,
-      });
-    }
-  }
-
-  if (ended(receipt.latest)) {
-    for (const { index } of open.values()) {
-      items[index] = { ...items[index], status: "unreported" };
-    }
-  }
-  return items;
-}
-
-function formatCount(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-type RunTone = "neutral" | "good" | "warn" | "bad";
-
-export function runReceiptState(receipt: RunReceipt): {
-  label: string;
-  statusLabel: string;
-  tone: RunTone;
-} {
-  const { run } = receipt.latest;
-  if (run.status === "cancelled" || run.terminalReason === "cancelled") {
-    return { label: "Run cancelled", statusLabel: "cancelled", tone: "warn" };
-  }
-  if (run.status === "error" || run.terminalReason === "error") {
-    return { label: "Run failed", statusLabel: "failed", tone: "bad" };
-  }
-  if (run.status === "complete" || run.terminalReason === "completed") {
-    return { label: "Run complete", statusLabel: "complete", tone: "good" };
-  }
-  if (run.pendingApprovals > 0) {
-    return {
-      label: "Approval needed",
-      statusLabel: "approval needed",
-      tone: "warn",
-    };
-  }
-  return { label: "Working", statusLabel: "working", tone: "neutral" };
-}
-
-function runElapsed(update: DesktopRunUpdate, now: number): number | undefined {
-  const start = Date.parse(update.run.startedAt);
-  const terminal = update.run.endedAt
-    ? Date.parse(update.run.endedAt)
-    : ended(update)
-      ? Date.parse(update.run.updatedAt)
-      : now;
-  if (!Number.isFinite(start) || !Number.isFinite(terminal)) return undefined;
-  return Math.max(0, terminal - start);
-}
-
-export function formatRunElapsed(milliseconds: number): string {
-  if (milliseconds < 1_000)
-    return `${Math.max(0, Math.round(milliseconds))} ms`;
-  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1_000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-}
-
-export const RUN_STALL_THRESHOLD_MS = 12_000;
-
-/** Heartbeats prove transport liveness, while meaningful work clears a stall. */
-export function runIsStalled(
-  receipt: RunReceipt,
-  now: number,
-  pending: boolean,
-): boolean {
-  if (
-    !pending ||
-    receipt.latest.run.pendingApprovals > 0 ||
-    ended(receipt.latest)
-  ) {
-    return false;
-  }
-  const lastMeaningful = [
-    receipt.latest.run.lastMeaningfulActivityAt,
-    receipt.latest.run.updatedAt,
-    receipt.latest.run.startedAt,
-  ].reduce<number>((resolved, candidate) => {
-    if (Number.isFinite(resolved) || !candidate) return resolved;
-    return Date.parse(candidate);
-  }, Number.NaN);
-  return (
-    Number.isFinite(lastMeaningful) &&
-    now - lastMeaningful >= RUN_STALL_THRESHOLD_MS
-  );
-}
 
 const statusIcons = {
   complete: Check,
   failed: X,
+  cancelled: Minus,
+  queued: Clock3,
   waiting: Clock3,
   running: LoaderCircle,
   unreported: Minus,
@@ -271,11 +53,22 @@ function StatusMark({ status }: { status: ActivityStatus }) {
 }
 
 function stepState(item: RunActivityItem): string {
+  const exitCode = item.activity?.exitCode;
+  if (typeof exitCode === "number")
+    return `${item.status === "failed" ? "Failed · " : ""}Exit ${exitCode}`;
   switch (item.status) {
     case "complete":
-      return item.update.type === "action-completed" ? "Returned" : "Recorded";
+      return item.activity?.phase === "completed"
+        ? "Completed"
+        : item.update.type === "action-completed"
+          ? "Returned"
+          : "Recorded";
     case "failed":
       return "Failed";
+    case "cancelled":
+      return "Stopped";
+    case "queued":
+      return "Queued";
     case "waiting":
       return "Waiting";
     case "unreported":
@@ -285,19 +78,38 @@ function stepState(item: RunActivityItem): string {
   }
 }
 
+function stepHasDetails(item: RunActivityItem): boolean {
+  const activity = item.activity;
+  return Boolean(
+    item.durationMs !== undefined ||
+      item.update.type === "local-mutation" ||
+      activity?.command ||
+      activity?.directory ||
+      activity?.paths?.length ||
+      activity?.summary ||
+      activity?.output ||
+      activity?.title,
+  );
+}
+
 function RunDetail({ item }: { item: RunActivityItem }) {
   const mutation =
     item.update.type === "local-mutation"
       ? lastMutation(item.update.run)
       : undefined;
   const timestamp = item.update.run.updatedAt;
+  const activity = item.activity;
+  const mutationPath = mutation?.resolvedPath || mutation?.requestedPath;
+  const paths = mutationPath ? [mutationPath] : [...new Set(activity?.paths)];
   return (
     <>
       <dl className="chat-activity-facts">
-        <div>
-          <dt>State</dt>
-          <dd>{stepState(item)}</dd>
-        </div>
+        {activity?.origin === "delegated" ? (
+          <div>
+            <dt>Source</dt>
+            <dd>Delegated worker</dd>
+          </div>
+        ) : null}
         {Number.isFinite(Date.parse(timestamp)) ? (
           <div>
             <dt>Recorded</dt>
@@ -324,31 +136,136 @@ function RunDetail({ item }: { item: RunActivityItem }) {
             <dd>{mutation.replacements}</dd>
           </div>
         ) : null}
+        {activity?.directory ? (
+          <div className="chat-activity-directory">
+            <dt>Working directory</dt>
+            <dd>
+              <code>{activity.directory}</code>
+            </dd>
+          </div>
+        ) : null}
       </dl>
-      {mutation ? (
-        <div className="chat-activity-path">
-          <UiIcon icon={FilePenLine} size="xs" />
-          <code>{item.detail}</code>
-        </div>
-      ) : item.detail ? (
-        <p className="chat-activity-note">{item.detail}</p>
+      {activity?.summary || mutation?.message || activity?.title ? (
+        <p className="chat-activity-note chat-activity-tool-summary">
+          {activity?.summary || mutation?.message || activity?.title}
+        </p>
       ) : null}
-      {mutation?.message ? (
-        <p className="chat-activity-note">{mutation.message}</p>
+      {activity?.command ? (
+        <ToolPayload
+          copyLabel="Copy command"
+          kind="command"
+          label="Command"
+          text={activity.command}
+        />
+      ) : null}
+      {paths?.length ? (
+        <ul aria-label="Paths" className="chat-activity-paths">
+          {paths.map((path) => (
+            <li className="chat-activity-path" key={path}>
+              <UiIcon icon={FilePenLine} size="xs" />
+              <code>{path}</code>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {activity?.output ? (
+        <ToolPayload
+          label="Output"
+          copyLabel="Copy output"
+          text={activity.output}
+        />
       ) : null}
     </>
+  );
+}
+
+function RunStep({
+  item,
+  selected,
+  onToggle,
+}: {
+  item: RunActivityItem;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const detailId = useId();
+  const expandable = stepHasDetails(item);
+  const row = (
+    <>
+      <StatusMark status={item.status} />
+      <span className="chat-activity-title">
+        <strong>{item.label}</strong>
+        {item.detail ? (
+          <small id={`${detailId}-target`} title={item.detail}>
+            {item.detail}
+          </small>
+        ) : null}
+      </span>
+      <span
+        className="chat-activity-row-metadata"
+        data-status={item.status}
+        id={`${detailId}-state`}
+      >
+        {stepState(item)}
+        {item.durationMs === undefined ? null : (
+          <small>{formatRunElapsed(item.durationMs)}</small>
+        )}
+      </span>
+      {expandable ? (
+        <UiIcon
+          className="chat-activity-chevron"
+          icon={ChevronRight}
+          size="xs"
+        />
+      ) : null}
+    </>
+  );
+
+  return (
+    <li data-tool-origin={item.activity?.origin} data-step-status={item.status}>
+      {expandable ? (
+        <>
+          <button
+            aria-controls={detailId}
+            aria-describedby={
+              item.detail
+                ? `${detailId}-target ${detailId}-state`
+                : `${detailId}-state`
+            }
+            aria-expanded={selected}
+            aria-label={`${selected ? "Hide" : "Show"} ${item.label} details`}
+            className="chat-activity-row"
+            onClick={onToggle}
+            type="button"
+          >
+            {row}
+          </button>
+          <div
+            className="chat-activity-details"
+            hidden={!selected}
+            id={detailId}
+          >
+            {selected ? <RunDetail item={item} /> : null}
+          </div>
+        </>
+      ) : (
+        <div className="chat-activity-row">{row}</div>
+      )}
+    </li>
   );
 }
 
 export function RunReceiptView({
   botName,
   pending,
+  progress,
   receipt,
   retryDisabled = false,
   onRetry,
 }: {
   botName?: string;
   pending: boolean;
+  progress?: string;
   receipt: RunReceipt;
   retryDisabled?: boolean;
   onRetry?: () => void;
@@ -356,7 +273,9 @@ export function RunReceiptView({
   const id = useId();
   const state = runReceiptState(receipt);
   const items = useMemo(() => runActivityItems(receipt), [receipt]);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(
+    () => pending && !ended(receipt.latest),
+  );
   const [selectedId, setSelectedId] = useState<string>();
   const { run } = receipt.latest;
   const terminal = ended(receipt.latest);
@@ -394,22 +313,27 @@ export function RunReceiptView({
         (recoverable
           ? run.statusDetail || "The run ended before it could finish."
           : "");
-  const currentActivity = stalled
-    ? "Waiting for the next update"
-    : terminal
-      ? changedFiles.length > 0
-        ? `Changed ${formatCount(changedFiles.length, "file")}`
-        : ""
-      : run.pendingApprovals > 0
-        ? `${formatCount(run.pendingApprovals, "decision")} pending`
-        : toolActionLabel(run.activeAction ?? "") ||
-          (run.status === "thinking"
-            ? run.statusDetail || "Planning the next step"
-            : "");
+  const activeStep = useMemo(
+    () => items.filter((item) => item.status === "running").at(-1),
+    [items],
+  );
+  const activeTarget = activeStep?.detail || "";
+  const reportedProgress = pending && !terminal ? progress?.trim() : undefined;
+  const liveProgress = reportedProgress?.replace(/\s+/gu, " ");
+  const currentActivity = terminal
+    ? changedFiles.length > 0
+      ? `Changed ${formatCount(changedFiles.length, "file")}`
+      : ""
+    : run.pendingApprovals > 0
+      ? `${formatCount(run.pendingApprovals, "decision")} pending`
+      : activeTarget ||
+        activeStep?.label ||
+        toolActionLabel(run.activeAction ?? "") ||
+        liveProgress ||
+        run.statusDetail ||
+        (stalled ? "Waiting for the next update" : "");
   const metrics = [
-    run.observedActionCount > 0
-      ? formatCount(run.observedActionCount, "action")
-      : "",
+    items.length ? formatCount(items.length, "step") : "",
     elapsed ? formatRunElapsed(elapsed) : "",
   ].filter(Boolean);
 
@@ -417,19 +341,25 @@ export function RunReceiptView({
     state.tone === "bad"
       ? "failed"
       : cancelled
-        ? "unreported"
+        ? "cancelled"
         : state.tone === "good"
           ? "complete"
-          : state.tone === "warn"
-            ? "waiting"
-            : "running";
+          : state.statusLabel === "queued"
+            ? "queued"
+            : state.tone === "warn" || stalled
+              ? "waiting"
+              : "running";
   const runLabel = stalled
-    ? botName
-      ? `${botName} is still working`
-      : "Still working"
-    : botName && state.statusLabel === "working"
-      ? `${botName} is working`
-      : state.label;
+    ? "Waiting for an update"
+    : activeStep && state.statusLabel === "working"
+      ? activeStep.label
+      : botName && state.label === "Working"
+        ? `${botName} is working`
+        : state.label;
+  const displayActivity = currentActivity === runLabel ? "" : currentActivity;
+  const showProgress =
+    Boolean(liveProgress && liveProgress !== displayActivity) &&
+    (run.pendingApprovals > 0 || !activeStep);
 
   return (
     <section
@@ -439,6 +369,11 @@ export function RunReceiptView({
       data-stalled={stalled ? "true" : undefined}
       data-tone={state.tone}
     >
+      <span className="sr-only" role="status">
+        {[runLabel, displayActivity, showProgress ? liveProgress : undefined]
+          .filter(Boolean)
+          .join(". ")}
+      </span>
       <button
         aria-controls={`${id}-receipt`}
         aria-expanded={expanded}
@@ -448,8 +383,10 @@ export function RunReceiptView({
       >
         <StatusMark status={status} />
         <span className="chat-activity-title">
-          <strong aria-live={pending ? "polite" : undefined}>{runLabel}</strong>
-          {currentActivity ? <small>{currentActivity}</small> : null}
+          <strong>{runLabel}</strong>
+          {displayActivity ? (
+            <small title={displayActivity}>{displayActivity}</small>
+          ) : null}
         </span>
         {metrics.length ? (
           <span className="chat-activity-metric">{metrics.join(" · ")}</span>
@@ -487,57 +424,25 @@ export function RunReceiptView({
       >
         {expanded ? (
           <>
+            {showProgress ? (
+              <p className="chat-activity-note chat-activity-progress">
+                {liveProgress}
+              </p>
+            ) : null}
             {items.length ? (
               <ol aria-label="Run steps" className="chat-activity-list">
-                {items.map((item, index) => {
-                  const selected = selectedId === item.id;
-                  const detailId = `${id}-step-${index}`;
-                  return (
-                    <li key={item.id}>
-                      <button
-                        aria-controls={detailId}
-                        aria-describedby={`${detailId}-state`}
-                        aria-expanded={selected}
-                        aria-label={`${selected ? "Hide" : "Show"} ${item.label} details`}
-                        className="chat-activity-row"
-                        onClick={() =>
-                          setSelectedId(selected ? undefined : item.id)
-                        }
-                        type="button"
-                      >
-                        <StatusMark status={item.status} />
-                        <span className="chat-activity-title">
-                          <strong>{item.label}</strong>
-                          {item.detail ? (
-                            <small title={item.detail}>{item.detail}</small>
-                          ) : null}
-                        </span>
-                        <span
-                          className="chat-activity-row-metadata"
-                          data-status={item.status}
-                          id={`${detailId}-state`}
-                        >
-                          {stepState(item)}
-                          {item.durationMs === undefined ? null : (
-                            <small>{formatRunElapsed(item.durationMs)}</small>
-                          )}
-                        </span>
-                        <UiIcon
-                          className="chat-activity-chevron"
-                          icon={ChevronRight}
-                          size="xs"
-                        />
-                      </button>
-                      <div
-                        className="chat-activity-details"
-                        hidden={!selected}
-                        id={detailId}
-                      >
-                        {selected ? <RunDetail item={item} /> : null}
-                      </div>
-                    </li>
-                  );
-                })}
+                {items.map((item) => (
+                  <RunStep
+                    item={item}
+                    key={item.id}
+                    onToggle={() =>
+                      setSelectedId(
+                        selectedId === item.id ? undefined : item.id,
+                      )
+                    }
+                    selected={selectedId === item.id}
+                  />
+                ))}
               </ol>
             ) : !changedFiles.length && !recoverable ? (
               <p className="chat-activity-note chat-activity-empty">
@@ -558,7 +463,7 @@ export function RunReceiptView({
                   {changedFiles.map((path) => (
                     <li className="chat-activity-path" key={path}>
                       <UiIcon icon={FilePenLine} size="xs" />
-                      <code>{path}</code>
+                      <code title={path}>{fileName(path)}</code>
                     </li>
                   ))}
                 </ul>

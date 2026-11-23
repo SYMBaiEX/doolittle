@@ -144,11 +144,22 @@ async function runDesktopCoding(delegated: boolean) {
       copyRepository: !delegated && Boolean(executable),
     });
     const selection = await openLocalChat(desktop, workspace);
-    const run = await runLiveTurn(
+    const liveTurn = runLiveTurn(
       desktop,
       selection,
       delegated ? delegateCodingPrompt(prompt) : prompt,
     );
+    const pendingWorkerActions = desktop.page.locator(
+      '[data-message-state="streaming"] [data-tool-origin="delegated"]',
+    );
+    const [run] = await Promise.all([
+      liveTurn,
+      delegated
+        ? expect
+            .poll(() => pendingWorkerActions.count(), { timeout: 180_000 })
+            .toBeGreaterThan(1)
+        : undefined,
+    ]);
     expect(run.status).toBe("complete");
     const summary = verifyLiveCodingProject(desktop.workspace);
     const evidence = liveTurnEvidence(join(desktop.profile, "runtime"), run);

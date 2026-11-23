@@ -984,6 +984,22 @@ test.describe("fresh native desktop", () => {
           bytes: 40,
         });
         runs.noteActionCompleted(sessionId, "WRITE_FILE");
+        const active = runs.getByRunId(runId);
+        if (!active) throw new Error("The activity fixture lost its run.");
+        runs.appendTaskEvent(runId, "agent.run", {
+          type: "action-completed",
+          sessionId,
+          run: active,
+          activity: {
+            id: "build-check",
+            action: "TERMINAL_SHELL",
+            title: "Check the build",
+            phase: "completed",
+            command: "nub run typecheck",
+            exitCode: 0,
+            output: "Fixture typecheck output",
+          },
+        });
         runs.finishTurn(sessionId, "complete");
         stopObserving();
         await runs.finishTaskEvent(runId, "response.completed", {});
@@ -1091,6 +1107,18 @@ test.describe("fresh native desktop", () => {
       await expect(
         transcript.getByRole("region", { name: "Changed files" }),
       ).toContainText("src/main.ts");
+      const runReceipt = transcript.locator(".chat-run-receipt");
+      await runReceipt
+        .getByRole("button", { name: "Show Shell command details" })
+        .click();
+      await expect(
+        runReceipt
+          .getByLabel("Command", { exact: true })
+          .getByText("nub run typecheck", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        runReceipt.getByText("Fixture typecheck output", { exact: true }),
+      ).toBeVisible();
     } finally {
       await desktop.dispose();
     }

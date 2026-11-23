@@ -1,5 +1,5 @@
 import { isTerminalRunStatus } from "@doolittle/contracts/run";
-import { type RunReceipt, runEventKey } from "./models";
+import { type RunReceipt, retainRunEvents, runEventKey } from "./models";
 
 export interface RunClaim {
   readonly runId: string;
@@ -99,12 +99,17 @@ export function mergeTerminalRunReceipt(
 ): RunReceipt {
   if (!prior) return terminal;
   const events = new Map(
-    [...prior.events, ...terminal.events].map((event) => [
-      runEventKey(event),
-      event,
-    ]),
+    terminal.events.map((event) => [runEventKey(event), event]),
   );
-  return { latest: terminal.latest, events: [...events.values()].slice(-30) };
+  for (const event of prior.events) {
+    const key = runEventKey(event);
+    if (!events.has(key)) events.set(key, event);
+  }
+  const chronological = [...events.values()].sort(
+    (left, right) =>
+      Date.parse(left.run.updatedAt) - Date.parse(right.run.updatedAt),
+  );
+  return { latest: terminal.latest, events: retainRunEvents(chronological) };
 }
 
 /** A terminal receipt can release only the exact claim that requested it. */

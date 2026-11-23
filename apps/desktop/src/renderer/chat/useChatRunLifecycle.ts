@@ -1,4 +1,5 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
+import { isTransientRunUpdate } from "@doolittle/contracts/run";
 import type { UiHostEvent } from "@doolittle/contracts/ui-host";
 import { asRecordOrUndefined } from "@elizaos/shared/type-guards";
 import {
@@ -38,6 +39,7 @@ import {
   isDesktopRunUpdate,
   type RunReceipt,
   type RunReceiptStore,
+  retainRunEvents,
   runEventKey,
 } from "./models";
 import {
@@ -104,11 +106,21 @@ function saveRunCursors(cursors: Record<string, number>): void {
 function eventText(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const record = data as Record<string, unknown>;
-  return (
+  const text =
     ([record.detail, record.message, record.event].find(
       (value) => typeof value === "string",
-    ) as string | undefined) ?? ""
-  );
+    ) as string | undefined) ?? "";
+  if (!text.startsWith("[run] ")) return text.trim();
+  switch (record.event) {
+    case "started":
+      return "Starting the run…";
+    case "thinking":
+      return "Planning the next step…";
+    case "waiting":
+      return "Waiting for the runtime…";
+    default:
+      return "";
+  }
 }
 
 interface ChatRunLifecycleOptions {
@@ -397,15 +409,15 @@ export function useChatRunLifecycle({
 
   const reconcileRunClaim = async (claim: RunClaim): Promise<void> => {
     if (!claim.botId || runClaims.current.get(claim.runId) !== claim) return;
-    const payload = await desktopRequest<{ run?: unknown }>(
-      `/chat/runs/${encodeURIComponent(claim.runId)}`,
+    const payload = await desktopRequest<{ run?: unknown; updates?: unknown }>(
+      `/chat/runs/${encodeURIComponent(claim.runId)}?include_updates=true`,
       "GET",
       undefined,
       undefined,
       undefined,
       claim.botId,
     );
-    const receipt = historicalRunReceipt(payload.run, undefined);
+    const receipt = historicalRunReceipt(payload.run, payload.updates);
     if (receipt && isTerminalClaimReceipt(receipt, claim, runClaims.current)) {
       acceptTerminalReceipt(receipt);
     }
@@ -532,9 +544,10 @@ export function useChatRunLifecycle({
         const nextKey = runEventKey(update);
         const lastEvent = prior?.events.at(-1);
         const events =
-          lastEvent && runEventKey(lastEvent) === nextKey
-            ? prior.events
-            : [...(prior?.events ?? []), update].slice(-30);
+          isTransientRunUpdate(update.type) ||
+          (lastEvent && runEventKey(lastEvent) === nextKey)
+            ? (prior?.events ?? [])
+            : retainRunEvents([...(prior?.events ?? []), update]);
         return {
           ...current,
           [event.requestId]: {
