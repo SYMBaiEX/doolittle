@@ -29,32 +29,77 @@ export async function fetchPlatform(
     );
   }
 
+  if (resolvedTimeoutMs === false) {
+    return fetch(input, { ...requestInit, signal: callerSignal });
+  }
+
   const abortFromCaller = () => controller.abort(callerSignal?.reason);
+  const cleanup = () => {
+    clearTimeout(timeout);
+    callerSignal?.removeEventListener("abort", abortFromCaller);
+    controller.signal.removeEventListener("abort", cleanup);
+  };
+  const timeout = setTimeout(() => {
+    controller.abort(
+      new DOMException(
+        `Platform HTTP request timed out after ${resolvedTimeoutMs}ms.`,
+        "TimeoutError",
+      ),
+    );
+  }, resolvedTimeoutMs);
+  timeout.unref?.();
+  controller.signal.addEventListener("abort", cleanup, { once: true });
   if (callerSignal?.aborted) {
     abortFromCaller();
   } else {
     callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
   }
 
-  const timeout =
-    typeof resolvedTimeoutMs === "number"
-      ? setTimeout(() => {
-          controller.abort(
-            new DOMException(
-              `Platform HTTP request timed out after ${resolvedTimeoutMs}ms.`,
-              "TimeoutError",
-            ),
-          );
-        }, resolvedTimeoutMs)
-      : undefined;
-
   try {
-    return await fetch(input, { ...requestInit, signal: controller.signal });
-  } finally {
-    if (timeout !== undefined) {
-      clearTimeout(timeout);
+    const response = await fetch(input, {
+      ...requestInit,
+      signal: controller.signal,
+    });
+    if (!response.body) {
+      cleanup();
+      return response;
     }
-    callerSignal?.removeEventListener("abort", abortFromCaller);
+    const reader = response.body.getReader();
+    const body = new ReadableStream<Uint8Array>(
+      {
+        async pull(stream) {
+          try {
+            const { done, value } = await reader.read();
+            if (done) {
+              cleanup();
+              stream.close();
+            } else {
+              stream.enqueue(value);
+            }
+          } catch (error) {
+            cleanup();
+            stream.error(
+              controller.signal.aborted ? controller.signal.reason : error,
+            );
+          }
+        },
+        async cancel(reason) {
+          cleanup();
+          await reader.cancel(reason);
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const result = new Response(body, response);
+    Object.defineProperties(result, {
+      url: { value: response.url },
+      redirected: { value: response.redirected },
+      type: { value: response.type },
+    });
+    return result;
+  } catch (error) {
+    cleanup();
+    throw error;
   }
 }
 

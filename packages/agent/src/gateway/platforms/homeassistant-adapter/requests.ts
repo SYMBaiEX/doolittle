@@ -48,9 +48,13 @@ export async function watchHomeAssistantStates(
     );
   }
 
-  const payload = (await response.json().catch(() => [])) as Array<{
-    entity_id?: string;
-  }>;
+  const body = await response.text();
+  let payload: Array<{ entity_id?: string }> = [];
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    // Invalid JSON is treated as an empty state list.
+  }
   const count = Array.isArray(payload) ? payload.length : 0;
   const sample = (Array.isArray(payload) ? payload : [])
     .slice(0, 3)
