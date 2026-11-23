@@ -3113,7 +3113,7 @@ export function App() {
                 </button>
               ) : null}
               <div className="flex min-w-0 items-baseline gap-2">
-                <strong className="shrink-0 truncate text-sm font-semibold text-[var(--text)]">
+                <strong className="min-w-0 truncate text-sm font-semibold text-[var(--text)]">
                   {renderedView === "chat"
                     ? botCreationOpen
                       ? "Create a new bot"
@@ -3123,13 +3123,13 @@ export function App() {
                     : (activeItem?.label ?? "Doolittle")}
                 </strong>
                 {chatRouteActive ? (
-                  <span className="truncate text-sm text-[var(--muted)]">
+                  <span className="truncate text-sm text-[var(--muted)] max-[560px]:hidden">
                     {currentRouteLabel}
                   </span>
                 ) : null}
                 {editorVisible && computerOrigin?.workspacePath ? (
                   <span
-                    className="truncate text-sm text-[var(--muted)]"
+                    className="truncate text-sm text-[var(--muted)] max-[560px]:hidden"
                     title={computerOrigin.workspacePath}
                   >
                     {workspaceName(computerOrigin.workspacePath)}

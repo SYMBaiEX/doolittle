@@ -57,6 +57,13 @@ export function ChatHeaderChrome({
       onSelect: onOpenWorkspace,
     },
   ];
+  if (onOpenSettings) {
+    actions.push({
+      id: "settings",
+      label: "Open settings",
+      onSelect: onOpenSettings,
+    });
+  }
   if (!isNewConversation && selectedSession) {
     actions.push({
       id: "pin",
@@ -87,7 +94,7 @@ export function ChatHeaderChrome({
       {onOpenSettings ? (
         <button
           aria-label="Open settings"
-          className="chat-header-action"
+          className="chat-header-action chat-header-settings"
           onClick={onOpenSettings}
           title="Settings"
           type="button"

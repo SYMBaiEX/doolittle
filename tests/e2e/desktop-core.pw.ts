@@ -142,6 +142,98 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("keeps compact window actions reachable and restores their focus", async () => {
+    const desktop = await launchDesktop();
+    try {
+      const { app, page } = desktop;
+      await app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setContentSize(360, 900);
+      });
+      const title = page.locator(".window-context strong");
+      await expect(title).toHaveText("Doolittle");
+      await expect
+        .poll(() =>
+          title.evaluate((node) => node.clientWidth >= node.scrollWidth),
+        )
+        .toBe(true);
+      await page
+        .getByRole("button", { name: "Conversation options", exact: true })
+        .click();
+      await page
+        .getByRole("menuitem", { name: "Open settings", exact: true })
+        .click();
+      const tools = page.locator(".window-tools");
+      const menu = tools.getByRole("button", {
+        name: "Window actions",
+        exact: true,
+      });
+      const resize = (width: number) =>
+        app.evaluate(({ BrowserWindow }, width) => {
+          BrowserWindow.getAllWindows()[0]?.setContentSize(width, 900);
+        }, width);
+      await resize(761);
+      await expect(menu).toBeHidden();
+      await expect(
+        tools.getByRole("button", { name: "Open settings", exact: true }),
+      ).toBeVisible();
+      await resize(760);
+      await expect(menu).toBeVisible();
+      await expect(
+        tools.getByRole("button", { name: "Open settings", exact: true }),
+      ).toBeHidden();
+      for (const key of ["Tab", "Shift+Tab"]) {
+        await menu.focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByRole("menu")).toBeVisible();
+        await page.keyboard.press(key);
+        await expect(page.getByRole("menu")).toBeHidden();
+        await expect(menu).not.toBeFocused();
+        await expect
+          .poll(() => page.evaluate(() => document.activeElement?.tagName))
+          .not.toBe("BODY");
+      }
+      await menu.click();
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeFocused();
+      await menu.click();
+      await page
+        .getByRole("menuitem", { name: "Open command palette", exact: true })
+        .click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(menu).toBeFocused();
+      const activity = page.getByRole("dialog", { name: "Activity preview" });
+      for (const closeWithEscape of [true, false]) {
+        await menu.click();
+        await page
+          .getByRole("menuitem", { name: "Open Activity", exact: true })
+          .click();
+        const close = activity.getByRole("button", {
+          name: "Close Activity",
+          exact: true,
+        });
+        await expect(close).toBeFocused();
+        if (closeWithEscape) await page.keyboard.press("Escape");
+        else await close.click();
+        await expect(activity).toBeHidden();
+        await expect(menu).toBeFocused();
+      }
+      await page.emulateMedia({ forcedColors: "active" });
+      await menu.focus();
+      await page.keyboard.press("Enter");
+      const items = page.getByRole("menuitem");
+      for (const index of [0, 1]) {
+        if (index > 0) await page.keyboard.press("ArrowDown");
+        await expect(items.nth(index)).toBeFocused();
+        await expect(items.nth(index)).toHaveCSS("outline-style", "solid");
+        await expect(items.nth(index)).toHaveCSS("outline-width", "1px");
+      }
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("starts with locked saved accounts and preserves them across restart", async () => {
     const desktop = await launchDesktop(undefined, { lockedAccounts: true });
     const credential = join(

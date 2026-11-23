@@ -415,6 +415,12 @@
   color: var(--text);
 }
 
+@media (max-width: 560px) {
+  .chat-header-settings {
+    display: none;
+  }
+}
+
 @media (max-width: 760px), (pointer: coarse) {
   .chat-header-action {
     width: 44px;
