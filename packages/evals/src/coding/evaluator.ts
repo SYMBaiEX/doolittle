@@ -1,8 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import {
-  isSdkTerminalActionName,
-  isShellResultActionName,
-} from "@doolittle/agent/runtime/sdk-terminal-identity";
+import { isShellResultActionName } from "@doolittle/agent/runtime/sdk-terminal-identity";
 import { inspectWorkspaceCommands } from "@doolittle/agent/utils/workspace-commands";
 import type { CodingEvalCase } from "./cases";
 
@@ -312,6 +309,83 @@ function bunInstallEvidence(
   return evidence;
 }
 
+function isLocalCurlSmoke(command: string): boolean {
+  // Only literal curl invocations attest a target; shell programs and unknown
+  // curl options may redirect execution or change the meaning of URL operands.
+  if (/[\\$`\r\n]/u.test(command)) return false;
+  const tokenPattern = /\s*(?:"([^"\n]*)"|'([^'\n]*)'|([^\s"';&|<>]+)|(&&))/uy;
+  const tokens: string[] = [];
+  let offset = 0;
+  while (offset < command.trimEnd().length) {
+    tokenPattern.lastIndex = offset;
+    const match = tokenPattern.exec(command);
+    if (!match) return false;
+    tokens.push(match[1] ?? match[2] ?? match[3] ?? match[4] ?? "");
+    offset = tokenPattern.lastIndex;
+    if (offset < command.length && !/\s/u.test(command[offset] ?? ""))
+      return false;
+  }
+  if (tokens[0] === "cd") {
+    const separator = tokens[1] === "--" ? 3 : 2;
+    if (tokens[separator] !== "&&") return false;
+    tokens.splice(0, separator + 1);
+  }
+  if (!/^(?:\/[^/\s]+)*\/?curl$/u.test(tokens.shift() ?? "")) return false;
+  let failOnHttpError = false;
+  const targets: string[] = [];
+  const valueOptions = new Set([
+    "-H",
+    "--header",
+    "-X",
+    "--request",
+    "--max-time",
+    "--connect-timeout",
+    "-d",
+    "--data",
+    "--data-raw",
+    "--data-binary",
+    "--url",
+  ]);
+  let operandsOnly = false;
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index] ?? "";
+    if (token === "&&") return false;
+    if (!operandsOnly && token === "--") {
+      operandsOnly = true;
+    } else if (
+      !operandsOnly &&
+      ["--fail", "--fail-with-body"].includes(token)
+    ) {
+      failOnHttpError = true;
+    } else if (!operandsOnly && /^-[fsS]+$/u.test(token)) {
+      failOnHttpError ||= token.includes("f");
+    } else if (!operandsOnly && ["--silent", "--show-error"].includes(token)) {
+    } else if (!operandsOnly && token.startsWith("--url=")) {
+      targets.push(token.slice(6));
+    } else if (!operandsOnly && valueOptions.has(token)) {
+      const value = tokens[++index];
+      if (!value || value.startsWith("-")) return false;
+      if (token === "--url") targets.push(value);
+    } else if (!operandsOnly && token.startsWith("-")) {
+      return false;
+    } else targets.push(token);
+  }
+  if (!failOnHttpError || targets.length !== 1) return false;
+  try {
+    const url = new URL(targets[0] ?? "");
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password &&
+      (url.hostname === "localhost" ||
+        url.hostname === "[::1]" ||
+        /^127(?:\.\d{1,3}){3}$/u.test(url.hostname))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function runtimeSmokeEvidence(
   events: unknown[],
   expectedWorkspace: string,
@@ -319,16 +393,9 @@ function runtimeSmokeEvidence(
   const evidence: string[] = [];
   for (const eventValue of events) {
     const metadata = record(record(eventValue)?.metadata);
-    if (
-      !metadata ||
-      !isSdkTerminalActionName(string(metadata.action)?.toUpperCase())
-    )
-      continue;
-    const actionResult = record(metadata.actionResult);
-    const actionData = record(actionResult?.data);
-    const commandResult =
-      record(metadata.commandResult) ?? record(actionData?.commandResult);
-    const command = string(commandResult?.command);
+    const receipt = shellReceipt(eventValue);
+    if (!metadata || !receipt?.success) continue;
+    const { command, commandResult } = receipt;
     const stdout = string(commandResult?.stdout);
     const workingDirectory = command
       ? shellWorkingDirectory(commandResult ?? {}, command, metadata)
@@ -339,9 +406,7 @@ function runtimeSmokeEvidence(
       commandResult?.exitCode !== 0 ||
       !workingDirectory ||
       !pathIsWithin(resolve(expectedWorkspace), workingDirectory) ||
-      !/\bcurl\b/iu.test(command) ||
-      !/(?:\/api\/|localhost|127\.0\.0\.1)/iu.test(command) ||
-      !/(?:--fail|(?:^|\s)-[a-zA-Z]*f[a-zA-Z]*)/u.test(command)
+      !isLocalCurlSmoke(command)
     ) {
       continue;
     }
