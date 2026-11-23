@@ -33,7 +33,8 @@ export async function handleConversationRoutes(
     const cancellation = url.pathname.match(/^\/chat\/runs\/([^/]+)\/cancel$/u);
     const cancelRunId = runIdFromPath(cancellation?.[1]);
     if (cancelRunId) {
-      const result = context.services.runController.cancelRun(cancelRunId);
+      const result =
+        await context.services.runController.cancelRun(cancelRunId);
       if (!result.accepted) {
         return new Response(JSON.stringify({ error: "run not found" }), {
           status: 404,

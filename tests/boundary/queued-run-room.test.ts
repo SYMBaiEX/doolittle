@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { stableRuntimeUuid } from "../../packages/agent/src/runtime/stable-runtime-uuid";
 import { RunControllerService } from "../../packages/agent/src/services/run-controller-service";
 
-it("keeps queued desktop run admission attached to its native Eliza room", () => {
+it("keeps queued desktop run admission attached to its native Eliza room", async () => {
   const controller = new RunControllerService();
   for (const suffix of ["first", "second"]) {
     const sessionId = `desktop:${suffix}`;
@@ -16,7 +16,7 @@ it("keeps queued desktop run admission attached to its native Eliza room", () =>
         source: "desktop",
       }).accepted,
     ).toBe(true);
-    controller.acceptQueuedRun({
+    await controller.acceptQueuedRun({
       sessionId,
       runId,
       roomId: sessionId,

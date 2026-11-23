@@ -72,6 +72,7 @@ export class RunControllerService {
   private readonly activeTasks = new Map<string, TaskRunClaimInput>();
   private readonly sessionTasks = new Map<string, string>();
   private readonly queuedRunIds = new Set<string>();
+  private readonly pendingAcceptances = new Map<string, Promise<RunSnapshot>>();
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
 
@@ -123,11 +124,14 @@ export class RunControllerService {
   }
 
   /** Retain an accepted, admission-waiting receipt without recording a model turn. */
-  acceptQueuedRun(input: Omit<StartTurnInput, "message">): RunSnapshot {
+  async acceptQueuedRun(
+    input: Omit<StartTurnInput, "message">,
+  ): Promise<RunSnapshot> {
     const claim = this.activeTasks.get(input.runId);
     if (
       !claim ||
       claim.sessionId !== input.sessionId ||
+      this.pendingAcceptances.has(input.runId) ||
       this.store.hasRunId(input.runId)
     ) {
       throw new Error(
@@ -148,14 +152,30 @@ export class RunControllerService {
       lastMeaningfulActivityAt: now,
       updatedAt: now,
     };
-    this.store.saveAccepted(run);
-    this.queuedRunIds.add(input.runId);
+    // Keep the claim visible to cancellation while durable acceptance is
+    // pending. Commit first so a failed write cannot publish a created run.
+    const acceptance = Promise.resolve().then(async () => {
+      await this.store.saveAccepted(run);
+      this.queuedRunIds.add(run.runId);
+      try {
+        this.appendTaskEvent(run.runId, "response.created", {
+          id: claim.responseId,
+          run_id: run.runId,
+          room_id: claim.roomId,
+          state: "accepted",
+        });
+        emitRunUpdate(this.dependencies, "waiting", run);
+      } catch {
+        // A subscriber cannot undo the durable acceptance receipt.
+      }
+      return cloneRun(run);
+    });
+    this.pendingAcceptances.set(run.runId, acceptance);
     try {
-      emitRunUpdate(this.dependencies, "waiting", run);
-    } catch {
-      // A subscriber cannot undo the durable acceptance receipt.
+      return await acceptance;
+    } finally {
+      this.pendingAcceptances.delete(run.runId);
     }
-    return cloneRun(run);
   }
 
   updateThinking(sessionId: string): void {
@@ -262,13 +282,18 @@ export class RunControllerService {
     }
   }
 
-  appendTaskEvent(
+  appendTaskEvent(runId: string, type: string, data: unknown): TaskRunEvent {
+    const result = this.store.appendEvent(runId, type, data);
+    if (result.appended) this.taskEvents.emit(result.event);
+    return result.event;
+  }
+
+  async finishTaskEvent(
     runId: string,
     type: string,
     data: unknown,
-    terminal = false,
-  ): TaskRunEvent {
-    const result = this.store.appendEvent(runId, type, data, terminal);
+  ): Promise<TaskRunEvent> {
+    const result = await this.store.appendEvent(runId, type, data, true);
     if (result.appended) this.taskEvents.emit(result.event);
     return result.event;
   }
@@ -331,11 +356,14 @@ export class RunControllerService {
     return undefined;
   }
 
-  cancelRun(runId: string): { accepted: boolean; run?: RunReceiptEnvelope } {
+  async cancelRun(
+    runId: string,
+  ): Promise<{ accepted: boolean; run?: RunReceiptEnvelope }> {
     const controller = this.abortControllers.get(runId);
-    const receipt = this.store.getByRunId(runId);
     const task = this.activeTasks.get(runId);
-    const terminalEvent = this.store.getTerminalEvent(runId);
+    const acceptance = this.pendingAcceptances.get(runId);
+    let receipt = this.store.getByRunId(runId);
+    let terminalEvent = this.store.getTerminalEvent(runId);
     if (!controller && !receipt && !task && !terminalEvent) {
       return { accepted: false };
     }
@@ -347,6 +375,15 @@ export class RunControllerService {
     ) {
       controller.abort();
     }
+    if (acceptance) {
+      try {
+        await acceptance;
+      } catch {
+        return { accepted: false };
+      }
+      receipt = this.store.getByRunId(runId);
+      terminalEvent = this.store.getTerminalEvent(runId);
+    }
     if (!terminalEvent && receipt && !receipt.endedAt) {
       const current = this.store.getInternal(receipt.sessionId);
       if (current?.runId === runId) {
@@ -354,26 +391,21 @@ export class RunControllerService {
       }
     }
     if (!terminalEvent) {
-      this.appendTaskEvent(
-        runId,
-        "response.cancelled",
-        {
-          id: task?.responseId,
-          run_id: runId,
-          room_id: task?.roomId ?? receipt?.roomId,
-        },
-        true,
-      );
+      await this.finishTaskEvent(runId, "response.cancelled", {
+        id: task?.responseId,
+        run_id: runId,
+        room_id: task?.roomId ?? receipt?.roomId,
+      });
     }
     return { accepted: true, run: this.store.getByRunId(runId) };
   }
 
-  cancelAllActiveRuns(): number {
+  async cancelAllActiveRuns(): Promise<number> {
     const active = new Set([
       ...this.abortControllers.keys(),
       ...this.activeTasks.keys(),
     ]);
-    for (const runId of active) this.cancelRun(runId);
+    await Promise.all(Array.from(active, (runId) => this.cancelRun(runId)));
     return active.size;
   }
 

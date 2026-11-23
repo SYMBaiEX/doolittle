@@ -56,12 +56,9 @@ it("replays recent events and wakes only for the requested run", async () => {
   runController.appendTaskEvent("other", "response.output_text.delta", {
     delta: "other",
   });
-  runController.appendTaskEvent(
-    "mine",
-    "response.completed",
-    { response: "hello" },
-    true,
-  );
+  await runController.finishTaskEvent("mine", "response.completed", {
+    response: "hello",
+  });
   await expect(text).resolves.toBe(
     'event: response.output_text.delta\ndata: {"delta":"hello","event_id":2}\n\n' +
       'event: response.completed\ndata: {"response":"hello","event_id":3}\n\n',
@@ -76,7 +73,7 @@ it("reports an expired cursor and delivers the terminal event after journal evic
   });
   expect(runs.getTaskEvents("mine")).toEqual([]);
   expect(runs.hasTaskJournal("mine")).toBe(true);
-  const terminal = runs.appendTaskEvent("mine", "response.completed", {}, true);
+  const terminal = await runs.finishTaskEvent("mine", "response.completed", {});
   expect(terminal.id).toBe(progress.id + 1);
   expect(runs.getTaskEvents("mine", progress.id)).toEqual([terminal]);
   expect(runs.getTaskEvents("mine", terminal.id)).toEqual([]);
@@ -104,7 +101,7 @@ it("persists private event snapshots and resumes from the cursor after restart",
     );
     data.delta = "changed";
     (delta.data as typeof data).delta = "also changed";
-    runs.appendTaskEvent("mine", "response.completed", { ok: true }, true);
+    await runs.finishTaskEvent("mine", "response.completed", { ok: true });
     runs.dispose();
 
     const restored = new RunControllerService(dataDir);
@@ -211,11 +208,10 @@ it("reopens terminal receipts without rewriting the durable journal", async () =
     });
     runs.appendTaskEvent("finished", "response.created", {});
     runs.finishTurn("finished", "complete");
-    const terminal = runs.appendTaskEvent(
+    const terminal = await runs.finishTaskEvent(
       "finished",
       "response.completed",
       {},
-      true,
     );
     runs.dispose();
 
@@ -390,9 +386,9 @@ it("does not publish a terminal event before its SQLite transaction succeeds", a
         WHEN NEW.terminal = 1
         BEGIN SELECT RAISE(ABORT, 'Terminal commit failed'); END;
     `);
-    expect(() =>
-      runs.appendTaskEvent("run", "response.completed", {}, true),
-    ).toThrow("Terminal commit failed");
+    await expect(
+      runs.finishTaskEvent("run", "response.completed", {}),
+    ).rejects.toThrow("Terminal commit failed");
     expect(runs.getTaskEvents("run")).toEqual([created]);
     expect(runs.getTerminalTaskEvent("run")).toBeUndefined();
     expect(observed).not.toHaveBeenCalled();
@@ -401,11 +397,10 @@ it("does not publish a terminal event before its SQLite transaction succeeds", a
     );
 
     db.exec("DROP TRIGGER reject_terminal");
-    const terminal = runs.appendTaskEvent(
+    const terminal = await runs.finishTaskEvent(
       "run",
       "response.completed",
       {},
-      true,
     );
     expect(terminal.id).toBe(created.id + 1);
     expect(observed).toHaveBeenCalledExactlyOnceWith(terminal);
@@ -416,6 +411,54 @@ it("does not publish a terminal event before its SQLite transaction succeeds", a
     ).toEqual([{ terminal: 0 }, { terminal: 1 }]);
   } finally {
     db.close();
+    runs.dispose();
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("cancels pending acceptance before model admission and preserves event order", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-accept-"));
+  const runs = new RunControllerService(dataDir);
+  try {
+    const identity = {
+      runId: "run",
+      roomId: "room",
+      sessionId: "session",
+      source: "desktop",
+    };
+    expect(runs.claimTaskRun({ ...identity, responseId: "response" })).toEqual({
+      accepted: true,
+    });
+    const controller = new AbortController();
+    runs.registerAbortController(identity.runId, controller);
+    const acceptance = runs.acceptQueuedRun({
+      ...identity,
+      runDepth: "standard",
+      configuredMaxIterations: 12,
+      progressMode: "new",
+    });
+    expect(runs.getByRunId(identity.runId)).toBeUndefined();
+    const cancellation = runs.cancelRun(identity.runId);
+    expect(controller.signal.aborted).toBe(true);
+    await expect(acceptance).resolves.toMatchObject({ status: "waiting" });
+    await expect(cancellation).resolves.toMatchObject({
+      accepted: true,
+      run: { status: "cancelled" },
+    });
+    const events = runs.getTaskEvents(identity.runId);
+    expect(events.map(({ id, type }) => ({ id, type }))).toEqual([
+      { id: 1, type: "response.created" },
+      { id: 2, type: "response.cancelled" },
+    ]);
+    runs.dispose();
+    const restored = new RunControllerService(dataDir);
+    try {
+      expect(restored.getTaskEvents(identity.runId)).toEqual(events);
+      expect(restored.getByRunId(identity.runId)?.status).toBe("cancelled");
+    } finally {
+      restored.dispose();
+    }
+  } finally {
     runs.dispose();
     await rm(dataDir, { recursive: true, force: true });
   }

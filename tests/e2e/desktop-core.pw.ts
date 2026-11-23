@@ -986,7 +986,7 @@ test.describe("fresh native desktop", () => {
         runs.noteActionCompleted(sessionId, "WRITE_FILE");
         runs.finishTurn(sessionId, "complete");
         stopObserving();
-        runs.appendTaskEvent(runId, "response.completed", {}, true);
+        await runs.finishTaskEvent(runId, "response.completed", {});
       } finally {
         database.close();
         runs.dispose();

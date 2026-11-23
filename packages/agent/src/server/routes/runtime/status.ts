@@ -34,7 +34,7 @@ export async function handleRuntimeStatusRoutes(
     ) {
       return json({ error: "Desktop execution control is unavailable." }, 403);
     }
-    const chatRuns = context.services.runController.cancelAllActiveRuns();
+    const chatRuns = await context.services.runController.cancelAllActiveRuns();
     const protocolPrompts = context.services.acp.cancelAllProtocolSessions();
     context.services.terminal.disposeInteractiveSessions();
     const admitted = context.runtime.getService("ACP_SUBPROCESS_SERVICE") as

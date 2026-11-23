@@ -382,9 +382,12 @@ async function startServerOwnedChatRun(
     return conflictResponse("run_exists");
   }
 
+  const controller = new AbortController();
+  const unregisterController =
+    context.services.runController.registerAbortController(runId, controller);
   try {
     const agentSettings = context.services.settings?.get().agent;
-    context.services.runController.acceptQueuedRun({
+    await context.services.runController.acceptQueuedRun({
       runId,
       sessionId,
       roomId,
@@ -394,12 +397,12 @@ async function startServerOwnedChatRun(
       progressMode: agentSettings?.toolProgressMode ?? "new",
     });
   } catch {
+    unregisterController();
     releaseWorkspace();
     context.services.runController.releaseTaskRun(runId);
     return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
   }
 
-  const controller = new AbortController();
   let boundaryRecorded = false;
   const recordTerminalBoundary = (
     status: "complete" | "cancelled" | "error",
@@ -417,15 +420,6 @@ async function startServerOwnedChatRun(
       // fail explicitly with 410 until a durable boundary can be recovered.
     }
   };
-  const unregisterController =
-    context.services.runController.registerAbortController(runId, controller);
-  context.services.runController.appendTaskEvent(runId, "response.created", {
-    id: responseId,
-    run_id: runId,
-    room_id: roomId,
-    state: "accepted",
-  });
-
   void (async () => {
     let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>> =
       null;
@@ -506,17 +500,16 @@ async function startServerOwnedChatRun(
       );
       if (controller.signal.aborted) {
         recordTerminalBoundary("cancelled");
-        context.services.runController.appendTaskEvent(
+        await context.services.runController.finishTaskEvent(
           runId,
           "response.cancelled",
           { id: responseId, run_id: runId, room_id: roomId },
-          true,
         );
       } else {
         const failureMessage = failedTurnMessage(context, runId);
         if (failureMessage) {
           recordTerminalBoundary("error");
-          context.services.runController.appendTaskEvent(
+          await context.services.runController.finishTaskEvent(
             runId,
             "response.failed",
             {
@@ -525,7 +518,6 @@ async function startServerOwnedChatRun(
               room_id: roomId,
               message: failureMessage,
             },
-            true,
           );
         } else {
           const active = context.services.runController.getActive(sessionId);
@@ -534,7 +526,7 @@ async function startServerOwnedChatRun(
           }
           const receipt = context.services.runController.getByRunId(runId);
           recordTerminalBoundary("complete");
-          context.services.runController.appendTaskEvent(
+          await context.services.runController.finishTaskEvent(
             runId,
             "response.completed",
             {
@@ -544,18 +536,16 @@ async function startServerOwnedChatRun(
               room_id: roomId,
               result: receipt ? summarizeChatRun(receipt) : undefined,
             },
-            true,
           );
         }
       }
     } catch (error) {
       if (controller.signal.aborted) {
         recordTerminalBoundary("cancelled");
-        context.services.runController.appendTaskEvent(
+        await context.services.runController.finishTaskEvent(
           runId,
           "response.cancelled",
           { id: responseId, run_id: runId, room_id: roomId },
-          true,
         );
       } else {
         const active = context.services.runController.getActive(sessionId);
@@ -569,7 +559,7 @@ async function startServerOwnedChatRun(
           );
         }
         recordTerminalBoundary("error");
-        context.services.runController.appendTaskEvent(
+        await context.services.runController.finishTaskEvent(
           runId,
           "response.failed",
           {
@@ -584,7 +574,6 @@ async function startServerOwnedChatRun(
               ? { code: error.reason }
               : {}),
           },
-          true,
         );
       }
     } finally {
