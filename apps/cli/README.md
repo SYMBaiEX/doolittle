@@ -18,6 +18,13 @@ nub run cli:build
 nub run cli:typecheck
 ```
 
+`doolittle hello world`, `doolittle start hello world`, and
+`doolittle plain hello world` join positional arguments with spaces, run one
+prompt, and exit. Without positional text, `start` and `plain` still open the
+interactive shell or read a piped prompt. Combining positional text with
+non-empty piped input is a usage error; use `doolittle exec -p "..."` to select
+an explicit prompt instead.
+
 [`src/index.ts`](src/index.ts) is the source executable. The source installer
 links `doolittle` to it. The CLI build emits `dist/index.js`,
 `dist/acp-server.js`, the desktop's `dist/managed-runtime.js`, and shared chunks.
