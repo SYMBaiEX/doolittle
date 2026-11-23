@@ -284,13 +284,21 @@ export class RunControllerStore {
     while (this.receipts.size > RunControllerStore.MAX_RECEIPTS) {
       const oldest = Array.from(this.receipts).find(([, receipt]) =>
         Boolean(receipt.endedAt),
-      )?.[0];
+      );
       if (!oldest) return;
-      this.receipts.delete(oldest);
-      this.eventJournals.delete(oldest);
+      const [runId, receipt] = oldest;
+      const current = this.activeRuns.get(receipt.sessionId);
+      if (current?.runId === runId && current.endedAt) {
+        this.activeRuns.delete(receipt.sessionId);
+        if (this.roomIndex.get(current.roomId) === receipt.sessionId) {
+          this.roomIndex.delete(current.roomId);
+        }
+      }
+      this.receipts.delete(runId);
+      this.eventJournals.delete(runId);
       if (this.persistence) {
-        this.receiptChanges.set(oldest, null);
-        this.journalChanges.set(oldest, null);
+        this.receiptChanges.set(runId, null);
+        this.journalChanges.set(runId, null);
       }
     }
   }
