@@ -663,7 +663,6 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/delegation/tasks" },
     { exact: "/delegation/tasks/bulk" },
     { exact: "/delegation/tasks/start-coding" },
-    { exact: "/delegation/supervise" },
     {
       predicate: (pathname) =>
         matchesResourceActionPath(pathname, "/delegation/tasks", [

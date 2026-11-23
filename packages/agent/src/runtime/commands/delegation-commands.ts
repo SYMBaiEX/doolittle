@@ -10,6 +10,10 @@ export async function handleDelegationCommand(
     executeDelegationTask: (taskId: string) => Promise<unknown>;
   },
 ): Promise<string | undefined> {
+  if (/^\/delegate (?:supervise|execute-queued)(?:\s|$)/u.test(trimmed)) {
+    return "ElizaOS automatically supervises queued tasks. Use `/delegate overview` to inspect them.";
+  }
+
   try {
     const readResponse = await handleDelegationReadCommand(trimmed, context);
     if (typeof readResponse !== "undefined") {

@@ -308,8 +308,7 @@ export const VIEW_DESCRIPTIONS: Record<View, string> = {
   browser: "Preview localhost apps and capture browser evidence",
   gateway: "Inspect recorded gateway messages and replay an inbound record",
   review: "Approve decisions and inspect workspace changes and agent outputs",
-  orchestration:
-    "Start, supervise, inspect, and approve tasks, agents, plans, and runs",
+  orchestration: "Start, inspect, and approve tasks, agents, plans, and runs",
   agents: "Manage bot teams and inspect runtime workers",
   sessions: "Search and inspect conversation history",
   activity: "Review deliveries, commands, and runtime events",

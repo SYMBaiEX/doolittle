@@ -17,11 +17,6 @@ export const DelegationCommandCatalogEntries: CommandCatalogEntry[] = [
     description: "List delegated workers and worker metadata.",
   },
   {
-    command: "/delegate supervise group:browser concurrency:3",
-    category: "delegation",
-    description: "Supervise queued work with concurrency controls.",
-  },
-  {
     command:
       "/delegate create Research spike | group:browser | profile:research :: inspect transport drift",
     category: "delegation",

@@ -16,7 +16,6 @@ import { PlanCreateForm } from "./orchestration/PlanCreateForm";
 import { PlanPanel } from "./orchestration/PlanPanel";
 import { TaskCreateForm } from "./orchestration/TaskCreateForm";
 import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
-import { TaskSupervisionControls } from "./orchestration/TaskSupervisionControls";
 import { resolveTaskNavigationIntent } from "./orchestration/task-navigation";
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
 import {
@@ -394,7 +393,6 @@ export function OrchestrationPage({
     planWorkflowId,
     publishNotice,
     requestDestructiveTaskAction,
-    runSupervise,
     runBulkTaskAction,
     runTaskAction,
     selectWorkflow,
@@ -418,7 +416,6 @@ export function OrchestrationPage({
     setShowChildCreate,
     setShowPlanCreate,
     setShowTaskCreate,
-    setSuperviseConcurrency,
     setTaskCreateCapability,
     setTaskCreateFramework,
     setTaskCreateGroup,
@@ -431,7 +428,6 @@ export function OrchestrationPage({
     showPlanCreate,
     showTaskCreate,
     steerPlan,
-    superviseConcurrency,
     taskCreateCapability,
     taskCreateFramework,
     taskCreateGroup,
@@ -598,28 +594,17 @@ export function OrchestrationPage({
         />
         <div className={oc("orchestration-command-bar")}>
           {activeTab === "tasks" ? (
-            <>
-              {tasks.length > 0 ? (
-                <TaskSupervisionControls
-                  active={canDelegate}
-                  busy={Boolean(busyKeys["task:supervise"])}
-                  concurrency={superviseConcurrency}
-                  onConcurrencyChange={setSuperviseConcurrency}
-                  onSupervise={runSupervise}
-                />
-              ) : null}
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() =>
-                  showTaskCreate ? setShowTaskCreate(false) : openTaskCreate()
-                }
-                aria-expanded={showTaskCreate}
-                disabled={!canDelegate || Boolean(busyKeys["task:create"])}
-              >
-                New task
-              </button>
-            </>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() =>
+                showTaskCreate ? setShowTaskCreate(false) : openTaskCreate()
+              }
+              aria-expanded={showTaskCreate}
+              disabled={!canDelegate || Boolean(busyKeys["task:create"])}
+            >
+              New task
+            </button>
           ) : null}
           {activeTab === "plans" ? (
             <button

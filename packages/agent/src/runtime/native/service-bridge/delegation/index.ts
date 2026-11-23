@@ -18,7 +18,6 @@ export {
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
 } from "./read";
-export { superviseEffectiveDelegationQueue } from "./supervision";
 export type {
   DelegationProjection,
   EffectiveDelegationCreateInput,

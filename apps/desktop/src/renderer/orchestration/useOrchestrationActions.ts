@@ -80,13 +80,6 @@ export function appendSurfaceNotice(
   return [...current.slice(-2), notice];
 }
 
-export function parseSupervisionConcurrency(value: string): number | undefined {
-  const concurrency = Number(value);
-  return Number.isFinite(concurrency) && concurrency > 0
-    ? concurrency
-    : undefined;
-}
-
 export function codegenRequestBody({
   mode,
   projectName,
@@ -181,7 +174,6 @@ export function useOrchestrationActions({
   const [childTitle, setChildTitle] = useState("");
   const [childObjective, setChildObjective] = useState("");
   const [childWorkspaceRoot, setChildWorkspaceRoot] = useState("");
-  const [superviseConcurrency, setSuperviseConcurrency] = useState("3");
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
   const [confirmedAction, setConfirmedAction] =
     useState<ConfirmedAction | null>(null);
@@ -479,27 +471,6 @@ export function useOrchestrationActions({
     requestAnimationFrame(() => confirmReturnRef.current?.focus());
   };
 
-  const runSupervise = async () => {
-    if (!canDelegate) return;
-    const key = "task:supervise";
-    runBusy(key, true);
-    try {
-      await postJson<UnknownRecord>("/delegation/supervise", {
-        concurrency: parseSupervisionConcurrency(superviseConcurrency),
-      });
-      publishNotice({ tone: "good", message: "Queue supervision completed." });
-      refreshDelegation();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Queue supervision failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
   const onSubmitCreatePlan = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!active || !supportsPlanCreate) {
@@ -764,7 +735,6 @@ export function useOrchestrationActions({
     planTitle,
     planWorkflowId,
     requestDestructiveTaskAction,
-    runSupervise,
     runBulkTaskAction,
     runTaskAction,
     selectWorkflow,
@@ -788,7 +758,6 @@ export function useOrchestrationActions({
     setShowChildCreate,
     setShowPlanCreate,
     setShowTaskCreate,
-    setSuperviseConcurrency,
     setTaskCreateCapability,
     setTaskCreateFramework,
     setTaskCreateGroup,
@@ -801,7 +770,6 @@ export function useOrchestrationActions({
     showPlanCreate,
     showTaskCreate,
     steerPlan,
-    superviseConcurrency,
     taskCreateCapability,
     taskCreateFramework,
     taskCreateGroup,

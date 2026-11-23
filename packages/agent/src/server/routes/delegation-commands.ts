@@ -7,7 +7,6 @@ import {
   getOfficialOrchestrator,
   projectOfficialTask,
   spawnEffectiveDelegationChild,
-  superviseEffectiveDelegationQueue,
 } from "../../runtime/native/service-bridge/delegation/index";
 import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import { readRouteJsonBody } from "../request-body";
@@ -457,6 +456,16 @@ export async function handleDelegationCommandRoutes(
 ): Promise<Response | null> {
   const runAgentTurn = options?.runAgentTurn ?? handleAgentTurn;
 
+  if (request.method === "POST" && url.pathname === "/delegation/supervise") {
+    return json(
+      {
+        code: "DELEGATION_SUPERVISION_RETIRED",
+        error: "ElizaOS automatically supervises queued tasks.",
+      },
+      410,
+    );
+  }
+
   if (
     url.pathname.startsWith("/delegation/") &&
     !getOfficialOrchestrator(context.runtime)
@@ -582,12 +591,6 @@ export async function handleDelegationCommandRoutes(
         400,
       );
     }
-  }
-
-  if (request.method === "POST" && url.pathname === "/delegation/supervise") {
-    await request.json().catch(() => ({}));
-    const report = await superviseEffectiveDelegationQueue(context.runtime);
-    return json({ report });
   }
 
   if (
