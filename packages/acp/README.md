@@ -22,7 +22,7 @@ in the agent runtime bridge.
 ## Run and verify
 
 Install the `doolittle` command with `bash scripts/install.sh` (on Windows,
-`pwsh scripts/install.ps1`). The installed CLI exposes the protocol process:
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1`). The installed CLI exposes the protocol process:
 
 ```sh
 doolittle acp

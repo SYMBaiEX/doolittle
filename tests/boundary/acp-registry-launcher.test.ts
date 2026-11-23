@@ -128,7 +128,10 @@ it("keeps the default ACP argv when no custom command is configured", () => {
 it.each([
   ["linux", "bash scripts/install.sh"],
   ["darwin", "bash scripts/install.sh"],
-  ["win32", "pwsh scripts/install.ps1"],
+  [
+    "win32",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1",
+  ],
 ])(
   "tells %s editors to run the installer that provides doolittle acp",
   (platform, command) => {
@@ -146,6 +149,6 @@ it.each([
     } finally {
       vi.unstubAllGlobals();
     }
-    expect(existsSync(command.split(" ")[1] ?? "")).toBe(true);
+    expect(existsSync(command.split(" ").at(-1) ?? "")).toBe(true);
   },
 );

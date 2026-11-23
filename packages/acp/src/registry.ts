@@ -216,7 +216,7 @@ export function buildAcpRegistryEntry(input: {
 
 function defaultAcpInstallCommand(): string {
   return process.platform === "win32"
-    ? "pwsh scripts/install.ps1"
+    ? "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1"
     : "bash scripts/install.sh";
 }
 
