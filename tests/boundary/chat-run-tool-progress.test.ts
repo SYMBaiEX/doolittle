@@ -7,6 +7,7 @@ import { expect, it } from "vitest";
 import { createRunProgressEvents } from "../../packages/agent/src/runtime/bootstrap/runtime/run-progress";
 import { executeManagedDelegation } from "../../packages/agent/src/runtime/native/coding-delegation/execution";
 import type { ManagedAcpService } from "../../packages/agent/src/runtime/native/coding-delegation/types";
+import { projectActionActivity } from "../../packages/agent/src/runtime/tool-activity";
 import { runWithTurnRuntimeScope } from "../../packages/agent/src/runtime/turn-runtime-scope";
 import type { AppServices } from "../../packages/agent/src/services/index";
 import { RunControllerService } from "../../packages/agent/src/services/run-controller-service";
@@ -34,6 +35,24 @@ function bridge(runController: RunControllerService) {
   } as AppServices;
   return createRunProgressEvents(services);
 }
+
+it("keeps private path and script arguments out of the durable command preview", () => {
+  const activity = projectActionActivity("TERMINAL_SHELL", {
+    success: true,
+    data: {
+      commandResult: {
+        command:
+          "cd /approved/opaque-value && nub run test:scope hidden-key.test.ts && nub run opaque-script",
+        cwd: "/approved",
+        exitCode: 0,
+      },
+    },
+  });
+  expect(activity.command).toBe("nub run test:scope …");
+  expect(JSON.stringify(activity)).not.toMatch(
+    /opaque-value|hidden-key|opaque-script/u,
+  );
+});
 
 it("replays the default shell outcome and safe test counts without stdout or stderr", async () => {
   const dataDir = await mkdtemp(join(tmpdir(), "doolittle-tool-journal-"));

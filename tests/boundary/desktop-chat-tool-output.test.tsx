@@ -282,6 +282,35 @@ it("records an ambiguous same-name return separately from both possible invocati
   expect(items.every((item) => item.durationMs === undefined)).toBe(true);
 });
 
+it("retains distinct same-name tool results when the SDK omits invocation IDs", () => {
+  const returned = (path: string) => ({
+    ...step("action-completed", 2, 125, { lastAction: "READ_FILE" }),
+    activity: {
+      action: "READ_FILE",
+      phase: "completed" as const,
+      paths: [path],
+    },
+  });
+  const first = returned("first.ts");
+  const second = returned("second.ts");
+  const latest = step("completed", 2, 300, { status: "complete" });
+  const items = runActivityItems({
+    latest,
+    events: [
+      step("action-started", 1, 25, { activeAction: "READ_FILE" }),
+      step("action-started", 2, 50, { activeAction: "READ_FILE" }),
+      first,
+      second,
+      first,
+    ],
+  });
+  expect(items.slice(2).map((item) => item.activity?.paths)).toEqual([
+    ["first.ts"],
+    ["second.ts"],
+  ]);
+  expect(new Set(items.map((item) => item.id)).size).toBe(4);
+});
+
 it("shows structured exit metadata and copies the full selected output without formatting it", async () => {
   const stdout = `<script>literal text</script>\n${"line > value\n".repeat(3_500)}`;
   const command: ToolActivity = {

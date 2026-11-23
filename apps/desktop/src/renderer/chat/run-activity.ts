@@ -1,7 +1,7 @@
 import type { RunToolActivity } from "@doolittle/contracts/run";
 import type { DesktopRunUpdate } from "../../shared/contracts";
 import { toolActionLabel } from "../components/tool-activity-details";
-import { fileName, type RunReceipt } from "./models";
+import { fileName, type RunReceipt, runEventKey } from "./models";
 
 export type ActivityStatus =
   | "queued"
@@ -164,7 +164,7 @@ export function runActivityItems(receipt: RunReceipt): RunActivityItem[] {
           timingAvailable,
         });
       } else {
-        const returnId = `return:${id}`;
+        const returnId = `return:${activity ? runEventKey(update) : id}`;
         if (observedReturns.has(returnId)) continue;
         observedReturns.add(returnId);
 

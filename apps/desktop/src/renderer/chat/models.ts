@@ -94,6 +94,9 @@ export function runEventKey(update: DesktopRunUpdate): string {
     mutation?.recordedAt,
     update.run.walletActivities?.at(-1)?.id,
     update.activity,
+    update.type === "action-completed" && update.activity && !update.activity.id
+      ? update.run.updatedAt
+      : undefined,
   ]);
 }
 

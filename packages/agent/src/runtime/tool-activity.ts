@@ -19,6 +19,8 @@ const SAFE_PROGRAM =
   /^(?:bun|cargo|cat|cd|curl|find|git|go|grep|ls|make|node|npm|nub|pnpm|python3?|rg|sed|sh|yarn|zsh)$/u;
 const READ_COMMAND =
   /^(?:git (?:status|diff --stat|diff --check)|ls(?: -[alh]+)?|pwd)$/u;
+const KNOWN_CHECK =
+  /^(?:build|test|check|lint|typecheck|type-check|validate|verify)(?::(?:scope|related|all|release|check|tools))?$/u;
 
 function preview(value: unknown, limit: number): string | undefined {
   if (
@@ -47,17 +49,19 @@ function commandPreview(
 ): string | undefined {
   const safe = preview(value, MAX_COMMAND);
   if (!safe) return undefined;
-  // Show the full command only for the existing literal workspace-verification
-  // grammar and a small set of inventory commands. Arbitrary arguments can
-  // contain credentials even without a recognizable token format.
-  if (
-    READ_COMMAND.test(safe) ||
-    inspectWorkspaceCommands(safe, directory).some(
-      (operation) =>
-        operation.kind === "verification" || operation.kind === "build",
-    )
-  )
-    return safe;
+  if (READ_COMMAND.test(safe)) return safe;
+  // Even parsed shell commands can carry arbitrary literal directories and
+  // script arguments. Persist only recognized operation names.
+  for (const operation of inspectWorkspaceCommands(safe, directory)) {
+    if (operation.kind !== "verification" && operation.kind !== "build")
+      continue;
+    const script = operation.script?.split(" ", 1)[0];
+    if (!script || !KNOWN_CHECK.test(script)) continue;
+    const invocation = `${operation.runner} run ${script}`;
+    return safe === invocation || safe === `${operation.runner} ${script}`
+      ? safe
+      : `${invocation} …`;
+  }
   const [program, args] = safe.split(/\s+(.*)/u);
   return SAFE_PROGRAM.test(program)
     ? `${program}${args ? " …" : ""}`
