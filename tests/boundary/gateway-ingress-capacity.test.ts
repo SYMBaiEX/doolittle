@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   GatewayIngressSpool,
+  MAX_INGRESS_CRASH_RECOVERIES,
   MAX_PENDING_INGRESS_BYTES,
   MAX_PENDING_INGRESS_COUNT,
 } from "../../packages/agent/src/gateway/receive/ingress-spool";
@@ -132,6 +133,36 @@ it("counts UTF-8 payload bytes, restores the byte budget on restart, and release
   spool = new GatewayIngressSpool(path);
   expect(() => spool.accept(message("three", large))).toThrow(/capacity/u);
 });
+
+it.each(["count", "bytes"])(
+  "keeps recovered receipts charged against %s capacity until crash exhaustion",
+  (budget) => {
+    const path = directory();
+    let spool = new GatewayIngressSpool(path);
+    const text = budget === "bytes" ? "é".repeat(byteLimit / 4) : "hello";
+    const receipt = spool.accept(message("poison", text));
+    if (budget === "count") {
+      for (let id = 1; id < countLimit; id++) spool.accept(message(String(id)));
+    }
+    for (let crash = 1; crash <= MAX_INGRESS_CRASH_RECOVERIES; crash++) {
+      expect(spool.claim(receipt.receiptId)).toBeDefined();
+      spool = new GatewayIngressSpool(path);
+      expect(() => spool.accept(message("overflow", text))).toThrow(
+        /capacity/u,
+      );
+      spool.recoverInterrupted();
+      if (crash < MAX_INGRESS_CRASH_RECOVERIES) {
+        expect(() => spool.accept(message("overflow", text))).toThrow(
+          /capacity/u,
+        );
+      }
+    }
+    expect(spool.accept(message("overflow", text)).duplicate).toBe(false);
+    expect(() => spool.accept(message("another", text))).toThrow(/capacity/u);
+    spool = new GatewayIngressSpool(path);
+    expect(() => spool.accept(message("another", text))).toThrow(/capacity/u);
+  },
+);
 
 it("drains the accepted prefix of a batch and accepts its retry when capacity is freed", async () => {
   const spool = new GatewayIngressSpool(directory());
