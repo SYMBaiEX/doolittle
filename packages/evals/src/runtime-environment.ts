@@ -86,7 +86,12 @@ export function createEvalRuntimeEnvironment(
     DOOLITTLE_GATEWAY_DATA_DIR: join(options.root, "gateway"),
     DOOLITTLE_HOOKS_DIR: join(options.root, "hooks"),
     ELIZA_ACP_STATE_DIR: join(options.root, "data", "plugin-acp"),
-    ACP_AUDIT_LOG_PATH: join(options.root, "data", "plugin-acp", "audit.ndjson"),
+    ACP_AUDIT_LOG_PATH: join(
+      options.root,
+      "data",
+      "plugin-acp",
+      "audit.ndjson",
+    ),
     ELIZA_HOME: join(options.root, "data"),
     ELIZA_STATE_DIR: join(options.root, "data"),
     ELIZA_VAULT_DISABLE_KEYCHAIN: "1",

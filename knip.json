@@ -47,6 +47,7 @@
       "entry": ["src/index.ts", "src/acp-server.ts", "src/managed-runtime.ts"],
       "project": ["src/**/*.ts"],
       "ignoreDependencies": [
+        "@agentclientprotocol/codex-acp",
         "@elizaos/agent",
         "@elizaos/auth",
         "@elizaos/logger",
