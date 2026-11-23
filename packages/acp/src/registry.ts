@@ -96,6 +96,28 @@ export function guessAcpToolKind(tool: { id: string }): AcpToolKind {
   );
 }
 
+const RUNTIME_ACTION_KINDS: Readonly<Record<string, AcpToolKind>> = {
+  READ: "read",
+  READ_FILE: "read",
+  EDIT: "edit",
+  WRITE: "edit",
+  WRITE_FILE: "edit",
+  PATCH_FILE: "edit",
+  CREATE_DIRECTORY: "edit",
+  SEARCH_FILES: "search",
+  WEB_SEARCH: "search",
+  DOOLITTLE_SESSION_SEARCH: "search",
+  SHELL: "execute",
+  WEB_FETCH: "fetch",
+  BROWSER: "fetch",
+  TASKS: "think",
+};
+
+/** Classify an ElizaOS runtime action name (e.g. `SHELL`) for ACP tool calls. */
+export function acpToolKindForAction(action: string): AcpToolKind {
+  return RUNTIME_ACTION_KINDS[action.trim().toUpperCase()] ?? "other";
+}
+
 export function buildAcpPackageMetadata(input: {
   name?: unknown;
   version?: unknown;
