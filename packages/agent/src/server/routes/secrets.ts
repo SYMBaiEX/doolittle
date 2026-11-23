@@ -4,11 +4,6 @@ import {
   listEffectiveSecretKeys,
   setEffectiveSecret,
 } from "../../runtime/native/service-bridge/autocoder/index";
-import {
-  completeAutocoderWorkflowContext,
-  createAutocoderWorkflowContext,
-  failAutocoderWorkflowContext,
-} from "../autocoder-workflow-context";
 import { readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
@@ -49,43 +44,33 @@ export async function handleSecretsRoutes(
     ) {
       return json({ error: "key and value are required" }, 400);
     }
-    const workflow = await createAutocoderWorkflowContext(context, {
-      title: `Set secret ${body.key}`,
-      objective: `Set secret ${body.key}`,
-      kind: "secret.set",
-    });
+    // Settings credentials are app-global, not conversation workspace tasks.
     try {
-      await setEffectiveSecret(context.runtime, body.key, body.value);
-      const run = context.services.autocoderPipeline.record({
-        workflowId: workflow.workflowId,
-        kind: "secret.set",
-        sessionId: workflow.sessionId,
-        taskId: workflow.taskId,
-        request: { key: body.key, redacted: true },
-        result: { key: body.key, valueSet: true },
-      });
-      await completeAutocoderWorkflowContext(
-        context,
-        workflow.taskId,
-        workflow.workflowId,
-        "system: secret stored",
-      );
-      return json({
-        workflowId: workflow.workflowId,
-        taskId: workflow.taskId,
-        run,
-        key: body.key,
-        valueSet: true,
-      });
+      if (await setEffectiveSecret(context.runtime, body.key, body.value)) {
+        return json({ key: body.key, valueSet: true });
+      }
     } catch (error) {
-      await failAutocoderWorkflowContext(
-        context,
-        workflow.taskId,
-        workflow.workflowId,
-        error,
-      );
-      throw error;
+      // SDK diagnostics can contain secrets; return only product-safe guidance.
+      if (
+        error instanceof Error &&
+        /master key unavailable|OS keychain/iu.test(error.message)
+      ) {
+        return json(
+          {
+            error:
+              "Secure storage is locked or unavailable. Unlock your system keychain (or install GNOME Keyring/KWallet on Linux), then restart Doolittle and save again.",
+          },
+          503,
+        );
+      }
     }
+    return json(
+      {
+        error:
+          "Could not securely save this key. Try again. If it still fails, restart Doolittle.",
+      },
+      503,
+    );
   }
 
   return null;
