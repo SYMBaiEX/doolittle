@@ -11,8 +11,8 @@ function fixture(text?: string) {
   const message = {
     content: text === undefined ? {} : { text },
     metadata: { doolittle: { userId: "test-user" } },
-  } as Memory;
-  type Context = Parameters<NonNullable<typeof evaluator.shouldRun>>[0];
+  } as unknown as Memory;
+  type Context = Parameters<NonNullable<typeof evaluator.prepare>>[0];
   const context = { message } as Context;
   return { add, evaluator, context };
 }
@@ -42,7 +42,12 @@ it.each([
   const prepared = await evaluator.prepare?.(context);
   expect(prepared).toEqual({ fact, target: "memory" });
   if (!prepared) throw new Error("Missing prepared memory");
-  await evaluator.processors?.[0].process({ ...context, prepared });
+  await evaluator.processors?.[0].process({
+    ...context,
+    prepared,
+    output: "STORE",
+    evaluatorName: evaluator.name,
+  });
   expect(add).toHaveBeenCalledExactlyOnceWith("memory", fact, "test-user");
 });
 
@@ -77,7 +82,12 @@ it.each([
   expect(await evaluator.shouldRun?.(context)).toBe(false);
   const prepared = await evaluator.prepare?.(context);
   if (!prepared) throw new Error("Missing prepared memory");
-  await evaluator.processors?.[0].process({ ...context, prepared });
+  await evaluator.processors?.[0].process({
+    ...context,
+    prepared,
+    output: "STORE",
+    evaluatorName: evaluator.name,
+  });
   expect(add).not.toHaveBeenCalled();
 });
 
@@ -90,7 +100,12 @@ it.each([
   const prepared = await evaluator.prepare?.(context);
   expect(prepared).toEqual({ fact, target: "user" });
   if (!prepared) throw new Error("Missing prepared memory");
-  await evaluator.processors?.[0].process({ ...context, prepared });
+  await evaluator.processors?.[0].process({
+    ...context,
+    prepared,
+    output: "STORE",
+    evaluatorName: evaluator.name,
+  });
   expect(add).toHaveBeenCalledExactlyOnceWith("user", fact, "test-user");
 });
 
@@ -102,7 +117,12 @@ it("tolerates a rejected storage write", async () => {
   const prepared = await evaluator.prepare?.(context);
   if (!prepared) throw new Error("Missing prepared memory");
   await expect(
-    evaluator.processors?.[0].process({ ...context, prepared }),
+    evaluator.processors?.[0].process({
+      ...context,
+      prepared,
+      output: "STORE",
+      evaluatorName: evaluator.name,
+    }),
   ).resolves.toBeUndefined();
   expect(add).toHaveBeenCalledOnce();
 });
