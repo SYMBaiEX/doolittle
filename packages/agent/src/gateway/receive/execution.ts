@@ -26,12 +26,13 @@ export interface GatewayReceiveExecutionResult {
   queueProgressFlush: (text: string, force?: boolean) => Promise<void>;
 }
 
-function gatewayRunId(deps: GatewayReceiveDependencies): string {
+function gatewayRunId(deps: GatewayReceiveDependencies, attempt = 1): string {
   const identity = gatewayInboundIdempotencyKey(deps.message);
   if (!identity) {
     return `gateway:${randomUUID()}`;
   }
-  return `gateway:${createHash("sha256").update(identity).digest("hex").slice(0, 48)}`;
+  const runId = `gateway:${createHash("sha256").update(identity).digest("hex").slice(0, 48)}`;
+  return attempt > 1 ? `${runId}:attempt:${attempt}` : runId;
 }
 
 function followAbortSignal(
@@ -73,7 +74,7 @@ export async function executeGatewayReceiveTurn(
   const trackedSessionId = hasGlobalSessionOperatorAccess(deps.message.platform)
     ? (deps.session.activeAgentSessionId ?? deps.session.sessionKey)
     : deps.session.sessionKey;
-  const runId = gatewayRunId(deps);
+  const runId = gatewayRunId(deps, options?.ingressAttempt);
   const releaseWorkspace =
     deps.context.services.runController.registerWorkspaceRun(
       runId,

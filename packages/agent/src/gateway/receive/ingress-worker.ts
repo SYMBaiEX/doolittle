@@ -21,6 +21,7 @@ export class GatewayIngressWorker {
       options: {
         abortSignal: AbortSignal;
         preserveIdempotencyDisposition: true;
+        ingressAttempt: number;
       },
     ) => Promise<GatewayReceiveResult>,
     private readonly logger?: Pick<AppLogger, "warn">,
@@ -93,6 +94,7 @@ export class GatewayIngressWorker {
         const result = await this.receive(entry.message, {
           abortSignal: controller.signal,
           preserveIdempotencyDisposition: true,
+          ingressAttempt: entry.attempts,
         });
         if (result.idempotencyDisposition === "transient") {
           this.retry(entry, "Inbound receive is transient.");
