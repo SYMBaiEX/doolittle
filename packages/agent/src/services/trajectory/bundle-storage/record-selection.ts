@@ -42,7 +42,8 @@ export function collectTrajectoryRecords(
   options: TrajectoryExportOptions,
 ): TrajectoryRecord[] {
   const limit = options.limit ?? 100;
-  const messages = (host.sessions.recent(limit) as TrajectoryRecord[])
+  const messages = host.sessions
+    .recent(limit, { sessionId: options.sessionId, role: options.role })
     .map(normalizeMessageRecord)
     .filter((record) => matchesRecord(record, options));
   if (options.includeEvents === false) {

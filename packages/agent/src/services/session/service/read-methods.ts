@@ -21,8 +21,8 @@ export const sessionServiceReadMethods: Pick<
     return getSessionServiceState(this).reads.search(query, limit, projectId);
   },
 
-  recent(limit) {
-    return getSessionServiceState(this).reads.recent(limit);
+  recent(limit, filters) {
+    return getSessionServiceState(this).reads.recent(limit, filters);
   },
 
   recentBySession(sessionId, limit) {
