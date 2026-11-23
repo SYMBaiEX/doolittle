@@ -11,15 +11,28 @@ import type {
   DelegationTaskRecord,
   RepositoryWorktreeRecord,
 } from "../orchestration-resources";
-import { compactWorkspacePath } from "../workspace-path";
+import { statusTier, type WorkTier } from "../work-surface/status";
 import {
-  DetailRow,
-  DetailTag,
-  SmallEmpty,
-  statusTone,
-} from "./detail-primitives";
+  DetailFacts,
+  DetailHeader,
+  FactRow,
+  WorkActions,
+  WorkCard,
+  WorkCards,
+  WorkConfirm,
+  WorkDisclosure,
+  WorkTag,
+} from "../work-surface/WorkSurface";
+import { compactWorkspacePath } from "../workspace-path";
 import { orchestrationClass as oc } from "./layout";
 import type { ConfirmedAction, TaskAction } from "./models";
+
+function tagTone(tier: WorkTier): "good" | "warn" | "bad" | "neutral" {
+  if (tier === "done") return "good";
+  if (tier === "attention") return "warn";
+  if (tier === "failed") return "bad";
+  return "neutral";
+}
 
 export type TaskQueueDetailProps = {
   active: boolean;
@@ -75,6 +88,7 @@ export function TaskQueueDetail({
   worktrees,
 }: TaskQueueDetailProps) {
   const status = asString(selectedTask.status, "pending");
+  const tier = statusTier(status);
   const notes = asArray(selectedTask.notes);
   const failButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -134,81 +148,64 @@ export function TaskQueueDetail({
         },
       ]}
     >
-      <div className={oc("orchestration-detail-header")}>
-        <div>
-          <span className={oc("detail-kicker")}>
-            {asString(selectedTask.group, "ungrouped")} /{" "}
-            {taskCapabilityLabel(
-              selectedTask.capabilityProfile,
-              selectedTask.kind,
-            )}{" "}
-            ·{" "}
-            {asString(
-              selectedTask.framework,
-              selectedTask.profile || "automatic",
-            )}
-          </span>
-          <h2>{selectedTask.title}</h2>
-          <p>{selectedTask.objective}</p>
-        </div>
-        <Badge tone={statusTone(status)}>{status}</Badge>
-      </div>
+      <DetailHeader
+        kicker={`${asString(selectedTask.group, "ungrouped")} / ${taskCapabilityLabel(
+          selectedTask.capabilityProfile,
+          selectedTask.kind,
+        )} · ${asString(
+          selectedTask.framework,
+          selectedTask.profile || "automatic",
+        )}`}
+        objective={selectedTask.objective}
+        status={<Badge tone={tagTone(tier)}>{status}</Badge>}
+        tags={
+          <>
+            <WorkTag tone={tagTone(tier)}>
+              {orchestrationTimingLabel({
+                status,
+                startedAt: asString(selectedTask.startedAt),
+                completedAt: asString(selectedTask.completedAt),
+                updatedAt: asString(selectedTask.updatedAt),
+                createdAt: asString(selectedTask.createdAt),
+              })}
+            </WorkTag>
+            <WorkTag>{taskExecutionLabel(selectedTask.executionMode)}</WorkTag>
+            <WorkTag>
+              {asString(selectedTask.priority, "normal")} priority
+            </WorkTag>
+            <WorkTag>
+              {selectedTask.workspaceRoot
+                ? compactWorkspacePath(selectedTask.workspaceRoot)
+                : "current workspace"}
+            </WorkTag>
+            <WorkTag>
+              {selectedTask.accountLabel || selectedTask.accountId
+                ? `account ${
+                    selectedTask.accountLabel || selectedTask.accountId
+                  }`
+                : "automatic account routing"}
+            </WorkTag>
+          </>
+        }
+        title={selectedTask.title}
+      />
 
-      <div
-        className={oc(
-          "orchestration-detail-tags",
-          "orchestration-detail-facts",
-        )}
-      >
-        <DetailTag tone={statusTone(status)}>
-          {orchestrationTimingLabel({
-            status,
-            startedAt: asString(selectedTask.startedAt),
-            completedAt: asString(selectedTask.completedAt),
-            updatedAt: asString(selectedTask.updatedAt),
-            createdAt: asString(selectedTask.createdAt),
-          })}
-        </DetailTag>
-        <DetailTag>{taskExecutionLabel(selectedTask.executionMode)}</DetailTag>
-        <DetailTag>
-          {asString(selectedTask.priority, "normal")} priority
-        </DetailTag>
-        <DetailTag>
-          {selectedTask.workspaceRoot
-            ? compactWorkspacePath(selectedTask.workspaceRoot)
-            : "current workspace"}
-        </DetailTag>
-        {selectedTask.workerPid ? (
-          <DetailTag>PID {selectedTask.workerPid}</DetailTag>
-        ) : null}
-        <DetailTag>
-          {selectedTask.accountLabel || selectedTask.accountId
-            ? `account ${selectedTask.accountLabel || selectedTask.accountId}`
-            : "automatic account routing"}
-        </DetailTag>
-      </div>
-
-      <section className={oc("orchestration-action-card")}>
-        <span className={oc("detail-kicker")}>Task controls</span>
-        <div className={oc("orchestration-action-deck")}>
-          <div className={oc("orchestration-action-main")}>
-            {(["execute", "complete"] as const).map((action) => (
-              <button
-                className={
-                  action === "execute" ? "primary-button" : "secondary-button"
-                }
-                type="button"
-                key={action}
-                onClick={() => onRunTaskAction(selectedTask, action)}
-                disabled={
-                  !active || busyKeys[`task:${selectedTask.id}:${action}`]
-                }
-              >
-                {action === "execute" ? "Execute" : "Complete"}
-              </button>
-            ))}
-          </div>
-          <div className={oc("orchestration-action-secondary")}>
+      <WorkActions
+        primary={(["execute", "complete"] as const).map((action) => (
+          <button
+            className={
+              action === "execute" ? "primary-button" : "secondary-button"
+            }
+            type="button"
+            key={action}
+            onClick={() => onRunTaskAction(selectedTask, action)}
+            disabled={!active || busyKeys[`task:${selectedTask.id}:${action}`]}
+          >
+            {action === "execute" ? "Execute" : "Complete"}
+          </button>
+        ))}
+        secondary={
+          <>
             <button
               className="text-button"
               type="button"
@@ -231,9 +228,9 @@ export function TaskQueueDetail({
             >
               Add child
             </button>
-            <details className={oc("orchestration-action-overflow")}>
-              <summary>More actions</summary>
-              <div className={oc("orchestration-action-overflow__body")}>
+            <details className="ws-overflow">
+              <summary>More</summary>
+              <div className="ws-overflow__menu">
                 <button
                   className="text-button danger-text-button"
                   ref={failButtonRef}
@@ -268,27 +265,20 @@ export function TaskQueueDetail({
                 </button>
               </div>
             </details>
-          </div>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       {confirmedAction?.taskId === selectedTask.id ? (
-        <div
-          className={oc("orchestration-confirm")}
-          aria-live="polite"
-          ref={confirmDialogRef}
-          tabIndex={-1}
+        <WorkConfirm
+          detail="This changes this task's state. Child tasks are unchanged."
+          dialogRef={confirmDialogRef}
+          title={
+            confirmedAction.action === "fail"
+              ? "Mark this task failed?"
+              : "Cancel this task?"
+          }
         >
-          <div>
-            <strong id="task-confirm-title">
-              {confirmedAction.action === "fail"
-                ? "Mark this task failed?"
-                : "Cancel this task?"}
-            </strong>
-            <span id="task-confirm-description">
-              This changes this task's state. Child tasks are unchanged.
-            </span>
-          </div>
           <button
             className="danger-button"
             type="button"
@@ -306,7 +296,7 @@ export function TaskQueueDetail({
           >
             Keep task
           </button>
-        </div>
+        </WorkConfirm>
       ) : null}
 
       {showChildCreate ? (
@@ -367,27 +357,15 @@ export function TaskQueueDetail({
         </form>
       ) : null}
 
-      <div className={oc("orchestration-task-workspace")}>
-        <section
-          className={oc(
-            "orchestration-evidence",
-            "orchestration-workspace-card",
-          )}
-        >
-          <span className={oc("detail-kicker")}>Evidence</span>
+      <WorkCards>
+        <WorkCard kicker="Evidence">
           {selectedTask.lastOutputPath ? (
             <code>{selectedTask.lastOutputPath}</code>
           ) : (
-            <SmallEmpty>No artifact path reported.</SmallEmpty>
+            <p className="ws-empty-line">No artifact path reported.</p>
           )}
-        </section>
-        <section
-          className={oc(
-            "orchestration-evidence",
-            "orchestration-workspace-card",
-          )}
-        >
-          <span className={oc("detail-kicker")}>Task notes</span>
+        </WorkCard>
+        <WorkCard kicker="Task notes">
           {notes.length > 0 ? (
             <ul>
               {notes.slice(-5).map((note) => (
@@ -397,7 +375,7 @@ export function TaskQueueDetail({
               ))}
             </ul>
           ) : (
-            <SmallEmpty>No notes recorded.</SmallEmpty>
+            <p className="ws-empty-line">No notes recorded.</p>
           )}
           <form
             className={oc("orchestration-note-composer")}
@@ -429,78 +407,61 @@ export function TaskQueueDetail({
                 : "Add note"}
             </button>
           </form>
-        </section>
-      </div>
+        </WorkCard>
+      </WorkCards>
 
-      <details className={oc("orchestration-task-diagnostics")}>
-        <summary>
-          <span>
-            <strong>Execution details</strong>
-            <small>IDs, session, account, and runtime diagnostics</small>
-          </span>
-          <small>
+      <WorkDisclosure
+        aside={`${asNumber(selectedTask.attempts)} / ${asNumber(
+          selectedTask.maxAttempts,
+          1,
+        )} attempts`}
+        detail="IDs, session, account, and runtime diagnostics"
+        summary="Execution details"
+      >
+        <DetailFacts>
+          <FactRow label="Task ID">{selectedTask.id}</FactRow>
+          <FactRow label="Attempts">
             {asNumber(selectedTask.attempts)} /{" "}
-            {asNumber(selectedTask.maxAttempts, 1)} attempts
-          </small>
-        </summary>
-        <dl>
-          <DetailRow label="Task ID" value={selectedTask.id} />
-          <DetailRow
-            label="Attempts"
-            value={`${asNumber(selectedTask.attempts)} / ${asNumber(
-              selectedTask.maxAttempts,
-              1,
-            )}`}
-          />
-          <DetailRow
-            label="Priority"
-            value={asString(selectedTask.priority, "normal")}
-          />
-          <DetailRow
-            label="Execution"
-            value={taskExecutionLabel(selectedTask.executionMode)}
-          />
-          <DetailRow
-            label="Capability"
-            value={taskCapabilityLabel(
+            {asNumber(selectedTask.maxAttempts, 1)}
+          </FactRow>
+          <FactRow label="Priority">
+            {asString(selectedTask.priority, "normal")}
+          </FactRow>
+          <FactRow label="Execution">
+            {taskExecutionLabel(selectedTask.executionMode)}
+          </FactRow>
+          <FactRow label="Capability">
+            {taskCapabilityLabel(
               selectedTask.capabilityProfile,
               selectedTask.kind,
             )}
-          />
-          <DetailRow
-            label="Framework"
-            value={asString(selectedTask.framework, "automatic")}
-          />
-          <DetailRow
-            label="Account provider"
-            value={asString(selectedTask.accountProviderId, "automatic")}
-          />
-          <DetailRow
-            label="Account"
-            value={asString(
+          </FactRow>
+          <FactRow label="Framework">
+            {asString(selectedTask.framework, "automatic")}
+          </FactRow>
+          <FactRow label="Account provider">
+            {asString(selectedTask.accountProviderId, "automatic")}
+          </FactRow>
+          <FactRow label="Account">
+            {asString(
               selectedTask.accountLabel,
               asString(selectedTask.accountId, "automatic"),
             )}
-          />
-          <DetailRow
-            label="Session"
-            value={asString(selectedTask.sessionId, "not assigned")}
-          />
-          <DetailRow
-            label="Execution root"
-            value={
-              selectedTask.workspaceRoot
-                ? compactWorkspacePath(selectedTask.workspaceRoot)
-                : "current workspace"
-            }
-          />
-          <DetailRow
-            label="Updated"
-            value={displayTimestamp(asString(selectedTask.updatedAt))}
-          />
-          <DetailRow label="Worker PID" value={selectedTask.workerPid} />
-        </dl>
-      </details>
+          </FactRow>
+          <FactRow label="Session">
+            {asString(selectedTask.sessionId, "not assigned")}
+          </FactRow>
+          <FactRow label="Execution root">
+            {selectedTask.workspaceRoot
+              ? compactWorkspacePath(selectedTask.workspaceRoot)
+              : "current workspace"}
+          </FactRow>
+          <FactRow label="Updated">
+            {displayTimestamp(asString(selectedTask.updatedAt))}
+          </FactRow>
+          <FactRow label="Worker PID">{selectedTask.workerPid}</FactRow>
+        </DetailFacts>
+      </WorkDisclosure>
     </ContextActionMenu>
   );
 }

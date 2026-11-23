@@ -15,6 +15,13 @@ import { useId, useRef, useState } from "react";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import { copyContextText } from "../context-menu-clipboard";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
+import {
+  WorkCard,
+  WorkCards,
+  WorkEmpty,
+  WorkMasthead,
+} from "../work-surface/WorkSurface";
+import "./team.css";
 
 function TeamEditor({
   team,
@@ -217,36 +224,45 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
   };
   const bots = catalog.data?.bots ?? [];
   return (
-    <section className="grid gap-4" aria-label="Persistent bot teams">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="m-0 text-lg font-medium">Bot teams</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
+    <section
+      className="ws-surface team-management"
+      aria-label="Persistent bot teams"
+    >
+      <WorkMasthead
+        kicker="Management"
+        meta={
+          <span>
             Explicit membership for sharing selected findings. Persistent bots
             remain independent.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            disabled={!active || Boolean(busy)}
-            onClick={refresh}
-          >
-            Refresh teams
-          </Button>
-          <Button
-            disabled={!active || !teams.data || !catalog.data || Boolean(busy)}
-            onClick={() =>
-              setEditor({
-                revision: teams.data?.revision ?? 0,
-                returnFocusTarget: document.activeElement as HTMLElement | null,
-              })
-            }
-          >
-            Create team
-          </Button>
-        </div>
-      </header>
+          </span>
+        }
+        title="Bot teams"
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              disabled={!active || Boolean(busy)}
+              onClick={refresh}
+            >
+              Refresh teams
+            </Button>
+            <Button
+              disabled={
+                !active || !teams.data || !catalog.data || Boolean(busy)
+              }
+              onClick={() =>
+                setEditor({
+                  revision: teams.data?.revision ?? 0,
+                  returnFocusTarget:
+                    document.activeElement as HTMLElement | null,
+                })
+              }
+            >
+              Create team
+            </Button>
+          </>
+        }
+      />
       {teams.error || catalog.error ? (
         <StateSurface kind="error" title="Teams are unavailable">
           {teams.error || catalog.error}
@@ -266,21 +282,27 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
         </StateSurface>
       ) : null}
       {notice ? (
-        <p role="status" className="m-0 text-sm">
+        <p role="status" className="team-management__note">
           {notice}
         </p>
       ) : null}
       {!teams.loading && !teams.error && teams.data?.teams.length === 0 ? (
-        <StateSurface kind="empty" title="No teams yet">
+        <WorkEmpty title="No teams yet">
           Create a team and choose its members. Project membership is not team
           membership.
-        </StateSurface>
+        </WorkEmpty>
       ) : null}
-      <ul className="m-0 grid list-none divide-y divide-[var(--line-subtle)] p-0">
+      <WorkCards>
         {teams.data?.teams.map((team) => (
-          <li
+          <WorkCard
             key={team.id}
-            className="flex flex-wrap items-center justify-between gap-3 py-4"
+            kicker={
+              team.archivedAt
+                ? "Archived team"
+                : `${team.memberBotIds.length} member${
+                    team.memberBotIds.length === 1 ? "" : "s"
+                  }`
+            }
           >
             <ContextActionMenu
               label={`Team: ${team.name}`}
@@ -321,47 +343,46 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
                 },
               ]}
             >
-              <div className="min-w-0">
-                <h3 className="m-0 text-base font-medium">
-                  {team.name}
-                  {team.archivedAt ? " · Archived" : ""}
-                </h3>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  {team.memberBotIds
-                    .map(
-                      (id) =>
-                        bots.find((bot) => bot.id === id)?.name ??
-                        "Unavailable bot",
-                    )
-                    .join(", ") || "No members"}
-                </p>
-              </div>
-              {!team.archivedAt ? (
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    disabled={Boolean(busy) || !catalog.data}
-                    onClick={() => editTeam(team)}
-                    ref={(node) => {
-                      editRefs.current[team.id] = node;
-                    }}
-                  >
-                    Edit members
-                    <span className="sr-only"> for {team.name}</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={Boolean(busy)}
-                    onClick={() => void archive(team)}
-                  >
-                    Archive team<span className="sr-only"> {team.name}</span>
-                  </Button>
+              <div className="team-management__card">
+                <div className="team-management__identity">
+                  <strong>{team.name}</strong>
+                  <p>
+                    {team.memberBotIds
+                      .map(
+                        (id) =>
+                          bots.find((bot) => bot.id === id)?.name ??
+                          "Unavailable bot",
+                      )
+                      .join(", ") || "No members"}
+                  </p>
                 </div>
-              ) : null}
+                {!team.archivedAt ? (
+                  <div className="team-management__actions">
+                    <Button
+                      variant="secondary"
+                      disabled={Boolean(busy) || !catalog.data}
+                      onClick={() => editTeam(team)}
+                      ref={(node) => {
+                        editRefs.current[team.id] = node;
+                      }}
+                    >
+                      Edit members
+                      <span className="sr-only"> for {team.name}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={Boolean(busy)}
+                      onClick={() => void archive(team)}
+                    >
+                      Archive team<span className="sr-only"> {team.name}</span>
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </ContextActionMenu>
-          </li>
+          </WorkCard>
         ))}
-      </ul>
+      </WorkCards>
       {editor ? (
         <TeamEditor
           {...editor}

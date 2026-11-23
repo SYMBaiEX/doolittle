@@ -1,0 +1,52 @@
+/* Work route frame: one masthead and the tab strip up top, then a single
+   embedded surface that fills the remaining height. Scroll ownership stays
+   inside each view's panes (or the embedded root for views not yet on the
+   ws-* kit), never on the page column. */
+
+.work-embedded {
+  position: relative;
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.work-embedded > * {
+  flex: 1 1 0%;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+/* The frame owns the Work masthead, so an embedded view's own masthead
+   collapses instead of doubling the route header. Covers the ws-surface
+   masthead, the shared .page-header, and the bare <header> legacy pages
+   used before the kit. */
+.work-embedded > .ws-masthead,
+.work-embedded > .page-header,
+.work-embedded > header:first-child,
+.work-embedded > * > .ws-masthead,
+.work-embedded > * > .page-header,
+.work-embedded > * > header:first-child {
+  display: none;
+}
+
+/* Linked shell views that still size to content scroll inside the frame
+   rather than pushing the page column. */
+.work-embedded > .automation-page,
+.work-embedded > .gateway-page,
+.work-embedded > .agents-workbench {
+  block-size: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Masthead metrics stay quiet text; tone lives in the number only. */
+.ws-masthead__meta [data-tone="warn"] strong {
+  color: var(--warn);
+}
+
+.ws-masthead__meta [data-tone="good"] strong {
+  color: var(--good);
+}

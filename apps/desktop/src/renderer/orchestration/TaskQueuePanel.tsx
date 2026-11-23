@@ -18,12 +18,12 @@ import {
   titleCase,
   type UnknownRecord,
 } from "../lib";
-import { orchestrationStatusTier } from "../orchestration-helpers";
 import type {
   DelegationTaskRecord,
   RepositoryWorktreeRecord,
 } from "../orchestration-resources";
-import { orchestrationClass as oc } from "./layout";
+import { statusTier } from "../work-surface/status";
+import { WorkDetail, WorkRail, WorkSplit } from "../work-surface/WorkSurface";
 import type {
   BulkTaskAction,
   ConfirmedAction,
@@ -127,8 +127,8 @@ export function TaskQueuePanel({
     tier: effectiveTier,
   });
   const actionableTasks = filteredTasks.filter((task) => {
-    const statusTier = orchestrationStatusTier(task.status ?? "pending");
-    return statusTier !== "completed" && statusTier !== "failed";
+    const tier = statusTier(task.status ?? "pending");
+    return tier !== "done" && tier !== "failed" && tier !== "muted";
   });
   const bulkBusy = bulkAction
     ? Boolean(busyKeys[`task:bulk:${bulkAction}`])
@@ -172,46 +172,47 @@ export function TaskQueuePanel({
   }
 
   return (
-    <div className={oc("orchestration-master-detail")}>
-      <aside className={oc("orchestration-master")}>
-        <div className={oc("orchestration-pane-heading")}>
-          <span>Queue</span>
-          <small>
-            {asNumber(effectiveOverview.total)} total
-            {projectScope === "all"
-              ? ""
-              : ` · ${workspaceLabel || "selected project"}`}
-          </small>
-        </div>
-        <div className={oc("orchestration-queue-controls")}>
-          <label>
-            <span className="sr-only">Search task queue</span>
-            <input
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filter tasks"
-              ref={search}
-              type="search"
-              value={query}
-            />
-          </label>
-          <label>
-            <span className="sr-only">Task lifecycle</span>
-            <select
-              aria-label="Task lifecycle"
-              onChange={(event) => setTier(event.target.value as TaskQueueTier)}
-              value={effectiveTier}
-            >
-              {tiers.map((value) => (
-                <option key={value} value={value}>
-                  {value === "all" ? "All states" : titleCase(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {active && actionableTasks.length > 1 ? (
-          <div className={oc("orchestration-bulk-bar")}>
-            {bulkAction ? (
+    <WorkSplit>
+      <WorkRail
+        heading="Queue"
+        meta={`${asNumber(effectiveOverview.total)} total${
+          projectScope === "all"
+            ? ""
+            : ` · ${workspaceLabel || "selected project"}`
+        }`}
+        controls={
+          <>
+            <label>
+              <span className="sr-only">Search task queue</span>
+              <input
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter tasks"
+                ref={search}
+                type="search"
+                value={query}
+              />
+            </label>
+            <label>
+              <span className="sr-only">Task lifecycle</span>
+              <select
+                aria-label="Task lifecycle"
+                onChange={(event) =>
+                  setTier(event.target.value as TaskQueueTier)
+                }
+                value={effectiveTier}
+              >
+                {tiers.map((value) => (
+                  <option key={value} value={value}>
+                    {value === "all" ? "All states" : titleCase(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+        note={
+          active && actionableTasks.length > 1 ? (
+            bulkAction ? (
               <>
                 <span>
                   {bulkAction === "complete"
@@ -272,32 +273,31 @@ export function TaskQueuePanel({
                   Cancel filtered
                 </button>
               </>
-            )}
-          </div>
-        ) : null}
-        <div className={oc("orchestration-scroll")}>
-          <TaskQueueRail
-            filteredTasks={filteredTasks}
-            onClearFilters={() => {
-              search.current?.focus();
-              setQuery("");
-              setTier("all");
-            }}
-            onSelectTask={onSelectTask}
-            onShowMore={() =>
-              setPage({
-                key: filterKey,
-                limit: taskWindow.limit + TASK_QUEUE_PAGE_SIZE,
-              })
-            }
-            pageSize={TASK_QUEUE_PAGE_SIZE}
-            selectedTaskId={selectedTask?.id}
-            taskWindow={taskWindow}
-          />
-        </div>
-      </aside>
+            )
+          ) : undefined
+        }
+      >
+        <TaskQueueRail
+          filteredTasks={filteredTasks}
+          onClearFilters={() => {
+            search.current?.focus();
+            setQuery("");
+            setTier("all");
+          }}
+          onSelectTask={onSelectTask}
+          onShowMore={() =>
+            setPage({
+              key: filterKey,
+              limit: taskWindow.limit + TASK_QUEUE_PAGE_SIZE,
+            })
+          }
+          pageSize={TASK_QUEUE_PAGE_SIZE}
+          selectedTaskId={selectedTask?.id}
+          taskWindow={taskWindow}
+        />
+      </WorkRail>
 
-      <article className={oc("orchestration-detail")}>
+      <WorkDetail>
         {!selectedTask ? (
           <WorkbenchEmpty icon={ClipboardList} title="Choose a task">
             Select a task to see its progress, actions, and evidence.
@@ -328,7 +328,7 @@ export function TaskQueuePanel({
             worktrees={worktrees}
           />
         )}
-      </article>
-    </div>
+      </WorkDetail>
+    </WorkSplit>
   );
 }

@@ -1,0 +1,64 @@
+/* Team management surface: masthead keeps its own inset; remaining content
+   aligns to the same document inset as the monitor rail. */
+
+.team-management {
+  border-block-start: 1px solid var(--border);
+  padding-block-end: var(--document-inset, 12px);
+}
+
+.team-management > :not(.ws-masthead, .dl-dialog-backdrop) {
+  margin-inline: var(--document-inset, 12px);
+}
+
+.team-management__note {
+  margin-block: 0 8px;
+  font-size: var(--text-control);
+  color: var(--muted);
+}
+
+.team-management__card {
+  display: grid;
+  min-inline-size: 0;
+  gap: 10px;
+}
+
+.team-management__identity {
+  display: grid;
+  min-inline-size: 0;
+  gap: 3px;
+}
+
+.team-management__identity strong {
+  font-size: var(--text-control);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.team-management__identity p {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.team-management__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Agents workbench IA: the worker roster is the operational monitor and leads
+   the tab; persistent team management follows as its own surface.
+   OrchestrationPage owns DOM order (management renders first); visual order
+   places the monitor first so the live view leads. */
+
+.agents-workbench > .agents-monitor {
+  order: 1;
+}
+
+.agents-workbench > .team-management {
+  order: 2;
+}

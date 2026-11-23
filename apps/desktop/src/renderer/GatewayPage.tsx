@@ -1,21 +1,17 @@
 import { Button } from "@doolittle/ui";
+import { ChevronDown, Route } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
+import { UiIcon } from "./components/UiIcon";
 import { GatewayPairingPanel } from "./gateway/GatewayPairingPanel";
 import {
   type GatewayTimelineDirection,
   GatewayTimelinePanel,
 } from "./gateway/GatewayTimelinePanel";
-import {
-  GATEWAY_DISCLOSURE_SUMMARY_CLASS,
-  GATEWAY_LAYOUT_CLASS,
-  GATEWAY_LIST_CLASS,
-  GATEWAY_META_CLASS,
-  GATEWAY_PAGE_CLASS,
-  GATEWAY_SECONDARY_GRID_CLASS,
-} from "./gateway/gateway-layout";
+import { GATEWAY_PAGE_CLASS } from "./gateway/gateway-layout";
+import "./gateway/gateway-surface.css";
+import "./orchestration/work-surfaces.css";
 import {
   approvedPairingSenders,
   buildGatewayTimeline,
@@ -31,7 +27,6 @@ import {
   asNumber,
   asRecord,
   asString,
-  Badge,
   desktopRequest,
   displayTimestamp,
   EmptyBlock,
@@ -42,6 +37,13 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import { summarizeResourceStatuses } from "./resource-status";
+import {
+  WorkMasthead,
+  WorkSurface,
+  WorkTag,
+  WorkToolbar,
+} from "./work-surface/WorkSurface";
 
 interface GatewayStateResponse {
   state?: unknown;
@@ -190,6 +192,11 @@ export function GatewayPage({ active }: { active: boolean }) {
     { label: "pending pairings", resource: pairingPending, required: false },
     { label: "approved pairings", resource: pairingApproved, required: false },
   ].filter((entry) => entry.resource.status !== "disabled");
+  const resourceSummary = summarizeResourceStatuses(statusResources);
+  const showResourceStatus =
+    resourceSummary.status === "loading" ||
+    resourceSummary.status === "refreshing" ||
+    resourceSummary.status === "error";
 
   const refresh = () => {
     if (!active) return;
@@ -255,37 +262,66 @@ export function GatewayPage({ active }: { active: boolean }) {
     }
   };
 
-  const header = (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-      <h2 className="m-0 text-base font-semibold">Gateway</h2>
-      <Button
-        disabled={!active}
-        onClick={refresh}
-        type="button"
-        variant="secondary"
-      >
-        Refresh records
-      </Button>
-    </header>
+  const masthead = (
+    <WorkMasthead
+      actions={
+        <Button
+          disabled={!active}
+          onClick={refresh}
+          type="button"
+          variant="secondary"
+        >
+          Refresh records
+        </Button>
+      }
+      kicker="Channels"
+      meta={
+        active ? (
+          <span title={gateway.reason}>
+            <strong>{gateway.running ? "Running" : "Stopped"}</strong>
+            {" · "}
+            {gateway.reason}
+          </span>
+        ) : undefined
+      }
+      title="Gateway"
+    />
   );
 
   if (!active) {
     return (
-      <section className={GATEWAY_PAGE_CLASS}>
-        {header}
+      <WorkSurface className={GATEWAY_PAGE_CLASS}>
+        {masthead}
         <OfflineRouteState>
           Gateway history, routes, and sender approvals are unavailable until
           the local runtime is ready.
         </OfflineRouteState>
-      </section>
+      </WorkSurface>
     );
   }
 
   return (
-    <section className={GATEWAY_PAGE_CLASS}>
-      {header}
+    <WorkSurface className={GATEWAY_PAGE_CLASS}>
+      {masthead}
 
-      <ResourceStatusBar resources={statusResources} />
+      <WorkToolbar>
+        <span className="gateway-connection-summary">
+          <strong>{gateway.ready}</strong>/{gateway.configured} adapters ready ·{" "}
+          <strong>{gateway.operational}</strong> transports operational ·{" "}
+          <strong>{entries.length}</strong> records (
+          {asArray(inbox.data?.inbox).length} in ·{" "}
+          {asArray(outbox.data?.outbox).length} out) ·{" "}
+          {pairingOpen
+            ? pairingPending.loading || pairingApproved.loading
+              ? "approvals loading…"
+              : `${pendingPairings.length} awaiting approval`
+            : "approvals on demand"}
+        </span>
+      </WorkToolbar>
+
+      {showResourceStatus ? (
+        <ResourceStatusBar resources={statusResources} />
+      ) : null}
 
       {errors.length ? (
         <Notice tone="warn">
@@ -302,151 +338,108 @@ export function GatewayPage({ active }: { active: boolean }) {
         </Notice>
       ) : null}
 
-      <CompactStatStrip
-        label="Gateway summary"
-        stats={[
-          {
-            detail: gateway.reason,
-            label: "Gateway",
-            tone: gateway.running ? "good" : "warn",
-            value: gateway.running ? "Running" : "Stopped",
-          },
-          {
-            detail: `${gateway.operational} operational of ${gateway.configured}`,
-            label: "Transports",
-            tone: gateway.ready ? "good" : "warn",
-            value: `${gateway.ready} ready`,
-          },
-          {
-            detail: `${asArray(inbox.data?.inbox).length} inbox · ${asArray(outbox.data?.outbox).length} outbox`,
-            label: "Messages",
-            value: entries.length,
-          },
-          {
-            detail:
-              pairingOpen && (pairingPending.loading || pairingApproved.loading)
-                ? "Loading approvals"
-                : pairingOpen
-                  ? "Awaiting approval"
-                  : "Open sender approvals",
-            label: "Pairing",
-            tone: pairingOpen && pendingPairings.length ? "warn" : "neutral",
-            value:
-              pairingOpen && (pairingPending.loading || pairingApproved.loading)
-                ? "…"
-                : pairingOpen
-                  ? pendingPairings.length
-                  : "On demand",
-          },
-        ]}
+      <GatewayTimelinePanel
+        direction={direction}
+        entries={entries}
+        historyError={historyError}
+        historyUnavailable={historyUnavailable}
+        loading={loading}
+        onDirectionChange={setDirection}
+        onPlatformChange={setPlatform}
+        onQueryChange={setQuery}
+        onReplay={replay}
+        onRetryDelivery={retryDelivery}
+        onRetryHistory={refresh}
+        platform={platform}
+        platforms={platforms}
+        query={query}
+        replayingId={replayingId}
+        retryingDeliveryId={retryingDeliveryId}
+        secondary={
+          <div className="gateway-detail-secondary">
+            <GatewayPairingPanel
+              actionId={pairingAction}
+              approved={approvedPairings}
+              confirmationId={confirmPairingAction}
+              error={pairingPending.error || pairingApproved.error}
+              loading={pairingPending.loading || pairingApproved.loading}
+              onConfirmationChange={setConfirmPairingAction}
+              onOpenChange={setPairingOpen}
+              onRetry={() => {
+                pairingPending.reload();
+                pairingApproved.reload();
+              }}
+              onUpdate={(action, input) => void updatePairing(action, input)}
+              open={pairingOpen}
+              pending={pendingPairings}
+              truncated={Boolean(
+                pairingPending.data?.truncated ||
+                  pairingApproved.data?.truncated,
+              )}
+            />
+            <details
+              className="work-disclosure"
+              onToggle={(event) => setRoutesOpen(event.currentTarget.open)}
+              open={routesOpen}
+            >
+              <summary>
+                <span className="work-disclosure__identity">
+                  <UiIcon icon={Route} size="md" />
+                  <strong>Thread routes</strong>
+                </span>
+                <span className="work-disclosure__meta">
+                  {routesOpen
+                    ? sessions.loading
+                      ? "Loading…"
+                      : `${localSessions.length} routes`
+                    : "Load routes"}
+                  <UiIcon icon={ChevronDown} />
+                </span>
+              </summary>
+              {routesOpen ? (
+                <div className="gateway-disclosure-body">
+                  {sessions.loading ? (
+                    <LoadingBlock label="Loading gateway routes…" />
+                  ) : sessions.error ? (
+                    <ErrorBlock
+                      error={sessions.error}
+                      retry={sessions.reload}
+                    />
+                  ) : !localSessions.length ? (
+                    <EmptyBlock density="compact" title="No local routes yet">
+                      Routes appear after Doolittle accepts an inbound gateway
+                      message.
+                    </EmptyBlock>
+                  ) : (
+                    <ul className="gateway-route-list">
+                      {localSessions.slice(0, 12).map((session) => (
+                        <li className="gateway-route" key={session.id}>
+                          <WorkTag>{titleCase(session.platform)}</WorkTag>
+                          <strong>{session.room}</strong>
+                          <span>
+                            {session.thread
+                              ? `Thread ${session.thread}`
+                              : "Root route"}
+                          </span>
+                          <small>
+                            {session.agentSession
+                              ? `Agent: ${session.agentSession}`
+                              : "Agent session not recorded"}
+                          </small>
+                          <time dateTime={session.updatedAt}>
+                            {displayTimestamp(session.updatedAt)}
+                          </time>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
+            </details>
+          </div>
+        }
+        visibleEntries={visibleEntries}
       />
-
-      <div className={GATEWAY_LAYOUT_CLASS}>
-        <GatewayTimelinePanel
-          direction={direction}
-          entries={entries}
-          historyError={historyError}
-          historyUnavailable={historyUnavailable}
-          loading={loading}
-          onDirectionChange={setDirection}
-          onPlatformChange={setPlatform}
-          onQueryChange={setQuery}
-          onReplay={replay}
-          onRetryDelivery={retryDelivery}
-          onRetryHistory={refresh}
-          platform={platform}
-          platforms={platforms}
-          query={query}
-          replayingId={replayingId}
-          retryingDeliveryId={retryingDeliveryId}
-          visibleEntries={visibleEntries}
-        />
-
-        <div className={GATEWAY_SECONDARY_GRID_CLASS}>
-          <details
-            className="group panel min-w-0 overflow-hidden p-0"
-            onToggle={(event) => setRoutesOpen(event.currentTarget.open)}
-            open={routesOpen}
-          >
-            <summary className={GATEWAY_DISCLOSURE_SUMMARY_CLASS}>
-              <span className="flex flex-col gap-0.5">
-                <strong>Thread routes</strong>
-                <small className={GATEWAY_META_CLASS}>
-                  Room and attached-agent routes
-                </small>
-              </span>
-              <span
-                className={`${GATEWAY_META_CLASS} after:absolute after:right-3 after:font-mono after:text-[var(--accent)] after:content-['+'] group-open:after:content-['−']`}
-              >
-                {routesOpen
-                  ? sessions.loading
-                    ? "Loading…"
-                    : `${localSessions.length} routes`
-                  : "Load routes"}
-              </span>
-            </summary>
-            {routesOpen ? (
-              <div className="border-[var(--border)] border-t px-3 pb-3">
-                {sessions.loading ? (
-                  <LoadingBlock label="Loading gateway routes…" />
-                ) : sessions.error ? (
-                  <ErrorBlock error={sessions.error} retry={sessions.reload} />
-                ) : !localSessions.length ? (
-                  <EmptyBlock density="compact" title="No local routes yet">
-                    Routes appear after Doolittle accepts an inbound gateway
-                    message.
-                  </EmptyBlock>
-                ) : (
-                  <ul className={GATEWAY_LIST_CLASS}>
-                    {localSessions.slice(0, 12).map((session) => (
-                      <li
-                        className="grid gap-1.25 border-[var(--border)] border-b py-2.25 last:border-b-0 [&_small]:font-mono [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_span]:font-mono [&_span]:text-[length:var(--text-meta)] [&_span]:text-[var(--muted)] [&_time]:font-mono [&_time]:text-[length:var(--text-meta)] [&_time]:text-[var(--muted)]"
-                        key={session.id}
-                      >
-                        <Badge>{titleCase(session.platform)}</Badge>
-                        <strong className="truncate">{session.room}</strong>
-                        <span>
-                          {session.thread
-                            ? `Thread ${session.thread}`
-                            : "Root route"}
-                        </span>
-                        <small>
-                          {session.agentSession
-                            ? `Agent: ${session.agentSession}`
-                            : "Agent session not recorded"}
-                        </small>
-                        <time dateTime={session.updatedAt}>
-                          {displayTimestamp(session.updatedAt)}
-                        </time>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-          </details>
-
-          <GatewayPairingPanel
-            actionId={pairingAction}
-            approved={approvedPairings}
-            confirmationId={confirmPairingAction}
-            error={pairingPending.error || pairingApproved.error}
-            loading={pairingPending.loading || pairingApproved.loading}
-            onConfirmationChange={setConfirmPairingAction}
-            onOpenChange={setPairingOpen}
-            onRetry={() => {
-              pairingPending.reload();
-              pairingApproved.reload();
-            }}
-            onUpdate={(action, input) => void updatePairing(action, input)}
-            open={pairingOpen}
-            pending={pendingPairings}
-            truncated={Boolean(
-              pairingPending.data?.truncated || pairingApproved.data?.truncated,
-            )}
-          />
-        </div>
-      </div>
-    </section>
+    </WorkSurface>
   );
 }

@@ -1,5 +1,7 @@
 import type { ActionFeedback } from "./lib";
+import { compactDuration } from "./orchestration-helpers";
 import { asNumber, asRecord, asString } from "./value-guards";
+import { statusTier, type WorkTier } from "./work-surface/status";
 
 export type GatewayDirection = "inbox" | "outbox";
 export const GATEWAY_HISTORY_LIMIT = 25;
@@ -175,16 +177,23 @@ export function filterGatewayTimeline(
   });
 }
 
-export function gatewayStatusTone(
-  status: string,
-): "good" | "warn" | "bad" | "neutral" {
-  const normalized = status.toLowerCase();
-  if (["sent", "accepted", "received", "edited"].includes(normalized)) {
-    return "good";
+/** Gateway transport statuses mapped onto the shared work tier scale. */
+export function gatewayEntryTier(status: string): WorkTier {
+  const normalized = status.trim().toLowerCase();
+  if (
+    ["sent", "accepted", "received", "edited", "delivered"].includes(normalized)
+  ) {
+    return "done";
   }
-  if (["rejected", "failed", "error"].includes(normalized)) return "bad";
-  if (["fallback", "pending", "replaying"].includes(normalized)) return "warn";
-  return "neutral";
+  if (["rejected", "failed", "error"].includes(normalized)) return "failed";
+  if (["replaying"].includes(normalized)) return "active";
+  return statusTier(status);
+}
+
+export function gatewayRelativeTime(at: string, now = Date.now()): string {
+  const timestamp = Date.parse(at);
+  if (!Number.isFinite(timestamp)) return "time unknown";
+  return `${compactDuration(Math.max(0, now - timestamp))} ago`;
 }
 
 export function pairingRequests(value: unknown): GatewayPairingRequest[] {

@@ -1,31 +1,59 @@
-import type { FormEvent } from "react";
+import { ContextActionMenu } from "@doolittle/ui";
+import { ClipboardList, Inbox, ListChecks, SearchX } from "lucide-react";
+import { type FormEvent, useRef, useState } from "react";
+import {
+  WorkbenchAction,
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   asArray,
   asRecord,
   asString,
   Badge,
   displayTimestamp,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
+  titleCase,
 } from "../lib";
-import {
-  orchestrationStatusTier,
-  orchestrationTimingLabel,
-} from "../orchestration-helpers";
+import { orchestrationTimingLabel } from "../orchestration-helpers";
 import type {
   DelegationTaskRecord,
   PlanRecord,
 } from "../orchestration-resources";
+import { statusTier, type WorkTier } from "../work-surface/status";
 import {
-  DetailRow,
-  DetailTag,
-  SmallEmpty,
-  statusTone,
-} from "./detail-primitives";
+  DetailFacts,
+  DetailHeader,
+  FactRow,
+  WorkCard,
+  WorkCards,
+  WorkDetail,
+  WorkDisclosure,
+  WorkList,
+  WorkRail,
+  WorkRow,
+  WorkSplit,
+  WorkTag,
+} from "../work-surface/WorkSurface";
 import { orchestrationClass as oc } from "./layout";
 import type { ResourceState } from "./models";
 import { compactDetailValue, normalizeText } from "./models";
+
+function tagTone(tier: WorkTier): "good" | "warn" | "bad" | "neutral" {
+  if (tier === "done") return "good";
+  if (tier === "attention") return "warn";
+  if (tier === "failed") return "bad";
+  return "neutral";
+}
+
+function searchablePlanText(plan: PlanRecord): string {
+  return [plan.title, plan.objective, plan.status]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLocaleLowerCase();
+}
 
 export function PlanPanel({
   active,
@@ -56,83 +84,103 @@ export function PlanPanel({
   onSteerPlan: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onPlanSteerInstructionChange: (value: string) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const search = useRef<HTMLInputElement>(null);
+  const filter = query.trim().toLocaleLowerCase();
+  const filteredPlans = filter
+    ? plans.filter((plan) => searchablePlanText(plan).includes(filter))
+    : plans;
+
+  if (plansResource.error) {
+    return (
+      <ErrorBlock error={plansResource.error} retry={plansResource.reload} />
+    );
+  }
+  if (plansResource.loading && plans.length === 0) {
+    return <LoadingBlock label="Loading plans…" />;
+  }
+  if (plans.length === 0) {
+    return (
+      <WorkbenchSection title="Plans" icon={ListChecks}>
+        <WorkbenchEmpty icon={Inbox} title="No plans yet">
+          Create a plan to connect tasks and workflows.
+        </WorkbenchEmpty>
+      </WorkbenchSection>
+    );
+  }
+
   return (
-    <div className={oc("orchestration-master-detail")}>
-      <aside className={oc("orchestration-master")}>
-        <div className={oc("orchestration-pane-heading")}>
-          <span>Plans</span>
-          <small>{plans.length} records</small>
-        </div>
-        <div className={oc("orchestration-scroll")}>
-          {plansResource.error ? (
-            <ErrorBlock
-              error={plansResource.error}
-              retry={plansResource.reload}
+    <WorkSplit>
+      <WorkRail
+        heading="Plans"
+        meta={`${plans.length} records`}
+        controls={
+          <label>
+            <span className="sr-only">Search plans</span>
+            <input
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Filter plans"
+              ref={search}
+              type="search"
+              value={query}
             />
-          ) : plansResource.loading ? (
-            <LoadingBlock />
-          ) : plans.length === 0 ? (
-            <EmptyBlock title="No plans yet">
-              Create a plan to connect tasks and workflows.
-            </EmptyBlock>
-          ) : (
-            <ul className={oc("orchestration-master-list")}>
-              {plans.map((plan) => {
-                const status = asString(plan.status, "draft");
-                const tier = orchestrationStatusTier(status);
-                const stepCount = asArray(plan.steps).length;
-                return (
-                  <li key={plan.id}>
-                    <button
-                      type="button"
-                      className={oc(
-                        "orchestration-master-item",
-                        plan.id === selectedPlan?.id && "selected",
-                        `tier-${tier}`,
-                      )}
-                      aria-pressed={plan.id === selectedPlan?.id}
-                      onClick={() => onSelectPlan(plan)}
-                    >
-                      <span className={oc("master-row", "master-row-top")}>
-                        <span className={oc("master-title-line")}>
-                          <i
-                            className={oc("master-status-dot")}
-                            aria-hidden="true"
-                          />
-                          <strong>
-                            {asString(plan.title, "Untitled plan")}
-                          </strong>
-                        </span>
-                        <Badge tone={statusTone(status)}>{status}</Badge>
-                      </span>
-                      <span className={oc("master-summary")}>
-                        {normalizeText(asString(plan.objective), 92)}
-                      </span>
-                      <span className={oc("master-row", "master-row-bottom")}>
-                        <small>
-                          {orchestrationTimingLabel({
-                            status,
-                            updatedAt: asString(plan.updatedAt),
-                            createdAt: asString(plan.createdAt),
-                          })}
-                        </small>
-                        <small>
-                          {stepCount} step{stepCount === 1 ? "" : "s"}
-                        </small>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </aside>
-      <article className={oc("orchestration-detail")}>
+          </label>
+        }
+      >
+        {filteredPlans.length === 0 ? (
+          <WorkbenchEmpty
+            actions={
+              <WorkbenchAction
+                onClick={() => {
+                  search.current?.focus();
+                  setQuery("");
+                }}
+              >
+                Clear filters
+              </WorkbenchAction>
+            }
+            icon={SearchX}
+            title="No matching plans"
+          >
+            Change the search to see other plans.
+          </WorkbenchEmpty>
+        ) : (
+          <WorkList>
+            {filteredPlans.map((plan) => {
+              const status = asString(plan.status, "draft");
+              const stepCount = asArray(plan.steps).length;
+              const summary = normalizeText(asString(plan.objective), 92);
+              const title = asString(plan.title, "Untitled plan");
+              return (
+                <WorkRow
+                  key={plan.id}
+                  label={title}
+                  meta={[
+                    ...(summary ? [summary] : []),
+                    `${stepCount} step${stepCount === 1 ? "" : "s"}`,
+                  ]}
+                  onSelect={() => onSelectPlan(plan)}
+                  selected={plan.id === selectedPlan?.id}
+                  status={titleCase(status)}
+                  time={orchestrationTimingLabel({
+                    status,
+                    updatedAt: asString(plan.updatedAt),
+                    createdAt: asString(plan.createdAt),
+                  })}
+                  title={title}
+                  tone={statusTier(status)}
+                />
+              );
+            })}
+          </WorkList>
+        )}
+      </WorkRail>
+
+      <WorkDetail>
         {!selectedPlan ? (
-          <EmptyBlock title="Choose a plan">
+          <WorkbenchEmpty icon={ClipboardList} title="Choose a plan">
             Plan links and steps appear here.
-          </EmptyBlock>
+          </WorkbenchEmpty>
         ) : (
           <PlanDetail
             active={active}
@@ -147,8 +195,8 @@ export function PlanPanel({
             selectedPlan={selectedPlan}
           />
         )}
-      </article>
-    </div>
+      </WorkDetail>
+    </WorkSplit>
   );
 }
 
@@ -176,32 +224,60 @@ function PlanDetail({
   selectedPlan: PlanRecord;
 }) {
   const status = asString(selectedPlan.status, "draft");
+  const tier = statusTier(status);
+  const steps = asArray(selectedPlan.steps);
+  const metadata = asRecord(selectedPlan.metadata);
   return (
-    <>
-      <div className={oc("orchestration-detail-header")}>
-        <div>
-          <span className={oc("detail-kicker")}>Execution plan</span>
-          <h2>{asString(selectedPlan.title, "Untitled plan")}</h2>
-          <p>{asString(selectedPlan.objective)}</p>
-        </div>
-        <Badge tone={statusTone(status)}>{status}</Badge>
-      </div>
-      <div className={oc("orchestration-detail-tags")}>
-        <DetailTag tone={statusTone(status)}>
-          {orchestrationTimingLabel({
-            status,
-            updatedAt: asString(selectedPlan.updatedAt),
-            createdAt: asString(selectedPlan.createdAt),
-          })}
-        </DetailTag>
-        <DetailTag>
-          {selectedPlan.taskId ? "task linked" : "task unlinked"}
-        </DetailTag>
-        <DetailTag>
-          {selectedPlan.workflowId ? "workflow linked" : "workflow unlinked"}
-        </DetailTag>
-        <DetailTag>{asArray(selectedPlan.steps).length} steps</DetailTag>
-      </div>
+    <ContextActionMenu
+      label="Plan actions"
+      scopeKey={`plan:${selectedPlan.id}:${status}`}
+      items={[
+        ...(status === "draft"
+          ? [
+              {
+                id: "approve",
+                label: "Approve plan",
+                disabled:
+                  !active || busyKeys[`plan:${selectedPlan.id}:approve`],
+                onSelect: () => void onApprovePlan(selectedPlan),
+              },
+            ]
+          : []),
+        {
+          id: "copy-id",
+          label: "Copy plan ID",
+          onSelect: () => void copyContextText(selectedPlan.id),
+        },
+      ]}
+    >
+      <DetailHeader
+        kicker="Execution plan"
+        objective={asString(selectedPlan.objective)}
+        status={<Badge tone={tagTone(tier)}>{titleCase(status)}</Badge>}
+        tags={
+          <>
+            <WorkTag tone={tagTone(tier)}>
+              {orchestrationTimingLabel({
+                status,
+                updatedAt: asString(selectedPlan.updatedAt),
+                createdAt: asString(selectedPlan.createdAt),
+              })}
+            </WorkTag>
+            <WorkTag>
+              {selectedPlan.taskId ? "task linked" : "task unlinked"}
+            </WorkTag>
+            <WorkTag>
+              {selectedPlan.workflowId
+                ? "workflow linked"
+                : "workflow unlinked"}
+            </WorkTag>
+            <WorkTag>
+              {steps.length} step{steps.length === 1 ? "" : "s"}
+            </WorkTag>
+          </>
+        }
+        title={asString(selectedPlan.title, "Untitled plan")}
+      />
       {status === "draft" ? (
         <div className={oc("orchestration-plan-control")}>
           <div>
@@ -271,63 +347,62 @@ function PlanDetail({
           </button>
         </form>
       ) : null}
-      <div className={oc("orchestration-detail-grid")}>
-        <dl>
-          <DetailRow label="Plan ID" value={selectedPlan.id} />
-          <DetailRow
-            label="Task"
-            value={asString(selectedPlan.taskId, "not linked")}
-          />
-          <DetailRow
-            label="Workflow"
-            value={asString(selectedPlan.workflowId, "not linked")}
-          />
-          <DetailRow
-            label="Created"
-            value={displayTimestamp(asString(selectedPlan.createdAt))}
-          />
-          <DetailRow
-            label="Updated"
-            value={displayTimestamp(asString(selectedPlan.updatedAt))}
-          />
-        </dl>
-        <div className={oc("orchestration-evidence")}>
-          <span className={oc("detail-kicker")}>Steps</span>
-          {asArray(selectedPlan.steps).length > 0 ? (
+      <WorkCards>
+        <WorkCard kicker="Steps">
+          {steps.length > 0 ? (
             <ol className={oc("orchestration-steps")}>
-              {asArray(selectedPlan.steps).map((step) => (
+              {steps.map((step) => (
                 <li key={`${selectedPlan.id}:step:${asString(step)}`}>
                   {asString(step)}
                 </li>
               ))}
             </ol>
           ) : (
-            <SmallEmpty>No steps recorded.</SmallEmpty>
+            <p className="ws-empty-line">No steps recorded.</p>
           )}
-          <span className={oc("detail-kicker")}>Metadata</span>
-          {Object.keys(asRecord(selectedPlan.metadata)).length > 0 ? (
-            <dl className={oc("orchestration-mini-dl")}>
-              {Object.entries(asRecord(selectedPlan.metadata)).map(
-                ([key, value]) => (
-                  <DetailRow
-                    key={`${selectedPlan.id}:${key}`}
-                    label={key}
-                    value={compactDetailValue(value)}
-                  />
-                ),
-              )}
-            </dl>
+        </WorkCard>
+        <WorkCard kicker="Metadata">
+          {Object.keys(metadata).length > 0 ? (
+            <DetailFacts>
+              {Object.entries(metadata).map(([key, value]) => (
+                <FactRow key={`${selectedPlan.id}:${key}`} label={key}>
+                  {compactDetailValue(value)}
+                </FactRow>
+              ))}
+            </DetailFacts>
           ) : (
-            <SmallEmpty>No plan metadata.</SmallEmpty>
+            <p className="ws-empty-line">No plan metadata.</p>
           )}
-        </div>
-      </div>
+        </WorkCard>
+      </WorkCards>
+      <WorkDisclosure
+        detail="IDs, links, and timestamp diagnostics"
+        summary="Plan details"
+      >
+        <DetailFacts>
+          <FactRow label="Plan ID">{selectedPlan.id}</FactRow>
+          <FactRow label="Task">
+            {asString(selectedPlan.taskId, "not linked")}
+          </FactRow>
+          <FactRow label="Workflow">
+            {asString(selectedPlan.workflowId, "not linked")}
+          </FactRow>
+          <FactRow label="Created">
+            {displayTimestamp(asString(selectedPlan.createdAt))}
+          </FactRow>
+          <FactRow label="Updated">
+            {displayTimestamp(asString(selectedPlan.updatedAt))}
+          </FactRow>
+        </DetailFacts>
+      </WorkDisclosure>
       {planMetaLines.length > 0 ? (
-        <div className={oc("orchestration-control-footnote")}>
-          <strong>Control plane</strong>
-          <span>{planMetaLines.join(" · ")}</span>
-        </div>
+        <WorkDisclosure
+          detail="Planner capability flags reported by the runtime"
+          summary="Control plane"
+        >
+          <p className="ws-empty-line">{planMetaLines.join(" · ")}</p>
+        </WorkDisclosure>
       ) : null}
-    </>
+    </ContextActionMenu>
   );
 }

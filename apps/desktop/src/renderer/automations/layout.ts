@@ -1,5 +1,5 @@
 export const AUTOMATION_PAGE_CLASS =
-  "automation-page flex min-h-full w-full min-w-0 flex-col gap-3 [--automation-line:var(--border)]";
+  "automation-page w-full min-w-0 [--automation-line:var(--border)]";
 
 export const AUTOMATION_BUILDER_CLASS =
   "automation-builder overflow-hidden rounded-[var(--radius-md)] border border-[var(--automation-line)] bg-[var(--surface)]";
@@ -34,26 +34,8 @@ export const AUTOMATION_CHOICE_SELECTED_CLASS =
 export const AUTOMATION_BUILDER_FOOTER_CLASS =
   "automation-builder__footer flex items-center justify-between gap-3 px-4 pt-1 pb-3 max-[720px]:items-stretch max-[720px]:flex-col [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)]";
 
-export const AUTOMATION_WORKSPACE_CLASS =
-  "automation-workspace grid grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] items-start gap-3 max-[1040px]:grid-cols-1";
-
-export const AUTOMATION_JOB_CARD_CLASS =
-  "automation-job-card border-b border-[var(--line-subtle)] bg-transparent py-4";
-
-export const AUTOMATION_JOB_SUMMARY_CLASS =
-  "automation-job-summary my-3 grid grid-cols-3 gap-x-3 gap-y-2 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-3 py-2.5 max-[620px]:grid-cols-1";
-
 export const AUTOMATION_DETAILS_SUMMARY_CLASS =
   "flex min-h-8 cursor-pointer list-none items-center justify-between rounded-[var(--radius-xs)] px-1.5 py-1.5 text-[length:var(--text-control)] font-semibold text-[var(--muted)] hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden after:text-[var(--faint)] after:content-['+'] [details[open]_&]:after:content-['−']";
-
-export const AUTOMATION_RUNS_PANEL_CLASS =
-  "automation-runs-panel overflow-hidden [&[open]>summary]:border-b [&[open]>summary]:border-[var(--border)] [&>summary]:flex [&>summary]:min-h-14 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-3 [&>summary]:px-4 [&>summary]:py-3 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_small]:text-[length:var(--text-meta)] [&>summary_small]:text-[var(--muted)]";
-
-export const AUTOMATION_RUN_BUTTON_CLASS =
-  "grid min-h-14 w-full grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-sm)] border border-transparent px-3 py-2.5 text-left text-[var(--text-soft)] transition-colors hover:bg-[var(--surface-hover)] aria-pressed:border-[var(--border)] aria-pressed:bg-[var(--surface-hover)] aria-pressed:text-[var(--text)] aria-pressed:[&_strong]:font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
-
-export const AUTOMATION_TRACE_CLASS =
-  "automation-trace rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3.5";
 
 export const AUTOMATION_STATUS_DOT_CLASS =
   "automation-run-status size-2 rounded-full bg-[var(--good)]";

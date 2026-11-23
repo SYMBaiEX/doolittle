@@ -1,0 +1,85 @@
+/* Gateway work surface: pieces the shared kit does not cover. */
+
+.ws-rail__controls label:has(> input[type="search"]) {
+  flex: 1;
+  min-inline-size: 7rem;
+}
+
+.ws-rail__controls label:has(> input[type="search"]) > input {
+  inline-size: 100%;
+}
+
+.gateway-connection-summary {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.gateway-connection-summary strong {
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.gateway-retry-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--good);
+}
+
+/* The detail column pairs the selected record with the pairing and route
+   status regions; keep a quiet separation between them. */
+
+.gateway-detail-secondary {
+  display: grid;
+  gap: 10px;
+  margin-block-start: 18px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+
+.gateway-disclosure-body {
+  display: grid;
+  gap: 8px;
+  padding: 6px 12px 12px;
+}
+
+.gateway-route-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gateway-route {
+  display: grid;
+  min-inline-size: 0;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  overflow-wrap: anywhere;
+}
+
+.gateway-route > .ws-tag {
+  justify-self: start;
+}
+
+.gateway-route > strong {
+  overflow: hidden;
+  font-size: var(--text-control);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.gateway-route > span,
+.gateway-route > small,
+.gateway-route > time {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--muted);
+}

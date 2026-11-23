@@ -10,6 +10,7 @@ import type { ComputerOrigin } from "./computer-origin";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
+import "./orchestration/frame.css";
 import { orchestrationClass as oc } from "./orchestration/layout";
 import { compactControlValue } from "./orchestration/models";
 import { PlanCreateForm } from "./orchestration/PlanCreateForm";
@@ -28,6 +29,7 @@ import {
   type ResourceStatusItem,
   summarizeResourceStatuses,
 } from "./resource-status";
+import { WorkMasthead } from "./work-surface/WorkSurface";
 
 const OrchestrationRunsPanel = lazy(() =>
   import("./orchestration/OrchestrationRunsPanel").then((module) => ({
@@ -71,23 +73,6 @@ export function shouldShowWorkResourceStatus(
 ): boolean {
   const status = summarizeResourceStatuses(resources).status;
   return status === "loading" || status === "refreshing" || status === "error";
-}
-
-function SummaryChip({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string | number;
-  tone?: "neutral" | "good" | "warn" | "bad";
-}) {
-  return (
-    <span className={oc("orchestration-summary-chip", tone)}>
-      <strong>{value}</strong>
-      <small>{label}</small>
-    </span>
-  );
 }
 
 export function OrchestrationPage({
@@ -535,31 +520,36 @@ export function OrchestrationPage({
     onSectionChange(tab);
   };
   const activeTabLabel = WORK_TABS.find((tab) => tab.id === activeTab)?.label;
-  const scrollsWorkPanel =
-    activeTab === "agents" ||
-    activeTab === "automations" ||
-    activeTab === "inbox";
 
   return (
     <div className={oc("orchestration-page")}>
-      <header className={oc("orchestration-header")}>
-        <div>
-          <h1>Work</h1>
-          <p>{projectScope === "all" ? "All projects" : workspaceLabel}</p>
-        </div>
-        <div className={oc("orchestration-header-metrics")}>
-          {showHeaderSummary ? (
-            <>
-              <SummaryChip label="Queued" value={queuedCount} tone="neutral" />
-              <SummaryChip label="Running" value={runningCount} tone="warn" />
-              <SummaryChip label="Approval" value={approvalCount} tone="warn" />
-              <SummaryChip
-                label="Completed"
-                value={completedCount}
-                tone="good"
-              />
-            </>
-          ) : null}
+      <WorkMasthead
+        kicker="Operations"
+        title="Work"
+        meta={
+          <>
+            <span>
+              {projectScope === "all" ? "All projects" : workspaceLabel}
+            </span>
+            {showHeaderSummary ? (
+              <>
+                <span>
+                  <strong>{queuedCount}</strong> queued
+                </span>
+                <span data-tone="warn">
+                  <strong>{runningCount}</strong> running
+                </span>
+                <span data-tone="warn">
+                  <strong>{approvalCount}</strong> awaiting approval
+                </span>
+                <span data-tone="good">
+                  <strong>{completedCount}</strong> completed
+                </span>
+              </>
+            ) : null}
+          </>
+        }
+        actions={
           <button
             className={`${ICON_BUTTON_CLASS} ${oc("orchestration-refresh")}`}
             type="button"
@@ -570,22 +560,11 @@ export function OrchestrationPage({
           >
             <UiIcon icon={RefreshCw} size="sm" />
           </button>
-        </div>
-      </header>
+        }
+      />
 
       {showResourceStatus ? (
         <ResourceStatusBar resources={statusResources} />
-      ) : null}
-
-      {notices.length > 0 ? (
-        <div aria-live="polite" className={oc("orchestration-notices")}>
-          {notices.slice(-1).map((entry) => (
-            <Notice key={entry.id} tone={entry.tone}>
-              <strong>{entry.message}</strong>
-              {entry.details ? <span>{entry.details}</span> : null}
-            </Notice>
-          ))}
-        </div>
       ) : null}
 
       <div className={oc("orchestration-nav-row")}>
@@ -704,13 +683,18 @@ export function OrchestrationPage({
         id="work-panel"
         role="tabpanel"
         aria-labelledby={`work-${activeTab}-tab`}
-        className={oc(
-          "orchestration-panel",
-          scrollsWorkPanel
-            ? "overflow-x-hidden overflow-y-auto"
-            : "overflow-hidden",
-        )}
+        className="work-embedded"
       >
+        {notices.length > 0 ? (
+          <div aria-live="polite" className={oc("orchestration-notices")}>
+            {notices.slice(-1).map((entry) => (
+              <Notice key={entry.id} tone={entry.tone}>
+                <strong>{entry.message}</strong>
+                {entry.details ? <span>{entry.details}</span> : null}
+              </Notice>
+            ))}
+          </div>
+        ) : null}
         <Suspense
           fallback={
             <div className={oc("orchestration-loading")} role="status">

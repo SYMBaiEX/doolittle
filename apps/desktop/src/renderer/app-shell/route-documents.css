@@ -93,22 +93,6 @@
   container: work / inline-size;
 }
 
-[data-route-document="orchestration"] .orchestration-header {
-  min-block-size: 0;
-  padding: 12px var(--document-inset) 8px;
-  border-block-end: 0;
-  background: transparent;
-}
-
-[data-route-document="orchestration"] .orchestration-header-metrics {
-  column-gap: var(--document-gap);
-}
-
-[data-route-document="orchestration"] .orchestration-summary-chip {
-  border-inline-start: 0;
-  padding-inline: 0;
-}
-
 [data-route-document="orchestration"] .orchestration-nav-row {
   border-block-end: 0;
   padding-inline: var(--document-inset);
@@ -117,20 +101,6 @@
   box-shadow: none;
 }
 
-[data-route-document="orchestration"] .orchestration-master-list {
-  padding-inline: 4px;
-}
-
-[data-route-document="orchestration"] .orchestration-master-list > li {
-  border-block-start: 0;
-}
-
-[data-route-document="orchestration"] .orchestration-master-item {
-  border-radius: var(--radius-sm);
-}
-
-[data-route-document="orchestration"]
-  .orchestration-master-item[aria-pressed="true"],
 [data-route-document="orchestration"] .review-list button[aria-current="true"] {
   background: var(--surface-hover);
 }
@@ -152,74 +122,12 @@
   border-radius: 0;
 }
 
-[data-route-document="orchestration"] .automation-workspace {
-  padding-inline: var(--document-inset);
-}
-
 [data-route-document="orchestration"] .gateway-page > :not(header) {
   padding-inline: var(--document-inset);
 }
 
 [data-route-document="orchestration"] .agents-workbench {
   padding: var(--document-gap) var(--document-inset) var(--document-inset);
-}
-
-[data-route-document="orchestration"] .gateway-timeline-panel {
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-[data-route-document="orchestration"] .gateway-timeline-filters {
-  grid-template-columns: minmax(110px, 0.65fr) minmax(110px, 0.7fr) minmax(
-      0,
-      1.65fr
-    );
-}
-
-[data-route-document="orchestration"]
-  .gateway-timeline-filters
-  :focus-visible:is(input, select) {
-  outline: 1px solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
-@container gateway (max-width: 540px) {
-  [data-route-document="orchestration"] .gateway-timeline-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  [data-route-document="orchestration"]
-    .gateway-timeline-filters
-    > label:last-child {
-    grid-column: 1 / -1;
-  }
-}
-
-@container work (max-width: 760px) {
-  [data-route-document="orchestration"] .orchestration-master-detail {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, min(38%, 14rem)) minmax(0, 1fr);
-    overflow: hidden;
-  }
-
-  [data-route-document="orchestration"] .orchestration-master {
-    min-block-size: 0;
-    max-block-size: none;
-    border-inline-end: 0;
-    border-block-end: 1px solid var(--border);
-  }
-
-  [data-route-document="orchestration"] .orchestration-detail {
-    min-block-size: 0;
-    overflow: auto;
-  }
-
-  [data-route-document="orchestration"] .automation-workspace,
-  [data-route-document="orchestration"] .automation-builder__header,
-  [data-route-document="orchestration"] .automation-builder__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* Settings owns its independent navigation and content scrollports. Keep the

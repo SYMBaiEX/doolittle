@@ -36,26 +36,29 @@ export function PlanCreateForm({
   onClose: () => void;
 }) {
   return (
-    <form className={oc("orchestration-quick-create")} onSubmit={onSubmit}>
-      <label className="quick-title">
+    <form className={oc("orchestration-inline-form")} onSubmit={onSubmit}>
+      <label>
         <span>Title</span>
         <input
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
+          placeholder="Plan title"
           disabled={!active || busy}
         />
       </label>
-      <label className="quick-objective">
+      <label className="inline-form-wide">
         <span>Objective</span>
         <input
           value={objective}
           onChange={(event) => onObjectiveChange(event.target.value)}
+          placeholder="What this plan should accomplish"
           disabled={!active || busy}
         />
       </label>
       <label>
         <span>Status</span>
         <select
+          aria-label="Plan status"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as PlanStatus)}
           disabled={!active || busy}

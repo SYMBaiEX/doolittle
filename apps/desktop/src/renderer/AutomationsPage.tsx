@@ -1,5 +1,4 @@
 import type { BotCatalogResponse } from "@doolittle/contracts/bots";
-import { Button } from "@doolittle/ui";
 import { type FormEvent, useRef, useState } from "react";
 import {
   type AutomationDraft,
@@ -30,6 +29,7 @@ import {
   useApiResource,
 } from "./lib";
 import { automationRequests } from "./resource-request-policy";
+import { WorkMasthead, WorkSurface } from "./work-surface/WorkSurface";
 
 interface CronResponse {
   jobs?: unknown[];
@@ -172,45 +172,25 @@ export function AutomationsPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className={AUTOMATION_PAGE_CLASS}>
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-        <h2 className="m-0 text-base font-semibold">Scheduled work</h2>
-        {active ? (
-          <Button
-            aria-controls="automation-builder"
-            disabled={Boolean(busy)}
-            onClick={() => {
-              if (builderOpen) closeBuilder();
-              else setBuilderOpen(true);
-            }}
-            type="button"
-            variant={builderOpen ? "secondary" : "default"}
-            aria-expanded={builderOpen}
-          >
-            {builderOpen ? "Close builder" : "New automation"}
-          </Button>
-        ) : null}
-      </header>
+    <WorkSurface className={AUTOMATION_PAGE_CLASS}>
+      <WorkMasthead
+        kicker="Automations"
+        meta={
+          hasJobs ? (
+            <span>
+              <strong>{entries.length}</strong>{" "}
+              {entries.length === 1 ? "automation" : "automations"}
+            </span>
+          ) : undefined
+        }
+        title="Scheduled work"
+      />
 
       {!active ? (
         <OfflineRouteState>
           Automations stay local to the runtime and cannot be created or run
           while it is offline.
         </OfflineRouteState>
-      ) : null}
-
-      {active && builderOpen ? (
-        <AutomationBuilder
-          bots={bots.data?.bots}
-          botsError={bots.error}
-          botsLoading={bots.loading}
-          busy={busy === "save" ? "saving" : busy ? "occupied" : undefined}
-          draft={draft}
-          editing={Boolean(editing)}
-          key={editing?.id ?? "new"}
-          onSubmit={save}
-          onUpdate={updateDraft}
-        />
       ) : null}
 
       {active && feedback ? (
@@ -224,6 +204,23 @@ export function AutomationsPage({ active }: { active: boolean }) {
           botNames={Object.fromEntries(
             (bots.data?.bots ?? []).map((bot) => [bot.id, bot.name]),
           )}
+          builder={
+            builderOpen ? (
+              <AutomationBuilder
+                bots={bots.data?.bots}
+                botsError={bots.error}
+                botsLoading={bots.loading}
+                busy={
+                  busy === "save" ? "saving" : busy ? "occupied" : undefined
+                }
+                draft={draft}
+                editing={Boolean(editing)}
+                key={editing?.id ?? "new"}
+                onSubmit={save}
+                onUpdate={updateDraft}
+              />
+            ) : null
+          }
           builderOpen={builderOpen}
           busy={busy}
           jobs={entries}
@@ -241,6 +238,10 @@ export function AutomationsPage({ active }: { active: boolean }) {
           onReloadRuns={runs.reload}
           onRunsOpenChange={setRunsOpen}
           onSelectRun={setSelectedRunId}
+          onToggleBuilder={() => {
+            if (builderOpen) closeBuilder();
+            else setBuilderOpen(true);
+          }}
           runs={runEntries}
           runsError={runs.error}
           runsLoading={runs.loading}
@@ -248,6 +249,6 @@ export function AutomationsPage({ active }: { active: boolean }) {
           selectedRun={selectedRun}
         />
       ) : null}
-    </div>
+    </WorkSurface>
   );
 }

@@ -75,7 +75,7 @@ export function OrchestrationLauncher(props: LauncherProps) {
           <button
             key={mode.id}
             type="button"
-            aria-pressed={codegenMode === mode.id}
+            aria-current={codegenMode === mode.id ? "true" : undefined}
             className={oc(codegenMode === mode.id && "selected")}
             onClick={() => onCodegenModeChange(mode.id)}
           >

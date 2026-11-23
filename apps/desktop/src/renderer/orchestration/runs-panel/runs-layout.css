@@ -22,6 +22,46 @@
   display: none;
 }
 
+/* Workflow history stays capped; the run list owns the remaining rail space. */
+.orchestration-run-browser .ws-list--cap {
+  flex: 0 1 auto;
+  max-block-size: 42%;
+}
+
+/* Context-action wrappers keep the row separators the bare .ws-list > li + li
+   rule cannot see through. */
+.orchestration-run-browser
+  .ws-list
+  > [data-context-action-menu]
+  + [data-context-action-menu]
+  > li {
+  border-block-start: 1px solid
+    color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.orchestration-run-browser .ws-empty-line {
+  padding: 10px 12px;
+}
+
+/* Mono evidence blocks inside cards and collapsed diagnostics. */
+.orchestration-run-detail .ws-card > pre,
+.orchestration-run-detail .ws-disclosure > pre {
+  margin: 0;
+  min-block-size: 7rem;
+  max-block-size: 15rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: 1.55;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
 @container (min-width: 480px) {
   .orchestration-mode-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -58,7 +98,7 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .orchestration-run-browser .orchestration-workflow-list {
+  .orchestration-run-browser .ws-list {
     min-height: 0;
     max-height: none;
     overflow: visible;

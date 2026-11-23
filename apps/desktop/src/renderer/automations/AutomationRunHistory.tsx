@@ -1,38 +1,26 @@
-import { ContextActionMenu } from "@doolittle/ui";
-import { ChevronDown, History, RotateCw, ScrollText } from "lucide-react";
+import { RotateCw, ScrollText } from "lucide-react";
 import { useMemo } from "react";
 import { UiIcon } from "../components/UiIcon";
-import {
-  WorkbenchAction,
-  WorkbenchEmpty,
-  WorkbenchSection,
-} from "../components/workbench/Workbench";
-import { copyContextText } from "../context-menu-clipboard";
+import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import {
   asArray,
+  asNumber,
   asRecord,
   asString,
-  Badge,
   displayTimestamp,
   ErrorBlock,
   LoadingBlock,
   titleCase,
   type UnknownRecord,
 } from "../lib";
+import { compactDuration } from "../orchestration-helpers";
+import { statusTier } from "../work-surface/status";
+import { WorkDisclosure, WorkRow } from "../work-surface/WorkSurface";
 import {
   AUTOMATION_DETAILS_SUMMARY_CLASS,
-  AUTOMATION_RUN_BUTTON_CLASS,
-  AUTOMATION_RUNS_PANEL_CLASS,
   AUTOMATION_STATUS_DOT_CLASS,
 } from "./layout";
 import "../orchestration/work-surfaces.css";
-
-function runTone(status: string): "good" | "warn" | "bad" | "neutral" {
-  if (status === "failed") return "bad";
-  if (status === "skipped") return "warn";
-  if (status === "completed") return "good";
-  return "neutral";
-}
 
 function runStatusClass(status: string): string {
   if (status === "failed") {
@@ -44,19 +32,32 @@ function runStatusClass(status: string): string {
   return AUTOMATION_STATUS_DOT_CLASS;
 }
 
+function runDurationLabel(entry: UnknownRecord): string | undefined {
+  const durationMs = asNumber(entry.durationMs);
+  if (durationMs > 0) return compactDuration(durationMs);
+  const started = Date.parse(asString(entry.startedAt));
+  const completed = Date.parse(asString(entry.completedAt));
+  if (Number.isFinite(started) && Number.isFinite(completed)) {
+    return compactDuration(Math.max(0, completed - started));
+  }
+  return undefined;
+}
+
 function AutomationTrace({ entry }: { entry: UnknownRecord }) {
   const status = asString(entry.status, "completed");
+  const triggerLabel = titleCase(asString(entry.triggerType, "schedule"));
+  const duration = runDurationLabel(entry);
   const trace = useMemo(
     () => asArray(entry.trace).map(asRecord),
     [entry.trace],
   );
   return (
-    <WorkbenchSection
-      className="automation-trace"
-      title={asString(entry.jobName, "Automation run")}
-      icon={ScrollText}
-      headingLevel={3}
-      actions={<Badge tone={runTone(status)}>{titleCase(status)}</Badge>}
+    <WorkDisclosure
+      aside={displayTimestamp(
+        asString(entry.completedAt, asString(entry.createdAt)) || undefined,
+      )}
+      detail={`${asString(entry.jobName, "Automation run")} · ${triggerLabel} · ${titleCase(status)}${duration ? ` · ${duration}` : ""}`}
+      summary="Run diagnostics"
     >
       <ol className="work-trace-steps">
         {trace.length ? (
@@ -107,7 +108,7 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
           {asString(entry.output, "No output was recorded.")}
         </pre>
       </details>
-    </WorkbenchSection>
+    </WorkDisclosure>
   );
 }
 
@@ -132,104 +133,80 @@ export function AutomationRunHistory({
   runsLoading: boolean;
   selectedRun?: UnknownRecord;
 }) {
+  const selectedRunId = selectedRun ? asString(selectedRun.id) : "";
   return (
     <details
-      className={`content-card work-disclosure ${AUTOMATION_RUNS_PANEL_CLASS}${quiet ? " is-quiet" : ""}`}
+      className="ws-disclosure automation-runs mx-[var(--document-inset,12px)] mb-[var(--document-inset,12px)]"
       onToggle={(event) => onOpenChange(event.currentTarget.open)}
       open={open}
     >
       <summary>
-        <span className="work-disclosure__identity">
-          <UiIcon icon={History} size="md" />
+        <span>
           <strong>Run history</strong>
+          <small>
+            {open
+              ? `${runs.length} loaded`
+              : quiet
+                ? "View past runs"
+                : "Open to load"}
+          </small>
         </span>
-        <span className="work-disclosure__meta">
-          {open
-            ? `${runs.length} loaded`
-            : quiet
-              ? "View past runs"
-              : "Open to load"}
-          <UiIcon icon={ChevronDown} />
-        </span>
+        <small>{open && runs.length ? `${runs.length} recent` : null}</small>
       </summary>
       {open ? (
-        <div className="automation-runs-body m-4 mt-3.5">
+        <div className="automation-runs-body pt-1.5">
           <div className="automation-runs-toolbar mb-2.5 flex items-center justify-between gap-3 text-[length:var(--text-control)] text-[var(--muted)]">
             <span>Recent runs</span>
-            <WorkbenchAction
-              emphasis="quiet"
-              icon={RotateCw}
+            <button
+              className="text-button inline-flex items-center gap-1.5"
               onClick={onReload}
+              type="button"
             >
+              <UiIcon icon={RotateCw} />
               Refresh
-            </WorkbenchAction>
+            </button>
           </div>
           {runsLoading ? (
             <LoadingBlock label="Loading traces…" />
           ) : runsError ? (
             <ErrorBlock error={runsError} retry={onReload} />
           ) : runs.length ? (
-            <div className="automation-trace-layout grid grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)] gap-3 max-[820px]:grid-cols-1">
-              <ul
-                aria-label="Automation runs"
-                className="automation-run-list m-0 flex max-h-61.5 list-none flex-col gap-0.75 overflow-auto p-0"
-              >
+            <>
+              <ul aria-label="Automation runs" className="ws-list max-h-61.5">
                 {runs.map((entry, index) => {
                   const id = asString(entry.id, String(index));
                   const status = asString(entry.status, "completed");
+                  const duration = runDurationLabel(entry);
                   return (
-                    <li key={id}>
-                      <ContextActionMenu
-                        label="Automation receipt actions"
-                        scopeKey={`automation-run:${id}`}
-                        items={[
-                          {
-                            id: "inspect",
-                            label: "Inspect receipt",
-                            onSelect: () => onSelectRun(id),
-                          },
-                          {
-                            id: "copy-id",
-                            label: "Copy run ID",
-                            onSelect: () => void copyContextText(id),
-                          },
-                        ]}
-                      >
-                        <button
-                          aria-pressed={asString(selectedRun?.id) === id}
-                          className={`work-receipt-row ${AUTOMATION_RUN_BUTTON_CLASS}`}
-                          onClick={() => onSelectRun(id)}
-                          type="button"
-                        >
-                          <span className={runStatusClass(status)} />
-                          <span className="flex min-w-0 flex-col gap-0.75">
-                            <strong className="automation-run-list__title truncate text-[length:var(--text-control)] font-medium">
-                              {asString(entry.jobName, "Automation run")}
-                            </strong>
-                            <small className="automation-run-list__meta text-[length:var(--text-control)] text-[var(--muted)]">
-                              {titleCase(
-                                asString(entry.triggerType, "schedule"),
-                              )}{" "}
-                              ·{" "}
-                              {displayTimestamp(
-                                asString(
-                                  entry.completedAt,
-                                  asString(entry.createdAt),
-                                ) || undefined,
-                              )}
-                            </small>
-                          </span>
-                          <Badge tone={runTone(status)}>
-                            {titleCase(status)}
-                          </Badge>
-                        </button>
-                      </ContextActionMenu>
-                    </li>
+                    <WorkRow
+                      key={id}
+                      label={`${asString(entry.jobName, "Automation run")} run`}
+                      meta={[
+                        titleCase(asString(entry.triggerType, "schedule")),
+                        ...(duration ? [duration] : []),
+                      ]}
+                      onSelect={() => onSelectRun(id)}
+                      selected={id === selectedRunId}
+                      status={titleCase(status)}
+                      time={displayTimestamp(
+                        asString(
+                          entry.completedAt,
+                          asString(entry.createdAt),
+                        ) || undefined,
+                      )}
+                      title={asString(entry.jobName, "Automation run")}
+                      tone={statusTier(status)}
+                    />
                   );
                 })}
               </ul>
-              {selectedRun ? <AutomationTrace entry={selectedRun} /> : null}
-            </div>
+              {selectedRun ? (
+                <AutomationTrace
+                  entry={selectedRun}
+                  key={selectedRunId || "run"}
+                />
+              ) : null}
+            </>
           ) : (
             <WorkbenchEmpty icon={ScrollText} title="No trace receipts">
               Run an automation to inspect its trigger, condition, action, and

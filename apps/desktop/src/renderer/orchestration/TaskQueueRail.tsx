@@ -4,15 +4,14 @@ import {
   WorkbenchAction,
   WorkbenchEmpty,
 } from "../components/workbench/Workbench";
-import { asString, Badge } from "../lib";
+import { asString } from "../lib";
 import {
-  orchestrationStatusTier,
   orchestrationTimingLabel,
   taskCapabilityLabel,
 } from "../orchestration-helpers";
 import type { DelegationTaskRecord } from "../orchestration-resources";
-import { statusTone } from "./detail-primitives";
-import { orchestrationClass as oc } from "./layout";
+import { statusTier } from "../work-surface/status";
+import { WorkList, WorkListFooter, WorkRow } from "../work-surface/WorkSurface";
 
 export function TaskQueueRail({
   filteredTasks,
@@ -48,10 +47,9 @@ export function TaskQueueRail({
   }
 
   return (
-    <ul className={oc("orchestration-master-list")}>
+    <WorkList>
       {taskWindow.visible.map((task) => {
         const status = asString(task.status, "pending");
-        const tier = orchestrationStatusTier(status);
         const timing = orchestrationTimingLabel({
           status,
           startedAt: asString(task.startedAt),
@@ -60,45 +58,26 @@ export function TaskQueueRail({
           createdAt: asString(task.createdAt),
         });
         const priority = asString(task.priority, "normal");
-        const capability = taskCapabilityLabel(
-          task.capabilityProfile,
-          task.kind,
-        );
+        const meta = [
+          taskCapabilityLabel(task.capabilityProfile, task.kind),
+          ...(priority !== "normal" ? [priority] : []),
+        ];
         return (
-          <li key={task.id}>
-            <button
-              type="button"
-              className={oc(
-                "orchestration-master-item",
-                task.id === selectedTaskId && "selected",
-                `tier-${tier}`,
-              )}
-              aria-pressed={task.id === selectedTaskId}
-              onClick={() => onSelectTask(task)}
-              title={asString(task.title, "Untitled task")}
-            >
-              <span className={oc("master-row", "master-row-top")}>
-                <span className={oc("master-title-line")}>
-                  <i className={oc("master-status-dot")} aria-hidden="true" />
-                  <strong>{asString(task.title, "Untitled task")}</strong>
-                </span>
-                <Badge tone={statusTone(status)}>{status}</Badge>
-              </span>
-              <span className={oc("master-row", "master-row-bottom")}>
-                <span className={oc("master-meta-pills")}>
-                  <span>{capability}</span>
-                  {priority !== "normal" ? <span>{priority}</span> : null}
-                </span>
-                <small className={oc("orchestration-task-rail-meta")}>
-                  {timing}
-                </small>
-              </span>
-            </button>
-          </li>
+          <WorkRow
+            key={task.id}
+            label={asString(task.title, "Untitled task")}
+            meta={meta}
+            onSelect={() => onSelectTask(task)}
+            selected={task.id === selectedTaskId}
+            status={status}
+            time={timing}
+            title={asString(task.title, "Untitled task")}
+            tone={statusTier(status)}
+          />
         );
       })}
       {taskWindow.remaining ? (
-        <li className={oc("orchestration-master-footer")}>
+        <WorkListFooter>
           <span>
             Showing {taskWindow.visible.length} of {filteredTasks.length}
           </span>
@@ -109,8 +88,8 @@ export function TaskQueueRail({
           >
             Show {Math.min(pageSize, taskWindow.remaining)} more
           </button>
-        </li>
+        </WorkListFooter>
       ) : null}
-    </ul>
+    </WorkList>
   );
 }

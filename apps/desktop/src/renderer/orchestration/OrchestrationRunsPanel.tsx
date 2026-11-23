@@ -1,6 +1,8 @@
 import { ContextActionMenu } from "@doolittle/ui";
+import { Workflow } from "lucide-react";
 import type { FormEvent } from "react";
 import { ArtifactViewer } from "../components/ArtifactViewer";
+import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
 import {
   type ApiResource,
@@ -9,14 +11,13 @@ import {
   asString,
   Badge,
   displayTimestamp,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   Notice,
+  titleCase,
   type UnknownRecord,
 } from "../lib";
 import {
-  orchestrationStatusTier,
   orchestrationTimingLabel,
   taskCapabilityLabel,
 } from "../orchestration-helpers";
@@ -25,12 +26,20 @@ import type {
   CodegenWorkflowRecord,
   WorkflowBundleResponse,
 } from "../orchestration-resources";
+import { statusTier, type WorkTier } from "../work-surface/status";
 import {
-  DetailRow,
-  DetailTag,
-  SmallEmpty,
-  statusTone,
-} from "./detail-primitives";
+  DetailFacts,
+  DetailHeader,
+  FactRow,
+  WorkActions,
+  WorkCard,
+  WorkCards,
+  WorkConfirm,
+  WorkDisclosure,
+  WorkList,
+  WorkRow,
+  WorkTag,
+} from "../work-surface/WorkSurface";
 import { orchestrationClass as oc } from "./layout";
 import type { CodegenMode } from "./orchestration-runs-model";
 import { runArtifacts } from "./orchestration-runs-model";
@@ -95,6 +104,17 @@ export type OrchestrationRunsPanelProps = {
   onLoadBundle: () => void | Promise<void>;
   onCancelRun: (run: CodegenRunRecord) => void | Promise<void>;
 };
+
+function tagTone(tier: WorkTier): "good" | "warn" | "bad" | "neutral" {
+  if (tier === "done") return "good";
+  if (tier === "attention") return "warn";
+  if (tier === "failed") return "bad";
+  return "neutral";
+}
+
+function runCancellable(run: CodegenRunRecord): boolean {
+  return ["pending", "running"].includes(asString(run.status));
+}
 
 export function OrchestrationRunsPanel({
   active,
@@ -168,25 +188,28 @@ export function OrchestrationRunsPanel({
         onSubmitCodegen={onSubmitCodegen}
       />
 
-      <aside className={oc("orchestration-run-browser")} hidden={emptyHistory}>
-        <div className={oc("orchestration-pane-heading")}>
+      <aside
+        className={`ws-rail ${oc("orchestration-run-browser")}`}
+        hidden={emptyHistory}
+      >
+        <div className="ws-rail__heading">
           <span>Workflows</span>
           <small>{workflows.length}</small>
         </div>
-        <div className={oc("orchestration-workflow-list")}>
-          {codegenWorkflowsResource.error ? (
-            <ErrorBlock
-              error={codegenWorkflowsResource.error}
-              retry={codegenWorkflowsResource.reload}
-            />
-          ) : codegenWorkflowsResource.loading ? (
-            <LoadingBlock />
-          ) : workflows.length === 0 ? (
-            <SmallEmpty>No workflows recorded.</SmallEmpty>
-          ) : (
-            workflows.map((workflow) => {
+        {codegenWorkflowsResource.error ? (
+          <ErrorBlock
+            error={codegenWorkflowsResource.error}
+            retry={codegenWorkflowsResource.reload}
+          />
+        ) : codegenWorkflowsResource.loading ? (
+          <LoadingBlock />
+        ) : workflows.length === 0 ? (
+          <p className="ws-empty-line">No workflows recorded.</p>
+        ) : (
+          <ul className="ws-list ws-list--cap">
+            {workflows.map((workflow) => {
               const status = asString(workflow.status, "pending");
-              const tier = orchestrationStatusTier(status);
+              const title = asString(workflow.title, workflow.id);
               return (
                 <ContextActionMenu
                   key={workflow.id}
@@ -205,62 +228,44 @@ export function OrchestrationRunsPanel({
                     },
                   ]}
                 >
-                  <button
-                    type="button"
-                    className={oc(
-                      selectedWorkflow?.id === workflow.id && "selected",
-                      `tier-${tier}`,
-                    )}
-                    aria-pressed={selectedWorkflow?.id === workflow.id}
-                    onClick={() => onSelectWorkflow(workflow.id)}
-                  >
-                    <span className={oc("master-row", "master-row-top")}>
-                      <span className={oc("master-title-line")}>
-                        <i
-                          className={oc("master-status-dot")}
-                          aria-hidden="true"
-                        />
-                        <strong>{asString(workflow.title, workflow.id)}</strong>
-                      </span>
-                      <Badge tone={statusTone(status)}>{status}</Badge>
-                    </span>
-                    <small>
-                      {orchestrationTimingLabel({
-                        status,
-                        completedAt: asString(workflow.completedAt),
-                        updatedAt: asString(workflow.updatedAt),
-                        createdAt: asString(workflow.createdAt),
-                      })}
-                    </small>
-                  </button>
+                  <WorkRow
+                    label={title}
+                    meta={[asString(workflow.kind, "generate")]}
+                    onSelect={() => onSelectWorkflow(workflow.id)}
+                    selected={selectedWorkflow?.id === workflow.id}
+                    status={titleCase(status)}
+                    time={orchestrationTimingLabel({
+                      status,
+                      completedAt: asString(workflow.completedAt),
+                      updatedAt: asString(workflow.updatedAt),
+                      createdAt: asString(workflow.createdAt),
+                    })}
+                    title={title}
+                    tone={statusTier(status)}
+                  />
                 </ContextActionMenu>
               );
-            })
-          )}
-        </div>
-        <div className={oc("orchestration-pane-heading", "runs-heading")}>
+            })}
+          </ul>
+        )}
+        <div className={`ws-rail__heading ${oc("runs-heading")}`}>
           <span>Runs</span>
           <small>{visibleRuns.length}</small>
         </div>
-        <div
-          className={oc(
-            "orchestration-workflow-list",
-            "orchestration-run-list",
-          )}
-        >
-          {workflowDetailResource.error ? (
-            <ErrorBlock
-              error={workflowDetailResource.error}
-              retry={workflowDetailResource.reload}
-            />
-          ) : workflowDetailResource.loading ? (
-            <LoadingBlock />
-          ) : visibleRuns.length === 0 ? (
-            <SmallEmpty>No runs in this workflow.</SmallEmpty>
-          ) : (
-            visibleRuns.map((run) => {
+        {workflowDetailResource.error ? (
+          <ErrorBlock
+            error={workflowDetailResource.error}
+            retry={workflowDetailResource.reload}
+          />
+        ) : workflowDetailResource.loading ? (
+          <LoadingBlock />
+        ) : visibleRuns.length === 0 ? (
+          <p className="ws-empty-line">No runs in this workflow.</p>
+        ) : (
+          <WorkList>
+            {visibleRuns.map((run) => {
               const status = asString(run.status, "pending");
-              const tier = orchestrationStatusTier(status);
+              const title = asString(run.phase, run.kind);
               return (
                 <ContextActionMenu
                   key={run.id}
@@ -277,7 +282,7 @@ export function OrchestrationRunsPanel({
                       label: "Copy run ID",
                       onSelect: () => void copyContextText(run.id),
                     },
-                    ...(["pending", "running"].includes(status)
+                    ...(runCancellable(run)
                       ? [
                           {
                             id: "cancel",
@@ -295,326 +300,326 @@ export function OrchestrationRunsPanel({
                       : []),
                   ]}
                 >
-                  <button
-                    type="button"
-                    className={oc(
-                      selectedRun?.id === run.id && "selected",
-                      `tier-${tier}`,
-                    )}
-                    aria-pressed={selectedRun?.id === run.id}
-                    onClick={() => onSelectRun(run.id)}
-                  >
-                    <span className={oc("master-row", "master-row-top")}>
-                      <span className={oc("master-title-line")}>
-                        <i
-                          className={oc("master-status-dot")}
-                          aria-hidden="true"
-                        />
-                        <strong>{asString(run.phase, run.kind)}</strong>
-                      </span>
-                      <Badge tone={statusTone(status)}>{status}</Badge>
-                    </span>
-                    <small>
-                      {orchestrationTimingLabel({
-                        status,
-                        completedAt: asString(run.completedAt),
-                        updatedAt: asString(run.updatedAt),
-                        createdAt: asString(run.createdAt),
-                      })}
-                    </small>
-                  </button>
+                  <WorkRow
+                    label={title}
+                    meta={[asString(run.kind, "run")]}
+                    onSelect={() => onSelectRun(run.id)}
+                    selected={selectedRun?.id === run.id}
+                    status={titleCase(status)}
+                    time={orchestrationTimingLabel({
+                      status,
+                      completedAt: asString(run.completedAt),
+                      updatedAt: asString(run.updatedAt),
+                      createdAt: asString(run.createdAt),
+                    })}
+                    title={title}
+                    tone={statusTier(status)}
+                  />
                 </ContextActionMenu>
               );
-            })
-          )}
-        </div>
+            })}
+          </WorkList>
+        )}
       </aside>
 
       <article
-        className={oc("orchestration-detail", "orchestration-run-detail")}
+        className={`ws-detail ${oc("orchestration-run-detail")}`}
         hidden={emptyHistory}
       >
         {!selectedWorkflow ? (
-          <EmptyBlock title="Choose a workflow">
+          <WorkbenchEmpty icon={Workflow} title="Choose a workflow">
             Workflow and run evidence appear here.
-          </EmptyBlock>
+          </WorkbenchEmpty>
         ) : (
-          <>
-            <div className={oc("orchestration-detail-header")}>
-              <div>
-                <span className={oc("detail-kicker")}>
-                  {asString(selectedWorkflow.kind, "generate")} workflow
-                </span>
-                <h2>
-                  {asString(
-                    workflowDetailResource.data?.workflow?.title,
-                    asString(selectedWorkflow.title, selectedWorkflow.id),
-                  )}
-                </h2>
-                <p>
-                  {asString(
-                    workflowDetailResource.data?.workflow?.objective,
-                    asString(
-                      selectedWorkflow.objective,
-                      "No objective recorded.",
-                    ),
-                  )}
-                </p>
-              </div>
-              <Badge
-                tone={statusTone(asString(selectedWorkflow.status, "pending"))}
-              >
-                {asString(selectedWorkflow.status, "pending")}
-              </Badge>
-            </div>
-            <div className={oc("orchestration-detail-tags")}>
-              <DetailTag
-                tone={statusTone(asString(selectedWorkflow.status, "pending"))}
-              >
-                {orchestrationTimingLabel({
-                  status: asString(selectedWorkflow.status, "pending"),
-                  completedAt: asString(selectedWorkflow.completedAt),
-                  updatedAt: asString(selectedWorkflow.updatedAt),
-                  createdAt: asString(selectedWorkflow.createdAt),
-                })}
-              </DetailTag>
-              <DetailTag>
-                {asString(selectedWorkflow.kind, "generate")}
-              </DetailTag>
-              <DetailTag>{visibleRuns.length} runs visible</DetailTag>
-              <DetailTag>
-                {asArray(workflowDetailResource.data?.tree).length} root phases
-              </DetailTag>
-            </div>
-            <div className={oc("orchestration-run-toolbar")}>
-              <span>
-                {asArray(workflowDetailResource.data?.tree).length} root phases
-                · {visibleRuns.length} runs
-              </span>
-              <div className={oc("orchestration-run-actions")}>
-                {selectedRun &&
-                ["pending", "running"].includes(
-                  asString(selectedRun.status),
-                ) ? (
-                  <button
-                    className="danger-button"
-                    type="button"
-                    onClick={() => onRequestRunCancellation(selectedRun.id)}
-                    disabled={
-                      !active || busyKeys[`codegen:${selectedRun.id}:cancel`]
-                    }
-                  >
-                    Cancel run
-                  </button>
-                ) : null}
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => void onLoadBundle()}
-                  disabled={
-                    !active ||
-                    (bundleLoading && bundleWorkflowId === selectedWorkflow.id)
-                  }
-                >
-                  {bundleLoading && bundleWorkflowId === selectedWorkflow.id
-                    ? "Bundling…"
-                    : "Bundle workflow"}
-                </button>
-              </div>
-            </div>
+          <WorkflowDetail
+            active={active}
+            bundleError={bundleError}
+            bundleLoading={bundleLoading}
+            bundleResult={bundleResult}
+            bundleWorkflowId={bundleWorkflowId}
+            busyKeys={busyKeys}
+            confirmedRunCancellation={confirmedRunCancellation}
+            onCancelRun={onCancelRun}
+            onDismissRunCancellation={onDismissRunCancellation}
+            onLoadBundle={onLoadBundle}
+            onRequestRunCancellation={onRequestRunCancellation}
+            runCount={visibleRuns.length}
+            runDetailResource={runDetailResource}
+            selectedRun={selectedRun}
+            selectedWorkflow={selectedWorkflow}
+            workflowDetailResource={workflowDetailResource}
+          />
+        )}
+      </article>
+    </div>
+  );
+}
 
-            {selectedRun && confirmedRunCancellation === selectedRun.id ? (
-              <div
-                className={oc(
-                  "orchestration-confirm",
-                  "orchestration-run-confirm",
-                )}
-                aria-live="polite"
+function WorkflowDetail({
+  active,
+  bundleError,
+  bundleLoading,
+  bundleResult,
+  bundleWorkflowId,
+  busyKeys,
+  confirmedRunCancellation,
+  onCancelRun,
+  onDismissRunCancellation,
+  onLoadBundle,
+  onRequestRunCancellation,
+  runCount,
+  runDetailResource,
+  selectedRun,
+  selectedWorkflow,
+  workflowDetailResource,
+}: {
+  active: boolean;
+  bundleError: string;
+  bundleLoading: boolean;
+  bundleResult: WorkflowBundleResponse | null;
+  bundleWorkflowId: string;
+  busyKeys: Readonly<Record<string, boolean>>;
+  confirmedRunCancellation: string;
+  onCancelRun: (run: CodegenRunRecord) => void | Promise<void>;
+  onDismissRunCancellation: () => void;
+  onLoadBundle: () => void | Promise<void>;
+  onRequestRunCancellation: (runId: string) => void;
+  runCount: number;
+  runDetailResource: ApiResource<RunDetailResponse>;
+  selectedRun?: CodegenRunRecord;
+  selectedWorkflow: CodegenWorkflowRecord;
+  workflowDetailResource: ApiResource<WorkflowDetailResponse>;
+}) {
+  const status = asString(selectedWorkflow.status, "pending");
+  const tier = statusTier(status);
+  const bundling = bundleLoading && bundleWorkflowId === selectedWorkflow.id;
+  return (
+    <>
+      <DetailHeader
+        kicker={`${asString(selectedWorkflow.kind, "generate")} workflow`}
+        objective={asString(
+          workflowDetailResource.data?.workflow?.objective,
+          asString(selectedWorkflow.objective, "No objective recorded."),
+        )}
+        status={<Badge tone={tagTone(tier)}>{titleCase(status)}</Badge>}
+        tags={
+          <>
+            <WorkTag tone={tagTone(tier)}>
+              {orchestrationTimingLabel({
+                status,
+                completedAt: asString(selectedWorkflow.completedAt),
+                updatedAt: asString(selectedWorkflow.updatedAt),
+                createdAt: asString(selectedWorkflow.createdAt),
+              })}
+            </WorkTag>
+            <WorkTag>{asString(selectedWorkflow.kind, "generate")}</WorkTag>
+            <WorkTag>{runCount} runs</WorkTag>
+            <WorkTag>
+              {asArray(workflowDetailResource.data?.tree).length} root phases
+            </WorkTag>
+          </>
+        }
+        title={asString(
+          workflowDetailResource.data?.workflow?.title,
+          asString(selectedWorkflow.title, selectedWorkflow.id),
+        )}
+      />
+      <WorkActions
+        primary={
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => void onLoadBundle()}
+            disabled={!active || bundling}
+          >
+            {bundling ? "Bundling…" : "Bundle workflow"}
+          </button>
+        }
+        secondary={
+          <details className="ws-overflow">
+            <summary>More</summary>
+            <div className="ws-overflow__menu">
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => void copyContextText(selectedWorkflow.id)}
               >
-                <div>
-                  <strong id="run-cancel-title">Cancel this run?</strong>
-                  <span id="run-cancel-description">
-                    This records a cancelled lifecycle state. The current
-                    pipeline cannot guarantee that in-flight model work stops
-                    immediately.
-                  </span>
-                </div>
+                Copy workflow ID
+              </button>
+              {selectedRun && runCancellable(selectedRun) ? (
                 <button
-                  className="danger-button"
+                  className="text-button danger-text-button"
                   type="button"
-                  onClick={() => void onCancelRun(selectedRun)}
+                  onClick={() => onRequestRunCancellation(selectedRun.id)}
                   disabled={
                     !active || busyKeys[`codegen:${selectedRun.id}:cancel`]
                   }
                 >
-                  {busyKeys[`codegen:${selectedRun.id}:cancel`]
-                    ? "Cancelling…"
-                    : "Confirm cancellation"}
+                  Cancel run…
                 </button>
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => onDismissRunCancellation()}
-                >
-                  Keep running
-                </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
+          </details>
+        }
+      />
+      {selectedRun && confirmedRunCancellation === selectedRun.id ? (
+        <WorkConfirm
+          detail="This records a cancelled lifecycle state. The current pipeline cannot guarantee that in-flight model work stops immediately."
+          title="Cancel this run?"
+        >
+          <button
+            className="danger-button"
+            type="button"
+            onClick={() => void onCancelRun(selectedRun)}
+            disabled={!active || busyKeys[`codegen:${selectedRun.id}:cancel`]}
+          >
+            {busyKeys[`codegen:${selectedRun.id}:cancel`]
+              ? "Cancelling…"
+              : "Confirm cancellation"}
+          </button>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => onDismissRunCancellation()}
+          >
+            Keep running
+          </button>
+        </WorkConfirm>
+      ) : null}
+      {bundleError && bundleWorkflowId === selectedWorkflow.id ? (
+        <ErrorBlock error={bundleError} retry={() => void onLoadBundle()} />
+      ) : null}
+      {bundleResult && bundleWorkflowId === selectedWorkflow.id ? (
+        <Notice tone="good">
+          <strong>Bundle ready</strong>
+          <span>
+            {asString(bundleResult.manifestPath) ||
+              asString(
+                asRecord(bundleResult.manifest).name,
+                "Manifest receipt ready",
+              )}{" "}
+            · {asArray(bundleResult.runs).length} run records included
+          </span>
+        </Notice>
+      ) : null}
+      {!selectedRun ? (
+        <p className="ws-empty-line">Select a run to inspect its evidence.</p>
+      ) : runDetailResource.error ? (
+        <ErrorBlock
+          error={runDetailResource.error}
+          retry={runDetailResource.reload}
+        />
+      ) : runDetailResource.loading ? (
+        <LoadingBlock />
+      ) : (
+        <RunInspector selectedRun={selectedRun} />
+      )}
+    </>
+  );
+}
 
-            {bundleError && bundleWorkflowId === selectedWorkflow.id ? (
-              <ErrorBlock
-                error={bundleError}
-                retry={() => void onLoadBundle()}
-              />
-            ) : null}
-            {bundleResult && bundleWorkflowId === selectedWorkflow.id ? (
-              <div className={oc("orchestration-bundle-receipt")}>
-                <strong>Bundle ready</strong>
-                <code>
-                  {asString(bundleResult.manifestPath) ||
-                    asString(
-                      asRecord(bundleResult.manifest).name,
-                      "Manifest receipt ready",
-                    )}
-                </code>
-                <span>
-                  {asArray(bundleResult.runs).length} run records included
-                </span>
-              </div>
-            ) : null}
-
-            {!selectedRun ? (
-              <SmallEmpty>Select a run to inspect its evidence.</SmallEmpty>
-            ) : runDetailResource.error ? (
-              <ErrorBlock
-                error={runDetailResource.error}
-                retry={runDetailResource.reload}
-              />
-            ) : runDetailResource.loading ? (
-              <LoadingBlock />
-            ) : (
-              <div className={oc("orchestration-run-inspector")}>
-                <div className={oc("orchestration-subheading")}>
-                  <div>
-                    <span className={oc("detail-kicker")}>Selected run</span>
-                    <h3>
-                      {asString(
-                        selectedRun.phase,
-                        asString(selectedRun.kind, selectedRun.id),
-                      )}
-                    </h3>
-                  </div>
-                  <Badge
-                    tone={statusTone(asString(selectedRun.status, "pending"))}
-                  >
-                    {asString(selectedRun.status, "pending")}
-                  </Badge>
-                </div>
-                <div className={oc("orchestration-detail-tags")}>
-                  <DetailTag
-                    tone={statusTone(asString(selectedRun.status, "pending"))}
-                  >
-                    {orchestrationTimingLabel({
-                      status: asString(selectedRun.status, "pending"),
-                      completedAt: asString(selectedRun.completedAt),
-                      updatedAt: asString(selectedRun.updatedAt),
-                      createdAt: asString(selectedRun.createdAt),
-                    })}
-                  </DetailTag>
-                  <DetailTag>{asString(selectedRun.kind, "run")}</DetailTag>
-                  <DetailTag>
-                    {selectedRun.taskId ? "task linked" : "task unlinked"}
-                  </DetailTag>
-                  <DetailTag>
-                    {selectedRun.sessionId
-                      ? "session linked"
-                      : "session unlinked"}
-                  </DetailTag>
-                  <DetailTag>
-                    {selectedRun.accountLabel || selectedRun.accountId
-                      ? `account ${selectedRun.accountLabel || selectedRun.accountId}`
-                      : "account not recorded"}
-                  </DetailTag>
-                </div>
-                <dl className={oc("orchestration-run-facts")}>
-                  <DetailRow label="Run ID" value={selectedRun.id} />
-                  <DetailRow
-                    label="Task"
-                    value={asString(selectedRun.taskId, "not linked")}
-                  />
-                  <DetailRow
-                    label="Session"
-                    value={asString(selectedRun.sessionId, "not linked")}
-                  />
-                  <DetailRow
-                    label="Capability"
-                    value={taskCapabilityLabel(
-                      selectedRun.capabilityProfile,
-                      selectedRun.kind,
-                    )}
-                  />
-                  <DetailRow
-                    label="Framework"
-                    value={asString(selectedRun.framework, "not recorded")}
-                  />
-                  <DetailRow
-                    label="Account provider"
-                    value={asString(
-                      selectedRun.accountProviderId,
-                      "not recorded",
-                    )}
-                  />
-                  <DetailRow
-                    label="Account"
-                    value={asString(
-                      selectedRun.accountLabel,
-                      asString(selectedRun.accountId, "not recorded"),
-                    )}
-                  />
-                  <DetailRow
-                    label="Updated"
-                    value={displayTimestamp(asString(selectedRun.updatedAt))}
-                  />
-                </dl>
-                {selectedRun.error ? (
-                  <Notice tone="bad">
-                    <strong>Run error</strong>
-                    <span>{selectedRun.error}</span>
-                  </Notice>
-                ) : null}
-                <div className={oc("orchestration-output-grid")}>
-                  <section>
-                    <span className={oc("detail-kicker")}>Output preview</span>
-                    <pre>
-                      {asString(
-                        selectedRun.outputPreview,
-                        "No output preview recorded.",
-                      )}
-                    </pre>
-                  </section>
-                  <section>
-                    <span className={oc("detail-kicker")}>Request</span>
-                    <pre>
-                      {JSON.stringify(asRecord(selectedRun.input), null, 2)}
-                    </pre>
-                  </section>
-                </div>
-                <div className={oc("orchestration-artifacts")}>
-                  <span className={oc("detail-kicker")}>Artifacts</span>
-                  {runArtifacts(selectedRun).length > 0 ? (
-                    <ArtifactViewer
-                      artifacts={runArtifacts(selectedRun)}
-                      runId={selectedRun.id}
-                    />
-                  ) : (
-                    <SmallEmpty>No artifacts recorded.</SmallEmpty>
-                  )}
-                </div>
-              </div>
+function RunInspector({ selectedRun }: { selectedRun: CodegenRunRecord }) {
+  const status = asString(selectedRun.status, "pending");
+  const tier = statusTier(status);
+  const artifacts = runArtifacts(selectedRun);
+  return (
+    <div className={oc("orchestration-run-inspector")}>
+      <div className={oc("orchestration-subheading")}>
+        <div>
+          <span className="ws-kicker">Selected run</span>
+          <h3>
+            {asString(
+              selectedRun.phase,
+              asString(selectedRun.kind, selectedRun.id),
             )}
-          </>
-        )}
-      </article>
+          </h3>
+        </div>
+        <Badge tone={tagTone(tier)}>{titleCase(status)}</Badge>
+      </div>
+      <div className="ws-tags">
+        <WorkTag tone={tagTone(tier)}>
+          {orchestrationTimingLabel({
+            status,
+            completedAt: asString(selectedRun.completedAt),
+            updatedAt: asString(selectedRun.updatedAt),
+            createdAt: asString(selectedRun.createdAt),
+          })}
+        </WorkTag>
+        <WorkTag>{asString(selectedRun.kind, "run")}</WorkTag>
+        <WorkTag>
+          {selectedRun.taskId ? "task linked" : "task unlinked"}
+        </WorkTag>
+        <WorkTag>
+          {selectedRun.sessionId ? "session linked" : "session unlinked"}
+        </WorkTag>
+        <WorkTag>
+          {selectedRun.accountLabel || selectedRun.accountId
+            ? `account ${selectedRun.accountLabel || selectedRun.accountId}`
+            : "account not recorded"}
+        </WorkTag>
+      </div>
+      {selectedRun.error ? (
+        <Notice tone="bad">
+          <strong>Run error</strong>
+          <span>{selectedRun.error}</span>
+        </Notice>
+      ) : null}
+      <WorkCards>
+        <WorkCard kicker="Output preview">
+          <pre>
+            {asString(selectedRun.outputPreview, "No output preview recorded.")}
+          </pre>
+        </WorkCard>
+        <WorkCard kicker="Artifacts">
+          {artifacts.length > 0 ? (
+            <ArtifactViewer artifacts={artifacts} runId={selectedRun.id} />
+          ) : (
+            <p className="ws-empty-line">No artifacts recorded.</p>
+          )}
+        </WorkCard>
+      </WorkCards>
+      <WorkDisclosure
+        aside={`${asString(selectedRun.kind, "run")} · ${titleCase(status)}`}
+        detail="IDs, session, account, and runtime diagnostics"
+        summary="Run details"
+      >
+        <DetailFacts>
+          <FactRow label="Run ID">{selectedRun.id}</FactRow>
+          <FactRow label="Task">
+            {asString(selectedRun.taskId, "not linked")}
+          </FactRow>
+          <FactRow label="Session">
+            {asString(selectedRun.sessionId, "not linked")}
+          </FactRow>
+          <FactRow label="Capability">
+            {taskCapabilityLabel(
+              selectedRun.capabilityProfile,
+              selectedRun.kind,
+            )}
+          </FactRow>
+          <FactRow label="Framework">
+            {asString(selectedRun.framework, "not recorded")}
+          </FactRow>
+          <FactRow label="Account provider">
+            {asString(selectedRun.accountProviderId, "not recorded")}
+          </FactRow>
+          <FactRow label="Account">
+            {asString(
+              selectedRun.accountLabel,
+              asString(selectedRun.accountId, "not recorded"),
+            )}
+          </FactRow>
+          <FactRow label="Updated">
+            {displayTimestamp(asString(selectedRun.updatedAt))}
+          </FactRow>
+        </DetailFacts>
+      </WorkDisclosure>
+      <WorkDisclosure
+        detail="Raw input record submitted to the workflow"
+        summary="Request payload"
+      >
+        <pre>{JSON.stringify(asRecord(selectedRun.input), null, 2)}</pre>
+      </WorkDisclosure>
     </div>
   );
 }
