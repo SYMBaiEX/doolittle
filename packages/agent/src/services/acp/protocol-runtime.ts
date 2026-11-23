@@ -4,11 +4,11 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import {
   type AgentApp,
   type AgentContext,
+  acpToolKindForAction,
   type ClientCapabilities,
   type ContentBlock,
   type CreateTerminalRequest,
   createDoolittleAcpAgent,
-  guessAcpToolKind,
   type InitializeRequest,
   type InitializeResponse,
   type KillTerminalRequest,
@@ -677,7 +677,7 @@ export class AcpProtocolRuntime {
         sessionUpdate: "tool_call",
         toolCallId: id,
         title: action,
-        kind: guessAcpToolKind({ id: action.toLowerCase() }),
+        kind: acpToolKindForAction(action),
         status: "in_progress",
         rawInput: { action },
       });
