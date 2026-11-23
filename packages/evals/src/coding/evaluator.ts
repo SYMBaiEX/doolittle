@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve, sep, win32 } from "node:path";
 import { isShellResultActionName } from "@doolittle/agent/runtime/sdk-terminal-identity";
 import { inspectWorkspaceCommands } from "@doolittle/agent/utils/workspace-commands";
 import type { CodingEvalCase } from "./cases";
@@ -197,6 +197,11 @@ function shellWorkingDirectory(
     )
       return launchDirectory;
     return resolve(explicit);
+  }
+  if (explicit && launchDirectory) {
+    return /^[a-z]:[\\/]/iu.test(launchDirectory)
+      ? win32.resolve(launchDirectory, explicit)
+      : resolve(launchDirectory, explicit);
   }
   return launchDirectory;
 }

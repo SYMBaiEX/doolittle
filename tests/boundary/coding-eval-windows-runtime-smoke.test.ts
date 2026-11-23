@@ -13,6 +13,10 @@ it.each([
   { cd: String.raw`cd /d D:\app`, cwd: String.raw`C:\outside`, status: "pass" },
   { cd: String.raw`cd /D D:\app`, cwd: String.raw`C:\outside`, status: "pass" },
   { cd: String.raw`cd D:\app`, cwd: undefined, status: "fail" },
+  { cd: String.raw`cd ..\other`, cwd: String.raw`D:\app`, status: "fail" },
+  { cd: String.raw`cd /d ..\other`, cwd: String.raw`D:\app`, status: "fail" },
+  { cd: String.raw`cd ..\app`, cwd: String.raw`D:\outside`, status: "pass" },
+  { cd: String.raw`cd /d ..\app`, cwd: String.raw`D:\outside`, status: "pass" },
 ])("uses cmd.exe drive semantics for $cd from $cwd", ({ cd, cwd, status }) => {
   const evaluation = evaluateCodingRun({
     run: { runId: "windows-smoke", status: "complete" },
