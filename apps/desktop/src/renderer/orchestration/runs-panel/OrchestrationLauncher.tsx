@@ -128,7 +128,7 @@ export function OrchestrationLauncher(props: LauncherProps) {
                 {codegenMode === "generate" ? "Build request" : "Description"}
               </span>
               <textarea
-                rows={6}
+                rows={4}
                 value={codegenPrompt}
                 onChange={(event) => onCodegenPromptChange(event.target.value)}
                 placeholder="Describe the intended result, constraints, and evidence."

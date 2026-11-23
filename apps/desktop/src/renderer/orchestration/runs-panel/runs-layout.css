@@ -1,0 +1,70 @@
+.orchestration-launcher {
+  container-type: inline-size;
+}
+
+/* Only collapse confirmed empty history, never loading or failed requests. */
+.orchestration-runs-layout[data-empty="true"] {
+  display: block;
+  overflow: auto;
+}
+
+.orchestration-runs-layout[data-empty="true"] > .orchestration-launcher {
+  width: 100%;
+  max-width: 800px;
+  min-height: 100%;
+  margin-inline: auto;
+  overflow: visible;
+  border: 0;
+}
+
+.orchestration-run-browser[hidden],
+.orchestration-run-detail[hidden] {
+  display: none;
+}
+
+@container (min-width: 480px) {
+  .orchestration-mode-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .orchestration-codegen-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .orchestration-codegen-form > label:has(textarea),
+  .orchestration-codegen-form > button {
+    grid-column: 1 / -1;
+  }
+}
+
+/* One scroll owner: the form stays full-width before history and evidence. */
+@media (max-width: 1180px) {
+  .orchestration-runs-layout {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .orchestration-runs-layout > .orchestration-launcher,
+  .orchestration-runs-layout > .orchestration-run-browser,
+  .orchestration-runs-layout > .orchestration-run-detail {
+    flex: none;
+    overflow: visible;
+    border-right: 0;
+  }
+
+  .orchestration-runs-layout > .orchestration-launcher,
+  .orchestration-runs-layout > .orchestration-run-browser {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .orchestration-run-browser .orchestration-workflow-list {
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .orchestration-runs-layout > .orchestration-run-detail {
+    min-height: 240px;
+  }
+}
