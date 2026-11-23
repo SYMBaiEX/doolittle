@@ -63,7 +63,7 @@ Inspector width is measured against its conversation pane and reserves room for
 the transcript. Narrow panes use the full-width inspector sheet without
 rewriting the preferred width. Closing the inspector retains its selected view.
 The conversation inspector has one row of labeled views for details, files,
-changes, terminal history, preview, plans, run context, and environment. Resource
+changes, terminal, preview, plans, run context, and environment. Resource
 selections belong to the bot, conversation, and workspace. Document contents,
 command output, and repository facts stay runtime-owned.
 

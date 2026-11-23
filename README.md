@@ -15,8 +15,11 @@ cd doolittle
 bash scripts/install.sh
 ```
 
-Use `--desktop` to start the Electron desktop development app during setup.
-On Windows, run `pwsh -File scripts/install.ps1` with optional `-Desktop`.
+Use `--desktop` to also install the Electron runtime and launch Doolittle
+Desktop after setup. It opens the packaged app in `apps/desktop/release`,
+packaging one first if none exists; use `doolittle desktop --source` for the
+development app. On Windows, run `pwsh -File scripts/install.ps1` with optional
+`-Desktop`.
 Onboarding configures a model route for chat and coding. See the
 [setup guide](docs/setup.md) for provider credentials and platform requirements.
 
