@@ -120,6 +120,7 @@ export function LogsPage({
       description="Search the local runtime’s redacted events, delivery traces, and command history."
       icon={ListFilter}
       title="Logs"
+      titleHidden
     >
       {!active ? (
         <OfflineRouteState>

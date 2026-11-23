@@ -10,6 +10,7 @@ export function DiagnosticWorkspace({
   description,
   icon,
   title,
+  titleHidden = false,
 }: {
   actions?: ReactNode;
   children: ReactNode;
@@ -17,6 +18,8 @@ export function DiagnosticWorkspace({
   description: ReactNode;
   icon: LucideIcon;
   title: string;
+  /** Keep the title for the accessible name without repeating the tab label. */
+  titleHidden?: boolean;
 }) {
   const titleId = useId();
   return (
@@ -31,7 +34,9 @@ export function DiagnosticWorkspace({
             <UiIcon icon={icon} size="lg" />
           </span>
           <div>
-            <h2 id={titleId}>{title}</h2>
+            <h2 className={titleHidden ? "sr-only" : undefined} id={titleId}>
+              {title}
+            </h2>
             <p>{description}</p>
           </div>
         </div>
