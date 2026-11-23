@@ -26,7 +26,7 @@ it("classifies ElizaOS runtime actions in ACP tool call updates", async () => {
       () => [],
       () => {},
     );
-    runtime.bindHost({
+    const host: Pick<AcpProtocolHost, "assertWorkspacePath" | "executeTurn"> = {
       assertWorkspacePath: () => {},
       executeTurn: async ({ sessionId, onRunUpdate }) => {
         for (const [index, action] of runtimeActions.entries()) {
@@ -43,8 +43,10 @@ it("classifies ElizaOS runtime actions in ACP tool call updates", async () => {
           };
           await onRunUpdate(event);
         }
+        return "";
       },
-    } as Partial<AcpProtocolHost> as AcpProtocolHost);
+    };
+    runtime.bindHost(host as AcpProtocolHost);
 
     const { sessionId } = await runtime.newSession();
     const { updates } = await runtime.prompt({
