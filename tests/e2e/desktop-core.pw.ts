@@ -157,7 +157,10 @@ test.describe("fresh native desktop", () => {
         )
         .toBe(true);
       await page
-        .getByRole("button", { name: "Open settings", exact: true })
+        .getByRole("button", { name: "Conversation options", exact: true })
+        .click();
+      await page
+        .getByRole("menuitem", { name: "Open settings", exact: true })
         .click();
       const tools = page.locator(".window-tools");
       const menu = tools.getByRole("button", {
