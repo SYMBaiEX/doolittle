@@ -12,6 +12,7 @@ import {
   hasGlobalSessionOperatorAccess,
   requiresGlobalSessionOperatorAccess,
 } from "../session-operator-policy";
+import { searchSessionMessages } from "../session-search";
 
 function buildCompressionPrompt(input: {
   focus: string;
@@ -354,7 +355,9 @@ export async function handleSessionCommand(
 
   if (trimmed.startsWith("/search ")) {
     const query = trimmed.replace("/search ", "").trim();
-    const matches = context.services.sessions.search(
+    const matches = await searchSessionMessages(
+      context.runtime,
+      context.services.sessions,
       query,
       context.config.sessionSearchLimit,
     );

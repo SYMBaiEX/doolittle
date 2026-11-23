@@ -1,5 +1,6 @@
 import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
 import type { AppContext } from "../../runtime/bootstrap/index";
+import { searchSessionMessages } from "../../runtime/session-search";
 import {
   SessionForkError,
   SessionRunBoundaryUnavailableError,
@@ -34,10 +35,15 @@ export async function handleSessionRoutes(
     const projectId = optionalProjectId(url);
     if (projectId instanceof Response) return projectId;
     const botId = readWorkerBotProfile()?.id;
+    const hits = await searchSessionMessages(
+      context.runtime,
+      context.services.sessions,
+      query,
+      limit,
+      projectId,
+    );
     return json({
-      hits: context.services.sessions
-        .search(query, limit, projectId)
-        .map((hit) => (botId ? { ...hit, botId } : hit)),
+      hits: hits.map((hit) => (botId ? { ...hit, botId } : hit)),
     });
   }
 

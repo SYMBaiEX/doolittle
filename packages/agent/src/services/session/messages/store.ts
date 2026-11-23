@@ -8,6 +8,7 @@ import type {
 import type { SessionDatabase, SessionStatement } from "../database";
 import { loadSessionMessageCount } from "../read-summary/query";
 import type { TranscriptCheckpoint } from "./checkpoint";
+import { searchLegacyMessages } from "./search";
 
 export interface SessionMessageActivityEvent {
   kind: "message";
@@ -290,24 +291,9 @@ export class SessionMessageStore {
     limit: number,
     projectId?: string,
   ): SessionSearchResult[] {
-    return this.db
-      .query(
-        `
-          SELECT messages_fts.session_id as sessionId, messages_fts.created_at as createdAt,
-            messages_fts.role, messages_fts.text, session_projects.project_id as projectId
-          FROM messages_fts
-          LEFT JOIN session_projects ON session_projects.session_id = messages_fts.session_id
-          WHERE messages_fts MATCH ?1
-          ${projectId ? "AND session_projects.project_id = ?3" : ""}
-          ORDER BY rank
-          LIMIT ?2
-        `,
-      )
-      .all(
-        ...(projectId
-          ? [query.replaceAll('"', " "), limit, projectId]
-          : [query.replaceAll('"', " "), limit]),
-      ) as SessionSearchResult[];
+    return searchLegacyMessages(this.db, query, limit, projectId).map(
+      ({ messageId: _messageId, roomId: _roomId, ...hit }) => hit,
+    );
   }
 
   recent(limit: number): SessionSearchResult[] {

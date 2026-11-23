@@ -1,4 +1,5 @@
 import type { SessionTransferService } from "../../session-transfer";
+import type { SessionDatabase } from "../database";
 import type { SessionMessageStore } from "../messages";
 import type { ProjectStore } from "../projects/store";
 import type { SessionService } from "./index";
@@ -7,6 +8,7 @@ import type { SessionSummaryOperations } from "./summary";
 import type { SessionWriteOperations } from "./write";
 
 export interface SessionServiceState {
+  db: SessionDatabase;
   writes: SessionWriteOperations;
   messages: SessionMessageStore;
   reads: SessionReadOperations;

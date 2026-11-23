@@ -12,6 +12,7 @@ import {
   GLOBAL_SESSION_ACCESS_DENIED,
   hasGlobalSessionOperatorAccess,
 } from "../runtime/session-operator-policy";
+import { searchSessionMessages } from "../runtime/session-search";
 import type { SessionService } from "../services/session/service/index";
 import type { SessionSearchResult } from "../types/index";
 
@@ -74,7 +75,7 @@ export function createSessionSearchAction(
     validate: async (_runtime, message) =>
       hasGlobalSessionOperatorAccess(messageSource(message)),
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
       _options: HandlerOptions | undefined,
@@ -98,7 +99,12 @@ export function createSessionSearchAction(
         await callback?.({ text: usage, source: "session-search-action" });
         return { success: false, text: usage, userFacingText: usage };
       }
-      const matches = await sessions.search(query, limit);
+      const matches = await searchSessionMessages(
+        runtime,
+        sessions,
+        query,
+        limit,
+      );
       const response = formatSessionSearchResults(matches);
 
       await callback?.({ text: response, source: "session-search-action" });
