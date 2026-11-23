@@ -82,6 +82,33 @@ test.describe("packaged desktop smoke", () => {
       );
       expect(history.hits.length).toBeGreaterThan(0);
 
+      const child = desktop.app.process();
+      let shutdownWarning = false;
+      const recordWarning = (chunk: Buffer) => {
+        if (chunk.includes("Doolittle could not quit safely"))
+          shutdownWarning = true;
+      };
+      child.stderr?.on("data", recordWarning);
+      try {
+        await desktop.app.evaluate(({ BrowserWindow, dialog }) => {
+          const window = BrowserWindow.getAllWindows().find((candidate) =>
+            candidate.isVisible(),
+          );
+          if (!window) throw new Error("Expected the main window to be open");
+          dialog.showErrorBox = (title) => {
+            process.stderr.write(`${title}\n`);
+          };
+          setImmediate(() => window.close());
+        });
+        await expect
+          .poll(() => (shutdownWarning ? "shutdown warning" : child.exitCode), {
+            timeout: 15_000,
+          })
+          .toBe(0);
+      } finally {
+        child.stderr?.off("data", recordWarning);
+      }
+
       await desktop.restart();
       expect(desktop.app.process().pid).not.toBe(processId);
       expect(

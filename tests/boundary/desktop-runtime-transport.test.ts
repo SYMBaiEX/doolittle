@@ -88,6 +88,29 @@ it("keeps the app open and releases the startup hold when shutdown is unconfirme
   expect(quit).toHaveBeenCalledOnce();
 });
 
+it("quits after every runtime exits even if desktop UI cleanup fails", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const quit = vi.fn();
+  const onFailure = vi.fn();
+  try {
+    const handleQuit = createDesktopQuitHandler({
+      stopOwnedRuntimes: async () => undefined,
+      afterStopped: async () => {
+        throw new Error("Object has been destroyed");
+      },
+      setQuitting: vi.fn(),
+      quit,
+      onFailure,
+    });
+    await handleQuit({ preventDefault: vi.fn() });
+    expect(quit).toHaveBeenCalledOnce();
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+  } finally {
+    warn.mockRestore();
+  }
+});
+
 it("cannot admit ACP work after its foreground claim receipt is abandoned", async () => {
   const scope = { sessionId: "conversation", workspacePath: "/workspace" };
   const registry = {

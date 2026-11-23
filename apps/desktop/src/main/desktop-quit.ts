@@ -21,16 +21,23 @@ export function createDesktopQuitHandler(options: DesktopQuitOptions) {
     options.setQuitting(true);
     pending = Promise.resolve()
       .then(() => options.stopOwnedRuntimes())
-      .then(async () => {
-        await options.afterStopped();
-        allowQuit = true;
-        options.quit();
-      })
-      .catch(() => {
-        releaseRuntimeStarts?.();
-        options.setQuitting(false);
-        options.onFailure();
-      })
+      .then(
+        async () => {
+          try {
+            await options.afterStopped();
+          } catch {
+            // Electron owns any remaining window resources after runtime exit.
+            console.warn("Doolittle could not finish desktop UI cleanup.");
+          }
+          allowQuit = true;
+          options.quit();
+        },
+        () => {
+          releaseRuntimeStarts?.();
+          options.setQuitting(false);
+          options.onFailure();
+        },
+      )
       .finally(() => {
         pending = undefined;
       });

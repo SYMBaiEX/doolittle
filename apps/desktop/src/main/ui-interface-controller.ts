@@ -267,13 +267,7 @@ export class UiInterfaceController {
 
   attachWindow(window: BrowserWindow): void {
     if (this.attachedWindow === window) return;
-    this.attachedWindow?.removeListener("resize", this.onResize);
-    this.attachedWindow?.removeListener("show", this.onResize);
-    this.attachedWindow?.removeListener("hide", this.onHide);
-    this.attachedWindow?.webContents.removeListener(
-      "destroyed",
-      this.onDestroyed,
-    );
+    this.detachWindow();
     this.clearSubscriptions();
     this.community?.dispose();
     this.community = undefined;
@@ -286,6 +280,19 @@ export class UiInterfaceController {
     window.on("show", this.onResize);
     window.on("hide", this.onHide);
     window.webContents.on("destroyed", this.onDestroyed);
+  }
+
+  private detachWindow(): void {
+    const window = this.attachedWindow;
+    this.attachedWindow = undefined;
+    // Closing the last window can destroy it before Electron starts quitting.
+    if (!window || window.isDestroyed()) return;
+    window.removeListener("resize", this.onResize);
+    window.removeListener("show", this.onResize);
+    window.removeListener("hide", this.onHide);
+    const contents = window.webContents;
+    if (contents && !contents.isDestroyed())
+      contents.removeListener("destroyed", this.onDestroyed);
   }
 
   private entryUrl(artifact: VerifiedUiArtifact): string {
@@ -814,10 +821,6 @@ export class UiInterfaceController {
       if (!["event", "stateChanged", "surface"].includes(key))
         this.options.ipcMain.removeHandler(channel);
     this.options.protocol.unhandle(UI_SCHEME);
-    const window = this.attachedWindow;
-    window?.removeListener("resize", this.onResize);
-    window?.removeListener("show", this.onResize);
-    window?.removeListener("hide", this.onHide);
-    window?.webContents.removeListener("destroyed", this.onDestroyed);
+    this.detachWindow();
   }
 }
