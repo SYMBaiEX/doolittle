@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
-const require = createRequire(process.cwd() + "/packages/agent/package.json");
+const require = createRequire(`${process.cwd()}/packages/agent/package.json`);
 const { AgentRuntime } = await import(
   pathToFileURL(require.resolve("@elizaos/core")).href
 );

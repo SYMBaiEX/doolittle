@@ -34,7 +34,7 @@ it("preserves direct commands, contractions and instructions after examples", ()
 
 it("handles long escaped and unterminated quotes without regex backtracking", () => {
   for (const quotation of [
-    '"' + '\\"'.repeat(20_000),
+    `"${'\\"'.repeat(20_000)}`,
     "“".repeat(40_000),
     "‘".repeat(40_000),
   ]) {
