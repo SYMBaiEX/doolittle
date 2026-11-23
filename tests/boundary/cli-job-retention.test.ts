@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +11,7 @@ import {
 } from "../../apps/cli/src/cli/jobs/store";
 import { jobsRoot } from "../../apps/cli/src/cli/jobs/store/index-store";
 
-it("rejects a full active job index and evicts only a terminal job when one is available", () => {
+it("rejects a full active job index and reclaims slots from terminal jobs or exited workers", () => {
   const dataDir = mkdtempSync(join(tmpdir(), "cli-job-retention-"));
   try {
     const oldest = createCliJob(dataDir, "running job");
@@ -29,6 +30,15 @@ it("rejects a full active job index and evicts only a terminal job when one is a
     const replacement = createCliJob(dataDir, "replacement");
     expect(listCliJobs(dataDir).map(({ id }) => id)).toEqual([
       replacement.id,
+      ...before.filter((id) => id !== newest.id),
+    ]);
+
+    const exited = spawnSync(process.execPath, ["-e", ""]);
+    expect(exited.status).toBe(0);
+    markCliJobStarted(dataDir, replacement.id, { pid: exited.pid });
+    const afterExit = createCliJob(dataDir, "replacement for exited worker");
+    expect(listCliJobs(dataDir).map(({ id }) => id)).toEqual([
+      afterExit.id,
       ...before.filter((id) => id !== newest.id),
     ]);
   } finally {

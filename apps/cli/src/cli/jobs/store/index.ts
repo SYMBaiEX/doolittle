@@ -26,6 +26,16 @@ import {
   updateJobsIndex,
 } from "./index-store";
 
+function hasExitedWorker(pid: number | undefined): boolean {
+  if (pid === undefined || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
 export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
   if (Buffer.byteLength(prompt, "utf8") > 1024 * 1024)
     throw new Error("Background prompt exceeds 1 MiB.");
@@ -36,13 +46,17 @@ export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
     return updateJobsIndex(dataDir, (index) => {
       if (index.jobs.length >= MAX_JOBS) {
         let terminalIndex = index.jobs.length - 1;
+        let exitedIndex = -1;
         for (; terminalIndex >= 0; terminalIndex--) {
-          const { status } = index.jobs[terminalIndex];
+          const { status, pid } = index.jobs[terminalIndex];
           if (status !== "queued" && status !== "running") break;
+          if (exitedIndex === -1 && hasExitedWorker(pid))
+            exitedIndex = terminalIndex;
         }
-        if (terminalIndex < 0)
+        const evictIndex = terminalIndex >= 0 ? terminalIndex : exitedIndex;
+        if (evictIndex < 0)
           throw new Error("Job index is full of active jobs.");
-        index.jobs.splice(terminalIndex, 1);
+        index.jobs.splice(evictIndex, 1);
       }
 
       assertJobPaths(dataDir);
@@ -61,7 +75,11 @@ export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
       createdRoot = resolvedRoot;
       mkdirSync(resolvedState, { mode: 0o700 });
       assertJobPaths(dataDir, id);
-      writeFileSync(resolvedLog, "", { encoding: "utf8", mode: 0o600, flag: "wx" });
+      writeFileSync(resolvedLog, "", {
+        encoding: "utf8",
+        mode: 0o600,
+        flag: "wx",
+      });
 
       const now = new Date().toISOString();
       const paths = jobPaths(dataDir, id);
