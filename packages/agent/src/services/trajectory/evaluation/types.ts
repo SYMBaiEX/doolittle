@@ -7,6 +7,10 @@ import type {
 } from "../../../types/trajectory";
 import type { ModelAnalysisPort } from "../../model-analysis-port";
 
+export type PackageTrajectoryOptions = TrajectoryExportOptions & {
+  manifestPath?: string;
+};
+
 /** Subset of TrajectoryEvaluationService the evaluation helpers need. */
 export interface TrajectoryEvaluationHost {
   baseDir: string;

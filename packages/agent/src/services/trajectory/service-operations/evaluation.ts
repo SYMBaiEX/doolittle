@@ -9,6 +9,7 @@ import {
   packageBundle,
   packageLatest,
 } from "../evaluation";
+import type { PackageTrajectoryOptions } from "../evaluation/types";
 import { evaluateLatestTrajectoryBundle } from "../latest-ops";
 import type { TrajectoryEvaluationServiceHosts } from "../service-support";
 import type { TrajectoryEvaluationServiceEvaluateBundleOptions } from "../service-types";
@@ -30,7 +31,7 @@ export async function evaluateTrajectoryEvaluationServiceBundle(
 
 export async function packageTrajectoryEvaluationService(
   hosts: TrajectoryEvaluationServiceHosts,
-  options: TrajectoryExportOptions = {},
+  options: PackageTrajectoryOptions = {},
 ): Promise<TrajectoryResearchPackageBundle> {
   return packageBundle(hosts.evaluation, options);
 }

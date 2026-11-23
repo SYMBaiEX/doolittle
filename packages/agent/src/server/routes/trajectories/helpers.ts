@@ -30,14 +30,7 @@ export function findBundle(
 
 export function buildPackageRequest(bundle: TrajectoryBundleRecord) {
   return {
-    limit: bundle.limit,
-    sessionId: bundle.filters?.sessionId ?? undefined,
-    role: bundle.filters?.role ?? undefined,
-    label: bundle.label,
-    purpose: bundle.purpose,
-    mode: bundle.mode,
-    tags: bundle.tags,
-    notes: bundle.notes,
+    manifestPath: bundle.manifestPath,
   };
 }
 
