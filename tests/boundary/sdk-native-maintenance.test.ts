@@ -267,8 +267,12 @@ it("admits only the approved desktop workspace and leaves ACP tool policy with E
       await runWithExecutionLease(parent, async () => {
         await expect(
           service.spawnSession({ ...spawn, workdir: root }),
-        ).rejects.toThrow("workspace no longer matches");
+        ).rejects.toThrow("outside the approved workspace");
         expect(await service.listSessions()).toEqual([]);
+        const sub = join(workspace, "sub");
+        mkdirSync(sub);
+        const contained = await service.spawnSession({ ...spawn, workdir: sub });
+        await service.closeSession(contained.sessionId);
         const readOnly = await service.spawnSession(spawn);
         expect(await service.getSession(readOnly.sessionId)).toMatchObject({
           approvalPreset: "standard",

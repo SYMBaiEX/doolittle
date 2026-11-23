@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { isAbsolute, join } from "node:path";
+import { realpathSync } from "node:fs";
+import { isAbsolute, join, relative } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
 import { rejectAtDeadline } from "@elizaos/core/protocol";
 import {
@@ -76,6 +77,16 @@ function desktopParentRunId(metadata?: Record<string, unknown>): string | null {
   return parent.runId;
 }
 
+function workspaceWithin(approved: string, requested: string): boolean {
+  if (!isAbsolute(requested)) return false;
+  try {
+    const rel = relative(realpathSync(approved), realpathSync(requested));
+    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+  } catch {
+    return false;
+  }
+}
+
 function admittedSdkSpawn(options: SpawnOptions): SpawnOptions {
   if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") return options;
   const context = getScopedSdkTaskSpawn();
@@ -89,7 +100,7 @@ function admittedSdkSpawn(options: SpawnOptions): SpawnOptions {
     workspace.sessionId !== context.sessionId ||
     workspace.workspacePath !== context.workspacePath ||
     (options.workdir !== undefined &&
-      options.workdir !== context.workspacePath) ||
+      !workspaceWithin(context.workspacePath, options.workdir)) ||
     options.metadata?.source !== "orchestrator" ||
     options.metadata.taskId !== context.taskId ||
     (options.metadata.doolittleParentRunId !== undefined &&
@@ -174,9 +185,9 @@ export class DesktopAdmittedAcpService extends AcpService {
         if (!parentSessionId)
           throw new Error("The parent desktop conversation is unavailable.");
         const current = await resolveConversationWorkspace(parentSessionId);
-        if (current.workspacePath !== expectedWorkdir)
+        if (!workspaceWithin(current.workspacePath, expectedWorkdir))
           throw new Error(
-            "ACP workspace no longer matches the approved desktop conversation.",
+            `CODING_WORKSPACE_OUTSIDE_APPROVED: "${expectedWorkdir}" is outside the approved workspace "${current.workspacePath}".`,
           );
       }
       if (sessionId) {

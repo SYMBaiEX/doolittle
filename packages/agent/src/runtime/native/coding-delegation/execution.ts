@@ -66,6 +66,12 @@ export function delegationFailureMessage(
   agentType: string,
   reason: string,
 ): string {
+  if (reason.includes("CODING_WORKSPACE_OUTSIDE_APPROVED:")) {
+    const detail = reason
+      .split("CODING_WORKSPACE_OUTSIDE_APPROVED:")[1]
+      ?.trim();
+    return `The delegated workspace is outside the project bound to this conversation${detail ? ` (${detail})` : ""}. Select that project for this chat or keep the task inside the approved workspace, then retry.`;
+  }
   if (reason.includes("CODING_WORKSPACE_MISMATCH"))
     return `${agentType} selected a different workspace than the requested directory. The worker was stopped before receiving the task. Check the selected project path and retry; no fallback directory was accepted.`;
   if (
