@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+
 export type AcpToolKind =
   | "read"
   | "edit"
@@ -157,7 +159,11 @@ function buildAcpDistribution(
       args: ["/D", "/S", "/C", command],
     };
   }
-  return { type: "command", command: "/bin/sh", args: ["-lc", command] };
+  return {
+    type: "command",
+    command: existsSync("/bin/zsh") ? "/bin/zsh" : "/bin/sh",
+    args: ["-lc", command],
+  };
 }
 
 export function buildAcpRegistryEntry(input: {

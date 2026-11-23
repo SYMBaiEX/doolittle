@@ -1,6 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { expect, it, vi } from "vitest";
 import { buildAcpRegistryEntry } from "../../packages/acp/src/registry";
+
+vi.mock("node:fs", { spy: true });
 
 const input = {
   agentName: "Doolittle",
@@ -25,7 +28,11 @@ it("publishes a platform launcher that runs the configured command string", () =
           command: process.env.ComSpec?.trim() || "cmd.exe",
           args: ["/D", "/S", "/C", command],
         }
-      : { type: "command", command: "/bin/sh", args: ["-lc", command] },
+      : {
+          type: "command",
+          command: existsSync("/bin/zsh") ? "/bin/zsh" : "/bin/sh",
+          args: ["-lc", command],
+        },
   );
   const result = spawnSync(distribution.command, distribution.args, {
     encoding: "utf8",
@@ -34,6 +41,19 @@ it("publishes a platform launcher that runs the configured command string", () =
   expect(result.error).toBeUndefined();
   expect(result.status).toBe(0);
   expect(result.stdout.trim()).toBe("ACP launcher works");
+});
+
+it.runIf(process.platform !== "win32").each([
+  [true, "/bin/zsh"],
+  [false, "/bin/sh"],
+])("selects %s zsh availability as %s", (available, shell) => {
+  vi.mocked(existsSync).mockReturnValueOnce(available);
+  const command = "source ~/.zshrc && doolittle acp";
+  expect(buildAcpRegistryEntry({ ...input, command }).distribution).toEqual({
+    type: "command",
+    command: shell,
+    args: ["-lc", command],
+  });
 });
 
 it("keeps the default ACP argv when no custom command is configured", () => {
