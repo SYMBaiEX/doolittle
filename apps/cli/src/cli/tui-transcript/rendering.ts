@@ -11,6 +11,75 @@ type TuiResponsePane = {
   setScrollPerc(percent: number): void;
 };
 
+const TRANSCRIPT_WRITE_INTERVAL_MS = 500;
+
+type PendingTranscriptWrite = {
+  lastWriteAt: number;
+  timer?: ReturnType<typeof setTimeout>;
+  responseHistory: ResponseTranscriptEntry[];
+  liveResponse: ResponseTranscriptEntry | undefined;
+};
+
+const transcriptWrites = new Map<string, PendingTranscriptWrite>();
+
+function persistTranscriptExport(
+  transcriptExportPath: string,
+  responseHistory: ResponseTranscriptEntry[],
+  liveResponse: ResponseTranscriptEntry | undefined,
+): void {
+  try {
+    writeFileSync(
+      transcriptExportPath,
+      `${renderPlainTranscript(responseHistory, liveResponse)}\n`,
+      "utf8",
+    );
+  } catch {
+    // Best effort only.
+  }
+}
+
+// Coalesce transcript exports so a burst of streaming renders writes at most
+// once per interval; the latest state is always persisted by a trailing write.
+function scheduleTranscriptExport(
+  transcriptExportPath: string,
+  responseHistory: ResponseTranscriptEntry[],
+  liveResponse: ResponseTranscriptEntry | undefined,
+): void {
+  let pending = transcriptWrites.get(transcriptExportPath);
+  if (!pending) {
+    pending = { lastWriteAt: 0, responseHistory, liveResponse };
+    transcriptWrites.set(transcriptExportPath, pending);
+  }
+  pending.responseHistory = responseHistory;
+  pending.liveResponse = liveResponse;
+  const elapsed = Date.now() - pending.lastWriteAt;
+  if (elapsed >= TRANSCRIPT_WRITE_INTERVAL_MS) {
+    if (pending.timer) {
+      clearTimeout(pending.timer);
+      pending.timer = undefined;
+    }
+    pending.lastWriteAt = Date.now();
+    persistTranscriptExport(
+      transcriptExportPath,
+      pending.responseHistory,
+      pending.liveResponse,
+    );
+    return;
+  }
+  if (!pending.timer) {
+    pending.timer = setTimeout(() => {
+      pending.timer = undefined;
+      pending.lastWriteAt = Date.now();
+      persistTranscriptExport(
+        transcriptExportPath,
+        pending.responseHistory,
+        pending.liveResponse,
+      );
+    }, TRANSCRIPT_WRITE_INTERVAL_MS - elapsed);
+    pending.timer.unref();
+  }
+}
+
 export function renderTranscriptPane(input: {
   responsePane: TuiResponsePane;
   responseHistory: ResponseTranscriptEntry[];
@@ -21,15 +90,11 @@ export function renderTranscriptPane(input: {
   input.responsePane.setContent(
     renderResponseTranscript(input.responseHistory, input.liveResponse),
   );
-  try {
-    writeFileSync(
-      input.transcriptExportPath,
-      `${renderPlainTranscript(input.responseHistory, input.liveResponse)}\n`,
-      "utf8",
-    );
-  } catch {
-    // Best effort only.
-  }
+  scheduleTranscriptExport(
+    input.transcriptExportPath,
+    input.responseHistory,
+    input.liveResponse,
+  );
   if (pinnedToBottom) {
     input.responsePane.setScrollPerc(100);
   }
