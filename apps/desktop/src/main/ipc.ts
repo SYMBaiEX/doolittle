@@ -1,3 +1,4 @@
+import { rejectAtDeadline } from "@elizaos/core/protocol";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
   ChatRequest,
@@ -129,18 +130,12 @@ function isAcceptedChat(chat: ActiveChat): boolean {
 function waitForChatSubmission(
   submissionSettled: Promise<void>,
 ): Promise<void> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const timedOut = new Promise<never>((_resolve, reject) => {
-    timeout = setTimeout(() => {
-      reject(
-        new Error(
-          "Chat cancellation is unconfirmed: the run submission has not returned a receipt. Stop remains queued if the runtime accepts it later.",
-        ),
-      );
-    }, API_TIMEOUT_MS);
-  });
-  return Promise.race([submissionSettled, timedOut]).finally(() => {
-    if (timeout) clearTimeout(timeout);
+  return rejectAtDeadline(submissionSettled, {
+    timeoutMs: API_TIMEOUT_MS,
+    onTimeout: () =>
+      new Error(
+        "Chat cancellation is unconfirmed: the run submission has not returned a receipt. Stop remains queued if the runtime accepts it later.",
+      ),
   });
 }
 

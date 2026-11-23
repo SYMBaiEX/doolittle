@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import type { IncomingMessage } from "node:http";
+import { rejectAtDeadline } from "@elizaos/core/protocol";
 import { isPlainObject } from "@elizaos/shared/type-guards";
 import { json } from "./responses";
 
@@ -66,13 +67,6 @@ export async function readBoundedRequestBody(
 ): Promise<Uint8Array | undefined> {
   assertDeclaredRequestBodyLimit(request, maxBytes);
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
-      request.pause();
-      reject(new RequestBodyTimeoutError(timeoutMs));
-    }, timeoutMs);
-  });
   const consume = async (): Promise<Uint8Array | undefined> => {
     const chunks: Buffer[] = [];
     let totalBytes = 0;
@@ -88,11 +82,13 @@ export async function readBoundedRequestBody(
     return totalBytes > 0 ? Buffer.concat(chunks, totalBytes) : undefined;
   };
 
-  try {
-    return await Promise.race([consume(), timeout]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  return rejectAtDeadline(consume(), {
+    timeoutMs,
+    onTimeout: () => {
+      request.pause();
+      return new RequestBodyTimeoutError(timeoutMs);
+    },
+  });
 }
 
 export type JsonObject = Record<string, unknown>;

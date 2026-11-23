@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { IAgentRuntime } from "@elizaos/core";
+import { rejectAtDeadline } from "@elizaos/core/protocol";
 import {
   AcpService,
   AcpSessionStore,
@@ -37,26 +38,6 @@ type AdmittedOperation = {
 };
 
 const STOP_CONFIRMATION_TIMEOUT_MS = 5_000;
-
-async function withStopConfirmationDeadline<T>(work: Promise<T>): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(
-              new Error("ACP stop could not confirm SDK session teardown."),
-            ),
-          STOP_CONFIRMATION_TIMEOUT_MS,
-        );
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
 
 const ACTIVE_STATUSES = new Set([
   "running",
@@ -382,7 +363,7 @@ export class DesktopAdmittedAcpService extends AcpService {
       (pending) => pending.started,
     );
     this.abortPending(() => true);
-    return withStopConfirmationDeadline(
+    return rejectAtDeadline(
       (async () => {
         const sessions = await super.listSessions();
         const active = sessions.filter((session) =>
@@ -402,6 +383,11 @@ export class DesktopAdmittedAcpService extends AcpService {
           ),
         ]).size;
       })(),
+      {
+        timeoutMs: STOP_CONFIRMATION_TIMEOUT_MS,
+        onTimeout: () =>
+          new Error("ACP stop could not confirm SDK session teardown."),
+      },
     );
   }
 

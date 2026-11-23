@@ -391,6 +391,9 @@ importers:
       '@elizaos/auth':
         specifier: workspace:2.0.5
         version: link:../../vendor/elizaos/packages/auth
+      '@elizaos/core':
+        specifier: workspace:2.0.5
+        version: link:../../vendor/elizaos/packages/core
       '@elizaos/logger':
         specifier: 2.0.11-beta.7
         version: 2.0.11-beta.7

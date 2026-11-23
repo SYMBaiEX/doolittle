@@ -4,6 +4,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { rejectAtDeadline } from "@elizaos/core/protocol";
 import {
   BrowserWindow,
   type BrowserWindowConstructorOptions,
@@ -81,24 +82,14 @@ async function readBody(
   return value as Record<string, unknown>;
 }
 
-async function bounded<T>(
-  promise: Promise<T>,
-  window: BrowserWindow,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => {
-          if (!window.isDestroyed()) window.destroy();
-          reject(new Error("Rendered capture timed out."));
-        }, OPERATION_TIMEOUT_MS);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
+function bounded<T>(promise: Promise<T>, window: BrowserWindow): Promise<T> {
+  return rejectAtDeadline(promise, {
+    timeoutMs: OPERATION_TIMEOUT_MS,
+    onTimeout: () => {
+      if (!window.isDestroyed()) window.destroy();
+      return new Error("Rendered capture timed out.");
+    },
+  });
 }
 
 /** Capture-only implementation of the public Eliza browser-workspace protocol. */
