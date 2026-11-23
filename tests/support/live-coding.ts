@@ -133,10 +133,9 @@ export function verifyLiveCodingProject(workspace: string) {
     )
   )
     throw new Error("The coding task created an unexpected file.");
-  if (
-    hash(readFileSync(join(workspace, target))) ===
-    hash(snapshot.implementation)
-  )
+  const beforeSha256 = hash(snapshot.implementation);
+  const afterSha256 = hash(readFileSync(join(workspace, target)));
+  if (afterSha256 === beforeSha256)
     throw new Error("The coding task made no implementation change.");
   execFileSync(process.execPath, ["--test", testFile], {
     cwd: workspace,
@@ -151,5 +150,6 @@ export function verifyLiveCodingProject(workspace: string) {
     verifierUnchanged: true,
     dependenciesUnchanged: true,
     parentTestExit: 0,
+    change: { path: target, beforeSha256, afterSha256 },
   };
 }
