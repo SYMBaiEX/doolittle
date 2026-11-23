@@ -554,6 +554,8 @@ function truncateUtf8(value: string, maxBytes: number): string {
       high = mid - 1;
     }
   }
+  const lastCodeUnit = value.charCodeAt(low - 1);
+  if (lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff) low -= 1;
   return value.slice(0, low);
 }
 
