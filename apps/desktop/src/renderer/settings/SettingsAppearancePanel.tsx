@@ -1,3 +1,4 @@
+import { splitThemeSelection } from "@doolittle/ui/theme-colors";
 import {
   Check,
   Download,
@@ -37,6 +38,7 @@ import {
 export function SettingsAppearancePanel({
   active,
   activeTheme,
+  activeColor = null,
   appearance,
   density,
   onAppearanceChange,
@@ -54,6 +56,8 @@ export function SettingsAppearancePanel({
 }: {
   active: boolean;
   activeTheme: DesktopThemeProfile | null;
+  /** Name of the runtime palette composed onto the active theme, if any. */
+  activeColor?: string | null;
   appearance: DesktopAppearance;
   density: DesktopDensity;
   onAppearanceChange: (appearance: DesktopAppearance) => void;
@@ -107,6 +111,17 @@ export function SettingsAppearancePanel({
   });
   const interfaceThemes = themeEntries.filter((entry) => entry.local);
   const colorThemes = themeEntries.filter((entry) => !entry.local);
+  // The applied manifest identity encodes layout and color as `<theme>.<color>`;
+  // a bare runtime name is a color applied to the default layout.
+  const selection = splitThemeSelection(activeTheme?.name ?? "");
+  const layoutSelected = interfaceThemes.some(
+    (entry) => entry.name === selection.theme,
+  );
+  const selectedTheme = layoutSelected ? selection.theme : "";
+  const selectedColor =
+    activeColor ??
+    selection.color ??
+    (layoutSelected ? null : (activeTheme?.name ?? null));
   return (
     <>
       <WorkbenchSection
@@ -263,7 +278,7 @@ export function SettingsAppearancePanel({
                   secondary,
                   tagline,
                 }) => {
-                  const selected = activeTheme?.name === name;
+                  const selected = selectedTheme === name;
                   return (
                     <button
                       aria-label={`${label}: ${tagline}`}
@@ -374,7 +389,7 @@ export function SettingsAppearancePanel({
               >
                 {colorThemes.map(
                   ({ label, name, primary, secondary, tagline }) => {
-                    const selected = activeTheme?.name === name;
+                    const selected = selectedColor === name;
                     return (
                       <button
                         aria-label={`${label}: ${tagline}`}
@@ -388,7 +403,9 @@ export function SettingsAppearancePanel({
                         title={
                           !active
                             ? "Start the runtime to apply this theme"
-                            : tagline
+                            : selected
+                              ? `${tagline} Select again to use the theme's own colors.`
+                              : tagline
                         }
                         type="button"
                       >

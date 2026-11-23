@@ -1,11 +1,19 @@
 import {
   parseThemeManifestV2,
+  type SemanticPalette,
   type ThemeManifestV2,
 } from "@doolittle/contracts/theme";
 import {
+  composeThemeManifest,
+  splitThemeSelection,
+  type ThemeColorOverlay,
+} from "@doolittle/ui/theme-colors";
+import {
   BUILT_IN_THEMES,
   COMPANION_THEME,
+  legacyThemeColor,
   migrateLegacyThemeBundle,
+  themeContrast,
   themeCssVariables,
   validateThemeAccessibility,
 } from "@doolittle/ui/themes";
@@ -36,6 +44,7 @@ export const THEME_V2_STORAGE_KEY = "doolittle.desktop.theme.v2";
 export const THEME_V1_BACKUP_STORAGE_KEY = "doolittle.desktop.theme.v1-backup";
 export const UI_LAYOUT_STORAGE_KEY = "doolittle.desktop.layout";
 export const THEME_SOURCE_STORAGE_KEY = "doolittle.desktop.theme-source";
+export const THEME_SELECTION_STORAGE_KEY = "doolittle.desktop.theme-selection";
 export const APPEARANCE_CHANGE_EVENT = "doolittle:appearance-change";
 export const APPEARANCE_APPLIED_EVENT = "doolittle:appearance-applied";
 export const DENSITY_CHANGE_EVENT = "doolittle:density-change";
@@ -568,24 +577,214 @@ export function themeCssTokens(
   return tokens;
 }
 
+/**
+ * A persisted theme/color selection pair: the pristine layout manifest the
+ * color composes onto plus the full runtime palette, so the composition can
+ * be rebuilt offline and across built-in design updates.
+ */
+export interface DesktopThemeColorSelection {
+  theme: ThemeManifestV2;
+  color: DesktopThemeProfile;
+}
+
+export function loadThemeColorSelection(): DesktopThemeColorSelection | null {
+  const stored = localStorage.getItem(THEME_SELECTION_STORAGE_KEY);
+  if (!stored) return null;
+  try {
+    const record = JSON.parse(stored) as Record<string, unknown>;
+    const theme = parseThemeManifestV2(record?.theme);
+    const color = parseDesktopThemeProfile(record?.color);
+    if (!color) return null;
+    return { theme, color };
+  } catch {
+    return null;
+  }
+}
+
+function storeThemeColorSelection(
+  selection: DesktopThemeColorSelection | null,
+): void {
+  try {
+    if (selection) {
+      localStorage.setItem(
+        THEME_SELECTION_STORAGE_KEY,
+        JSON.stringify(selection),
+      );
+    } else {
+      localStorage.removeItem(THEME_SELECTION_STORAGE_KEY);
+    }
+  } catch {
+    // Non-fatal: the applied manifest still reflects the selection.
+  }
+}
+
+/**
+ * Record or replace the two-axis selection. Imports call this with null: an
+ * imported bundle is a complete design, so a previous color pick does not
+ * carry onto it or onto later theme picks.
+ */
+export function setThemeColorSelection(
+  selection: DesktopThemeColorSelection | null,
+): void {
+  storeThemeColorSelection(selection);
+}
+
+/**
+ * The name of the color palette active on the current layout, or null when
+ * the manifest carries its theme's own colors.
+ */
+export function getActiveColorName(): string | null {
+  return (
+    loadThemeColorSelection()?.color.name ??
+    splitThemeSelection(loadStoredThemeManifest().id).color
+  );
+}
+
+/**
+ * The manifest a runtime color composes onto. The stored selection keeps the
+ * pristine base so repeated color picks never tint on tinted surfaces;
+ * built-ins resolve to their current preset, imported manifests keep their
+ * custom surfaces, and anything else falls back to Companion — the same base
+ * legacy color applications used.
+ */
+function colorCompositionBase(): ThemeManifestV2 {
+  const record = loadThemeColorSelection();
+  if (record) {
+    const themeId = splitThemeSelection(record.theme.id).theme;
+    return (
+      BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ??
+      record.theme
+    );
+  }
+  const current = loadStoredThemeManifest();
+  const { theme } = splitThemeSelection(current.id);
+  const builtin = BUILT_IN_THEMES.find((candidate) => candidate.id === theme);
+  if (builtin) return builtin;
+  if (loadDesktopThemeSource() === "imported") return current;
+  return COMPANION_THEME;
+}
+
+/**
+ * Map a runtime palette onto accent, status, editor and terminal colors.
+ * Accent text, success and warning are only taken when they stay readable on
+ * the base manifest's own surfaces so every layout × color combination keeps
+ * its contrast guarantees.
+ */
+function themeColorOverlay(
+  profile: DesktopThemeProfile,
+  base: ThemeManifestV2,
+): ThemeColorOverlay {
+  const pick = (palette: SemanticPalette): Partial<SemanticPalette> => {
+    const primary = legacyThemeColor(profile.primary) ?? palette.accent;
+    const secondary = legacyThemeColor(profile.secondary) ?? primary;
+    const accentInk =
+      themeContrast("#160b03", primary) >= 4.5 ? "#160b03" : "#fffaf5";
+    const surfaces = [
+      palette.background,
+      palette.navigation,
+      palette.raised,
+      palette.subtle,
+      palette.hover,
+    ];
+    const readable = (candidate: string) =>
+      surfaces.every((surface) => themeContrast(candidate, surface) >= 4.5);
+    const overlay: Partial<SemanticPalette> = {
+      accent: primary,
+      accentInk,
+      // Hovered controls pair with the accent ink, not the base accent, so a
+      // secondary that fails the ink check clears any inherited hover.
+      accentHover:
+        themeContrast(accentInk, secondary) >= 4.5 ? secondary : undefined,
+    };
+    if (readable(primary)) overlay.accentText = primary;
+    const success = legacyThemeColor(profile.greenGlow);
+    const warning = legacyThemeColor(profile.amberGlow);
+    if (success && readable(success)) overlay.success = success;
+    if (warning && readable(warning)) overlay.warning = warning;
+    return overlay;
+  };
+  const primary = legacyThemeColor(profile.primary) ?? base.colors.dark.accent;
+  const secondary = legacyThemeColor(profile.secondary) ?? primary;
+  const muted = legacyThemeColor(profile.muted);
+  return {
+    name: profile.name,
+    label: profile.label,
+    light: pick(base.colors.light),
+    dark: pick(base.colors.dark),
+    codeColors: {
+      dark: {
+        background:
+          legacyThemeColor(profile.panelBg) ??
+          legacyThemeColor(profile.baseBg) ??
+          base.codeColors?.dark.background ??
+          "#080706",
+        text:
+          legacyThemeColor(profile.baseFg) ??
+          base.codeColors?.dark.text ??
+          base.colors.dark.text,
+      },
+    },
+    terminalColors: {
+      blue: primary,
+      brightBlue: secondary,
+      cyan: legacyThemeColor(profile.cyanGlow) ?? secondary,
+      magenta: legacyThemeColor(profile.magentaGlow) ?? secondary,
+      ...(muted ? { muted } : {}),
+    },
+  };
+}
+
+/**
+ * Apply a runtime color palette onto the active layout theme. The palette and
+ * its pristine base are persisted as the two-axis selection so the color
+ * carries to whichever theme is picked next.
+ */
 export function applyDesktopTheme(
   profile: DesktopThemeProfile,
   source?: "imported" | "runtime",
-): void {
-  // A v2 selection also broadcasts its legacy palette for Monaco/xterm consumers.
-  // That notification is not a request to replace its composition with v1 defaults.
+): ThemeManifestV2 {
+  // A v2 selection also broadcasts its legacy palette for Monaco/xterm
+  // consumers. That notification is not a request to replace its composition.
   if (!source && localStorage.getItem(THEME_V2_STORAGE_KEY)) {
     const selected = loadStoredThemeManifest();
-    if (selected.id === profile.name) return;
+    const selectedColor = loadThemeColorSelection()?.color.name;
+    if (selected.id === profile.name || selectedColor === profile.name) {
+      return selected;
+    }
   }
-  const bundle = migrateLegacyThemeBundle({
-    kind: "doolittle.theme",
-    version: 1,
-    theme: { ...profile },
-    appearance: loadAppearancePreference(),
-    density: loadDensityPreference(),
-  });
-  applyThemeManifest(bundle.theme, source);
+  const base = colorCompositionBase();
+  const manifest = composeThemeManifest(base, themeColorOverlay(profile, base));
+  applyThemeManifest(manifest, source);
+  storeThemeColorSelection({ theme: base, color: profile });
+  return manifest;
+}
+
+/**
+ * Pick a layout theme, carrying the current color selection onto it. Themes
+ * and colors compose into one manifest, so every layout keeps the palette
+ * the user already chose.
+ */
+export function selectDesktopTheme(theme: ThemeManifestV2): ThemeManifestV2 {
+  const color = loadThemeColorSelection()?.color ?? null;
+  const manifest = color
+    ? composeThemeManifest(theme, themeColorOverlay(color, theme))
+    : theme;
+  applyThemeManifest(manifest, color ? "runtime" : "builtin");
+  if (color) storeThemeColorSelection({ theme, color });
+  return manifest;
+}
+
+/** Return the active layout theme to its own colors. */
+export function clearThemeColorSelection(): ThemeManifestV2 {
+  const base = colorCompositionBase();
+  storeThemeColorSelection(null);
+  applyThemeManifest(
+    base,
+    BUILT_IN_THEMES.some((theme) => theme.id === base.id)
+      ? "builtin"
+      : "imported",
+  );
+  return base;
 }
 
 export function applyThemeManifest(
@@ -664,6 +863,25 @@ export function loadStoredThemeManifest(): ThemeManifestV2 {
     try {
       const theme = parseThemeManifestV2(JSON.parse(stored));
       validateThemeAccessibility(theme);
+      const selection = splitThemeSelection(theme.id);
+      const record = loadThemeColorSelection();
+      const preset = selection.color
+        ? BUILT_IN_THEMES.find((candidate) => candidate.id === selection.theme)
+        : undefined;
+      if (preset && record?.color.name === selection.color) {
+        try {
+          // Recompose from the current preset so built-in layout updates
+          // reach stored selections while the chosen palette persists.
+          return composeThemeManifest(
+            preset,
+            themeColorOverlay(record.color, preset),
+          );
+        } catch {
+          themeMigrationError =
+            "The saved color theme could not be applied; the interface theme was loaded without it.";
+          return preset;
+        }
+      }
       if (localStorage.getItem(THEME_SOURCE_STORAGE_KEY) === "builtin") {
         return (
           BUILT_IN_THEMES.find((preset) => preset.id === theme.id) ?? theme

@@ -64,8 +64,19 @@ const OBSIDIAN_PROFILE: DesktopThemeProfile = {
   greenGlow: "#86b875",
 };
 
+const COMPOSED_PROFILE: DesktopThemeProfile = {
+  name: "canvas.obsidian",
+  label: "Canvas + Obsidian",
+  tagline: "A spacious working canvas.",
+  primary: "#1b1e2e",
+  secondary: "#5b6ee1",
+  amberGlow: "#e7a84d",
+  greenGlow: "#86b875",
+};
+
 function renderPanel(props?: {
   active?: boolean;
+  activeColor?: string | null;
   activeTheme?: DesktopThemeProfile | null;
   onThemeChange?: (theme: string) => void;
   themes?: unknown[];
@@ -75,6 +86,7 @@ function renderPanel(props?: {
     root.render(
       <SettingsAppearancePanel
         active={props?.active ?? true}
+        activeColor={props?.activeColor}
         activeTheme={props?.activeTheme ?? null}
         appearance="dark"
         density="comfortable"
@@ -150,6 +162,37 @@ it("marks the runtime color palette selected and routes its name to the same cha
       ?.click(),
   );
   expect(onThemeChange).toHaveBeenCalledExactlyOnceWith("dracula");
+});
+
+it("marks the layout theme and runtime palette as one composed selection", () => {
+  renderPanel({ activeTheme: COMPOSED_PROFILE });
+  const canvas = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Canvas: A spacious working canvas."]',
+  );
+  expect(canvas?.getAttribute("aria-pressed")).toBe("true");
+  const obsidian = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Obsidian: Dark slate"]',
+  );
+  expect(obsidian?.getAttribute("aria-pressed")).toBe("true");
+  const companion = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Companion: Warm, quiet conversations."]',
+  );
+  expect(companion?.getAttribute("aria-pressed")).toBe("false");
+});
+
+it("prefers the explicit color selection over the manifest identity", () => {
+  renderPanel({
+    activeColor: "dracula",
+    activeTheme: COMPOSED_PROFILE,
+  });
+  const dracula = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Dracula: Vampire palette"]',
+  );
+  expect(dracula?.getAttribute("aria-pressed")).toBe("true");
+  const obsidian = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Obsidian: Dark slate"]',
+  );
+  expect(obsidian?.getAttribute("aria-pressed")).toBe("false");
 });
 
 it("keeps interface themes usable offline while runtime colors stay disabled", () => {

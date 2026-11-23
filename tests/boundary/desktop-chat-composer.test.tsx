@@ -80,6 +80,9 @@ function composer() {
         `button[aria-label="${label}"]`,
       );
     },
+    query<T extends Element>(selector: string) {
+      return container.querySelector<T>(selector);
+    },
     key(key: string, init?: KeyboardEventInit) {
       const event = new KeyboardEvent("keydown", {
         key,
@@ -134,6 +137,44 @@ it("keeps queue submission separate from stopping the active run", () => {
     expect(view.button("Stopping response")?.disabled).toBe(true);
     expect(view.key("Escape")).toBe(false);
     expect(view.onCancelRequest).toHaveBeenCalledOnce();
+  } finally {
+    view.dispose();
+  }
+});
+
+it("hides the workspace picker once a chat is bound", () => {
+  const view = composer();
+  try {
+    const workspace = {
+      projects: [{ id: "project", name: "Coding", primaryPath: "/code" }],
+      onChooseRepository: vi.fn(),
+      onOpenProjectManager: vi.fn(),
+      onSelectProjectForNewChat: vi.fn(),
+      workspaceTarget: { kind: "unconfirmed" },
+    } satisfies Partial<ChatComposerProps>;
+    const trigger = () =>
+      view.query<HTMLButtonElement>('button[aria-label^="Choose workspace."]');
+    view.render(workspace);
+    expect(trigger()).not.toBeNull();
+    view.render({ ...workspace, workspaceBound: true });
+    expect(trigger()).toBeNull();
+    view.render({
+      ...workspace,
+      workspaceBound: true,
+      workspaceTarget: {
+        kind: "local",
+        projectId: "project",
+        name: "Coding",
+        path: "/code",
+      },
+    });
+    expect(trigger()).toBeNull();
+    view.render({
+      ...workspace,
+      workspaceBound: false,
+      workspaceTarget: { kind: "pending", name: "Coding" },
+    });
+    expect(trigger()).not.toBeNull();
   } finally {
     view.dispose();
   }

@@ -34,6 +34,7 @@ import {
   COMPOSER_PROJECT_POPOVER_CLASS,
   COMPOSER_PROJECT_TRIGGER_CLASS,
   COMPOSER_SEARCH_CLASS,
+  COMPOSER_SECTION_LABEL_CLASS,
   COMPOSER_SELECTOR_ROOT_CLASS,
 } from "./layout";
 
@@ -229,9 +230,7 @@ export function ComposerProjectSelector({
                 aria-label="This computer"
                 className={COMPOSER_PROJECT_LIST_CLASS}
               >
-                <h3 className="m-0 px-1.75 pt-1 pb-0.5 text-[length:var(--text-control)] font-semibold text-[var(--text)]">
-                  This computer
-                </h3>
+                <h3 className={COMPOSER_SECTION_LABEL_CLASS}>This computer</h3>
                 <button
                   onClick={() => {
                     setOpen(false);
@@ -246,7 +245,15 @@ export function ComposerProjectSelector({
                     <small>Open a project on this computer.</small>
                   </span>
                 </button>
-                {savedFolders.length > 0 ? (
+              </section>
+              {savedFolders.length > 0 ? (
+                <section
+                  aria-label="Saved folders"
+                  className={`${COMPOSER_PROJECT_LIST_CLASS} mt-1`}
+                >
+                  <h3 className={COMPOSER_SECTION_LABEL_CLASS}>
+                    Saved folders
+                  </h3>
                   <label className={`${COMPOSER_SEARCH_CLASS} mx-1.75 my-1`}>
                     <UiIcon icon={Search} size="sm" />
                     <input
@@ -256,36 +263,39 @@ export function ComposerProjectSelector({
                       value={query}
                     />
                   </label>
-                ) : null}
-                {visibleProjects.map((project) => {
-                  const current =
-                    target.kind === "local" &&
-                    target.projectId === project.id &&
-                    target.path === project.primaryPath;
-                  return (
-                    <button
-                      aria-current={current ? "true" : undefined}
-                      key={project.id}
-                      onClick={() => select(project.id)}
-                      title={project.primaryPath}
-                      type="button"
-                    >
-                      <ProjectGlyph project={project} />
-                      <span>
-                        <strong>{project.name}</strong>
-                        <small>{project.primaryPath}</small>
-                      </span>
-                      {current ? <UiIcon icon={Check} size="xs" /> : null}
-                    </button>
-                  );
-                })}
-                {!visibleProjects.length && needle ? (
-                  <p className="m-0 p-2 text-[length:var(--text-control)] text-[var(--faint)]">
-                    No matching folders.
-                  </p>
-                ) : null}
-              </section>
-              <div className={`${COMPOSER_PROJECT_LIST_CLASS} mt-2`}>
+                  {visibleProjects.map((project) => {
+                    const current =
+                      target.kind === "local" &&
+                      target.projectId === project.id &&
+                      target.path === project.primaryPath;
+                    return (
+                      <button
+                        aria-current={current ? "true" : undefined}
+                        key={project.id}
+                        onClick={() => select(project.id)}
+                        title={project.primaryPath}
+                        type="button"
+                      >
+                        <ProjectGlyph project={project} />
+                        <span>
+                          <strong>{project.name}</strong>
+                          <small>{project.primaryPath}</small>
+                        </span>
+                        {current ? <UiIcon icon={Check} size="xs" /> : null}
+                      </button>
+                    );
+                  })}
+                  {!visibleProjects.length && needle ? (
+                    <p className="m-0 p-2 text-[length:var(--text-control)] text-[var(--faint)]">
+                      No matching folders.
+                    </p>
+                  ) : null}
+                </section>
+              ) : null}
+              <section
+                aria-label="Private workspace"
+                className={`${COMPOSER_PROJECT_LIST_CLASS} mt-1.5`}
+              >
                 <button
                   aria-current={target.kind === "private" ? "true" : undefined}
                   onClick={() => select("unscoped")}
@@ -300,7 +310,7 @@ export function ComposerProjectSelector({
                     <UiIcon icon={Check} size="xs" />
                   ) : null}
                 </button>
-              </div>
+              </section>
             </div>
             <footer className={COMPOSER_ACTIONS_CLASS}>
               <button

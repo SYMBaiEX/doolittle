@@ -122,6 +122,8 @@ export interface ChatComposerProps {
   onOpenProjectManager?: () => void;
   onSelectProjectForNewChat?: (scope: ProjectScope) => void;
   workspaceTarget?: ChatWorkspaceTarget;
+  /** Bound chats keep their host-confirmed workspace; the picker is for new chats. */
+  workspaceBound?: boolean;
   backend: BackendState;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
@@ -196,6 +198,7 @@ export function ChatComposer({
   onOpenProjectManager,
   onSelectProjectForNewChat,
   workspaceTarget,
+  workspaceBound = false,
   backend,
   runtime,
   refreshRuntime,
@@ -530,6 +533,7 @@ export function ChatComposer({
     requestAnimationFrame(() => composerRef.current?.focus());
   };
   const workspaceSelector =
+    !workspaceBound &&
     projects &&
     onChooseRepository &&
     onOpenProjectManager &&

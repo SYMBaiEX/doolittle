@@ -41,6 +41,7 @@ import {
   COMPOSER_MODEL_OPTION_CLASS,
   COMPOSER_MODEL_TRIGGER_CLASS,
   COMPOSER_POPOVER_CLASS,
+  COMPOSER_POPOVER_HEADER_CLASS,
   COMPOSER_PROVIDER_HEADING_CLASS,
   COMPOSER_SEARCH_CLASS,
   COMPOSER_SELECTOR_ROOT_CLASS,
@@ -235,6 +236,15 @@ export function ComposerModelSelector({
       runtime.model !== "claude-haiku-4-5")
       ? compactReasoningEffort(runtime.reasoningEffort)
       : undefined;
+  const routeProviderLabel =
+    modelCatalog?.providers.find(
+      (provider) => provider.id === runtime?.provider,
+    )?.label ?? runtime?.provider;
+  const routeSummary = runtime?.model
+    ? [routeProviderLabel, runtime.model, activeEffort]
+        .filter(Boolean)
+        .join(" · ")
+    : "No model selected";
 
   const applyModel = async (
     provider: RuntimeModelProvider,
@@ -346,7 +356,15 @@ export function ComposerModelSelector({
             side="top"
             sideOffset={9}
           >
-            <label className={`${COMPOSER_SEARCH_CLASS} m-2 mb-1.25`}>
+            <header className={COMPOSER_POPOVER_HEADER_CLASS}>
+              <span className="min-w-0">
+                <strong>Choose model</strong>
+                <small className="truncate" title={routeSummary}>
+                  {routeSummary}
+                </small>
+              </span>
+            </header>
+            <label className={`${COMPOSER_SEARCH_CLASS} mx-2 mt-1 mb-1.25`}>
               <UiIcon icon={Search} size="sm" />
               <input
                 aria-label="Search models"
@@ -392,6 +410,7 @@ export function ComposerModelSelector({
                             return next;
                           })
                         }
+                        title={provider.detail}
                         type="button"
                       >
                         <UiIcon
@@ -403,7 +422,9 @@ export function ComposerModelSelector({
                           className={`rounded-full border px-1.25 py-0.5 font-mono text-[length:var(--text-meta)] tracking-[0.04em] uppercase ${
                             provider.discovery === "live"
                               ? "border-[color-mix(in_srgb,var(--good)_32%,var(--border))] text-[var(--good)]"
-                              : "border-[var(--border)] text-[var(--faint)]"
+                              : provider.ready
+                                ? "border-[var(--border)] text-[var(--faint)]"
+                                : "border-[color-mix(in_srgb,var(--warn)_32%,var(--border))] text-[var(--warn)]"
                           }`}
                         >
                           {providerDiscoveryLabel(provider)}
@@ -475,7 +496,7 @@ export function ComposerModelSelector({
                                     >
                                       <SelectTrigger
                                         aria-label={`${model.label} reasoning effort`}
-                                        className="!h-10 !min-h-10 max-[760px]:!h-11 max-[760px]:!min-h-11 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 text-[length:var(--text-control)] text-[var(--text)] hover:border-[var(--border-strong)]"
+                                        className="!h-9 !min-h-9 max-[760px]:!h-10 max-[760px]:!min-h-10 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 text-[length:var(--text-control)] text-[var(--text)] hover:border-[var(--border-strong)] disabled:opacity-55"
                                         disabled={
                                           Boolean(saving) || !provider.ready
                                         }
@@ -531,7 +552,7 @@ export function ComposerModelSelector({
                 {feedback}
               </p>
             ) : null}
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2.25 text-[length:var(--text-meta)] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[length:var(--text-meta)] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2 text-[length:var(--text-meta)] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[length:var(--text-meta)] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
               <strong>Spawned-agent pool</strong>
               <span>
                 {accountPool.loading

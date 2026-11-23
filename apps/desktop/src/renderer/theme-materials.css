@@ -310,23 +310,102 @@
   --glass-fill: var(--surface-raised);
   --material-edge: var(--glass-edge);
   --material-floating: var(--glass-fill);
-  --glass-edge: color-mix(in srgb, var(--text) 17%, transparent);
-  --glass-shadow: 0 14px 44px #09224826, inset 0 1px 0 #ffffff88;
+  --material-shadow: var(--glass-shadow-floating);
+  --glass-edge: color-mix(in srgb, var(--text) 14%, transparent);
+  --glass-brightness: 1;
+  --glass-edge-light: linear-gradient(
+    164deg,
+    color-mix(in srgb, #ffffff 62%, transparent),
+    color-mix(in srgb, #ffffff 16%, transparent) 34%,
+    color-mix(in srgb, var(--accent) 16%, transparent) 66%,
+    color-mix(in srgb, #ffffff 34%, transparent)
+  );
+  --glass-sheen: linear-gradient(
+    172deg,
+    color-mix(in srgb, #ffffff 16%, transparent),
+    transparent 30%
+  );
+  --glass-panel:
+    var(--glass-sheen) padding-box,
+    linear-gradient(var(--glass-fill), var(--glass-fill)) padding-box,
+    var(--glass-edge-light) border-box;
+  --glass-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 56%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #22406e 8%, transparent),
+    0 1px 3px color-mix(in srgb, #22406e 10%, transparent),
+    0 20px 50px -16px color-mix(in srgb, #22406e 28%, transparent);
+  --glass-shadow-focus:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 64%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #22406e 10%, transparent),
+    0 2px 6px color-mix(in srgb, #22406e 12%, transparent),
+    0 22px 54px -14px color-mix(in srgb, #22406e 34%, transparent);
+  --glass-shadow-lift:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 68%, transparent),
+    0 3px 10px color-mix(in srgb, #22406e 12%, transparent),
+    0 28px 56px -14px color-mix(in srgb, #22406e 34%, transparent);
+  --glass-shadow-chip:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent),
+    0 3px 10px color-mix(in srgb, #22406e 8%, transparent);
+  --glass-shadow-floating:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 46%, transparent),
+    0 4px 16px color-mix(in srgb, #22406e 10%, transparent),
+    0 26px 60px -16px color-mix(in srgb, #22406e 30%, transparent);
+}
+[data-ui-material="glass"][data-appearance="dark"] {
+  --glass-edge: color-mix(in srgb, var(--text) 18%, transparent);
+  --glass-edge-light: linear-gradient(
+    164deg,
+    color-mix(in srgb, #ffffff 46%, transparent),
+    color-mix(in srgb, #ffffff 10%, transparent) 32%,
+    color-mix(in srgb, var(--accent) 24%, transparent) 66%,
+    color-mix(in srgb, #ffffff 26%, transparent)
+  );
+  --glass-sheen: linear-gradient(
+    172deg,
+    color-mix(in srgb, #ffffff 9%, transparent),
+    transparent 32%
+  );
+  --glass-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 36%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #04101f 38%, transparent),
+    0 2px 6px color-mix(in srgb, #04101f 34%, transparent),
+    0 24px 60px -16px color-mix(in srgb, #04101f 58%, transparent);
+  --glass-shadow-focus:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 44%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #04101f 40%, transparent),
+    0 2px 8px color-mix(in srgb, #04101f 38%, transparent),
+    0 26px 62px -14px color-mix(in srgb, #04101f 62%, transparent);
+  --glass-shadow-lift:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 46%, transparent),
+    0 4px 14px color-mix(in srgb, #04101f 40%, transparent),
+    0 30px 64px -14px color-mix(in srgb, #04101f 62%, transparent);
+  --glass-shadow-chip:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 26%, transparent),
+    0 3px 12px color-mix(in srgb, #04101f 32%, transparent);
+  --glass-shadow-floating:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 30%, transparent),
+    0 4px 16px color-mix(in srgb, #04101f 36%, transparent),
+    0 26px 60px -16px color-mix(in srgb, #04101f 56%, transparent);
 }
 [data-ui-material="glass"] .desktop-shell {
   gap: 12px;
   padding: 12px;
   background:
+    radial-gradient(
+      150% 90% at 50% -18%,
+      color-mix(in srgb, #ffffff 22%, transparent),
+      transparent 58%
+    ),
     #6c90d9 url("./assets/golden-gate-landscape.svg") center / cover no-repeat;
 }
 [data-ui-material="glass"][data-appearance="dark"] .desktop-shell {
-  background-blend-mode: multiply;
+  background-blend-mode: normal, multiply;
   background-color: #293c6d;
 }
 [data-ui-material="glass"] .desktop-shell :is(.app-sidebar, .app-main) {
-  border: 1px solid var(--glass-edge);
-  border-radius: 24px;
-  background: var(--glass-fill);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-xl) + 4px);
+  background: var(--glass-panel);
   box-shadow: var(--glass-shadow);
   isolation: isolate;
 }
@@ -349,10 +428,18 @@
   :is(button[aria-current], .dl-contact[aria-current]) {
   background: var(--accent);
   color: var(--accent-ink);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow:
-    inset 0 1px 0 #ffffff33,
-    0 3px 10px #0054bb22;
+    inset 0 1px 0 color-mix(in srgb, #ffffff 34%, transparent),
+    0 4px 14px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+[data-ui-material="glass"]
+  .app-sidebar
+  :is(
+    .dl-contact:not([aria-current]),
+    .chat-history-row-open:not([aria-current="page"])
+  ):hover {
+  background: color-mix(in srgb, var(--surface-hover) 58%, transparent);
 }
 [data-ui-material="glass"] .app-sidebar nav[aria-label="Other areas"] svg {
   padding: 3px;
@@ -378,32 +465,34 @@
   border-bottom: 1px solid var(--glass-edge);
 }
 [data-ui-material="glass"] .window-tools {
-  border: 1px solid var(--glass-edge);
+  border: 1px solid transparent;
   padding: 2px 4px;
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
-  box-shadow: inset 0 1px 0 #ffffff77;
+  border-radius: var(--radius-xl);
+  background: var(--glass-panel);
+  box-shadow: var(--glass-shadow-floating);
 }
 [data-ui-material="glass"] .window-tools::before {
   display: none;
 }
 [data-ui-material="glass"] .chat-workspace .chat-composer {
-  border: 1px solid var(--glass-edge);
-  border-radius: 28px;
-  background: var(--glass-fill);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-xl) + 4px);
+  background: var(--glass-panel);
   box-shadow: var(--glass-shadow);
+  transition: box-shadow var(--motion-surface) var(--ease-liquid);
+}
+[data-ui-material="glass"] .chat-workspace .chat-composer:focus-within {
+  box-shadow: var(--glass-shadow-focus);
 }
 [data-ui-material="glass"] .chat-workspace .chat-composer-dock {
   padding-bottom: 22px;
 }
 [data-ui-material="glass"] .chat-workspace .chat-message-body {
   padding: 20px 24px;
-  border: 1px solid var(--glass-edge);
-  border-radius: 24px;
-  background: var(--glass-fill);
-  box-shadow:
-    0 6px 20px #102c4810,
-    inset 0 1px 0 #ffffff55;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  background: var(--glass-panel);
+  box-shadow: var(--glass-shadow-chip);
 }
 [data-ui-material="cel"] .chat-workspace .chat-message.user .chat-message-body {
   border-radius: 22px 22px 3px 22px;
@@ -413,13 +502,13 @@
   .chat-workspace
   .chat-message.user
   .chat-message-body {
-  border-radius: 24px 24px 6px 24px;
-  background: var(--surface-soft);
+  --glass-fill: var(--surface-soft);
+  border-radius: var(--radius-xl) var(--radius-xl) 6px var(--radius-xl);
 }
 [data-ui-material="glass"] :is(.dl-inspector-frame, .dl-settings-section) {
-  border-radius: 20px;
-  border: 1px solid var(--glass-edge);
-  background: var(--glass-fill);
+  border-radius: var(--radius-xl);
+  border: 1px solid transparent;
+  background: var(--glass-panel);
   box-shadow: var(--glass-shadow);
 }
 [data-ui-material="glass"] .chat-workspace .chat-welcome {
@@ -489,12 +578,24 @@
   height: 100%;
   min-height: 156px;
   width: 100%;
-  border: 1px solid var(--glass-edge);
-  border-radius: 20px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) + 4px);
   padding: 18px;
   text-align: left;
-  background: var(--glass-fill);
+  background: var(--glass-panel);
   box-shadow: var(--glass-shadow);
+  transition:
+    transform var(--motion-surface) var(--ease-liquid),
+    box-shadow var(--motion-surface) var(--ease-liquid);
+}
+[data-ui-material="glass"] .chat-welcome .chat-welcome-starter:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-lift);
+}
+[data-ui-material="glass"] .chat-welcome .chat-welcome-starter:active {
+  transform: translateY(0);
+  box-shadow: var(--glass-shadow);
+  transition-duration: var(--motion-feedback);
 }
 [data-ui-material="glass"] .welcome-card-index {
   display: grid;
@@ -522,10 +623,48 @@
 }
 @supports (backdrop-filter: blur(24px)) {
   [data-ui-material="glass"] {
-    --glass-fill: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 64%, transparent);
+    --material-floating: color-mix(
+      in srgb,
+      var(--surface-raised) 82%,
+      transparent
+    );
+  }
+  [data-ui-material="glass"][data-appearance="light"] {
+    --glass-brightness: 1.08;
+  }
+  [data-ui-material="glass"][data-appearance="dark"] {
+    --glass-brightness: 1.05;
   }
   [data-ui-material="glass"] .desktop-shell :is(.app-main, .app-sidebar) {
-    backdrop-filter: blur(30px) saturate(165%);
+    backdrop-filter: blur(28px) saturate(180%)
+      brightness(var(--glass-brightness));
+  }
+  [data-ui-material="glass"] .desktop-shell .app-sidebar {
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 48%, transparent);
+  }
+  [data-ui-material="glass"][data-appearance="light"]
+    .desktop-shell
+    .app-sidebar {
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 56%, transparent);
+  }
+  [data-ui-material="glass"][data-appearance="dark"] .desktop-shell .app-main {
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  }
+  [data-ui-material="glass"][data-appearance="light"] .desktop-shell .app-main {
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 46%, transparent);
+  }
+  [data-ui-material="glass"] .chat-workspace .chat-composer {
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 74%, transparent);
+  }
+  [data-ui-material="glass"] .chat-workspace .chat-message-body {
+    --glass-fill: color-mix(in srgb, var(--surface-raised) 76%, transparent);
+  }
+  [data-ui-material="glass"]
+    .chat-workspace
+    .chat-message.user
+    .chat-message-body {
+    --glass-fill: color-mix(in srgb, var(--surface-soft) 78%, transparent);
   }
   [data-ui-material="glass"]
     .desktop-shell
@@ -534,13 +673,43 @@
       .chat-message-body,
       .chat-welcome-starter,
       .dl-inspector-frame,
-      .dl-settings-section
+      .dl-settings-section,
+      .window-tools
     ) {
-    backdrop-filter: blur(18px) saturate(145%);
+    backdrop-filter: blur(20px) saturate(165%)
+      brightness(var(--glass-brightness));
   }
-  [data-ui-material="glass"] .app-sidebar {
-    background: color-mix(in srgb, var(--surface-raised) 53%, transparent);
+  [data-ui-material="glass"]
+    :is(
+      .dl-settings-menu,
+      .dl-settings-group,
+      .dl-select-content,
+      .dl-action-menu,
+      .dl-dialog,
+      .composer-selector-popover,
+      .route-control-dialog,
+      .command-palette,
+      .chat-history-tooltip,
+      .chat-jump-to-latest
+    ) {
+    backdrop-filter: blur(22px) saturate(180%)
+      brightness(var(--glass-brightness));
   }
+  [data-ui-material="glass"]
+    .chat-workspace
+    :is(
+      .chat-command-completions,
+      .chat-reusable-completions,
+      .chat-composer-tool-menu,
+      .chat-prompt-library
+    ) {
+    backdrop-filter: blur(22px) saturate(180%)
+      brightness(var(--glass-brightness));
+  }
+}
+[data-ui-material="glass"] :is(.chat-history-tooltip, .chat-jump-to-latest) {
+  border-color: var(--glass-edge);
+  background: var(--material-floating);
 }
 [data-ui-material]:is([data-ui-material="cel"], [data-ui-material="glass"])
   .chat-workspace
@@ -602,9 +771,34 @@
       .chat-welcome-starter,
       .dl-inspector-frame,
       .dl-settings-section,
-      .window-tools
+      .window-tools,
+      .chat-jump-to-latest
     ) {
     background: var(--surface-raised);
+    backdrop-filter: none;
+  }
+  [data-ui-material="glass"]
+    :is(
+      .dl-action-menu,
+      .dl-dialog,
+      .composer-selector-popover,
+      .route-control-dialog,
+      .command-palette
+    ) {
+    backdrop-filter: none;
+  }
+  [data-ui-material="glass"] .chat-history-tooltip {
+    background: var(--surface-raised);
+    backdrop-filter: none;
+  }
+  [data-ui-material="glass"]
+    .chat-workspace
+    :is(
+      .chat-command-completions,
+      .chat-reusable-completions,
+      .chat-composer-tool-menu,
+      .chat-prompt-library
+    ) {
     backdrop-filter: none;
   }
 }
@@ -621,11 +815,24 @@
       .chat-composer,
       .chat-message-body,
       .chat-welcome-starter,
-      .window-tools
+      .window-tools,
+      .chat-jump-to-latest
     ) {
     border-color: CanvasText;
     box-shadow: none;
     backdrop-filter: none;
+  }
+  [data-ui-material="glass"]
+    :is(
+      .dl-settings-menu,
+      .dl-settings-group,
+      .dl-select-content,
+      .dl-settings-choice,
+      .dl-settings-theme-choice,
+      .chat-history-tooltip
+    ) {
+    border-color: CanvasText;
+    box-shadow: none;
   }
   [data-ui-material] :is(.welcome-art, .welcome-app-icon) {
     display: none;
@@ -648,19 +855,6 @@
 [data-ui-material="glass"] .app-sidebar .dl-contact[aria-current] .dl-avatar {
   background: color-mix(in srgb, var(--accent) 85%, #000);
   color: var(--accent-ink);
-}
-@supports (backdrop-filter: blur(24px)) {
-  [data-ui-material="glass"][data-appearance="light"] .desktop-shell .app-main {
-    background: color-mix(in srgb, var(--surface-raised) 45%, transparent);
-  }
-  [data-ui-material="glass"][data-appearance="dark"] .desktop-shell .app-main {
-    background: color-mix(in srgb, var(--surface-raised) 68%, transparent);
-  }
-}
-@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
-  [data-ui-material="glass"][data-appearance] .desktop-shell .app-main {
-    background: var(--surface-raised);
-  }
 }
 [data-ui-material="cel"] .dl-settings-page-heading h2 {
   font:
@@ -688,29 +882,41 @@
   color: var(--accent-ink);
 }
 [data-ui-material="glass"] .dl-settings-menu {
-  border-color: var(--glass-edge);
-  background: var(--glass-fill);
+  border-color: transparent;
+  background: var(--glass-panel);
 }
 [data-ui-material="glass"] .dl-settings-group {
   padding: 24px;
-  border: 1px solid var(--glass-edge);
-  border-radius: 22px;
-  background: var(--glass-fill);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  background: var(--glass-panel);
   box-shadow: var(--glass-shadow);
 }
 [data-ui-material="glass"]
   :is(.dl-settings-choice, .dl-settings-theme-choice, .dl-select-content) {
-  border: 1px solid var(--glass-edge);
-  border-radius: 14px;
-  background: var(--glass-fill);
-  box-shadow:
-    inset 0 1px 0 #ffffff55,
-    0 3px 8px #112d4b0c;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--glass-panel);
+  box-shadow: var(--glass-shadow-chip);
+}
+[data-ui-material="glass"] :is(.dl-settings-choice, .dl-settings-theme-choice) {
+  transition:
+    transform var(--motion-feedback) var(--ease-liquid),
+    box-shadow var(--motion-feedback) var(--ease-liquid);
+}
+[data-ui-material="glass"]
+  :is(.dl-settings-choice, .dl-settings-theme-choice):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--glass-shadow-lift);
+}
+[data-ui-material="glass"]
+  :is(.dl-settings-choice, .dl-settings-theme-choice):active {
+  transform: translateY(0);
 }
 [data-ui-material="glass"]
   :is(.dl-settings-choice, .dl-settings-theme-choice)[aria-pressed="true"] {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+  background: color-mix(in srgb, var(--accent) 14%, var(--glass-fill));
 }
 .dl-theme-preview[data-material="cel"] {
   border-width: 2px;
@@ -722,12 +928,6 @@
 .dl-theme-preview[data-material="glass"] {
   border-radius: 14px;
   box-shadow: inset 0 1px 0 #ffffffaa;
-}
-@supports (backdrop-filter: blur(24px)) {
-  [data-ui-material="glass"]
-    :is(.dl-settings-menu, .dl-settings-group, .dl-select-content) {
-    backdrop-filter: blur(18px) saturate(165%);
-  }
 }
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
   [data-ui-material="glass"]

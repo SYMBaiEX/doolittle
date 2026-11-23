@@ -6,7 +6,13 @@ import {
 } from "../../packages/agent/src/runtime/theme-catalog";
 import { parseThemeManifestV2 } from "../../packages/contracts/src/theme";
 import {
+  composeThemeManifest,
+  splitThemeSelection,
+  themeSelectionId,
+} from "../../packages/ui/src/theme-colors";
+import {
   BUILT_IN_THEMES,
+  CANVAS_THEME,
   legacyThemeColor,
   themeContrast,
   themeCssVariables,
@@ -55,6 +61,51 @@ it("only reads supported names when migrating legacy colors", () => {
   expect(legacyThemeColor(" BLUE ")).toBe("#4f7cff");
   expect(legacyThemeColor("constructor")).toBeUndefined();
   expect(legacyThemeColor("__proto__")).toBeUndefined();
+});
+
+it("composes a color overlay onto a layout theme for both appearances", () => {
+  const composed = composeThemeManifest(CANVAS_THEME, {
+    name: "obsidian",
+    label: "Null Glass",
+    dark: { accent: "#8d99ae" },
+    light: { accent: "#3d4c63" },
+  });
+  expect(composed.id).toBe("canvas.obsidian");
+  expect(composed.name).toBe("Canvas + Null Glass");
+  expect(composed.layout).toBe("canvas");
+  expect(composed.geometry).toEqual(CANVAS_THEME.geometry);
+  expect(composed.colors.dark.accent).toBe("#8d99ae");
+  expect(composed.colors.light.accent).toBe("#3d4c63");
+  // Untouched palette fields keep the base theme's values.
+  expect(composed.colors.dark.background).toBe(
+    CANVAS_THEME.colors.dark.background,
+  );
+  expect(() => validateThemeAccessibility(composed)).not.toThrow();
+  // Recomposing replaces the color suffix instead of stacking identities.
+  const recomposed = composeThemeManifest(composed, {
+    name: "ember",
+    dark: { accent: "#d7263d" },
+  });
+  expect(recomposed.id).toBe("canvas.ember");
+});
+
+it("round-trips selection identities and falls back on invalid names", () => {
+  expect(themeSelectionId("canvas", "blue-static")).toBe("canvas.blue-static");
+  // Names outside the manifest id alphabet keep the bare layout id.
+  expect(themeSelectionId("canvas", "Blue Static")).toBe("canvas");
+  expect(themeSelectionId("canvas", " ")).toBe("canvas");
+  expect(splitThemeSelection("canvas.blue-static")).toEqual({
+    theme: "canvas",
+    color: "blue-static",
+  });
+  expect(splitThemeSelection("golden-gate-glass")).toEqual({
+    theme: "golden-gate-glass",
+    color: null,
+  });
+  expect(splitThemeSelection("obsidian")).toEqual({
+    theme: "obsidian",
+    color: null,
+  });
 });
 
 it("offers matching CLI palettes and keeps terminal header text readable", () => {

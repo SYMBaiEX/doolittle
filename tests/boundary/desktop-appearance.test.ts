@@ -6,13 +6,20 @@ import {
   APPEARANCE_STORAGE_KEY,
   announceAppearance,
   announceDensity,
+  applyDesktopTheme,
   applyThemeManifest,
+  clearThemeColorSelection,
   DENSITY_STORAGE_KEY,
+  type DesktopThemeProfile,
+  getActiveColorName,
   loadStoredThemeManifest,
+  loadThemeColorSelection,
+  selectDesktopTheme,
   THEME_V2_STORAGE_KEY,
 } from "../../apps/desktop/src/renderer/desktop-theme";
 import {
   ANIME_ATELIER_THEME,
+  CANVAS_THEME,
   COMPANION_THEME,
   GOLDEN_GATE_GLASS_THEME,
 } from "../../packages/ui/src/themes";
@@ -87,6 +94,121 @@ it("persists expressive themes across appearance changes and clears their materi
   }
   act(() => applyThemeManifest(COMPANION_THEME, "builtin"));
   expect(document.documentElement.dataset.uiMaterial).toBe("flat");
+});
+
+const OBSIDIAN_PROFILE: DesktopThemeProfile = {
+  name: "obsidian",
+  label: "Null Glass",
+  tagline: "Dark chrome for minimal interference.",
+  primary: "#8D99AE",
+  secondary: "#C9D6EA",
+  amberGlow: "#E7C76B",
+  cyanGlow: "#7EE0FF",
+  greenGlow: "#8CFFB5",
+  magentaGlow: "#D78EFF",
+  muted: "gray",
+  baseBg: "black",
+  baseFg: "white",
+  panelBg: "black",
+};
+
+const EMBER_PROFILE: DesktopThemeProfile = {
+  name: "ember",
+  label: "Crimson Forge",
+  tagline: "Redline pressure with a sharper, hotter pulse.",
+  primary: "#D7263D",
+  secondary: "#FF6B6B",
+  amberGlow: "#FFC857",
+  cyanGlow: "#63E6FF",
+  greenGlow: "#93FFB0",
+  magentaGlow: "#FF7DE8",
+  muted: "gray",
+  baseBg: "black",
+  baseFg: "white",
+  panelBg: "black",
+};
+
+it("composes a runtime color onto the active layout theme", () => {
+  act(() => root.render(createElement(Probe)));
+  act(() => applyThemeManifest(CANVAS_THEME, "builtin"));
+  let manifest!: ReturnType<typeof applyDesktopTheme>;
+  act(() => {
+    manifest = applyDesktopTheme(OBSIDIAN_PROFILE, "runtime");
+  });
+  expect(manifest.id).toBe("canvas.obsidian");
+  expect(manifest.layout).toBe("canvas");
+  expect(manifest.name).toBe("Canvas + Null Glass");
+  expect(manifest.geometry).toEqual(CANVAS_THEME.geometry);
+  // The layout keeps its surfaces; the color owns accent and status colors.
+  expect(manifest.colors.dark.background).toBe(
+    CANVAS_THEME.colors.dark.background,
+  );
+  expect(manifest.colors.dark.accent).toBe("#8d99ae");
+  expect(manifest.colors.light.accent).toBe("#8d99ae");
+  expect(document.documentElement.dataset.theme).toBe("canvas.obsidian");
+  expect(document.documentElement.dataset.uiLayout).toBe("canvas");
+  expect(getActiveColorName()).toBe("obsidian");
+  expect(loadThemeColorSelection()?.color.name).toBe("obsidian");
+  // Reloading recomposes the same pair.
+  expect(loadStoredThemeManifest()).toEqual(manifest);
+});
+
+it("keeps the chosen palette when switching layout themes", () => {
+  act(() => root.render(createElement(Probe)));
+  act(() => applyThemeManifest(CANVAS_THEME, "builtin"));
+  act(() => applyDesktopTheme(EMBER_PROFILE, "runtime"));
+  let manifest!: ReturnType<typeof selectDesktopTheme>;
+  act(() => {
+    manifest = selectDesktopTheme(GOLDEN_GATE_GLASS_THEME);
+  });
+  expect(manifest.id).toBe("golden-gate-glass.ember");
+  expect(manifest.material).toBe("glass");
+  expect(manifest.colors.dark.accent).toBe("#d7263d");
+  expect(manifest.colors.dark.background).toBe(
+    GOLDEN_GATE_GLASS_THEME.colors.dark.background,
+  );
+  expect(getActiveColorName()).toBe("ember");
+});
+
+it("recolors from a pristine base so palettes never tint on tint", () => {
+  act(() => root.render(createElement(Probe)));
+  act(() => applyThemeManifest(CANVAS_THEME, "builtin"));
+  act(() => applyDesktopTheme(OBSIDIAN_PROFILE, "runtime"));
+  let manifest!: ReturnType<typeof applyDesktopTheme>;
+  act(() => {
+    manifest = applyDesktopTheme(EMBER_PROFILE, "runtime");
+  });
+  expect(manifest.id).toBe("canvas.ember");
+  expect(manifest.colors.dark.accent).toBe("#d7263d");
+  expect(manifest.colors.dark.background).toBe(
+    CANVAS_THEME.colors.dark.background,
+  );
+  expect(loadThemeColorSelection()?.color.name).toBe("ember");
+});
+
+it("restores the layout's own colors when the color selection clears", () => {
+  act(() => root.render(createElement(Probe)));
+  act(() => applyThemeManifest(CANVAS_THEME, "builtin"));
+  act(() => applyDesktopTheme(OBSIDIAN_PROFILE, "runtime"));
+  let manifest!: ReturnType<typeof clearThemeColorSelection>;
+  act(() => {
+    manifest = clearThemeColorSelection();
+  });
+  expect(manifest).toEqual(CANVAS_THEME);
+  expect(loadThemeColorSelection()).toBeNull();
+  expect(getActiveColorName()).toBeNull();
+  expect(document.documentElement.dataset.theme).toBe("canvas");
+});
+
+it("ignores rebroadcasts of the active color but composes new ones", () => {
+  act(() => root.render(createElement(Probe)));
+  act(() => applyThemeManifest(CANVAS_THEME, "builtin"));
+  act(() => applyDesktopTheme(OBSIDIAN_PROFILE, "runtime"));
+  const before = localStorage.getItem(THEME_V2_STORAGE_KEY);
+  act(() => applyDesktopTheme(OBSIDIAN_PROFILE));
+  expect(localStorage.getItem(THEME_V2_STORAGE_KEY)).toBe(before);
+  act(() => applyDesktopTheme(EMBER_PROFILE));
+  expect(loadStoredThemeManifest().id).toBe("canvas.ember");
 });
 
 for (const theme of [ANIME_ATELIER_THEME, GOLDEN_GATE_GLASS_THEME]) {

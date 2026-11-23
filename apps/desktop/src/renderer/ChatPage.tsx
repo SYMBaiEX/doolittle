@@ -1845,6 +1845,7 @@ export function ChatSessionPanel({
               ) : null
             }
             workspaceTarget={workspaceTarget}
+            workspaceBound={Boolean(confirmedWorkspace)}
             projects={projects}
             onChooseRepository={() => onChooseRepository?.(selectedId)}
             onOpenProjectManager={onOpenProjectManager}

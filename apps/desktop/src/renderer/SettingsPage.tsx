@@ -18,8 +18,10 @@ import {
   applyDesktopDensity,
   applyDesktopTheme,
   applyThemeManifest,
+  clearThemeColorSelection,
   type DesktopAppearance,
   type DesktopDensity,
+  getActiveColorName,
   getThemeMigrationError,
   legacyThemeProfile,
   loadAppearancePreference,
@@ -27,8 +29,12 @@ import {
   loadDesktopThemeSource,
   loadStoredDesktopTheme,
   loadStoredThemeManifest,
+  loadThemeColorSelection,
   parseDesktopThemeProfile,
+  selectDesktopTheme,
+  setThemeColorSelection,
   subscribeToDesktopThemeChanges,
+  THEME_MANIFEST_CHANGE_EVENT,
 } from "./desktop-theme";
 import {
   DESKTOP_THEME_IMPORT_MAX_BYTES,
@@ -199,12 +205,18 @@ export function SettingsPage({
     // The shell toggle applies its preference directly. Read the stored
     // preference, not the resolved appearance, so System remains selected.
     window.addEventListener(APPEARANCE_APPLIED_EVENT, syncAppliedAppearance);
+    // Theme application can also come from runtime synchronization; mirror
+    // whichever composed manifest is active.
+    const syncAppliedTheme = () =>
+      setActiveThemeProfile(loadStoredDesktopTheme());
+    window.addEventListener(THEME_MANIFEST_CHANGE_EVENT, syncAppliedTheme);
     return () => {
       unsubscribe();
       window.removeEventListener(
         APPEARANCE_APPLIED_EVENT,
         syncAppliedAppearance,
       );
+      window.removeEventListener(THEME_MANIFEST_CHANGE_EVENT, syncAppliedTheme);
     };
   }, []);
   useEffect(() => {
@@ -250,11 +262,19 @@ export function SettingsPage({
     }
   }, [category]);
   useEffect(() => {
+    if (!active) return;
     if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
       return;
     const profile = parseDesktopThemeProfile(themes.data?.profile);
-    if (profile) setActiveThemeProfile(profile);
-  }, [themes.data?.profile]);
+    if (!profile) return;
+    // The runtime owns the color axis: keep its active palette composed onto
+    // the selected layout rather than letting it replace the layout theme.
+    if (profile.name === getActiveColorName()) return;
+    const manifest = applyDesktopTheme(profile, "runtime");
+    const applied = legacyThemeProfile(manifest);
+    setActiveThemeProfile(applied);
+    announceTheme(applied);
+  }, [active, themes.data?.profile]);
   const fields = useMemo(
     () => flattenSettings(settings.data?.settings ?? {}),
     [settings.data],
@@ -296,17 +316,33 @@ export function SettingsPage({
     const builtIn = BUILT_IN_THEMES.find((candidate) => candidate.id === theme);
     setPreferenceFeedback(null);
     if (builtIn) {
-      applyThemeManifest(builtIn, "builtin");
-      const profile = legacyThemeProfile(builtIn);
+      const color = loadThemeColorSelection()?.color ?? null;
+      const manifest = selectDesktopTheme(builtIn);
+      const profile = legacyThemeProfile(manifest);
       setActiveThemeProfile(profile);
       announceTheme(profile);
       setPreferenceFeedback({
         kind: "status",
-        message: `${builtIn.name} layout is now active.`,
+        message: color
+          ? `${builtIn.name} layout with ${color.label} colors is now active.`
+          : `${builtIn.name} layout is now active.`,
       });
       return;
     }
     if (!active) return;
+    // Picking the active color again returns the layout to its own palette.
+    const selectedColor = loadThemeColorSelection()?.color;
+    if (selectedColor?.name === theme) {
+      const manifest = clearThemeColorSelection();
+      const profile = legacyThemeProfile(manifest);
+      setActiveThemeProfile(profile);
+      announceTheme(profile);
+      setPreferenceFeedback({
+        kind: "status",
+        message: `${manifest.name} colors restored.`,
+      });
+      return;
+    }
     themeInFlightRef.current = true;
     setThemeBusy(true);
     try {
@@ -317,12 +353,13 @@ export function SettingsPage({
       if (!profile) {
         throw new Error("The runtime did not return a valid theme profile.");
       }
-      applyDesktopTheme(profile, "runtime");
-      setActiveThemeProfile(profile);
-      announceTheme(profile);
+      const manifest = applyDesktopTheme(profile, "runtime");
+      const applied = legacyThemeProfile(manifest);
+      setActiveThemeProfile(applied);
+      announceTheme(applied);
       setPreferenceFeedback({
         kind: "status",
-        message: `${profile.label} is now active.`,
+        message: `${profile.label} colors are now active.`,
       });
       themes.reload();
       settings.reload();
@@ -375,6 +412,9 @@ export function SettingsPage({
       applyDesktopDensity(bundle.density);
       announceDensity(bundle.density);
       applyThemeManifest(bundle.theme, "imported");
+      // An imported bundle is a complete design; a previous color pick does
+      // not carry onto it or onto later theme picks.
+      setThemeColorSelection(null);
       const profile = legacyThemeProfile(bundle.theme);
       setActiveThemeProfile(profile);
       announceTheme(profile);
@@ -502,6 +542,7 @@ export function SettingsPage({
           <SettingsAppearancePanel
             active={active}
             activeTheme={activeThemeProfile}
+            activeColor={getActiveColorName()}
             themeMigrationError={themeMigrationError}
             themeBusy={themeBusy}
             localThemeIds={BUILT_IN_THEMES.map((theme) => theme.id)}

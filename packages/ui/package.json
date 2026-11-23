@@ -9,6 +9,7 @@
     "./surfaces": "./src/surfaces.tsx",
     "./host": "./src/host.ts",
     "./themes": "./src/themes.ts",
+    "./theme-colors": "./src/theme-colors.ts",
     "./styles.css": "./src/styles.css",
     "./environment": "./src/environment.ts"
   },
