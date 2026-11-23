@@ -47,8 +47,14 @@ export interface GatewayRunnerRecordingDeps {
 
 export class GatewayRunnerRecording {
   private readonly events = new EventEmitter();
+  private readonly receiveOutcomes = new Map<
+    string | undefined,
+    GatewayReceiveOutcome
+  >();
 
-  constructor(private readonly deps: GatewayRunnerRecordingDeps) {}
+  constructor(private readonly deps: GatewayRunnerRecordingDeps) {
+    for (const record of deps.inboxLog) this.indexReceiveOutcome(record);
+  }
 
   recordInbox(
     message: IncomingPlatformMessage,
@@ -141,32 +147,39 @@ export class GatewayRunnerRecording {
     idempotencyKey: string,
     outcome: GatewayReceiveOutcome,
   ): GatewayInboxRecord {
-    return recordGatewayInboxJournalEntry({
-      traceId: outcome.traceId ?? "unknown",
-      sessionId: outcome.sessionId,
-      message,
-      status: "completed",
-      idempotencyKey,
-      outcome,
-      recordAttachments: false,
-      recordLog: this.deps.inboxLog,
-      recordPath: this.deps.inboxPath,
-      attachmentLog: this.deps.attachmentLog,
-      attachmentsPath: this.deps.attachmentsPath,
-    }).record;
+    const previousLength = this.deps.inboxLog.length;
+    try {
+      return recordGatewayInboxJournalEntry({
+        traceId: outcome.traceId ?? "unknown",
+        sessionId: outcome.sessionId,
+        message,
+        status: "completed",
+        idempotencyKey,
+        outcome,
+        recordAttachments: false,
+        recordLog: this.deps.inboxLog,
+        recordPath: this.deps.inboxPath,
+        attachmentLog: this.deps.attachmentLog,
+        attachmentsPath: this.deps.attachmentsPath,
+      }).record;
+    } finally {
+      const record = this.deps.inboxLog.at(-1);
+      if (this.deps.inboxLog.length > previousLength && record) {
+        this.indexReceiveOutcome(record);
+      }
+    }
   }
 
   findReceiveOutcome(
     idempotencyKey: string,
   ): GatewayReceiveOutcome | undefined {
-    return this.deps.inboxLog
-      .slice()
-      .reverse()
-      .find(
-        (record) =>
-          record.idempotencyKey === idempotencyKey &&
-          record.outcome !== undefined,
-      )?.outcome;
+    return this.receiveOutcomes.get(idempotencyKey);
+  }
+
+  private indexReceiveOutcome(record: GatewayInboxRecord): void {
+    if (record.outcome !== undefined) {
+      this.receiveOutcomes.set(record.idempotencyKey, record.outcome);
+    }
   }
 
   getOutboxRecord(recordId: string): GatewayOutboxRecord | undefined {
