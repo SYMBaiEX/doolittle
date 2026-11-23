@@ -587,6 +587,7 @@ export function OrchestrationPage({
       <div className={oc("orchestration-nav-row")}>
         <PanelTabs
           id="work"
+          overflowControls
           label="Work views"
           items={WORK_TABS}
           selected={activeTab}
