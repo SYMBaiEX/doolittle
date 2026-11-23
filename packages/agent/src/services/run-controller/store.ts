@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import { isRunReceiptEnvelope } from "@doolittle/contracts/run";
 import { readOptionalJson } from "@doolittle/storage";
+import { getEntrypointLogger } from "../../logging/entrypoint-logger";
+import { formatLoggerError } from "../../logging/logger";
 import { type JournalChange, RunJournalPersistence } from "./persistence";
 import type { RunReceiptEnvelope, RunSnapshot, TaskRunEvent } from "./types";
 import { cloneRun } from "./utils";
@@ -36,7 +38,10 @@ export class RunControllerStore {
   private journalChanges = new Map<string, JournalChange | null>();
   private persistenceTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(dataDir?: string, options: RunControllerStoreOptions = {}) {
+  constructor(
+    private readonly dataDir?: string,
+    options: RunControllerStoreOptions = {},
+  ) {
     this.persistenceDebounceMs =
       options.persistenceDebounceMs ??
       RunControllerStore.DEFAULT_PERSISTENCE_DEBOUNCE_MS;
@@ -455,7 +460,15 @@ export class RunControllerStore {
     if (!this.persistence || this.persistenceTimer) return;
     this.persistenceTimer = setTimeout(() => {
       this.persistenceTimer = undefined;
-      this.flushPersistence();
+      try {
+        this.flushPersistence();
+      } catch (error) {
+        getEntrypointLogger("run-controller", {
+          dataDir: this.dataDir,
+        }).error("run-journal-background-flush-failed", {
+          detail: formatLoggerError(error),
+        });
+      }
     }, this.persistenceDebounceMs);
     this.persistenceTimer.unref?.();
   }
