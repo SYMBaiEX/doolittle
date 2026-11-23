@@ -117,11 +117,25 @@ export async function dispatchRuntimePluginRoute({
   url: URL;
   isAuthorized: () => boolean;
 }): Promise<Response | null> {
-  const { body, rawBody } = await readRequestBody(request.clone());
+  request.signal.throwIfAborted();
+  const method = request.method.toUpperCase();
+  const matched = getHttpRuntime(runtime).routes.find(
+    (route) =>
+      route.type === method &&
+      (route.routeHandler || route.handler) &&
+      matchPluginRoutePath(route.path, url.pathname) !== null,
+  );
+  if (!matched) return null;
+
   const dispatch = async () => {
+    const { body, rawBody } =
+      matched.public === true || isAuthorized()
+        ? await readRequestBody(request.clone())
+        : {};
     const result = await dispatchRoute({
+      signal: request.signal,
       runtime,
-      method: request.method,
+      method,
       path: url.pathname,
       headers: headersToRecord(request.headers),
       query: searchParamsToQuery(url.searchParams),
@@ -132,20 +146,11 @@ export async function dispatchRuntimePluginRoute({
     });
     return result ? resultToResponse(result) : null;
   };
-  // Keep SDK matching/authorization authoritative. Only an actually matching
-  // plugin route needs scope; ordinary product routes must still fall through.
-  const matched = getHttpRuntime(runtime).routes.find(
-    (route) =>
-      route.type === request.method &&
-      (route.routeHandler || route.handler) &&
-      matchPluginRoutePath(route.path, url.pathname) !== null,
-  );
   const processRead =
-    request.method === "GET" &&
+    method === "GET" &&
     ["/health", "/features", "/autonomy/status"].includes(url.pathname);
   if (
     !isDesktopWorkspaceRuntime() ||
-    !matched ||
     processRead ||
     (matched.public !== true && !isAuthorized())
   )

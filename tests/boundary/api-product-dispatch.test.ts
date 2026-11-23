@@ -4,6 +4,7 @@ import { AgentRuntime } from "@elizaos/core";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap/index";
 import { createApiServer } from "../../packages/agent/src/server";
+import { dispatchRuntimePluginRoute } from "../../packages/agent/src/server/plugin-routes";
 import { dispatchRouteHandlers } from "../../packages/agent/src/server/router";
 import { apiRouteHandlers } from "../../packages/agent/src/server/routes/index";
 import { createDoolittleRuntimeRoutes } from "../../packages/plugins/doolittle-plugin/routes";
@@ -134,4 +135,56 @@ it("does not execute a product handler if the request is cancelled while its rou
   controller.abort(aborted);
   await expect(response).rejects.toBe(aborted);
   expect(listBenchmarks).not.toHaveBeenCalled();
+});
+
+it("leaves product and denied request bodies unread and forwards the signal to SDK routes", async () => {
+  vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "");
+  const runtime = new AgentRuntime({
+    character: { id: randomUUID(), name: "Fixture", bio: [] },
+  });
+  installRuntimePluginLifecycle(runtime);
+  const routeHandler = vi.fn(async () => ({ status: 200 }));
+  await runtime.registerPlugin({
+    name: "fixture-signal-test",
+    description: "Fixture for request body and signal ownership",
+    routes: [{ type: "POST", path: "/native", rawPath: true, routeHandler }],
+  });
+  const controller = new AbortController();
+  const body = JSON.stringify({ text: "fixture" });
+  const makeRequest = (path: string) =>
+    new Request(new URL(path, "http://localhost"), {
+      method: "POST",
+      body,
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+    });
+  const dispatch = (request: Request, authorized = true) =>
+    dispatchRuntimePluginRoute({
+      runtime,
+      request,
+      url: new URL(request.url),
+      isAuthorized: () => authorized,
+    });
+
+  const product = makeRequest("/product");
+  const productClone = vi.spyOn(product, "clone");
+  expect(await dispatch(product)).toBeNull();
+  expect(productClone).not.toHaveBeenCalled();
+  expect(await product.text()).toBe(body);
+
+  const denied = makeRequest("/native");
+  const deniedClone = vi.spyOn(denied, "clone");
+  expect((await dispatch(denied, false))?.status).toBe(401);
+  expect(deniedClone).not.toHaveBeenCalled();
+  expect(routeHandler).not.toHaveBeenCalled();
+
+  const native = makeRequest("/native");
+  expect((await dispatch(native))?.status).toBe(200);
+  expect(routeHandler).toHaveBeenCalledWith(
+    expect.objectContaining({
+      signal: native.signal,
+      body: { text: "fixture" },
+      rawBody: body,
+    }),
+  );
 });
