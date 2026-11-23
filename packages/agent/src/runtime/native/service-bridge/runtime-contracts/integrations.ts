@@ -140,5 +140,6 @@ export interface NativeSecretsService {
   list?: (context: {
     level: "global";
     agentId: string;
+    requesterId: string;
   }) => Promise<Record<string, unknown>>;
 }

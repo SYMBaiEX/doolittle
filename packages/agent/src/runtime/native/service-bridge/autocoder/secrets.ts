@@ -43,6 +43,10 @@ export async function listEffectiveSecretKeys(
     KEY,
     "list",
     "Eliza secrets service",
-  )({ level: "global", agentId: runtime.agentId });
+  )({
+    level: "global",
+    agentId: runtime.agentId,
+    requesterId: runtime.agentId,
+  });
   return Object.keys(metadata).sort();
 }
