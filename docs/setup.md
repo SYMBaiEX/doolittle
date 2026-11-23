@@ -29,8 +29,11 @@ pwsh scripts/install.ps1
 ```
 
 Include `--desktop` on macOS or Linux or `-Desktop` on Windows to install the
-Electron runtime during setup. You can also install it later with
-`nub run desktop:runtime:install` before developing or packaging the desktop app.
+Electron runtime during setup and then run `doolittle desktop`. That command
+launches the packaged app in `apps/desktop/release` and packages one first when
+none exists; `doolittle desktop --source` starts the development app instead.
+You can also install the runtime later with `nub run desktop:runtime:install`
+before developing or packaging the desktop app.
 
 For an existing toolchain, install the exact dependency graph directly:
 
