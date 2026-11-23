@@ -13,7 +13,7 @@ import {
   Search,
   Settings,
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type {
   BackendState,
   DoolittleDesktopBridge,
@@ -52,6 +52,8 @@ export function DesktopWindowTools({
   onRefresh,
 }: DesktopWindowToolsProps) {
   const menuTrigger = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const leavingByTab = useRef(false);
   const pendingMenuAction = useRef<(() => void | Promise<void>) | null>(null);
   const runMenuAction = (action: () => void | Promise<void>) => {
     pendingMenuAction.current = action;
@@ -128,7 +130,7 @@ export function DesktopWindowTools({
         <UiIcon icon={Settings} size="sm" />
       </button>
       <div className="min-[761px]:hidden">
-        <DropdownMenu modal={false}>
+        <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               aria-label="Window actions"
@@ -145,7 +147,19 @@ export function DesktopWindowTools({
             aria-label="Window actions"
             className="dl-action-menu window-actions-menu"
             collisionPadding={8}
+            onKeyDownCapture={(event) => {
+              if (event.key !== "Tab") return;
+              event.stopPropagation();
+              leavingByTab.current = true;
+              setMenuOpen(false);
+              menuTrigger.current?.focus({ preventScroll: true });
+            }}
             onCloseAutoFocus={(event) => {
+              if (leavingByTab.current) {
+                leavingByTab.current = false;
+                event.preventDefault();
+                return;
+              }
               const action = pendingMenuAction.current;
               if (!action) return;
               pendingMenuAction.current = null;

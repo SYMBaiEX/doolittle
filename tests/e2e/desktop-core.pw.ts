@@ -168,6 +168,17 @@ test.describe("fresh native desktop", () => {
       await expect(
         tools.getByRole("button", { name: "Open settings", exact: true }),
       ).toBeHidden();
+      for (const key of ["Tab", "Shift+Tab"]) {
+        await menu.focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByRole("menu")).toBeVisible();
+        await page.keyboard.press(key);
+        await expect(page.getByRole("menu")).toBeHidden();
+        await expect(menu).not.toBeFocused();
+        await expect
+          .poll(() => page.evaluate(() => document.activeElement?.tagName))
+          .not.toBe("BODY");
+      }
       await menu.click();
       await page.keyboard.press("Escape");
       await expect(menu).toBeFocused();
