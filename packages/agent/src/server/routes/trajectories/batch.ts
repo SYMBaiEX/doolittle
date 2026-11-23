@@ -1,6 +1,6 @@
 import { createEffectiveDelegationTask } from "../../../runtime/native/service-bridge/delegation/index";
+import { readRouteJsonBody } from "../../request-body";
 import { json } from "../../responses";
-import { readJsonBody } from "./helpers";
 import type { TrajectoryBatchBody, TrajectoryRouteHandler } from "./types";
 
 export const handleTrajectoryBatchRoutes: TrajectoryRouteHandler = async (
@@ -12,13 +12,20 @@ export const handleTrajectoryBatchRoutes: TrajectoryRouteHandler = async (
     return null;
   }
 
-  const body = await readJsonBody<TrajectoryBatchBody>(request);
-  const prompts = (body?.prompts ?? [])
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  const parsed = await readRouteJsonBody(request);
+  if ("response" in parsed) return parsed.response;
+  const { prompts: rawPrompts } = parsed.body;
+  if (
+    !Array.isArray(rawPrompts) ||
+    !rawPrompts.every((entry) => typeof entry === "string")
+  ) {
+    return json({ error: "prompts must be an array of strings" }, 400);
+  }
+  const prompts = rawPrompts.map((entry) => entry.trim()).filter(Boolean);
   if (!prompts.length) {
     return json({ error: "prompts is required" }, 400);
   }
+  const body = parsed.body as TrajectoryBatchBody;
   const label = body?.label ?? `trajectory-batch-${Date.now()}`;
   const group = `trajectory-batch:${label}`;
   const tasks = await Promise.all(
