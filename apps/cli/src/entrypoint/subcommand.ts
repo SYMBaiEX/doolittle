@@ -68,6 +68,15 @@ export interface OneShotOptions {
   sessionId?: string;
 }
 
+export class CliUsageError extends Error {}
+
+const EXEC_VALUE_OPTIONS = new Set([
+  "--prompt",
+  "-p",
+  "--session-id",
+  "--job-id",
+]);
+
 export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
   command: EntrypointSubcommand;
   rest: string[];
@@ -78,11 +87,30 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
       rest: userArgs.slice(1),
     };
   }
+  const globalArguments = new Set<number>();
+  const isExec = COMMAND_ALIASES.get(userArgs[0] ?? "") === "exec";
+  for (let index = 0; index < userArgs.length; index += 1) {
+    const argument = userArgs[index];
+    if (argument === "--") break;
+    if (isExec && EXEC_VALUE_OPTIONS.has(argument)) {
+      index += 1;
+      continue;
+    }
+    globalArguments.add(index);
+  }
   for (const { command, flags } of FLAG_COMMANDS) {
-    if (userArgs.some((argument) => flags.includes(argument))) {
+    if (
+      userArgs.some(
+        (argument, index) =>
+          globalArguments.has(index) && flags.includes(argument),
+      )
+    ) {
       return {
         command,
-        rest: userArgs.filter((argument) => !flags.includes(argument)),
+        rest: userArgs.filter(
+          (argument, index) =>
+            !globalArguments.has(index) || !flags.includes(argument),
+        ),
       };
     }
   }
@@ -122,6 +150,24 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
 
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
+    if (value === "--") {
+      positional.push(...args.slice(index + 1));
+      break;
+    }
+    const equalsIndex = value.indexOf("=");
+    const option = equalsIndex < 0 ? value : value.slice(0, equalsIndex);
+    if (EXEC_VALUE_OPTIONS.has(option)) {
+      const argument =
+        equalsIndex < 0 ? args[++index] : value.slice(equalsIndex + 1);
+      const isPrompt = option === "--prompt" || option === "-p";
+      if (!argument || (!isPrompt && argument.startsWith("-"))) {
+        throw new CliUsageError(`${option} requires a value.`);
+      }
+      if (isPrompt) prompt = argument;
+      else if (option === "--job-id") jobId = argument;
+      else sessionId = argument;
+      continue;
+    }
     if (value === "--json") {
       json = true;
       continue;
@@ -138,21 +184,8 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
       promptStdin = true;
       continue;
     }
-    if (value === "--prompt" || value === "-p") {
-      prompt = args[index + 1] ?? "";
-      index += 1;
-      continue;
-    }
-    if (value === "--job-id") {
-      jobId = args[index + 1] ?? "";
-      index += 1;
-      continue;
-    }
-    if (value === "--session-id") {
-      sessionId = args[index + 1] ?? "";
-      index += 1;
-      continue;
-    }
+    if (value.startsWith("-"))
+      throw new CliUsageError(`Unknown exec option: ${value}.`);
     positional.push(value);
   }
 
@@ -161,7 +194,7 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
   }
 
   if (promptStdin && (prompt !== undefined || positional.length > 0))
-    throw new Error(
+    throw new CliUsageError(
       "Cannot combine --prompt-stdin with --prompt or positional prompt.",
     );
 
