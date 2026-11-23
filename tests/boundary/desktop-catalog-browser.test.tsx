@@ -67,6 +67,62 @@ it("retains a selected item across filtering when it still matches and updates t
   expect(panel()?.textContent).toContain("File status detail");
 });
 
+it("opens compact details, restores the selected row on Back, and returns to results when filtering", async () => {
+  const items = [
+    { id: "file", name: "File status", description: "File status detail" },
+    { id: "git", name: "Git status", description: "Git status detail" },
+  ];
+  const render = (query: string) =>
+    act(() =>
+      root.render(<ToolCatalogWorkspace entries={items} resetKey={query} />),
+    );
+  const frame = () => container.querySelector(".catalog-browser");
+  const panel = () => container.querySelector<HTMLElement>('[role="tabpanel"]');
+  const settleFocus = () =>
+    new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  render("");
+  const back = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent === "Back to tools",
+  );
+  // A rendered Back control identifies the compact presentation; jsdom has no layout.
+  vi.spyOn(back as HTMLButtonElement, "getClientRects").mockReturnValue({
+    length: 1,
+  } as DOMRectList);
+  expect(frame()?.getAttribute("data-detail-open")).toBe("false");
+
+  const git = container
+    .querySelectorAll<HTMLButtonElement>('[role="tab"]')
+    .item(1);
+  await act(async () => {
+    git.click();
+    await settleFocus();
+  });
+  expect(frame()?.getAttribute("data-detail-open")).toBe("true");
+  expect(panel()?.textContent).toContain("Git status detail");
+  expect(document.activeElement).toBe(panel());
+
+  await act(async () => {
+    back?.click();
+    await settleFocus();
+  });
+  expect(frame()?.getAttribute("data-detail-open")).toBe("false");
+  expect(document.activeElement).toBe(git);
+
+  const viewSelected = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent?.trim() === "View selected",
+  );
+  expect(viewSelected?.getAttribute("aria-label")).toBe(
+    "View selected: Git status details",
+  );
+  act(() => viewSelected?.click());
+  expect(frame()?.getAttribute("data-detail-open")).toBe("true");
+  render("status");
+  expect(frame()?.getAttribute("data-detail-open")).toBe("false");
+  expect(git.getAttribute("aria-selected")).toBe("true");
+  render("");
+  expect(frame()?.getAttribute("data-detail-open")).toBe("false");
+});
+
 function RegistryReviewFixture({
   entries,
   onApproveInstall,
