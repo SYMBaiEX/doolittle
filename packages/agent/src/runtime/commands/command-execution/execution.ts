@@ -18,18 +18,31 @@ export async function runStreamingLocalShellCommand(
 ): Promise<ShellCommandTurnResult> {
   let stdout = "";
   let stderr = "";
-  const emit = async (chunk: string) => {
-    if (hooks?.abortSignal?.aborted) return;
-    await hooks?.onResponseProgress?.({
-      chunk,
-      response: formatShellCommandResponse({
-        command,
-        exitCode: 0,
-        stdout,
-        stderr,
-      }),
-      phase: "command",
+  let progressFailed = false;
+  const onProgressFailed = (error: unknown) => {
+    if (progressFailed) return;
+    progressFailed = true;
+    context.services.logger.warn("shell-command-progress-failed", {
+      detail: error instanceof Error ? error.message : String(error),
     });
+  };
+  const emit = (chunk: string) => {
+    if (progressFailed || hooks?.abortSignal?.aborted) return;
+    try {
+      const progress = hooks?.onResponseProgress?.({
+        chunk,
+        response: formatShellCommandResponse({
+          command,
+          exitCode: 0,
+          stdout,
+          stderr,
+        }),
+        phase: "command",
+      });
+      void Promise.resolve(progress).catch(onProgressFailed);
+    } catch (error) {
+      onProgressFailed(error);
+    }
   };
   const result = await context.services.terminal.runStreamingLocal(
     command,
