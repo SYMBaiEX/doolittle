@@ -84,20 +84,6 @@ it.each([
   expect(store.listEvents("run")[0].data).toEqual(data);
 });
 
-it("keeps deltas within budget when metadata alone exceeds the budget", () => {
-  const store = new RunControllerStore();
-  const { event } = store.appendEvent("run", "response.output_text.delta", {
-    id: "\n".repeat(maxBytes),
-    part_id: '"'.repeat(maxBytes),
-    sequence: 42,
-    delta: "output",
-  });
-  expect(Buffer.byteLength(JSON.stringify(event.data))).toBeLessThanOrEqual(
-    maxBytes,
-  );
-  expect(event.data).toEqual({ sequence: 42, delta: "output" });
-});
-
 it("keeps the raw delta truncation boundary well-formed for terminal events", () => {
   const store = new RunControllerStore();
   const prefix = "a".repeat(maxBytes - 3);

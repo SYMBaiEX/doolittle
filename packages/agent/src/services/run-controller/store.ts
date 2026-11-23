@@ -518,15 +518,10 @@ function normalizeEventData(
   ) {
     const delta = String(normalized.delta);
     normalized.delta = "";
-    let overhead = Buffer.byteLength(JSON.stringify(normalized), "utf8");
-    for (const key of ["id", "part_id"]) {
-      if (overhead <= MAX_DELTA_EVENT_BYTES) break;
-      delete normalized[key];
-      overhead = Buffer.byteLength(JSON.stringify(normalized), "utf8");
-    }
+    const overhead = Buffer.byteLength(JSON.stringify(normalized), "utf8");
     normalized.delta = truncateJsonString(
       delta,
-      MAX_DELTA_EVENT_BYTES - overhead,
+      Math.max(0, MAX_DELTA_EVENT_BYTES - overhead),
     );
   }
   return normalized;
