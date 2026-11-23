@@ -1,13 +1,17 @@
 #!/usr/bin/env nub
 import { DOOLITTLE_VERSION } from "@doolittle/agent/version";
-import { renderTopLevelHelp } from "./entrypoint/help";
-import { CliUsageError, resolveSubcommand } from "./entrypoint/subcommand";
+import { renderHelp } from "./entrypoint/help";
+import {
+  CliUsageError,
+  resolveHelpTopic,
+  resolveSubcommand,
+} from "./entrypoint/subcommand";
 
 async function main(): Promise<number> {
   const selection = resolveSubcommand();
   switch (selection.command) {
     case "help":
-      console.log(renderTopLevelHelp());
+      console.log(renderHelp(resolveHelpTopic(selection.rest[0])));
       return 0;
     case "version":
       console.log(`Doolittle ${DOOLITTLE_VERSION}`);
