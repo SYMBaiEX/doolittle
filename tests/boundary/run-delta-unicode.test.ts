@@ -61,6 +61,29 @@ it.each([
   },
 );
 
+it.each([
+  { name: "newline", character: "\n" },
+  { name: "quote", character: '"' },
+  { name: "backslash", character: "\\" },
+  { name: "control", character: "\u0001" },
+])("budgets JSON escapes for $name deltas", ({ character }) => {
+  const store = new RunControllerStore();
+  const delta = `${character}😀`.repeat(maxBytes);
+  const metadata = { id: 'message"', part_id: "part\\", sequence: 42 };
+  const { event } = store.appendEvent("run", "response.output_text.delta", {
+    ...metadata,
+    delta,
+  });
+  const data = event.data as typeof metadata & { delta: string };
+
+  expect(Buffer.byteLength(JSON.stringify(data))).toBeLessThanOrEqual(maxBytes);
+  expect(data.delta.isWellFormed()).toBe(true);
+  expect(delta.startsWith(data.delta)).toBe(true);
+  expect(data.delta.length).toBeGreaterThan(0);
+  expect(data).toMatchObject(metadata);
+  expect(store.listEvents("run")[0].data).toEqual(data);
+});
+
 it("keeps the raw delta truncation boundary well-formed for terminal events", () => {
   const store = new RunControllerStore();
   const prefix = "a".repeat(maxBytes - 3);
