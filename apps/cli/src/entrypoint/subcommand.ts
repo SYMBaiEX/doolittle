@@ -119,17 +119,6 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
     }
     globalArguments.add(index);
   }
-  const helpTopic = resolveHelpTopic(userArgs[0]);
-  if (
-    helpTopic &&
-    userArgs.some(
-      (argument, index) =>
-        globalArguments.has(index) &&
-        (argument === "--help" || argument === "-h"),
-    )
-  ) {
-    return { command: "help", rest: [helpTopic] };
-  }
   for (const { command, flags } of FLAG_COMMANDS) {
     if (
       userArgs.some(
@@ -137,6 +126,9 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
           globalArguments.has(index) && flags.includes(argument),
       )
     ) {
+      const helpTopic =
+        command === "help" ? resolveHelpTopic(userArgs[0]) : undefined;
+      if (helpTopic) return { command, rest: [helpTopic] };
       return {
         command,
         rest: userArgs.filter(

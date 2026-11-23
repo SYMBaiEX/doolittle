@@ -40,6 +40,14 @@ describe("CLI entrypoint dispatch", () => {
     expect(resolveSubcommand(args)).toEqual({ command: "help", rest: [topic] });
   });
 
+  it.each([
+    ["exec", "--cli", "--help"],
+    ["run", "-h", "--cli"],
+    ["jobs", "--cli", "-h"],
+  ])("keeps --cli ahead of topic help for %j", (...args) => {
+    expect(resolveSubcommand(args).command).toBe("cockpit");
+  });
+
   it("keeps help flags that are prompt text inside exec", () => {
     expect(resolveSubcommand(["exec", "-p", "--help"]).command).toBe("exec");
     expect(resolveSubcommand(["exec", "--", "-h"]).command).toBe("exec");
