@@ -9,9 +9,102 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
+import type { IAgentRuntime } from "@elizaos/core";
+import { expect, it, vi } from "vitest";
+import { executeWorkspaceIntent } from "../../packages/agent/src/actions/workspace-action/execution";
 import { runWithConversationWorkspace } from "../../packages/agent/src/runtime/workspace-scope";
-import { inspectLocalProject } from "../../packages/agent/src/services/project-inspection";
+import {
+  inspectLocalProject,
+  resolveLocalProjectTarget,
+} from "../../packages/agent/src/services/project-inspection";
+
+function workspaceRuntime(workspace: string) {
+  const service = {
+    resolveProjectTarget: (path: string) =>
+      resolveLocalProjectTarget(path, workspace),
+    inspectProject: (path: string) => inspectLocalProject(path),
+    findCodebases: vi.fn(async (_query: string) => []),
+  };
+  const runtime = {
+    getService: (name: string) =>
+      name === DOOLITTLE_CODING_AGENT_SERVICE ? service : null,
+  } as unknown as IAgentRuntime;
+  return { runtime, service };
+}
+
+it.each([
+  ...["café", "项目", "café.txt", "项目.txt"].map((name) => [name, name]),
+  ...[
+    ['"', '"'],
+    ["'", "'"],
+    ["`", "`"],
+    ["“", "”"],
+    ["‘", "’"],
+  ].flatMap(([open, close]) =>
+    ["README.md", "café"].map((name) => [name, `${open}${name}${close}`]),
+  ),
+])(
+  "finds the exact project path %s from query %s before discovery",
+  async (name, query) => {
+    const fixture = await mkdtemp(join(tmpdir(), "doolittle-project-find-"));
+    try {
+      const path = join(fixture, name);
+      if (name.endsWith(".txt") || name.endsWith(".md")) {
+        await writeFile(path, "fixture");
+      } else {
+        await mkdir(path);
+      }
+      await mkdir(join(fixture, "caf"));
+      const { runtime, service } = workspaceRuntime(fixture);
+      const output = await executeWorkspaceIntent(runtime, {
+        kind: "find-codebase",
+        query: `  ${query}  `,
+      });
+      expect(output).toContain(path);
+      expect(service.findCodebases).not.toHaveBeenCalled();
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  },
+);
+
+it.each([
+  ["missing café!", "missing caf"],
+  ["项目", undefined],
+  ["   ", undefined],
+])(
+  "uses sanitized discovery for an unresolved query %j",
+  async (query, sanitized) => {
+    const fixture = await mkdtemp(join(tmpdir(), "doolittle-project-find-"));
+    try {
+      const { runtime, service } = workspaceRuntime(fixture);
+      const output = await executeWorkspaceIntent(runtime, {
+        kind: "find-codebase",
+        query,
+      });
+      if (sanitized) {
+        expect(service.findCodebases).toHaveBeenCalledWith(sanitized);
+      } else {
+        expect(service.findCodebases).not.toHaveBeenCalled();
+        expect(output).toBe(
+          "I couldn't determine the codebase name to search for.",
+        );
+      }
+      service.findCodebases.mockRejectedValueOnce(
+        new Error("Discovery failed"),
+      );
+      await expect(
+        executeWorkspaceIntent(runtime, {
+          kind: "find-codebase",
+          query: "missing",
+        }),
+      ).rejects.toThrow("Discovery failed");
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  },
+);
 
 it("returns the ranked entrypoints and metadata from the inspected directory", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "doolittle-project-inspect-"));
