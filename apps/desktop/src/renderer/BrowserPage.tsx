@@ -241,7 +241,7 @@ export function BrowserPage({
                 <span className="sr-only">Preview size</span>
                 <select
                   aria-label="Preview size"
-                  className="min-h-[var(--control-height)] rounded-[var(--radius-xs)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+                  className="browser-preview-size min-h-[var(--control-height)] rounded-[var(--radius-xs)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] max-[760px]:min-h-11"
                   onChange={(event) =>
                     setPreviewSize(event.target.value as BrowserPreviewSize)
                   }

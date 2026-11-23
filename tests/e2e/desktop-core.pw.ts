@@ -8,6 +8,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { createServer } from "node:http";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
 import type { BotConversationScope } from "../../apps/desktop/src/shared/contracts";
@@ -69,6 +70,78 @@ async function expectQuietFocus(control: Locator) {
 }
 
 test.describe("fresh native desktop", () => {
+  test("applies preview viewport caps and keeps keyboard focus visible", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "text/html" });
+      response.end("<h1>Responsive preview fixture</h1>");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    if (!address || typeof address === "string")
+      throw new Error("Preview fixture did not bind a TCP port.");
+    const desktop = await launchDesktop();
+    try {
+      const { app, page, workspace } = desktop;
+      const project = await makeProject(page, "Preview fixture", workspace);
+      await installProjectDialog(app, workspace);
+      await openProjectChat(page, project);
+      await page.getByRole("button", { name: "IDE View", exact: true }).click();
+      await page.getByRole("tab", { name: "Preview", exact: true }).click();
+      const url = page.getByRole("textbox", { name: "Preview URL" });
+      await url.fill(`http://127.0.0.1:${address.port}`);
+      await page.getByRole("button", { name: "Open", exact: true }).click();
+      const frame = page.getByTitle("Local application preview", {
+        exact: true,
+      });
+      await expect(
+        page
+          .frameLocator('iframe[title="Local application preview"]')
+          .getByRole("heading"),
+      ).toHaveText("Responsive preview fixture");
+      const size = page.getByRole("combobox", { name: "Preview size" });
+      for (const width of [2200, 720]) {
+        await app.evaluate(({ BrowserWindow }, width) => {
+          BrowserWindow.getAllWindows()[0]?.setContentSize(width, 900);
+        }, width);
+        for (const [value, cap] of [
+          ["responsive", Number.POSITIVE_INFINITY],
+          ["desktop", 1440],
+          ["tablet", 768],
+          ["mobile", 390],
+        ] as const) {
+          await size.selectOption(value);
+          await expect.soft
+            .poll(
+              async () =>
+                frame.evaluate((node, cap) => {
+                  const available = node.parentElement?.clientWidth ?? 0;
+                  return Math.abs(
+                    node.getBoundingClientRect().width -
+                      Math.min(available, cap),
+                  );
+                }, cap),
+              { message: `${value} preview at ${width}px window width` },
+            )
+            .toBeLessThanOrEqual(1);
+        }
+      }
+      await page.getByRole("button", { name: "Open", exact: true }).focus();
+      await page.keyboard.press("Tab");
+      await expect(size).toBeFocused();
+      await expect.soft(size).toHaveCSS("outline-style", "solid");
+      await expect.soft(size).toHaveCSS("outline-width", "1px");
+      await page.emulateMedia({ forcedColors: "active" });
+      await expect(size).toHaveCSS("outline-style", "solid");
+    } finally {
+      await desktop.dispose();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+
   test("starts with locked saved accounts and preserves them across restart", async () => {
     const desktop = await launchDesktop(undefined, { lockedAccounts: true });
     const credential = join(

@@ -7,7 +7,8 @@
   /* Do not animate grid geometry or continuously reflow the transcript. */
   transition-property: none;
 }
-.chat-header-action:focus-visible {
+.chat-header-action:focus-visible,
+.desktop-shell .browser-preview-size:focus-visible {
   outline: 1px solid var(--focus-ring);
   outline-offset: -1px;
 }
