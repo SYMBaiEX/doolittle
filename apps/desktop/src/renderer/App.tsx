@@ -3123,7 +3123,7 @@ export function App() {
                     : (activeItem?.label ?? "Doolittle")}
                 </strong>
                 {chatRouteActive ? (
-                  <span className="truncate text-sm text-[var(--muted)]">
+                  <span className="truncate text-sm text-[var(--muted)] max-[560px]:hidden">
                     {currentRouteLabel}
                   </span>
                 ) : null}

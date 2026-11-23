@@ -146,6 +146,16 @@ test.describe("fresh native desktop", () => {
     const desktop = await launchDesktop();
     try {
       const { app, page } = desktop;
+      await app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setContentSize(360, 900);
+      });
+      const title = page.locator(".window-context strong");
+      await expect(title).toHaveText("Doolittle");
+      await expect
+        .poll(() =>
+          title.evaluate((node) => node.clientWidth >= node.scrollWidth),
+        )
+        .toBe(true);
       await page
         .getByRole("button", { name: "Open settings", exact: true })
         .click();
