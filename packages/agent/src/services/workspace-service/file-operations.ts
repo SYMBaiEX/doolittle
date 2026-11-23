@@ -151,7 +151,15 @@ export function planWorkspacePatch(
   }
 
   const current = readFileSync(resolvedPath, "utf8");
-  const matches = current.split(oldText).length - 1;
+  let matches = 0;
+  let offset = current.indexOf(oldText);
+  while (offset !== -1) {
+    matches += 1;
+    offset = current.indexOf(
+      oldText,
+      offset + (options.replaceAll ? oldText.length : 1),
+    );
+  }
   if (matches === 0) {
     throw new Error(`oldText was not found in ${resolvedPath}.`);
   }
@@ -165,7 +173,7 @@ export function planWorkspacePatch(
     path: resolvedPath,
     content: options.replaceAll
       ? current.split(oldText).join(newText)
-      : current.replace(oldText, newText),
+      : current.replace(oldText, () => newText),
     replacements: options.replaceAll ? matches : 1,
   };
 }
