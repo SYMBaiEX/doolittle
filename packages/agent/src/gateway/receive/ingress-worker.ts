@@ -1,3 +1,4 @@
+import type { AppLogger } from "../../logging/logger";
 import type { IncomingPlatformMessage } from "../../types/gateway";
 import {
   type GatewayIngressSpool,
@@ -22,11 +23,12 @@ export class GatewayIngressWorker {
         preserveIdempotencyDisposition: true;
       },
     ) => Promise<GatewayReceiveResult>,
+    private readonly logger?: Pick<AppLogger, "warn">,
   ) {}
 
   start(): void {
     if (!this.controller) {
-      this.spool.recoverInterrupted();
+      this.spool.recoverInterrupted(this.logger);
       this.controller = new AbortController();
       this.stalled = false;
     }

@@ -105,6 +105,7 @@ export class GatewayRunner {
       this.ingressWorker = new GatewayIngressWorker(
         this.ensureIngress(),
         (message, options) => this.api.delivery.receive(message, options),
+        this.context.services.logger,
       );
     }
     return this.ingressWorker;

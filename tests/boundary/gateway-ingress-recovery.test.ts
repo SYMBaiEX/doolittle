@@ -57,31 +57,34 @@ it("retries an interrupted graceful stop on the next start", async () => {
   const path = directory();
   const spool = new GatewayIngressSpool(path);
   spool.accept(message);
-  const receive = vi
-    .fn()
-    .mockImplementationOnce(
-      (_message, { abortSignal }: { abortSignal: AbortSignal }) =>
-        new Promise((_, reject) => {
-          abortSignal.addEventListener(
-            "abort",
-            () => reject(abortSignal.reason),
-            { once: true },
-          );
-        }),
-    )
-    .mockResolvedValue(outcome);
+  const receive = vi.fn().mockImplementation(
+    (_message, { abortSignal }: { abortSignal: AbortSignal }) =>
+      new Promise((_, reject) => {
+        abortSignal.addEventListener(
+          "abort",
+          () => reject(abortSignal.reason),
+          { once: true },
+        );
+      }),
+  );
   const worker = new GatewayIngressWorker(spool, receive);
   try {
-    worker.start();
-    expect(receive).toHaveBeenCalledOnce();
-    await worker.stop();
-    expect(new GatewayIngressSpool(path).history()[0]?.status).toBe(
-      "interrupted",
-    );
+    for (let stop = 1; stop <= 4; stop++) {
+      worker.start();
+      expect(receive).toHaveBeenCalledTimes(stop);
+      await worker.stop();
+      const reloaded = new GatewayIngressSpool(path);
+      expect(reloaded.history()[0]?.status).toBe("interrupted");
+    }
+    receive.mockResolvedValueOnce(outcome);
     worker.start();
     await worker.idle();
-    expect(receive).toHaveBeenCalledTimes(2);
+    expect(receive).toHaveBeenCalledTimes(5);
     expect(spool.history()[0]?.status).toBe("completed");
+    const events = readFileSync(spool.pathname, "utf8");
+    expect(
+      JSON.parse(events.trim().split("\n").at(-1) ?? "{}").crashRecoveryCount,
+    ).toBe(0);
   } finally {
     await worker.stop();
   }
@@ -160,4 +163,49 @@ it("starts an empty spool without receiving work", async () => {
   } finally {
     await worker.stop();
   }
+});
+
+it("fails a poison receipt after three crash recoveries and warns without receiving it again", async () => {
+  const path = directory();
+  const original = new GatewayIngressSpool(path);
+  const receipt = original.accept(message);
+  original.claim(receipt.receiptId);
+  const receive = vi.fn(() => new Promise<never>(() => {}));
+  const logger = { warn: vi.fn() };
+  const counts = [];
+  for (let restart = 1; restart <= 3; restart++) {
+    const spool = new GatewayIngressSpool(path);
+    const worker = new GatewayIngressWorker(spool, receive, logger);
+    worker.start();
+    expect(receive).toHaveBeenCalledTimes(Math.min(restart, 2));
+    const events = readFileSync(spool.pathname, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    counts.push(events.at(-1)?.crashRecoveryCount);
+    if (restart === 3) await worker.stop();
+  }
+  expect(counts).toEqual([1, 2, 3]);
+  const error = "Inbound processing was interrupted by 3 restarts; giving up.";
+  const reloaded = new GatewayIngressSpool(path);
+  expect(reloaded.history()[0]).toMatchObject({ status: "failed", error });
+  expect(reloaded.pending()).toEqual([]);
+  expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+    "gateway-ingress-crash-recovery-exhausted",
+    {
+      receiptId: receipt.receiptId,
+      crashRecoveryCount: 3,
+      error,
+    },
+  );
+  const worker = new GatewayIngressWorker(reloaded, receive, logger);
+  worker.start();
+  await worker.idle();
+  await worker.stop();
+  expect(receive).toHaveBeenCalledTimes(2);
+  expect(logger.warn).toHaveBeenCalledOnce();
+  expect(
+    JSON.parse(readFileSync(reloaded.pathname, "utf8").trim())
+      .crashRecoveryCount,
+  ).toBe(3);
 });
