@@ -49,6 +49,17 @@ describe("CLI entrypoint dispatch", () => {
     },
   );
 
+  it.each(["--session-id", "--job-id"])(
+    "preserves end-of-options after a missing %s value",
+    (option) => {
+      const selection = resolveSubcommand(["exec", option, "--", "--version"]);
+      expect(selection.command).toBe("exec");
+      expect(() => parseOneShotOptions(selection.rest)).toThrow(
+        `${option} requires a value.`,
+      );
+    },
+  );
+
   it("rejects unknown options even with an explicit prompt", () => {
     expect(() => parseOneShotOptions(["-p", "/help", "--bogus"])).toThrow(
       "Unknown exec option: --bogus.",

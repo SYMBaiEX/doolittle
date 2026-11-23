@@ -77,6 +77,16 @@ const EXEC_VALUE_OPTIONS = new Set([
   "--job-id",
 ]);
 
+function acceptsExecOptionValue(
+  option: string,
+  value: string | undefined,
+): value is string {
+  return (
+    Boolean(value) &&
+    (option === "--prompt" || option === "-p" || !value?.startsWith("-"))
+  );
+}
+
 export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
   command: EntrypointSubcommand;
   rest: string[];
@@ -93,7 +103,7 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
     const argument = userArgs[index];
     if (argument === "--") break;
     if (isExec && EXEC_VALUE_OPTIONS.has(argument)) {
-      index += 1;
+      if (acceptsExecOptionValue(argument, userArgs[index + 1])) index += 1;
       continue;
     }
     globalArguments.add(index);
@@ -160,7 +170,7 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
       const argument =
         equalsIndex < 0 ? args[++index] : value.slice(equalsIndex + 1);
       const isPrompt = option === "--prompt" || option === "-p";
-      if (!argument || (!isPrompt && argument.startsWith("-"))) {
+      if (!acceptsExecOptionValue(option, argument)) {
         throw new CliUsageError(`${option} requires a value.`);
       }
       if (isPrompt) prompt = argument;
