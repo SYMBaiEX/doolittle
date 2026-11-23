@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { parseApiPath } from "../../apps/desktop/src/main/ipc/agent-api-policy";
 import {
   chatFailureDisposition,
   markChatReplayGap,
@@ -83,6 +84,22 @@ it("keeps exact parallel tool activity through a long reconnect", () => {
   ]);
   expect(runEventKey(first)).not.toBe(runEventKey(second));
   expect(replay?.events).toEqual([first, second, receipt.latest]);
+});
+
+it("lets the desktop recover activity only through the exact run receipt query", () => {
+  const path = "/chat/runs/run-a";
+  expect(parseApiPath(`${path}?include_updates=true`, "GET")).toBe(
+    `${path}?include_updates=true`,
+  );
+  for (const query of [
+    "include_updates=arbitrary",
+    "include_updates=true&include_updates=false",
+    "sessionId=another-session",
+  ]) {
+    expect(() => parseApiPath(`${path}?${query}`, "GET")).toThrow(
+      "Unsupported query",
+    );
+  }
 });
 
 it("retains a run claim across a duplicate inventory refresh while Stop verifies the receipt", () => {

@@ -518,6 +518,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
     {
       predicate: (pathname) => matchesResourcePath(pathname, "/chat/runs"),
+      allowedQueries: ["include_updates"],
+      validateQuery: (query) =>
+        validateEnumQuery(query, "include_updates", ["true", "false"]),
     },
     { exact: "/codegen/runs" },
     {

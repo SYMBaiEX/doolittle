@@ -1017,6 +1017,15 @@ test.describe("fresh native desktop", () => {
       expect(savedRuns.runs).toContainEqual(
         expect.objectContaining({ runId, sessionId, status: "complete" }),
       );
+      const activity = await agentRequest<{ updates: unknown[] }>(
+        page,
+        `/chat/runs/${encodeURIComponent(runId)}?include_updates=true`,
+      );
+      expect(activity.updates).toContainEqual(
+        expect.objectContaining({
+          activity: expect.objectContaining({ id: "build-check" }),
+        }),
+      );
       const savedSessions = await agentRequest<{
         sessions: Array<{ sessionId: string; title: string }>;
       }>(page, "/sessions");
