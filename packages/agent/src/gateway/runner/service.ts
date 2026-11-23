@@ -60,8 +60,8 @@ export class GatewayRunner {
   }
 
   async start(): Promise<void> {
-    this.startIngress();
     await this.api.control.start();
+    this.startIngress();
   }
 
   async stop(): Promise<void> {
