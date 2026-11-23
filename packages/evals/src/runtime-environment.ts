@@ -35,8 +35,8 @@ export function assertEvalRuntimeEnvironment(
   // resolver. Without these explicit overrides they reuse the operator's
   // global task/session history even when all Doolittle directories are fresh.
   const sdkState = {
-    ELIZA_ACP_STATE_DIR: join(options.root, "acp"),
-    ACP_AUDIT_LOG_PATH: join(options.root, "acp", "audit.ndjson"),
+    ELIZA_ACP_STATE_DIR: join(expected.dataDir, "plugin-acp"),
+    ACP_AUDIT_LOG_PATH: join(expected.dataDir, "plugin-acp", "audit.ndjson"),
     ELIZA_HOME: expected.dataDir,
     ELIZA_STATE_DIR: expected.dataDir,
     ELIZA_VAULT_DISABLE_KEYCHAIN: "1",
@@ -85,8 +85,8 @@ export function createEvalRuntimeEnvironment(
     DOOLITTLE_DATA_DIR: join(options.root, "data"),
     DOOLITTLE_GATEWAY_DATA_DIR: join(options.root, "gateway"),
     DOOLITTLE_HOOKS_DIR: join(options.root, "hooks"),
-    ELIZA_ACP_STATE_DIR: join(options.root, "acp"),
-    ACP_AUDIT_LOG_PATH: join(options.root, "acp", "audit.ndjson"),
+    ELIZA_ACP_STATE_DIR: join(options.root, "data", "plugin-acp"),
+    ACP_AUDIT_LOG_PATH: join(options.root, "data", "plugin-acp", "audit.ndjson"),
     ELIZA_HOME: join(options.root, "data"),
     ELIZA_STATE_DIR: join(options.root, "data"),
     ELIZA_VAULT_DISABLE_KEYCHAIN: "1",

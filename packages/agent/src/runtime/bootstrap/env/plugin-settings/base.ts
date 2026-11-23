@@ -1,13 +1,14 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { JsonValue } from "@elizaos/core";
 import { getSkillsDir } from "@elizaos/skills/index";
 import { featureMap } from "../../../../config/feature-map";
 import type { AppServices } from "../../../../services/index";
 import { describeAutonomousAlignment } from "../../../native/autonomous-stack/index";
+import { bundledCodexAcpCommand } from "../../../native/coding-delegation/model";
 import { getPgliteDataDir } from "../pglite";
 import { ensureSecretSalt } from "../secret-salt";
+import { resolveNativeAcpStateDir } from "./ambient";
 import { shouldUseCloudEmbeddings } from "./embedding";
 import type {
   BuildPluginSettingsDependencies,
@@ -49,9 +50,18 @@ export function buildBaseSettings(
     env.SECRET_SALT?.trim() ??
     env.ENCRYPTION_SALT?.trim() ??
     ensureSecretSalt(config);
+  const acpStateDir = resolveNativeAcpStateDir(
+    config.dataDir,
+    env.ELIZA_ACP_STATE_DIR,
+  );
   return {
-    ELIZA_ACP_TRANSPORT: "cli",
-    ELIZA_ACP_CLI: fileURLToPath(import.meta.resolve("acpx")),
+    ELIZA_ACP_TRANSPORT: "native",
+    ELIZA_ACP_STATE_DIR: acpStateDir,
+    ELIZA_ACP_WORKSPACE_ROOT: join(acpStateDir, "workspaces"),
+    ELIZA_ACP_DEFAULT_APPROVAL: "standard",
+    ACPX_APPROVE_ALL: "false",
+    ELIZA_CODEX_ACP_COMMAND:
+      env.ELIZA_CODEX_ACP_COMMAND?.trim() || bundledCodexAcpCommand(),
     mcp: runtimeSettings.mcp as unknown as JsonValue,
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),

@@ -27,6 +27,7 @@ it("keeps SDK account and vault state private to each fixture without using the 
   const options = fixture();
   const env = createEvalRuntimeEnvironment(options);
   expect(env.ELIZA_STATE_DIR).toBe(join(options.root, "data"));
+  expect(env.ELIZA_ACP_STATE_DIR).toBe(join(options.root, "data", "plugin-acp"));
   expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath));
   expect(env.ELIZA_VAULT_DISABLE_KEYCHAIN).toBe("1");
   expect(env.ELIZAOS_CLOUD_API_KEY).toBe("");

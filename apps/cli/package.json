@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@agentclientprotocol/codex-acp": "2.9.0",
     "@doolittle/agent": "workspace:*",
     "@doolittle/contracts": "workspace:*",
     "@doolittle/storage": "workspace:*",
@@ -28,7 +29,6 @@
     "blessed": "^0.1.81",
     "@doolittle/acp": "workspace:*",
     "@elizaos/host": "workspace:2.0.5",
-    "acpx": "0.22.0",
     "@elizaos/agent": "workspace:2.0.5",
     "@elizaos/logger": "2.0.11-beta.7",
     "@elizaos/plugin-agent-orchestrator": "workspace:2.0.5",

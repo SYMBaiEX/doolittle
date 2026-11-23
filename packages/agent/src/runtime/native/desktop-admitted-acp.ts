@@ -1,23 +1,33 @@
 import { randomUUID } from "node:crypto";
+import { isAbsolute, join } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
 import { rejectAtDeadline } from "@elizaos/core/protocol";
 import {
   AcpService,
   AcpSessionStore,
   type SendOptions,
+  type SessionInfo,
   type SpawnOptions,
 } from "@elizaos/plugin-agent-orchestrator";
+import { assertNativeAcpStateDirectories } from "../bootstrap/env/plugin-settings/ambient";
 import {
   acquireExecutionLease,
   type ExecutionLease,
   getScopedExecutionLease,
   getScopedSdkTaskSpawn,
 } from "../execution-admission";
-import { getScopedTurnAbortSignal } from "../turn-runtime-scope";
+import {
+  getScopedTurnAbortSignal,
+  runWithAdditionalTurnRuntimeSettings,
+} from "../turn-runtime-scope";
 import {
   requireConversationWorkspace,
   resolveConversationWorkspace,
 } from "../workspace-scope";
+import {
+  bundledCodexAcpCommand,
+  bundledCodexAcpEnv,
+} from "./coding-delegation/model";
 
 type PendingAdmission = {
   sessionId?: string;
@@ -239,6 +249,9 @@ export class DesktopAdmittedAcpService extends AcpService {
         : undefined;
     const store = new AcpSessionStore({
       runtime: {
+        ...(process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1"
+          ? { adapter: runtime.adapter }
+          : {}),
         databaseAdapter: (
           runtime as IAgentRuntime & { databaseAdapter?: unknown }
         ).databaseAdapter,
@@ -261,6 +274,86 @@ export class DesktopAdmittedAcpService extends AcpService {
   ) {
     if (!runtime) throw new Error("ACP runtime is required.");
     super(runtime, options);
+    const stateDir = runtime.getSetting("ELIZA_ACP_STATE_DIR");
+    const scratchRoot = runtime.getSetting("ELIZA_ACP_WORKSPACE_ROOT");
+    if (
+      runtime.getSetting("ELIZA_ACP_TRANSPORT") !== "native" ||
+      typeof stateDir !== "string" ||
+      !isAbsolute(stateDir) ||
+      scratchRoot !== join(stateDir, "workspaces")
+    )
+      throw new Error(
+        "Native ACP requires Doolittle’s profile state settings.",
+      );
+    assertNativeAcpStateDirectories(stateDir);
+
+    // The pinned SDK still uses its legacy home directory and shared scratch
+    // root for maintenance in native mode. Keep that maintenance, including
+    // native per-session Git indexes, inside this profile. Keep older session
+    // records readable without letting commands reopen or mutate them.
+    const requireSession = Reflect.get(this, "requireSession");
+    const createNativeClient = Reflect.get(this, "createNativeClient");
+    if (
+      typeof requireSession !== "function" ||
+      typeof createNativeClient !== "function"
+    )
+      throw new Error("Native ACP session hooks are unavailable.");
+    const profileHooks = {
+      acpxStateRoot: () => join(stateDir, "native"),
+      configuredScratchRoots: () => [scratchRoot],
+      requireSession: async (sessionId: string) => {
+        const session: SessionInfo = await Reflect.apply(requireSession, this, [
+          sessionId,
+        ]);
+        if (session.metadata?.transportMode !== "native")
+          throw new Error(
+            "Legacy ACP sessions cannot run commands in this runtime.",
+          );
+        return session;
+      },
+      createNativeClient: (
+        session: SessionInfo,
+        options: { env?: Record<string, string>; model?: string },
+      ) => {
+        if (
+          session.agentType !== "codex" ||
+          runtime.getSetting("ELIZA_CODEX_ACP_COMMAND") !==
+            bundledCodexAcpCommand()
+        )
+          return Reflect.apply(createNativeClient, this, [session, options]);
+
+        // SDK launch and reattach share this path. Use Codex's sandbox and
+        // deny edits/exec requested through the SDK's host tool callbacks.
+        const approvalPreset =
+          session.approvalPreset === "readonly" ||
+          session.approvalPreset === "verifier"
+            ? "readonly"
+            : "standard";
+        const effort = runtime.getSetting(
+          "DOOLITTLE_CODEX_DELEGATED_REASONING_EFFORT",
+        );
+        const env = bundledCodexAcpEnv({
+          model: options.model,
+          reasoningEffort: typeof effort === "string" ? effort : undefined,
+          approvalPreset,
+          env: options.env,
+        });
+        return runWithAdditionalTurnRuntimeSettings(
+          runtime,
+          new Map([["ELIZA_ACP_NO_TERMINAL", "true"]]),
+          () =>
+            Reflect.apply(createNativeClient, this, [
+              { ...session, approvalPreset },
+              { ...options, env },
+            ]),
+        );
+      },
+    };
+    for (const [name, implementation] of Object.entries(profileHooks)) {
+      if (typeof Reflect.get(this, name) !== "function")
+        throw new Error(`Native ACP maintenance hook is unavailable: ${name}`);
+      Object.defineProperty(this, name, { value: implementation });
+    }
   }
 
   override async start(): Promise<void> {
@@ -350,8 +443,10 @@ export class DesktopAdmittedAcpService extends AcpService {
       return super.resumeOrphanedBusySessions();
     }
     const sessions = await super.listSessions();
-    const orphaned = sessions.filter((session) =>
-      ACTIVE_STATUSES.has(session.status),
+    const orphaned = sessions.filter(
+      (session) =>
+        session.metadata?.transportMode === "native" &&
+        ACTIVE_STATUSES.has(session.status),
     );
     for (const session of orphaned) await super.stopSession(session.id);
     return { resumed: 0, skipped: orphaned.length };
@@ -366,8 +461,10 @@ export class DesktopAdmittedAcpService extends AcpService {
     return rejectAtDeadline(
       (async () => {
         const sessions = await super.listSessions();
-        const active = sessions.filter((session) =>
-          ACTIVE_STATUSES.has(session.status),
+        const active = sessions.filter(
+          (session) =>
+            session.metadata?.transportMode === "native" &&
+            ACTIVE_STATUSES.has(session.status),
         );
         await Promise.all([
           ...active.map((session) => super.stopSession(session.id)),

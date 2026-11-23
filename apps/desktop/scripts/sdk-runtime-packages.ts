@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { nodeFileTrace, resolve as resolveDependency } from "@vercel/nft";
 import { transformSync } from "esbuild";
+import { CODEX_ACP_PACKAGE, codexRuntimeFiles } from "./codex-runtime-files";
 import {
   type RuntimeDependencyLicenseSource,
   runtimePackageForSource,
@@ -83,6 +84,12 @@ export async function copySdkRuntimePackages(
     ),
   );
   entries.push(...nativePackages.map((name) => repoRequire.resolve(name)));
+  // The adapter forks Codex's published Node launcher, whose native binary is
+  // loaded by platform-specific package name rather than a static import.
+  const codex = nativePackages.includes(CODEX_ACP_PACKAGE)
+    ? codexRuntimeFiles(repoRequire)
+    : undefined;
+  if (codex) entries.push(codex.launcher);
   // This import lives inside the SDK-generated Bun worker, beyond static JS tracing.
   entries.push(orchestratorRequire.resolve("smthrs"));
   // The SDK also invokes this published CJS package through createRequire.
@@ -183,6 +190,12 @@ export async function copySdkRuntimePackages(
       "skills",
     ),
   );
+  if (codex) {
+    addAssets(codex.binaryDirectory);
+    // Ship search helpers used by the stock launcher. Voice assets belong to
+    // the standalone Codex CLI experience and aren't used by ACP.
+    if (existsSync(codex.searchDirectory)) addAssets(codex.searchDirectory);
+  }
   // Native wrappers can compute platform package names inside require(). Their
   // installed optional packages contain the addon and executable helper assets.
   for (const name of nativePackages) {

@@ -47,7 +47,6 @@
       "entry": ["src/index.ts", "src/acp-server.ts", "src/managed-runtime.ts"],
       "project": ["src/**/*.ts"],
       "ignoreDependencies": [
-        "acpx",
         "@elizaos/agent",
         "@elizaos/auth",
         "@elizaos/logger",

@@ -61,14 +61,12 @@ export async function loadHotExecutionPlugins(
         resolveLocalProjectTarget(inputPath, workspaceRoot),
     }),
     withManagedCodingDelegation(
-      process.env.DOOLITTLE_DESKTOP_RUNTIME === "1"
-        ? {
-            ...agentOrchestratorPlugin,
-            services: agentOrchestratorPlugin.services?.map((service) =>
-              service === AcpService ? DesktopAdmittedAcpService : service,
-            ),
-          }
-        : agentOrchestratorPlugin,
+      {
+        ...agentOrchestratorPlugin,
+        services: agentOrchestratorPlugin.services?.map((service) =>
+          service === AcpService ? DesktopAdmittedAcpService : service,
+        ),
+      },
       services,
     ),
     {

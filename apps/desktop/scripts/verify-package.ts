@@ -1,6 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +18,7 @@ import {
 } from "@doolittle/agent/runtime/bootstrap/runtime/desktop-database-seed";
 import { readRegularFileSync } from "@doolittle/storage";
 import { extractFile, listPackage } from "@electron/asar";
+import { CODEX_ACP_PACKAGE, codexRuntimeFiles } from "./codex-runtime-files";
 import { assertOptionalDependencyEntry } from "./dependency-key";
 import {
   DESKTOP_ARTIFACT_FILES,
@@ -665,7 +672,22 @@ export function verifyPackagedNativeRuntime(
     }
   }
   for (const packageName of runtimeManifest.nativeEntryPackages) {
-    runtimeRequire(packageName);
+    if (packageName === CODEX_ACP_PACKAGE) {
+      // Loading the bin module would spawn an adapter while auditing. Resolve
+      // the executable chain and reject dependencies resolved from outside.
+      const { adapter, launcher, executable } =
+        codexRuntimeFiles(runtimeRequire);
+      const root = realpathSync(runtimeBin);
+      for (const path of [adapter, launcher, executable]) {
+        const file = relative(root, realpathSync(path));
+        if (!runtimeManifest.assets.includes(file))
+          throw new Error(
+            `Packaged Codex entry is not an inventoried runtime asset: ${file}`,
+          );
+      }
+    } else {
+      runtimeRequire(packageName);
+    }
   }
   return nativePackages;
 }

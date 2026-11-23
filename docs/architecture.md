@@ -51,11 +51,16 @@ Deferred hydration is distinct from core ownership and can be retried without
 constructing a second core graph. Disposal retains ownership until shutdown
 settles and prevents a late activation from publishing another live context.
 
-ACP stdio is a transport adapter. The
+ACP stdio lets an editor connect to Doolittle. The
 [protocol host](../packages/agent/src/services/acp/host.ts) consumes narrow ports
 for workspace, terminal, approvals, session origins, and turn execution. Its
 session and terminal maps survive lazy model activation. The services that
 accepted an ACP session are the services used by that session's later turns.
+
+ElizaOS's native ACP client handles outbound coding delegation. The desktop
+checks the conversation's workspace grant before starting or prompting a
+worker. Codex uses the packaged adapter and its workspace sandbox. The runtime
+keeps ACP session files and scratch work inside each Doolittle profile.
 
 The [shared engine host](../packages/agent/src/runtime/engine/host.ts) starts named
 bot worker threads on demand. Each worker has a separate runtime, environment,

@@ -28,7 +28,7 @@ import {
   executeManagedDelegation,
 } from "./execution";
 import { FRONTEND_DESIGN_CONTRACT } from "./frontend-design-contract";
-import { codexCommandForRoute, codexSpawnEnvironmentForRoute } from "./model";
+import { bundledCodexAcpCommand } from "./model";
 import type {
   CodingDelegationServices,
   DelegatedExecutionReceipt,
@@ -366,22 +366,13 @@ function wrapAction(
       let receipt: DelegatedExecutionReceipt | undefined;
       const signal = getScopedTurnAbortSignal(runtime);
       const scopedSettings = new Map<string, unknown>();
-      if (adapter === "codex" && route.provider === "codex" && route.model) {
-        try {
+      if (adapter === "codex") {
+        scopedSettings.set("ELIZA_CODEX_ACP_COMMAND", bundledCodexAcpCommand());
+        if (route.provider === "codex" && route.reasoningEffort)
           scopedSettings.set(
-            "ELIZA_CODEX_ACP_COMMAND",
-            codexCommandForRoute({
-              command: string(runtime.getSetting("ELIZA_CODEX_ACP_COMMAND")),
-              model: route.model,
-              reasoningEffort: route.reasoningEffort,
-            }),
+            "DOOLITTLE_CODEX_DELEGATED_REASONING_EFFORT",
+            route.reasoningEffort,
           );
-        } catch {
-          return failure(
-            "The selected model or reasoning effort cannot be passed to this coding adapter. Review the Codex model and custom ACP command in Settings, then retry; the default model was not substituted.",
-            "CODING_MODEL_CONFIGURATION_INVALID",
-          );
-        }
       }
       const managedService = new Proxy(service, {
         get(target, key) {
@@ -395,6 +386,10 @@ function wrapAction(
                 throw new Error("CODING_ADAPTER_SELECTION_MISMATCH");
               if (resolve(spawnOptions.workdir ?? "") !== workdir)
                 throw new Error("CODING_WORKSPACE_MISMATCH");
+              const codex = spawnOptions.agentType === "codex";
+              const approvalPreset = codex
+                ? (service.defaultApprovalPreset ?? "standard")
+                : spawnOptions.approvalPreset;
               const task = buildCacheablePrompt({
                 provider: adapter,
                 model: route.model,
@@ -411,22 +406,7 @@ function wrapAction(
                 service,
                 options: {
                   ...spawnOptions,
-                  env:
-                    adapter === "codex" &&
-                    route.provider === "codex" &&
-                    route.model
-                      ? codexSpawnEnvironmentForRoute({
-                          command: String(
-                            scopedSettings.get("ELIZA_CODEX_ACP_COMMAND"),
-                          ),
-                          model: route.model,
-                          reasoningEffort: route.reasoningEffort,
-                          env: spawnOptions.env,
-                          approvalPreset:
-                            spawnOptions.approvalPreset ??
-                            service.defaultApprovalPreset,
-                        })
-                      : spawnOptions.env,
+                  approvalPreset,
                   initialTask: task,
                   workdir,
                   isolateWorkdir: false,

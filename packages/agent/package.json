@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Shared ElizaOS runtime, API, gateway and product services for Doolittle applications.",
   "dependencies": {
-    "acpx": "0.22.0",
+    "@agentclientprotocol/codex-acp": "2.9.0",
     "@doolittle/acp": "workspace:*",
     "@doolittle/contracts": "workspace:*",
     "@doolittle/plugin-claude-code": "workspace:*",

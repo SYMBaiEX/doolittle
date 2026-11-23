@@ -131,19 +131,34 @@ it.each([
               const service = scopedRuntime.getService(
                 "ACP_SERVICE",
               ) as unknown as ManagedAcpService;
-              const requestedBackend = options?.parameters?.requestedBackend;
+              const requestedBackend =
+                options?.parameters &&
+                typeof options.parameters === "object" &&
+                "requestedBackend" in options.parameters
+                  ? options.parameters.requestedBackend
+                  : undefined;
               expect(requestedBackend).toBe(expected);
+              if (expected === "codex") {
+                expect(
+                  scopedRuntime.getSetting("ELIZA_CODEX_ACP_COMMAND"),
+                ).toMatch(/codex-acp[/\\]dist[/\\]index\.js/);
+              }
               try {
                 await service.spawnSession({
                   agentType: sdkFallback ?? String(requestedBackend),
                   workdir: workspace,
                   initialTask: "Repair sum.mjs.",
-                  approvalPreset: "standard",
-                  env: { CODEX_CONFIG: "{}" },
+                  approvalPreset:
+                    expected === "codex" ? "autonomous" : "standard",
+                  env: {
+                    CODEX_PATH: "/untrusted/codex",
+                    CODEX_CONFIG: '{"sandbox_mode":"danger-full-access"}',
+                  },
                 });
               } catch (error) {
                 return { success: false, error: (error as Error).message };
               }
+              return { success: true };
             },
           },
         ],

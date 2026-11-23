@@ -1,73 +1,47 @@
-import { isRecord } from "../../../utils/records";
+import { fileURLToPath } from "node:url";
 
-const DEFAULT_CODEX_ACP_COMMAND =
-  "npx -y @agentclientprotocol/codex-acp@1.13.1";
+const EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh"];
 
-function usesAppServerAdapter(command: string): boolean {
-  return /@agentclientprotocol\/codex-acp(?:[\s@"']|$)/u.test(command);
+function commandToken(path: string): string {
+  if (!/[\s"']/u.test(path)) return path;
+  // Eliza's native ACP parser takes argv directly, without shell expansion.
+  if (!path.includes('"')) return `"${path}"`;
+  if (!path.includes("'")) return `'${path}'`;
+  throw new Error("The bundled Codex ACP path contains unsupported quotes.");
 }
 
-/**
- * beta.7's retired Zed adapter embeds an older Codex that rejects current
- * models. The maintained App Server adapter bundles compatible Codex and uses
- * CODEX_CONFIG, not -c. Preserve explicit legacy commands and their TOML argv.
- * Source: github.com/agentclientprotocol/codex-acp/tree/v1.13.1
- */
-export function codexCommandForRoute(input: {
-  command?: string;
-  model: string;
-  reasoningEffort?: string;
-}): string {
-  if (!/^[a-zA-Z0-9._:/-]+$/.test(input.model))
-    throw new Error("CODING_MODEL_INVALID");
-  if (
-    input.reasoningEffort &&
-    !["none", "minimal", "low", "medium", "high", "xhigh"].includes(
-      input.reasoningEffort,
-    )
-  )
-    throw new Error("CODING_REASONING_EFFORT_UNSUPPORTED");
-  const command = input.command?.trim() || DEFAULT_CODEX_ACP_COMMAND;
-  if (!/(?:^|[\s/@])codex-acp(?:[\s@"']|$)/u.test(command))
-    throw new Error("CODING_CUSTOM_COMMAND_MODEL_UNSUPPORTED");
-  if (usesAppServerAdapter(command)) return command;
-  // The SDK splits command/argv without a shell. The validated TOML values
-  // survive its supported tokenizer without changing the configured command.
-  return `${command} -c 'model=${JSON.stringify(input.model)}'${input.reasoningEffort ? ` -c 'model_reasoning_effort=${JSON.stringify(input.reasoningEffort)}'` : ""}`;
+/** The lockfile and signed desktop bundle own both adapter and Codex CLI. */
+export function bundledCodexAcpCommand(): string {
+  const adapter = fileURLToPath(
+    import.meta.resolve("@agentclientprotocol/codex-acp"),
+  );
+  return [process.execPath, adapter].map(commandToken).join(" ");
 }
 
-/** Public spawnSession.env preserves the SDK's account selection and auth. */
-export function codexSpawnEnvironmentForRoute(input: {
-  command: string;
-  model: string;
+/** Configure the bundled adapter without opening a second approval layer. */
+export function bundledCodexAcpEnv(input: {
+  model?: string;
   reasoningEffort?: string;
   env?: Record<string, string>;
   approvalPreset?: string;
-}): Record<string, string> | undefined {
-  if (!usesAppServerAdapter(input.command)) return input.env;
-  // Upstream's misleadingly named "read-only" mode is workspace-write with
-  // user approvals. It cannot represent an actual deny-all/readonly policy.
-  // CODEX_CONFIG.sandbox_mode cannot repair this: CodexAcpClient.sendPrompt
-  // explicitly supplies the selected mode's sandboxPolicy on every turn.
-  if (
-    input.approvalPreset &&
-    !["standard", "permissive", "autonomous"].includes(input.approvalPreset)
-  )
-    throw new Error("CODING_APPROVAL_POLICY_UNSUPPORTED");
-  const rawConfig = input.env?.CODEX_CONFIG ?? process.env.CODEX_CONFIG;
-  const config: unknown = rawConfig ? JSON.parse(rawConfig) : {};
-  if (!isRecord(config)) throw new Error("CODING_MODEL_CONFIGURATION_INVALID");
+}): Record<string, string> {
+  const { model, reasoningEffort, approvalPreset, env } = input;
+  if (model && !/^[a-zA-Z0-9._:/-]+$/u.test(model))
+    throw new Error("CODING_MODEL_CONFIGURATION_INVALID");
+  if (reasoningEffort && !EFFORTS.includes(reasoningEffort))
+    throw new Error("CODING_MODEL_CONFIGURATION_INVALID");
+
+  const readOnly =
+    approvalPreset === "readonly" || approvalPreset === "verifier";
   return {
-    ...input.env,
-    // Do not inherit the adapter's auto-review default or full-access mode.
-    // The native SDK still owns every permission request from this process.
-    INITIAL_AGENT_MODE: "read-only",
+    ...env,
+    // An empty override selects the adapter's own lockfile-pinned CLI.
+    CODEX_PATH: "",
     CODEX_CONFIG: JSON.stringify({
-      ...config,
-      model: input.model,
-      ...(input.reasoningEffort
-        ? { model_reasoning_effort: input.reasoningEffort }
-        : {}),
+      ...(model ? { model } : {}),
+      ...(reasoningEffort ? { model_reasoning_effort: reasoningEffort } : {}),
     }),
+    INITIAL_AGENT_MODE: readOnly ? "read-only" : "workspace-write",
+    ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
   };
 }

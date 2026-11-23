@@ -20,6 +20,7 @@ import {
 } from "@doolittle/agent/runtime/bootstrap/runtime/desktop-database-seed";
 import { readRegularFileSync } from "@doolittle/storage";
 import { build, type Metafile } from "esbuild";
+import { CODEX_ACP_PACKAGE } from "./codex-runtime-files";
 import {
   assertDesktopDistributionLicensePolicy,
   discoverDynamicCommonJsPackages,
@@ -47,10 +48,10 @@ const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
 // Keep native modules and executable packages at their real filesystem paths.
 const nativeExternalPackages = [
+  CODEX_ACP_PACKAGE,
   "@snazzah/davey",
   "@lydell/node-pty",
   "@napi-rs/keyring",
-  "acpx",
 ] as const;
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(outputDir, { recursive: true });

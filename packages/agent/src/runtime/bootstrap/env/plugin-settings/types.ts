@@ -47,9 +47,12 @@ export interface PluginSettings {
   SECRET_SALT: string;
   ENCRYPTION_SALT: string;
   PGLITE_DATA_DIR: string;
-  ELIZA_ACP_STATE_DIR?: string;
-  ELIZA_ACP_TRANSPORT: "cli";
-  ELIZA_ACP_CLI: string;
+  ACPX_APPROVE_ALL: "false";
+  ELIZA_ACP_DEFAULT_APPROVAL: "standard";
+  ELIZA_ACP_STATE_DIR: string;
+  ELIZA_ACP_TRANSPORT: "native";
+  ELIZA_ACP_WORKSPACE_ROOT: string;
+  ELIZA_CODEX_ACP_COMMAND: string;
   ACP_AUDIT_LOG_PATH?: string;
   USE_MULTI_STEP: string;
   MAX_MULTISTEP_ITERATIONS: string;

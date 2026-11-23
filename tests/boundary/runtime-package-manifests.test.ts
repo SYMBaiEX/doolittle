@@ -1,14 +1,74 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { expect, it } from "vitest";
+import {
+  CODEX_ACP_PACKAGE,
+  codexRuntimeFiles,
+} from "../../apps/desktop/scripts/codex-runtime-files";
 import { installedDesktopProductionPackages } from "../../apps/desktop/scripts/desktop-artifact";
 import {
   isInstalledPackageManifestPath,
   packageNamesFromAsarEntries,
 } from "../../apps/desktop/scripts/package-composition";
 import { verifyPackagedNativeRuntime } from "../../apps/desktop/scripts/verify-package";
+
+it("resolves the Codex adapter's own native executable without running an entrypoint", () => {
+  const root = mkdtempSync(join(tmpdir(), "doolittle-codex-runtime-"));
+  const write = (file: string, content: string) => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, content);
+  };
+  try {
+    const adapterPackage = join(root, "node_modules", CODEX_ACP_PACKAGE);
+    const adapter = join(adapterPackage, "dist/index.js");
+    const nested = join(adapterPackage, "node_modules");
+    const launcher = join(nested, "@openai/codex/bin/codex.js");
+    const platform = join(
+      nested,
+      `@openai/codex-${process.platform}-${process.arch}`,
+    );
+    const executable = join(
+      platform,
+      "vendor/codex-target/bin",
+      process.platform === "win32" ? "codex.exe" : "codex",
+    );
+    const shouldNeverRun = "throw new Error('audit must not spawn a worker');";
+    write(
+      join(adapterPackage, "package.json"),
+      JSON.stringify({ main: "dist/index.js" }),
+    );
+    write(adapter, shouldNeverRun);
+    write(launcher, shouldNeverRun);
+    write(join(platform, "package.json"), "{}");
+    write(executable, shouldNeverRun);
+    chmodSync(executable, 0o755);
+
+    const require = createRequire(join(root, "runtime.mjs"));
+    const files = codexRuntimeFiles(require);
+    expect(files.adapter).toBe(require.resolve(CODEX_ACP_PACKAGE));
+    expect(files.launcher).toBe(
+      createRequire(files.adapter).resolve("@openai/codex/bin/codex.js"),
+    );
+    expect(files.executable).toBe(realpathSync(executable));
+    rmSync(executable);
+    mkdirSync(executable);
+    expect(() => codexRuntimeFiles(require)).toThrow(
+      "Missing usable native Codex executable",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 it("fails package verification when a deferred runtime bundle is changed or missing", () => {
   const root = mkdtempSync(join(tmpdir(), "doolittle-runtime-bundle-"));
