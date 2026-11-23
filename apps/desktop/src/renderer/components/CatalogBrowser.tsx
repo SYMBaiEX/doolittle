@@ -84,7 +84,7 @@ export function CatalogBrowser<T extends CatalogBrowserItem>({
         <div className="catalog-browser-index__heading">
           <span>{listLabel}</span>
           <WorkbenchAction
-            aria-label={`View ${getRow(selected).title} details`}
+            aria-label={`View selected: ${getRow(selected).title} details`}
             className="catalog-browser-compact-action"
             emphasis="quiet"
             icon={ChevronRight}

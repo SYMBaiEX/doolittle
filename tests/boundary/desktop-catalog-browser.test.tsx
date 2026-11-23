@@ -108,8 +108,11 @@ it("opens compact details, restores the selected row on Back, and returns to res
   expect(frame()?.getAttribute("data-detail-open")).toBe("false");
   expect(document.activeElement).toBe(git);
 
-  const viewSelected = container.querySelector<HTMLButtonElement>(
-    '[aria-label="View Git status details"]',
+  const viewSelected = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent?.trim() === "View selected",
+  );
+  expect(viewSelected?.getAttribute("aria-label")).toBe(
+    "View selected: Git status details",
   );
   act(() => viewSelected?.click());
   expect(frame()?.getAttribute("data-detail-open")).toBe("true");
