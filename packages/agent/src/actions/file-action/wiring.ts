@@ -140,7 +140,7 @@ function validateParams(
   parameters: ActionParameters,
   options: HandlerOptions | undefined,
 ): ParamRecord {
-  const params: ParamRecord = { ...options?.parameters };
+  const params = { ...options?.parameters };
   if (actionName === "WRITE_FILE") {
     params.content = exactTextParam(params, "content", "text");
   } else if (actionName === "PATCH_FILE") {
