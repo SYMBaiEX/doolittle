@@ -38,6 +38,14 @@ export function bundledCodexAcpEnv(input: {
     // An empty override selects the adapter's own lockfile-pinned CLI.
     CODEX_PATH: "",
     CODEX_CONFIG: JSON.stringify({
+      // The bundled coding worker uses Doolittle's tool boundary. Keep
+      // auto-discovered Codex surfaces and the system MCP keychain out.
+      mcp_oauth_credentials_store: "file",
+      features: {
+        apps: false,
+        plugins: false,
+        skill_mcp_dependency_install: false,
+      },
       ...(model ? { model } : {}),
       ...(reasoningEffort ? { model_reasoning_effort: reasoningEffort } : {}),
     }),

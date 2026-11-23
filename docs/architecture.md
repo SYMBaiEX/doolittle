@@ -61,6 +61,9 @@ ElizaOS's native ACP client handles outbound coding delegation. The desktop
 checks the conversation's workspace grant before starting or prompting a
 worker. Codex uses the packaged adapter and its workspace sandbox. The runtime
 keeps ACP session files and scratch work inside each Doolittle profile.
+Bundled Codex sessions use Codex's file-backed MCP credential mode and
+keep Codex app and plugin discovery off. Connector approvals are handled by
+Doolittle and ElizaOS.
 
 The [shared engine host](../packages/agent/src/runtime/engine/host.ts) starts named
 bot worker threads on demand. Each worker has a separate runtime, environment,

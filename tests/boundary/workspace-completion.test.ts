@@ -28,6 +28,7 @@ import {
   workspaceNoopRequirements,
 } from "../../packages/agent/src/runtime/chat-turn/workspace-noop-completion";
 import { withManagedCodingDelegation } from "../../packages/agent/src/runtime/native/coding-delegation";
+import { bundledCodexAcpEnv } from "../../packages/agent/src/runtime/native/coding-delegation/model";
 import type {
   AcpSpawnOptions,
   CodingDelegationServices,
@@ -40,6 +41,34 @@ import {
 } from "../../packages/agent/src/runtime/turn-runtime-scope";
 
 const workdir = "/workspace/project";
+
+it("keeps bundled Codex MCP sign-in out of the system keychain", () => {
+  const env = bundledCodexAcpEnv({
+    model: "fixture-model",
+    reasoningEffort: "medium",
+    approvalPreset: "readonly",
+    env: {
+      CODEX_HOME: "/linked/codex",
+      CODEX_CONFIG: '{"mcp_oauth_credentials_store":"keyring"}',
+      CODEX_PATH: "/untrusted/codex",
+    },
+  });
+
+  expect(env.CODEX_HOME).toBe("/linked/codex");
+  expect(env.CODEX_PATH).toBe("");
+  expect(env.INITIAL_AGENT_MODE).toBe("read-only");
+  expect(JSON.parse(env.CODEX_CONFIG ?? "{}")).toEqual({
+    mcp_oauth_credentials_store: "file",
+    features: {
+      apps: false,
+      plugins: false,
+      skill_mcp_dependency_install: false,
+    },
+    model: "fixture-model",
+    model_reasoning_effort: "medium",
+  });
+});
+
 const requirements: WorkspaceNoopRequirements = {
   requireBunInstall: false,
   requireBuild: true,
