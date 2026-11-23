@@ -29,17 +29,20 @@ async function executeFindCodebaseIntent(
   runtime: IAgentRuntime,
   intent: Extract<WorkspaceIntent, { kind: "find-codebase" }>,
 ): Promise<string> {
-  const query = sanitizeFindQuery(intent.query);
-  if (!query) {
-    return "I couldn't determine the codebase name to search for.";
-  }
-
-  const explicitTarget = resolveNativeProjectTarget(runtime, query);
+  const explicitTarget = resolveNativeProjectTarget(
+    runtime,
+    intent.query.trim(),
+  );
   if (explicitTarget?.kind === "directory") {
     return summarizeProjectForOutput(runtime, explicitTarget.path);
   }
   if (explicitTarget?.kind === "file") {
     return `Found file path: ${explicitTarget.path}`;
+  }
+
+  const query = sanitizeFindQuery(intent.query);
+  if (!query) {
+    return "I couldn't determine the codebase name to search for.";
   }
 
   const matches = await findNativeLocalCodebases(runtime, query);
