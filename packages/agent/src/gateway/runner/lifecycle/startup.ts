@@ -1,4 +1,5 @@
 import { loadGatewayConfig } from "../../../config/gateway";
+import { formatLoggerError } from "../../../logging/logger";
 import type { PlatformName } from "../../../types/gateway";
 import { GATEWAY_DAEMON_POLICY } from "../../daemon-state";
 
@@ -42,19 +43,48 @@ async function startEnabledAdapters(
   }
 }
 
+function createLifecycleInterval(
+  host: GatewayRunnerLifecycleHost,
+  job: "heartbeat" | "watchdog",
+  run: () => Promise<unknown>,
+  intervalMs: number,
+): ReturnType<typeof setInterval> {
+  let running = false;
+  const interval = setInterval(async () => {
+    if (running) return;
+    running = true;
+    try {
+      await run();
+    } catch (error) {
+      host.context.services.logger.error("gateway-interval-failed", {
+        job,
+        detail: formatLoggerError(error),
+      });
+    } finally {
+      running = false;
+    }
+  }, intervalMs);
+  interval.unref?.();
+  return interval;
+}
+
 function ensureLifecycleIntervals(host: GatewayRunnerLifecycleHost): void {
   if (!host.heartbeatInterval) {
-    host.heartbeatInterval = setInterval(() => {
-      void host.runHeartbeat("interval");
-    }, GATEWAY_DAEMON_POLICY.heartbeatIntervalMs);
-    host.heartbeatInterval.unref?.();
+    host.heartbeatInterval = createLifecycleInterval(
+      host,
+      "heartbeat",
+      () => host.runHeartbeat("interval"),
+      GATEWAY_DAEMON_POLICY.heartbeatIntervalMs,
+    );
   }
 
   if (!host.supervisionInterval) {
-    host.supervisionInterval = setInterval(() => {
-      void host.runWatchdog("interval");
-    }, GATEWAY_DAEMON_POLICY.watchdogIntervalMs);
-    host.supervisionInterval.unref?.();
+    host.supervisionInterval = createLifecycleInterval(
+      host,
+      "watchdog",
+      () => host.runWatchdog("interval"),
+      GATEWAY_DAEMON_POLICY.watchdogIntervalMs,
+    );
   }
 }
 
