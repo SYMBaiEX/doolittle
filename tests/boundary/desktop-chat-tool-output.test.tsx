@@ -104,6 +104,7 @@ it("keeps the same activity row selected as a matched action returns", () => {
     'section[aria-label="Run receipt"] > button',
   );
   if (!disclosure) throw new Error("Missing run disclosure");
+  expect(disclosure.getAttribute("aria-expanded")).toBe("false");
   act(() => disclosure.click());
   act(() => button("Show Writing file details").click());
   const returned = step("action-completed", 1, 225, {
@@ -160,6 +161,10 @@ it("shows actual delegated progress and keeps inspected output open when another
       />,
     ),
   );
+  const disclosure = button("Shell command");
+  expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+  expect(host.querySelector('[aria-label="Run steps"]')).toBeNull();
+  act(() => disclosure.click());
   const runningRow = button("Show Shell command details");
   expect(runningRow.textContent).toContain("nub run test:scope");
   expect(
@@ -357,6 +362,9 @@ it("renders an explicit tool diff without modifying the captured patch", async (
     diff,
   });
   act(() => root.render(<ToolActivityGroup pending={true} tools={[edit]} />));
+  const disclosure = button("Tool activity");
+  expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+  act(() => disclosure.click());
   act(() => button("Show Editing file details").click());
   expect(host.querySelector('[data-diff-line="removed"]')?.textContent).toBe(
     "-before\n",

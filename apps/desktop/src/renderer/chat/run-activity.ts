@@ -282,20 +282,6 @@ export function runReceiptState(receipt: RunReceipt): {
   return { label: "Working", statusLabel: "working", tone: "neutral" };
 }
 
-export function runElapsed(
-  update: DesktopRunUpdate,
-  now: number,
-): number | undefined {
-  const start = Date.parse(update.run.startedAt);
-  const terminal = update.run.endedAt
-    ? Date.parse(update.run.endedAt)
-    : ended(update)
-      ? Date.parse(update.run.updatedAt)
-      : now;
-  if (!Number.isFinite(start) || !Number.isFinite(terminal)) return undefined;
-  return Math.max(0, terminal - start);
-}
-
 export function formatRunElapsed(milliseconds: number): string {
   if (milliseconds < 1_000)
     return `${Math.max(0, Math.round(milliseconds))} ms`;

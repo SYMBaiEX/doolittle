@@ -1,6 +1,5 @@
 import {
   Check,
-  ChevronDown,
   ChevronRight,
   Clock3,
   FilePenLine,
@@ -24,7 +23,6 @@ import {
   lastMutation,
   type RunActivityItem,
   runActivityItems,
-  runElapsed,
   runIsStalled,
   runReceiptState,
 } from "./run-activity";
@@ -273,9 +271,7 @@ export function RunReceiptView({
   const id = useId();
   const state = runReceiptState(receipt);
   const items = useMemo(() => runActivityItems(receipt), [receipt]);
-  const [expanded, setExpanded] = useState(
-    () => pending && !ended(receipt.latest),
-  );
+  const [expanded, setExpanded] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
   const { run } = receipt.latest;
   const terminal = ended(receipt.latest);
@@ -287,10 +283,6 @@ export function RunReceiptView({
     return () => window.clearInterval(interval);
   }, [pending, terminal]);
 
-  const elapsed = runElapsed(
-    receipt.latest,
-    pending ? clock : Date.parse(run.updatedAt),
-  );
   const stalled = runIsStalled(receipt, clock, pending);
   const changedFiles = Array.from(
     new Set(
@@ -332,11 +324,6 @@ export function RunReceiptView({
         liveProgress ||
         run.statusDetail ||
         (stalled ? "Waiting for the next update" : "");
-  const metrics = [
-    items.length ? formatCount(items.length, "step") : "",
-    elapsed ? formatRunElapsed(elapsed) : "",
-  ].filter(Boolean);
-
   const status: ActivityStatus =
     state.tone === "bad"
       ? "failed"
@@ -377,6 +364,7 @@ export function RunReceiptView({
       <button
         aria-controls={`${id}-receipt`}
         aria-expanded={expanded}
+        aria-label={runLabel}
         className="chat-activity-trigger"
         onClick={() => setExpanded(!expanded)}
         type="button"
@@ -388,12 +376,9 @@ export function RunReceiptView({
             <small title={displayActivity}>{displayActivity}</small>
           ) : null}
         </span>
-        {metrics.length ? (
-          <span className="chat-activity-metric">{metrics.join(" · ")}</span>
-        ) : null}
         <UiIcon
           className="chat-activity-chevron"
-          icon={ChevronDown}
+          icon={ChevronRight}
           size="xs"
         />
       </button>

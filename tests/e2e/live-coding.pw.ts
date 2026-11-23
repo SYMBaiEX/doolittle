@@ -149,16 +149,9 @@ async function runDesktopCoding(delegated: boolean) {
       selection,
       delegated ? delegateCodingPrompt(prompt) : prompt,
     );
-    const pendingWorkerActions = desktop.page.locator(
-      '[data-message-state="streaming"] [data-tool-origin="delegated"]',
-    );
     const [run] = await Promise.all([
       liveTurn,
-      delegated
-        ? expect
-            .poll(() => pendingWorkerActions.count(), { timeout: 180_000 })
-            .toBeGreaterThan(1)
-        : undefined,
+      delegated ? expectLiveWorkerActivity(desktop.page) : undefined,
     ]);
     expect(run.status).toBe("complete");
     const summary = verifyLiveCodingProject(desktop.workspace);
@@ -191,6 +184,19 @@ async function runDesktopCoding(delegated: boolean) {
       console.error(`Live desktop fixture retained: ${desktop.profile}`);
     }
   }
+}
+
+async function expectLiveWorkerActivity(page: DesktopFixture["page"]) {
+  const receipt = page.locator('.chat-run-receipt[data-pending="true"]');
+  const disclosure = receipt.locator(".chat-activity-trigger");
+  await expect(disclosure).toBeVisible({ timeout: 90_000 });
+  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  await disclosure.click();
+  await expect
+    .poll(() => receipt.locator('[data-tool-origin="delegated"]').count(), {
+      timeout: 180_000,
+    })
+    .toBeGreaterThan(1);
 }
 
 test("installed desktop cleans up multiple tests and runs the full suite", async () => {

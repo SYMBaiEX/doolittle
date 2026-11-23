@@ -1112,7 +1112,11 @@ test.describe("fresh native desktop", () => {
         .poll(() => clipboardWrites.jsonValue())
         .toEqual([code, diff, toolResult.result.stdout]);
 
-      await transcript.getByRole("button", { name: /Run complete/u }).click();
+      const disclosure = transcript.getByRole("button", {
+        name: "Run complete",
+      });
+      await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+      await disclosure.press("Enter");
       await expect(
         transcript.getByRole("region", { name: "Changed files" }),
       ).toContainText("src/main.ts");

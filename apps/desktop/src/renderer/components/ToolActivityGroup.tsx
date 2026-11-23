@@ -1,9 +1,7 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import { Button } from "@elizaos/ui/button";
 import {
-  Activity,
   Check,
-  ChevronDown,
   ChevronRight,
   Clock3,
   Copy,
@@ -212,7 +210,7 @@ export function ToolActivityGroup({
   tools: readonly ToolActivity[];
 }) {
   const id = useId();
-  const [expanded, setExpanded] = useState(pending);
+  const [expanded, setExpanded] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
   const entries = useMemo(
     () =>
@@ -242,29 +240,30 @@ export function ToolActivityGroup({
     >
       <button
         aria-controls={`${id}-activity`}
-        aria-describedby={`${id}-metric`}
+        aria-describedby={`${id}-state`}
         aria-expanded={expanded}
         aria-label="Tool activity"
         className="chat-activity-trigger"
         onClick={() => setExpanded(!expanded)}
         type="button"
       >
-        <UiIcon icon={Activity} size="sm" />
+        <span
+          aria-hidden="true"
+          className="chat-activity-mark"
+          data-status={status}
+        >
+          <UiIcon icon={statusIcons[status]} size="xs" />
+        </span>
         <span className="chat-activity-title">
           <strong>Tool activity</strong>
-          <small>{last.label}</small>
+          <small>{pending ? last.label : stateLabel}</small>
         </span>
-        <span
-          className="chat-activity-metric"
-          data-status={status}
-          id={`${id}-metric`}
-        >
-          {entries.length} {entries.length === 1 ? "step" : "steps"} ·{" "}
-          {stateLabel}
+        <span className="sr-only" id={`${id}-state`}>
+          {pending ? `${stateLabel}. ${last.label}` : stateLabel}
         </span>
         <UiIcon
           className="chat-activity-chevron"
-          icon={ChevronDown}
+          icon={ChevronRight}
           size="xs"
         />
       </button>
