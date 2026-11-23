@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   type BrowserAction,
   type BrowserResult,
@@ -16,6 +16,14 @@ import {
 } from "./browser-navigation";
 
 export type BrowserErrorField = "address" | "compare" | null;
+
+export type BrowserPreviewStatus =
+  | "idle"
+  | "checking"
+  | "ready"
+  | "unreachable";
+
+const PREVIEW_PROBE_TIMEOUT_MS = 6_000;
 
 export const BROWSER_ACTIONS: Array<{
   id: BrowserAction;
@@ -55,6 +63,43 @@ export function useBrowserWorkspace(
   const [result, setResult] = useState<BrowserResult | null>(null);
   const embedded =
     Boolean(navigation.currentUrl) && isLocalPreviewUrl(navigation.currentUrl);
+  const [previewStatus, setPreviewStatus] =
+    useState<BrowserPreviewStatus>("idle");
+  const previewProbeRef = useRef(0);
+
+  useEffect(() => {
+    const url = navigation.currentUrl;
+    if (!url || !isLocalPreviewUrl(url)) {
+      previewProbeRef.current += 1;
+      setPreviewStatus("idle");
+      return;
+    }
+    const probeId = ++previewProbeRef.current;
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      PREVIEW_PROBE_TIMEOUT_MS,
+    );
+    setPreviewStatus("checking");
+    fetch(url, {
+      cache: "no-store",
+      mode: "no-cors",
+      redirect: "manual",
+      signal: controller.signal,
+    })
+      .then(() => {
+        if (probeId === previewProbeRef.current) setPreviewStatus("ready");
+      })
+      .catch(() => {
+        if (probeId === previewProbeRef.current)
+          setPreviewStatus("unreachable");
+      })
+      .finally(() => clearTimeout(timeout));
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [navigation.currentUrl]);
   const resultView = useMemo(
     () => (result ? buildBrowserResultViewModel(result) : null),
     [result],
@@ -62,11 +107,13 @@ export function useBrowserWorkspace(
   const resultStatusMessage = useMemo(() => {
     if (busy) return `${titleCase(busy)} in progress.`;
     if (error) return `Browser error: ${error}`;
+    if (previewStatus === "unreachable")
+      return `Preview unreachable at ${navigation.currentUrl}.`;
     if (result && resultView) {
       return `${result.title} ready. ${resultView.summary}.`;
     }
     return "Browser tool idle.";
-  }, [busy, error, result, resultView]);
+  }, [busy, error, previewStatus, navigation.currentUrl, result, resultView]);
 
   const clearError = () => {
     setError("");
@@ -246,6 +293,7 @@ export function useBrowserWorkspace(
     fail,
     navigate,
     previewSize,
+    previewStatus,
     reloadPreview,
     result,
     resultStatusMessage,

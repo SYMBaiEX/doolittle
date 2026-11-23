@@ -12,6 +12,7 @@ import {
   Link2,
   Monitor,
   RefreshCw,
+  TriangleAlert,
 } from "lucide-react";
 import {
   BROWSER_ACTION_CLASS,
@@ -83,6 +84,7 @@ export function BrowserPage({
     fail,
     navigate,
     previewSize,
+    previewStatus,
     reloadPreview,
     result,
     resultStatusMessage,
@@ -253,15 +255,54 @@ export function BrowserPage({
                   <option value="mobile">Mobile</option>
                 </select>
               </label>
-              <Badge tone={embedded ? "good" : "neutral"}>
+              <Badge
+                tone={
+                  embedded
+                    ? previewStatus === "unreachable"
+                      ? "bad"
+                      : previewStatus === "ready"
+                        ? "good"
+                        : "neutral"
+                    : "neutral"
+                }
+              >
                 {embedded
-                  ? "Live localhost"
+                  ? previewStatus === "unreachable"
+                    ? "Unreachable"
+                    : previewStatus === "checking"
+                      ? "Checking localhost"
+                      : "Live localhost"
                   : evidenceAvailable
                     ? "Capture mode"
                     : "Local preview"}
               </Badge>
             </div>
-            {embedded ? (
+            {embedded && previewStatus === "unreachable" ? (
+              <div
+                className={BROWSER_PLACEHOLDER_CLASS}
+                data-browser-preview-state="unreachable"
+              >
+                <span
+                  aria-hidden="true"
+                  className="grid size-8.5 place-items-center rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--bad)_27%,var(--border))] bg-[var(--bad-soft)] text-base text-[var(--bad)]"
+                >
+                  <UiIcon icon={TriangleAlert} size="md" />
+                </span>
+                <h2>Localhost isn’t reachable</h2>
+                <p>
+                  Nothing responded at {currentUrl}. Start your development
+                  server or check the port, then try again.
+                </p>
+                <Button
+                  onClick={reloadPreview}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Retry preview
+                </Button>
+              </div>
+            ) : embedded ? (
               <div
                 className={`${BROWSER_FRAME_STAGE_CLASS} ${BROWSER_PREVIEW_WIDTH_CLASS[previewSize]}`}
                 data-browser-preview-size={previewSize}
