@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import {
   createLogger as createElizaLogger,
@@ -145,11 +153,64 @@ function appendRecord(path: string, record: AppLogRecord): void {
   }
 }
 
+function readTailText(path: string, limit: number): string {
+  const fd = openSync(path, "r");
+  try {
+    let position = fstatSync(fd).size;
+    const chunks: Buffer[] = [];
+    let fragments: Buffer[] = [];
+    let completeLines = 0;
+    const target = Number.isNaN(limit)
+      ? Infinity
+      : Math.trunc(Math.max(1, limit));
+    while (position > 0) {
+      const length = Math.min(64 * 1024, position);
+      position -= length;
+      const chunk = Buffer.allocUnsafe(length);
+      let bytesRead = 0;
+      while (bytesRead < length) {
+        const count = readSync(
+          fd,
+          chunk,
+          bytesRead,
+          length - bytesRead,
+          position + bytesRead,
+        );
+        if (count === 0) break;
+        bytesRead += count;
+      }
+      const data = chunk.subarray(0, bytesRead);
+      chunks.push(data);
+      if (target === Infinity) continue;
+      let end = data.length;
+      for (
+        let index = data.lastIndexOf(0x0a);
+        index >= 0;
+        index = data.lastIndexOf(0x0a, index - 1)
+      ) {
+        fragments.push(data.subarray(index + 1, end));
+        const line = Buffer.concat(fragments.reverse()).toString("utf8");
+        fragments = [];
+        if (line.trim()) completeLines += 1;
+        // A leading sentinel keeps trim() from changing a returned legacy ID.
+        if (completeLines > target) break;
+        end = index;
+        if (index === 0) break;
+      }
+      if (completeLines > target) break;
+      fragments.push(data.subarray(0, end));
+    }
+    return Buffer.concat(chunks.reverse()).toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
 function readRecordTail(path: string, limit: number): AppLogRecord[] {
   if (!existsSync(path)) return [];
   try {
     const legacyOccurrences = new Map<string, number>();
-    return readFileSync(path, "utf8")
+    return readTailText(path, limit)
       .trim()
       .split("\n")
       .filter(Boolean)
