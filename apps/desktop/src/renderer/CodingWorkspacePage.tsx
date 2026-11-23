@@ -786,7 +786,9 @@ export function CodingWorkspacePage({
 
   if (!hasWorkspace) {
     return (
-      <div className={`page ${CODING_WORKSPACE_PAGE_CLASS} overflow-y-auto px-3 py-2`}>
+      <div
+        className={`page ${CODING_WORKSPACE_PAGE_CLASS} overflow-y-auto px-3 py-2`}
+      >
         <PageHeader
           description="Inspect files, changes, and workspace operations."
           eyebrow="Workspace"
