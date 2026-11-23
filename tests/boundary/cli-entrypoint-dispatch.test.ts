@@ -5,11 +5,98 @@ import { resolveEntrypointCommandPlan } from "../../apps/cli/src/entrypoint/runt
 import {
   type EntrypointSubcommand,
   isEntrypointAliasCommand,
+  parseOneShotOptions,
   resolveEntrypointAliasPrompt,
   resolveSubcommand,
 } from "../../apps/cli/src/entrypoint/subcommand";
 
 describe("CLI entrypoint dispatch", () => {
+  it.each(["exec", "run"])(
+    "keeps prompt values out of global dispatch for %s",
+    (command) => {
+      expect(resolveSubcommand([command, "-p", "--version"])).toEqual({
+        command: "exec",
+        rest: ["-p", "--version"],
+      });
+      expect(resolveSubcommand([command, "--", "--help"])).toEqual({
+        command: "exec",
+        rest: ["--", "--help"],
+      });
+      expect(
+        resolveSubcommand([command, "-p", "--version", "--help"]).command,
+      ).toBe("help");
+    },
+  );
+
+  it.each(["-p", "--prompt", "--session-id", "--job-id"])(
+    "requires a value for %s",
+    (option) => {
+      expect(() => parseOneShotOptions([option])).toThrow(
+        `${option} requires a value.`,
+      );
+      expect(() => parseOneShotOptions([`${option}=`])).toThrow(
+        `${option} requires a value.`,
+      );
+    },
+  );
+
+  it.each(["--session-id", "--job-id"])(
+    "does not consume an option as %s",
+    (option) => {
+      expect(() =>
+        parseOneShotOptions(["-p", "/help", option, "--json"]),
+      ).toThrow(`${option} requires a value.`);
+    },
+  );
+
+  it.each(["--session-id", "--job-id"])(
+    "preserves end-of-options after a missing %s value",
+    (option) => {
+      const selection = resolveSubcommand(["exec", option, "--", "--version"]);
+      expect(selection.command).toBe("exec");
+      expect(() => parseOneShotOptions(selection.rest)).toThrow(
+        `${option} requires a value.`,
+      );
+    },
+  );
+
+  it("rejects unknown options even with an explicit prompt", () => {
+    expect(() => parseOneShotOptions(["-p", "/help", "--bogus"])).toThrow(
+      "Unknown exec option: --bogus.",
+    );
+  });
+
+  it("does not expose unknown option values in usage errors", () => {
+    const parse = () => parseOneShotOptions(["--api-key=private-value"]);
+    expect(parse).toThrow("Unknown exec option: --api-key.");
+    expect(parse).not.toThrow(/private-value/);
+  });
+
+  it("accepts flag-shaped prompts, inline values, and end-of-options text", () => {
+    expect(parseOneShotOptions(["-p", "--version"]).prompt).toBe("--version");
+    expect(
+      parseOneShotOptions([
+        "--prompt=a=b",
+        "--session-id=session",
+        "--job-id=job",
+        "--json",
+      ]),
+    ).toMatchObject({
+      prompt: "a=b",
+      sessionId: "session",
+      jobId: "job",
+      json: true,
+    });
+    expect(parseOneShotOptions(["-p=--help"]).prompt).toBe("--help");
+    expect(parseOneShotOptions(["--", "--help", "-p", "text"]).prompt).toBe(
+      "--help -p text",
+    );
+    expect(parseOneShotOptions([])).toMatchObject({
+      prompt: undefined,
+      json: false,
+    });
+  });
+
   it("uses the interactive command-search response for a pre-boot alias", async () => {
     const invocation = await resolveEntrypointInvocation(
       resolveSubcommand(["exec", "-p", "/commands-search"]),
