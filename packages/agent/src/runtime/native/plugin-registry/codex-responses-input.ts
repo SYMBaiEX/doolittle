@@ -1,5 +1,4 @@
 import type { ChatMessage } from "@elizaos/core";
-import { fileTypeFromBuffer } from "file-type";
 import type {
   ResponseInput,
   ResponseInputContent,
@@ -85,6 +84,7 @@ async function imageUrl(part: ContentPart): Promise<string> {
     if (match && declared && declared !== match[1].toLowerCase())
       throw invalid();
   } else throw invalid();
+  const { fileTypeFromBuffer } = await import("file-type");
   const detected = await fileTypeFromBuffer(bytes).catch(() => undefined);
   if (
     !detected ||

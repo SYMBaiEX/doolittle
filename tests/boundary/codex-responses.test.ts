@@ -17,6 +17,39 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
   "base64",
 );
+
+it("loads the file type detector only when validating image bytes", async () => {
+  vi.resetModules();
+  const fileTypeFromBuffer = vi.fn(async () => ({
+    ext: "png",
+    mime: "image/png",
+  }));
+  const loadDetector = vi.fn(() => ({ fileTypeFromBuffer }));
+  vi.doMock("file-type", loadDetector);
+  try {
+    const { codexResponsesInput: translate } = await import(
+      "../../packages/agent/src/runtime/native/plugin-registry/codex-responses-input"
+    );
+    await translate([{ role: "user", content: "Hello" }]);
+    await translate([
+      {
+        role: "user",
+        content: [{ type: "image", image: "https://example.com/diagram.png" }],
+      },
+    ]);
+    expect(loadDetector).not.toHaveBeenCalled();
+
+    await translate([
+      { role: "user", content: [{ type: "image", image: png }] },
+    ]);
+    expect(loadDetector).toHaveBeenCalledOnce();
+    expect(fileTypeFromBuffer).toHaveBeenCalledExactlyOnceWith(png);
+  } finally {
+    vi.doUnmock("file-type");
+    vi.resetModules();
+  }
+});
+
 function response(
   output: unknown[] = [
     {
