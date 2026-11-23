@@ -1,6 +1,12 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, rmSync, utimesSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,3 +74,18 @@ it("recovers from an old, empty legacy index lock directory", () => {
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+it.skipIf(process.platform === "win32")(
+  "rejects a symlink at the index lock path",
+  () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "cli-symlink-job-lock-"));
+    try {
+      const root = jobsRoot(dataDir);
+      mkdirSync(root, { mode: 0o700 });
+      symlinkSync(join(dataDir, "missing"), join(root, ".index-lock"));
+      expect(() => listCliJobs(dataDir)).toThrow("Unsafe job index lock.");
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  },
+);

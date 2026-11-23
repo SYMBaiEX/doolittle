@@ -7,7 +7,7 @@ import {
   realpathSync,
   rmdirSync,
 } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
@@ -159,16 +159,14 @@ function writeIndex(dataDir: string, index: CliJobIndex): void {
 function prepareIndexLock(lock: string, deadline: number): void {
   const wait = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
-    const info = lstatSync(lock, { throwIfNoEntry: false });
-    if (!info) {
-      try {
-        closeSync(openSync(lock, "wx", 0o600));
-        return;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "EEXIST") continue;
-        throw error;
-      }
+    try {
+      closeSync(openSync(lock, "wx", 0o600));
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
+    const info = lstatSync(lock, { throwIfNoEntry: false });
+    if (!info) continue;
     if (
       info.isSymbolicLink() ||
       (process.platform !== "win32" && (info.mode & 0o077) !== 0) ||
@@ -196,7 +194,9 @@ function prepareIndexLock(lock: string, deadline: number): void {
 
 function withLock<T>(dataDir: string, operation: () => T): T {
   ensureStore(dataDir);
-  const lock = join(jobsRoot(dataDir), ".index-lock");
+  const root = resolve(jobsRoot(dataDir));
+  const lock = resolve(root, ".index-lock");
+  if (!lock.startsWith(root + sep)) throw new Error("Unsafe job index lock.");
   const deadline = Date.now() + INDEX_LOCK_TIMEOUT_MS;
   prepareIndexLock(lock, deadline);
   const db = new DatabaseSync(lock, {
