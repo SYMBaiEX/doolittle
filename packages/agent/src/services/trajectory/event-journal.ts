@@ -174,6 +174,16 @@ export function normalizeTrajectoryEventRecord(
   };
 }
 
+// A crash mid-append can leave a torn final line; skip unparseable lines
+// instead of discarding every earlier event.
+function parseTrajectoryEventLine(line: string): TrajectoryEventRecord | null {
+  try {
+    return JSON.parse(line) as TrajectoryEventRecord;
+  } catch {
+    return null;
+  }
+}
+
 function matchesFilters(
   record: TrajectoryEventRecord,
   filters?: TrajectoryFilters,
@@ -228,21 +238,12 @@ export function readTrajectoryEventRecords(
   if (!existsSync(path)) {
     return [];
   }
-  const records: TrajectoryEventRecord[] = [];
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      continue;
-    }
-    // A crash mid-append can leave a torn final line; skip unparseable lines
-    // instead of discarding every earlier event.
-    try {
-      records.push(JSON.parse(trimmed) as TrajectoryEventRecord);
-    } catch {
-      // skip unparseable lines
-    }
-  }
-  return records
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => parseTrajectoryEventLine(line))
+    .filter((record): record is TrajectoryEventRecord => record !== null)
     .filter((record) => matchesFilters(record, filters))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit);
