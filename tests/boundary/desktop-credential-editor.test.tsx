@@ -189,7 +189,7 @@ it("keeps a failed save inline with its draft and retries without retyping", asy
         .find((button) => button.textContent === "Refresh")
         ?.click();
     });
-    expect(container.textContent).toContain("1 key");
+    await vi.waitFor(() => expect(container.textContent).toContain("1 key"));
     expect(container.textContent).not.toContain("1 stored");
     expect(
       container.querySelector('button[aria-pressed="true"]')?.textContent,
@@ -200,9 +200,11 @@ it("keeps a failed save inline with its draft and retries without retyping", asy
 
     await act(async () => save?.click());
     expect(saveAttempts).toBe(2);
-    expect(
-      container.querySelector('button[aria-pressed="true"]')?.textContent,
-    ).toBe("FIXTURE_KEY");
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('button[aria-pressed="true"]')?.textContent,
+      ).toBe("FIXTURE_KEY"),
+    );
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(container.textContent).not.toContain("Save failed");
     expect(container.textContent).toContain("Stored FIXTURE_KEY.");
