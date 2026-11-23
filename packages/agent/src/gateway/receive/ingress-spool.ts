@@ -232,9 +232,11 @@ export class GatewayIngressSpool {
     }
   }
 
-  markInterrupted(): void {
+  recoverInterrupted(): void {
     for (const entry of this.entries.values()) {
-      if (entry.status === "processing") this.setStatus(entry, "interrupted");
+      if (entry.status === "processing" || entry.status === "interrupted") {
+        this.setStatus(entry, "queued");
+      }
     }
   }
 

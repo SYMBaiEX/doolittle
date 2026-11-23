@@ -26,9 +26,9 @@ export class GatewayIngressWorker {
 
   start(): void {
     if (!this.controller) {
+      this.spool.recoverInterrupted();
       this.controller = new AbortController();
       this.stalled = false;
-      this.spool.markInterrupted();
     }
     this.kick();
   }
