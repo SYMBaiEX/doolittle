@@ -69,7 +69,7 @@ async function invokeDesktopTransport(
   });
 }
 
-export function createDesktopAgentTransport(
+function createDesktopAgentTransport(
   botId?: string,
   origin?: ComputerOrigin,
 ): AgentRequestTransport {
@@ -109,8 +109,6 @@ export function createDesktopAgentTransport(
     },
   };
 }
-
-export const desktopAgentTransport = createDesktopAgentTransport();
 
 export async function desktopRequest<T>(
   path: string,

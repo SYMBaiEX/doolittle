@@ -1,3 +1,4 @@
+import type { LinkedModelProviderId } from "@doolittle/contracts/model-route";
 import type { AgentExecutionContext } from "../chat";
 import { clearMaterializedAccountPoolApiCredentials } from "../native/account-pool/index";
 import { getRuntimeProviderAccountsSnapshot } from "../native/provider-accounts";
@@ -7,13 +8,12 @@ import {
   resolveDefaultProviderModel,
   syncProviderSettings,
 } from "./model-settings";
-import type { LinkedProviderName } from "./types";
 
 export function activateLinkedProvider(
   context: AgentExecutionContext,
-  provider: LinkedProviderName,
+  provider: LinkedModelProviderId,
 ): {
-  provider: LinkedProviderName;
+  provider: LinkedModelProviderId;
   model: string;
   baseUrl: string;
   accounts: ReturnType<typeof getRuntimeProviderAccountsSnapshot>;

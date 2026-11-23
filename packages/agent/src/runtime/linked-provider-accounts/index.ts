@@ -19,9 +19,11 @@ import {
   syncProviderSettings,
 } from "./model-settings";
 import { withLinkedProviderMutationLock } from "./mutation-lock";
-import { resolveLinkedProviderName } from "./provider-name";
 
-export type { LinkedProviderName } from "./types";
+export {
+  type LinkedModelProviderId as LinkedProviderName,
+  resolveLinkedModelProviderId as resolveLinkedProviderName,
+} from "@doolittle/contracts/model-route";
 export type { ProviderRuntimeSettingsContext };
 export {
   activateLinkedProvider,
@@ -37,7 +39,6 @@ export {
   formatLinkedProviderAdviceNextStep,
   normalizeElizaCloudBaseUrl,
   refreshLinkedAccounts,
-  resolveLinkedProviderName,
   syncProviderSettings,
   withLinkedProviderMutationLock,
 };

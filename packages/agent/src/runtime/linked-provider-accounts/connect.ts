@@ -1,3 +1,4 @@
+import type { LinkedModelProviderId } from "@doolittle/contracts/model-route";
 import type { AgentExecutionContext } from "../chat";
 import {
   buildLinkedProviderConnectAdvice,
@@ -12,13 +13,12 @@ import {
   refreshRuntimeProviderAccount,
 } from "../native/provider-accounts";
 import { activateLinkedProvider } from "./activation";
-import type { LinkedProviderName } from "./types";
 
 export async function connectLinkedProvider(
   context: AgentExecutionContext,
-  provider: LinkedProviderName,
+  provider: LinkedModelProviderId,
 ): Promise<{
-  provider: LinkedProviderName;
+  provider: LinkedModelProviderId;
   connected: boolean;
   activated: boolean;
   providerState?: ReturnType<typeof activateLinkedProvider>;
@@ -65,14 +65,13 @@ export async function connectLinkedProvider(
 }
 
 export async function refreshLinkedAccounts(
-  provider?: LinkedProviderName | "all",
+  provider?: LinkedModelProviderId | "all",
   runtime?: AgentExecutionContext["runtime"],
 ): Promise<ReturnType<typeof getRuntimeProviderAccountsSnapshot>> {
   if (!provider || provider === "all") {
     await Promise.all(
-      (["elizacloud", "codex", "claude-code"] as LinkedProviderName[]).map(
-        (providerName) =>
-          refreshProviderAccount(providerName, runtime).catch(() => undefined),
+      (["elizacloud", "codex", "claude-code"] as const).map((providerName) =>
+        refreshProviderAccount(providerName, runtime).catch(() => undefined),
       ),
     );
     return probeRuntimeProviderAccounts(runtime);
@@ -83,7 +82,7 @@ export async function refreshLinkedAccounts(
 }
 
 async function refreshProviderAccount(
-  provider: LinkedProviderName,
+  provider: LinkedModelProviderId,
   runtime?: AgentExecutionContext["runtime"],
 ): Promise<void> {
   const refreshedRuntime = await refreshRuntimeProviderAccount(
@@ -109,7 +108,7 @@ async function refreshProviderAccount(
 }
 
 async function resolveProviderCredentials(
-  provider: LinkedProviderName,
+  provider: LinkedModelProviderId,
 ): Promise<ReturnType<typeof resolveLinkedProviderCredentials>> {
   return resolveLinkedProviderCredentials(provider).catch(() => undefined);
 }

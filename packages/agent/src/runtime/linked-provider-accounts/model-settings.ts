@@ -1,4 +1,5 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+import type { LinkedModelProviderId } from "@doolittle/contracts/model-route";
 import type { AgentExecutionContext } from "../chat";
 import {
   claudeCodeAccessTokenIsExpiring,
@@ -6,7 +7,6 @@ import {
 } from "../native/account-auth";
 import { resolveCloudApiBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
-import type { LinkedProviderName } from "./types";
 
 type ProviderRuntimeSettingValue = string | boolean | null;
 
@@ -48,7 +48,7 @@ export type ProviderRuntimeSettingsContext = Pick<
 
 export function resolveDefaultProviderModel(
   context: AgentExecutionContext,
-  provider: LinkedProviderName,
+  provider: LinkedModelProviderId,
 ): string {
   if (provider === "codex") {
     return DEFAULT_MODEL_ROUTE.model;
@@ -60,7 +60,7 @@ export function resolveDefaultProviderModel(
 }
 
 export function resolveDefaultProviderBaseUrl(
-  provider: LinkedProviderName,
+  provider: LinkedModelProviderId,
 ): string {
   if (provider === "codex") {
     return DEFAULT_MODEL_ROUTE.baseUrl;
