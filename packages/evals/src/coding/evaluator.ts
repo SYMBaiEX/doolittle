@@ -167,13 +167,7 @@ function shellWorkingDirectory(
   command: string,
   metadata: UnknownRecord,
 ): string | undefined {
-  const directoryChange =
-    /^\s*cd(?:\s+--)?\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*&&/u.exec(
-      command,
-    );
-  const explicit =
-    directoryChange?.[1] ?? directoryChange?.[2] ?? directoryChange?.[3];
-  if (explicit && isAbsolute(explicit)) return resolve(explicit);
+  let launchDirectory: string | undefined;
   for (const candidate of [
     commandResult.executedIn,
     commandResult.cwd,
@@ -183,10 +177,28 @@ function shellWorkingDirectory(
     metadata.workdir,
   ]) {
     const path = string(candidate);
-    if (path && isAbsolute(path)) return resolve(path);
+    if (path && isAbsolute(path)) {
+      launchDirectory = resolve(path);
+      break;
+    }
   }
-
-  return undefined;
+  const directoryChange =
+    /^\s*cd(?:\s+(--|\/d))?\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*&&/iu.exec(
+      command,
+    );
+  const explicit =
+    directoryChange?.[2] ?? directoryChange?.[3] ?? directoryChange?.[4];
+  if (explicit && isAbsolute(explicit)) {
+    const drive = /^[a-z]:/iu.exec(explicit)?.[0].toLowerCase();
+    if (
+      drive &&
+      directoryChange?.[1]?.toLowerCase() !== "/d" &&
+      drive !== launchDirectory?.slice(0, 2).toLowerCase()
+    )
+      return launchDirectory;
+    return resolve(explicit);
+  }
+  return launchDirectory;
 }
 
 function shellReceipt(eventValue: unknown) {
@@ -326,7 +338,9 @@ function isLocalCurlSmoke(command: string): boolean {
       return false;
   }
   if (tokens[0] === "cd") {
-    const separator = tokens[1] === "--" ? 3 : 2;
+    const separator = ["--", "/d"].includes(tokens[1]?.toLowerCase() ?? "")
+      ? 3
+      : 2;
     if (tokens[separator] !== "&&") return false;
     tokens.splice(0, separator + 1);
   }
