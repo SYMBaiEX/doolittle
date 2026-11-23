@@ -20,10 +20,16 @@ import { gatewayInboundIdempotencyKey } from "./idempotency";
 const VERSION = 1;
 /** Retain recent terminal duplicate receipts; older provider retries fall back to receive idempotency. */
 const MAX_TERMINAL_TOMBSTONES = 1_000;
+export const MAX_PENDING_INGRESS_COUNT = 1_000;
+export const MAX_PENDING_INGRESS_BYTES = 32 * 1024 * 1024;
 
 export class GatewayIngressError extends Error {
   constructor(
-    readonly code: "invalid_identity" | "digest_conflict" | "persistence",
+    readonly code:
+      | "invalid_identity"
+      | "digest_conflict"
+      | "persistence"
+      | "capacity",
     message: string,
   ) {
     super(message);
@@ -83,6 +89,8 @@ export class GatewayIngressSpool {
   readonly pathname: string;
   private readonly entries = new Map<string, GatewayIngressEntry>();
   private readonly byKey = new Map<string, string>();
+  private readonly pendingBytesByReceipt = new Map<string, number>();
+  private pendingBytes = 0;
 
   constructor(
     journalDir: string,
@@ -91,6 +99,7 @@ export class GatewayIngressSpool {
     this.pathname = join(journalDir, "gateway-ingress.jsonl");
     ensureGatewayJournalFile(this.pathname);
     this.load();
+    for (const entry of this.entries.values()) this.trackPending(entry);
     this.compactTerminalPayloads();
   }
 
@@ -134,6 +143,16 @@ export class GatewayIngressSpool {
         status: existing.status,
       };
     }
+    const messageBytes = Buffer.byteLength(JSON.stringify(message), "utf8");
+    if (
+      this.pendingBytesByReceipt.size >= MAX_PENDING_INGRESS_COUNT ||
+      this.pendingBytes + messageBytes > MAX_PENDING_INGRESS_BYTES
+    ) {
+      throw new GatewayIngressError(
+        "capacity",
+        "Inbound queue capacity is exhausted. Retry later.",
+      );
+    }
     const receiptId = deterministicReceiptId(key, digest);
     const entry: GatewayIngressEntry = {
       receiptId,
@@ -165,6 +184,8 @@ export class GatewayIngressSpool {
     });
     this.entries.set(receiptId, entry);
     this.byKey.set(key, receiptId);
+    this.pendingBytesByReceipt.set(receiptId, messageBytes);
+    this.pendingBytes += messageBytes;
     return { receiptId, duplicate: false, status: "queued" };
   }
 
@@ -205,6 +226,7 @@ export class GatewayIngressSpool {
     });
     const next = { ...entry, status, error, attempts };
     this.entries.set(entry.receiptId, next);
+    this.trackPending(next);
     if (isTerminalIngressStatus(status)) {
       this.compactTerminalPayloads();
     }
@@ -226,6 +248,20 @@ export class GatewayIngressSpool {
         preview: entry.preview,
         ...(entry.error ? { error: entry.error } : {}),
       }));
+  }
+
+  private trackPending(entry: GatewayIngressEntry): void {
+    const previous = this.pendingBytesByReceipt.get(entry.receiptId);
+    if (isTerminalIngressStatus(entry.status) || !entry.message) {
+      if (previous !== undefined) {
+        this.pendingBytes -= previous;
+        this.pendingBytesByReceipt.delete(entry.receiptId);
+      }
+    } else if (previous === undefined) {
+      const bytes = Buffer.byteLength(JSON.stringify(entry.message), "utf8");
+      this.pendingBytesByReceipt.set(entry.receiptId, bytes);
+      this.pendingBytes += bytes;
+    }
   }
 
   private append(event: GatewayIngressEvent): void {
