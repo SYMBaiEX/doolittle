@@ -62,18 +62,26 @@ async function runMediaAction(
   const signal =
     (options as { abortSignal?: AbortSignal } | undefined)?.abortSignal ??
     getScopedTurnAbortSignal(runtime);
+  let result: ActionResult;
   try {
-    return await respond(callback, await operation(signal));
+    result = await operation(signal);
   } catch (error) {
     if (isMediaAbort(error, signal)) throw error;
     const text = `Media operation failed: ${
       error instanceof Error ? error.message : String(error)
     }`;
-    return await respond(callback, {
+    result = {
       success: false,
       text,
       userFacingText: text,
-    });
+    };
+  }
+  try {
+    return await respond(callback, result);
+  } catch (error) {
+    if (isMediaAbort(error, signal)) throw error;
+    result.data = { ...result.data, callbackDelivery: "failed" };
+    return result;
   }
 }
 
