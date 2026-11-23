@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import type { AppLogger } from "../../logging/logger";
 import { redactTrajectoryText } from "../../services/trajectory/event-journal";
 import type { IncomingPlatformMessage } from "../../types/gateway";
 import {
@@ -22,6 +23,7 @@ const VERSION = 1;
 const MAX_TERMINAL_TOMBSTONES = 1_000;
 export const MAX_PENDING_INGRESS_COUNT = 1_000;
 export const MAX_PENDING_INGRESS_BYTES = 32 * 1024 * 1024;
+export const MAX_INGRESS_CRASH_RECOVERIES = 3;
 
 export class GatewayIngressError extends Error {
   constructor(
@@ -64,6 +66,7 @@ interface GatewayIngressEvent {
   status: GatewayIngressStatus;
   error?: string;
   attempts?: number;
+  crashRecoveryCount?: number;
 }
 
 export interface GatewayIngressEntry {
@@ -75,6 +78,7 @@ export interface GatewayIngressEntry {
   preview: string;
   status: GatewayIngressStatus;
   attempts: number;
+  crashRecoveryCount?: number;
   error?: string;
 }
 
@@ -162,6 +166,7 @@ export class GatewayIngressSpool {
       preview: message.text.slice(0, 280),
       status: "queued",
       attempts: 0,
+      crashRecoveryCount: 0,
     };
     // A request cancellation is only meaningful until the durable commit.
     if (abortSignal?.aborted) {
@@ -212,6 +217,7 @@ export class GatewayIngressSpool {
     status: GatewayIngressStatus,
     error?: string,
     attempts = entry.attempts,
+    crashRecoveryCount = entry.crashRecoveryCount ?? 0,
   ): void {
     this.append({
       version: VERSION,
@@ -223,8 +229,9 @@ export class GatewayIngressSpool {
       status,
       error,
       attempts,
+      crashRecoveryCount,
     });
-    const next = { ...entry, status, error, attempts };
+    const next = { ...entry, status, error, attempts, crashRecoveryCount };
     this.entries.set(entry.receiptId, next);
     this.trackPending(next);
     if (isTerminalIngressStatus(status)) {
@@ -232,9 +239,40 @@ export class GatewayIngressSpool {
     }
   }
 
-  markInterrupted(): void {
+  recoverInterrupted(logger?: Pick<AppLogger, "warn">): void {
     for (const entry of this.entries.values()) {
-      if (entry.status === "processing") this.setStatus(entry, "interrupted");
+      if (entry.status === "processing") {
+        const crashRecoveryCount = (entry.crashRecoveryCount ?? 0) + 1;
+        if (crashRecoveryCount >= MAX_INGRESS_CRASH_RECOVERIES) {
+          const error = sanitizeIngressError(
+            new Error(
+              `Inbound processing was interrupted by ${crashRecoveryCount} restarts; giving up.`,
+            ),
+          );
+          this.setStatus(
+            entry,
+            "failed",
+            error,
+            entry.attempts,
+            crashRecoveryCount,
+          );
+          logger?.warn("gateway-ingress-crash-recovery-exhausted", {
+            receiptId: entry.receiptId,
+            crashRecoveryCount,
+            error,
+          });
+        } else {
+          this.setStatus(
+            entry,
+            "queued",
+            undefined,
+            entry.attempts,
+            crashRecoveryCount,
+          );
+        }
+      } else if (entry.status === "interrupted") {
+        this.setStatus(entry, "queued");
+      }
     }
   }
 
@@ -295,6 +333,8 @@ export class GatewayIngressSpool {
           preview: event.preview ?? event.message?.text.slice(0, 280) ?? "",
           status: event.status,
           attempts: event.attempts ?? 0,
+          crashRecoveryCount: event.crashRecoveryCount ?? 0,
+          error: event.error,
         };
         this.entries.set(entry.receiptId, entry);
         this.byKey.set(entry.key, entry.receiptId);
@@ -306,6 +346,8 @@ export class GatewayIngressSpool {
             status: event.status,
             error: event.error,
             attempts: event.attempts ?? entry.attempts,
+            crashRecoveryCount:
+              event.crashRecoveryCount ?? entry.crashRecoveryCount ?? 0,
           });
       }
     }
@@ -344,6 +386,7 @@ export class GatewayIngressSpool {
         digest: entry.digest,
         status: entry.status,
         attempts: entry.attempts,
+        crashRecoveryCount: entry.crashRecoveryCount ?? 0,
         ...(entry.error ? { error: entry.error } : {}),
         preview: entry.preview,
         ...(!isTerminalIngressStatus(entry.status) && entry.message

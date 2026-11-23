@@ -27,6 +27,8 @@ export interface GatewayReceiveOptions {
   abortSignal?: AbortSignal;
   /** Internal ingress-only signal; never serialize this on public responses. */
   preserveIdempotencyDisposition?: boolean;
+  /** Internal ingress attempt; never serialize on provider-facing results. */
+  ingressAttempt?: number;
   onResponseProgress?: (update: {
     chunk: string;
     response: string;

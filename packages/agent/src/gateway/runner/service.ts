@@ -46,6 +46,7 @@ export class GatewayRunner {
   private readonly context: GatewayRunnerContext;
   private ingress: GatewayIngressSpool | undefined;
   private ingressWorker: GatewayIngressWorker | undefined;
+  private lifecycleGeneration = 0;
 
   constructor(context: GatewayRunnerContext) {
     this.context = context;
@@ -60,11 +61,13 @@ export class GatewayRunner {
   }
 
   async start(): Promise<void> {
-    this.startIngress();
+    const generation = this.lifecycleGeneration;
     await this.api.control.start();
+    if (generation === this.lifecycleGeneration) this.startIngress();
   }
 
   async stop(): Promise<void> {
+    this.lifecycleGeneration += 1;
     await this.ingressWorker?.stop();
     await this.api.control.stop();
   }
@@ -105,6 +108,7 @@ export class GatewayRunner {
       this.ingressWorker = new GatewayIngressWorker(
         this.ensureIngress(),
         (message, options) => this.api.delivery.receive(message, options),
+        this.context.services.logger,
       );
     }
     return this.ingressWorker;
