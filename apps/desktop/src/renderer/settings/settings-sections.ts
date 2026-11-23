@@ -1,5 +1,8 @@
 import type { View } from "../desktop-navigation";
 
+export const DESKTOP_SETTINGS_LANDING_EVENT =
+  "doolittle:desktop-settings-landing";
+
 /** Canonical destinations rendered by the Settings shell. */
 export type SettingsShellSection =
   | "appearance"
@@ -258,7 +261,7 @@ export function settingsCategoryForSection(
   );
 }
 
-/** Desktop is merged into Preferences; its saved deep link still works. */
+/** Desktop leads Preferences; its saved deep link targets that block. */
 export function settingsTabsForCategory(category: SettingsCategoryDefinition) {
   return category.sections
     .filter((section) => section !== "desktop")

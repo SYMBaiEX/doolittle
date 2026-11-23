@@ -166,6 +166,7 @@ import {
   restoreWorkspaceLayout,
   SESSION_WORKSPACE_STORAGE_KEY,
 } from "./session-workspace/workspace-layout";
+import { DESKTOP_SETTINGS_LANDING_EVENT } from "./settings/settings-sections";
 import {
   isCommandPaletteShortcut,
   shouldHandleGlobalChatTerminalShortcut,
@@ -1153,7 +1154,12 @@ export function App() {
         readonly computerOrigin?: ComputerOrigin;
       },
     ) => {
+      const repeatDesktopLanding =
+        next === "desktop" && routeRef.current.view === next;
       if (!applyViewTransition(next, options)) return false;
+      if (repeatDesktopLanding) {
+        window.dispatchEvent(new Event(DESKTOP_SETTINGS_LANDING_EVENT));
+      }
       recordNavigation();
       window.location.hash = desktopHashForView(next);
       return true;

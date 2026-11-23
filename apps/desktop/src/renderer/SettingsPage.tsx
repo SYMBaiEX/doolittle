@@ -67,6 +67,7 @@ import {
   SETTINGS_PAGE_CLASS,
 } from "./settings/settings-layout";
 import {
+  DESKTOP_SETTINGS_LANDING_EVENT,
   SETTINGS_CATEGORIES,
   SETTINGS_SHELL_SECTIONS,
   type SettingsCategoryId,
@@ -149,6 +150,7 @@ export function SettingsPage({
 }) {
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const desktopPanelRef = useRef<HTMLElement>(null);
   const selections = useRef<
     Partial<Record<SettingsCategoryId, SettingsShellSection>>
   >({});
@@ -210,6 +212,42 @@ export function SettingsPage({
     selections.current[settingsCategoryForSection(category).id] = category;
     const content = panelRef.current?.parentElement;
     if (content) content.scrollTop = 0;
+    if (category === "desktop") {
+      let landing: number;
+      const landOnDesktop = () => {
+        window.clearTimeout(landing);
+        // Let the command palette release its focus trap first.
+        landing = window.setTimeout(() => {
+          const target = desktopPanelRef.current;
+          target?.focus({ preventScroll: true });
+          if (content && target) {
+            const tabs = content.querySelector<HTMLElement>('[role="tablist"]');
+            const tabsOffset = tabs
+              ? tabs.getBoundingClientRect().height +
+                (Number.parseFloat(window.getComputedStyle(tabs).top) || 0) +
+                (Number.parseFloat(
+                  window.getComputedStyle(content).paddingTop,
+                ) || 0)
+              : 0;
+            // Scroll only Settings, keeping its sticky tabs above the target.
+            // scrollIntoView would also move the outer app at minimum sizes.
+            content.scrollTop +=
+              target.getBoundingClientRect().top -
+              content.getBoundingClientRect().top -
+              tabsOffset;
+          }
+        }, 0);
+      };
+      landOnDesktop();
+      window.addEventListener(DESKTOP_SETTINGS_LANDING_EVENT, landOnDesktop);
+      return () => {
+        window.clearTimeout(landing);
+        window.removeEventListener(
+          DESKTOP_SETTINGS_LANDING_EVENT,
+          landOnDesktop,
+        );
+      };
+    }
   }, [category]);
   useEffect(() => {
     if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
@@ -451,6 +489,16 @@ export function SettingsPage({
           ) : null
         ) : null}
         {showPreferences ? (
+          <section
+            aria-label="Desktop settings"
+            className="settings-workbench-section outline-none"
+            ref={desktopPanelRef}
+            tabIndex={-1}
+          >
+            <DesktopSettingsPanel {...desktopPreferences} />
+          </section>
+        ) : null}
+        {showPreferences ? (
           <SettingsAppearancePanel
             active={active}
             activeTheme={activeThemeProfile}
@@ -496,9 +544,6 @@ export function SettingsPage({
               runtime={runtime ?? null}
             />
           </Suspense>
-        ) : null}
-        {showPreferences ? (
-          <DesktopSettingsPanel {...desktopPreferences} />
         ) : null}
         {resourcePolicy.settings && !settings.loading && !settings.error ? (
           <WorkbenchSection
