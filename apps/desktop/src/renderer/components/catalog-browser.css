@@ -7,21 +7,44 @@
 
 .catalog-page > .workbench-section__body {
   display: grid;
-  gap: 12px;
+  gap: 8px;
+}
+
+.catalog-page > .workbench-section__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.catalog-page .workbench-section__glyph {
+  inline-size: 28px;
+  block-size: 28px;
 }
 
 .catalog-overview {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
   min-inline-size: 0;
 }
 
 .catalog-overview .compact-stat-strip {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px 24px;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.catalog-overview .compact-stat-strip__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+}
+
+:where(.catalog-overview) .compact-stat-strip__item strong {
+  font-size: var(--text-meta);
 }
 
 .catalog-overview .compact-stat-strip__item :is(strong, small) {
@@ -96,6 +119,10 @@
   overflow: hidden;
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-md);
+}
+
+.catalog-browser-compact-action {
+  display: none;
 }
 
 .catalog-browser-index {
@@ -394,30 +421,36 @@
 @container catalog-page (max-width: 620px) {
   .catalog-browser {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
+    grid-template-rows: auto;
     block-size: auto;
+    overflow: visible;
   }
 
   .catalog-browser-index {
-    max-block-size: min(37dvh, 15rem);
     border-inline-end: 0;
-    border-block-end: 1px solid var(--line-subtle);
+    border-radius: inherit;
   }
 
-  .catalog-browser-item__disclosure {
-    transform: rotate(90deg);
+  .catalog-browser-index__list {
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+
+  .catalog-browser-compact-action {
+    display: inline-flex;
+    justify-self: start;
   }
 
   .catalog-browser-detail {
     overflow: visible;
     padding: 14px;
+    border-radius: inherit;
+    scroll-margin-block-start: 12px;
   }
-}
 
-@container catalog-page (max-width: 520px) {
-  .catalog-overview .compact-stat-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 16px;
+  .catalog-browser:not([data-detail-open="true"]) .catalog-browser-detail,
+  .catalog-browser[data-detail-open="true"] .catalog-browser-index {
+    display: none;
   }
 }
 
