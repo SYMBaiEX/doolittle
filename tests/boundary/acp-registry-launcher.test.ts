@@ -4,7 +4,10 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import { buildAcpRegistryEntry } from "../../packages/acp/src/registry";
+import {
+  buildAcpEditorSummary,
+  buildAcpRegistryEntry,
+} from "../../packages/acp/src/registry";
 
 vi.mock("node:fs", { spy: true });
 
@@ -121,3 +124,31 @@ it("keeps the default ACP argv when no custom command is configured", () => {
     args: ["acp"],
   });
 });
+
+it.each([
+  ["linux", "bash scripts/install.sh"],
+  ["darwin", "bash scripts/install.sh"],
+  [
+    "win32",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1",
+  ],
+])(
+  "tells %s editors to run the installer that provides doolittle acp",
+  (platform, command) => {
+    vi.stubGlobal("process", { platform });
+    try {
+      expect(
+        buildAcpEditorSummary({
+          package: input.package,
+          registryPath: "registry.json",
+          exportDir: "exports",
+          importDir: "imports",
+          commandConfigured: false,
+        }).installCommand,
+      ).toBe(command);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(existsSync(command.split(" ").at(-1) ?? "")).toBe(true);
+  },
+);

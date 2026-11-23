@@ -214,6 +214,12 @@ export function buildAcpRegistryEntry(input: {
   };
 }
 
+function defaultAcpInstallCommand(): string {
+  return process.platform === "win32"
+    ? "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1"
+    : "bash scripts/install.sh";
+}
+
 export function buildAcpEditorSummary(input: {
   package: AcpPackageMetadata;
   registryPath: string;
@@ -235,7 +241,7 @@ export function buildAcpEditorSummary(input: {
     importDir: input.importDir,
     commandConfigured: input.commandConfigured,
     command: input.command,
-    installCommand: input.installCommand ?? "nub install && nub run start",
+    installCommand: input.installCommand ?? defaultAcpInstallCommand(),
     exportCommand:
       input.exportCommand ?? "POST /acp/export or /acp export [label]",
     importCommand:
