@@ -51,7 +51,7 @@ jobs:
             scripts/prepare-eliza-source.ts scripts/eliza-source-policy.ts tooling/eliza-source vendor
           )
           changed native "${shared[@]}" \
-            .env.example .gitignore apps/cli apps/desktop packages \
+            .env.example .gitignore AGENTS.md LICENSE apps/cli apps/desktop packages \
             scripts/build-cli.ts scripts/cli-build-options.ts scripts/run-desktop-packaged-tests.ts \
             tests/e2e tests/fixtures tests/integration tests/support \
             playwright.packaged.config.ts playwright.workbench.config.ts vitest.integration.config.ts
