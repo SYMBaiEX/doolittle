@@ -2,6 +2,7 @@ import type { CliExecutionResult } from "../cli/execution/types";
 import { readEntrypointStdinText } from "./stdin";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
 import {
+  CliUsageError,
   parseOneShotOptions,
   resolveEntrypointAliasPrompt,
   type resolveSubcommand,
@@ -37,13 +38,24 @@ export async function resolveEntrypointInvocation(
       throw new Error("--prompt-stdin requires non-interactive stdin.");
     oneShot.prompt = await readEntrypointStdinText(stdin);
   }
+  const isShellCommand = command === "start" || command === "plain";
+  const positionalPrompt = isShellCommand
+    ? rest.join(" ") || undefined
+    : undefined;
   const pipedPrompt =
-    !shellIsInteractive && (command === "start" || command === "plain")
+    !shellIsInteractive && isShellCommand
       ? await readEntrypointStdinText(stdin)
       : undefined;
+  if (positionalPrompt && pipedPrompt?.trim()) {
+    throw new CliUsageError(
+      "Cannot combine positional prompt with piped input. Use doolittle exec -p for an explicit prompt.",
+    );
+  }
   const aliasPrompt = resolveEntrypointAliasPrompt(command, rest);
   const immediatePrompt =
-    command === "exec" ? oneShot?.prompt : (aliasPrompt ?? pipedPrompt);
+    command === "exec"
+      ? oneShot?.prompt
+      : (aliasPrompt ?? positionalPrompt ?? pipedPrompt);
   let staticPromptResult: CliExecutionResult | undefined;
   if (immediatePrompt) {
     const [{ normalizeSlashCommandSyntax }, { resolveStaticCliInput }] =

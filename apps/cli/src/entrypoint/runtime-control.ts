@@ -67,6 +67,8 @@ export function resolveEntrypointRuntimePlan(options: {
   const wantsApi = options.mode === "api" || options.mode === "both";
   const oneShotPrompt =
     options.command === "exec" ||
+    options.command === "start" ||
+    options.command === "plain" ||
     isEntrypointAliasCommand(options.command) ||
     !options.shellIsInteractive
       ? options.immediatePrompt?.trim() || undefined

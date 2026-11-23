@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { resolveStaticCliInput } from "../../apps/cli/src/cli/execution/static";
 import { resolveEntrypointInvocation } from "../../apps/cli/src/entrypoint/invocation";
-import { resolveEntrypointCommandPlan } from "../../apps/cli/src/entrypoint/runtime-control";
 import {
+  resolveEntrypointCommandPlan,
+  resolveEntrypointRuntimePlan,
+} from "../../apps/cli/src/entrypoint/runtime-control";
+import {
+  CliUsageError,
   type EntrypointSubcommand,
   isEntrypointAliasCommand,
   parseOneShotOptions,
@@ -11,6 +15,126 @@ import {
 } from "../../apps/cli/src/entrypoint/subcommand";
 
 describe("CLI entrypoint dispatch", () => {
+  it.each([
+    ["hello", "world"],
+    ["start", "hello", "world"],
+    ["plain", "hello", "world"],
+  ])(
+    "delivers positional prompt %j through runtime planning",
+    async (...args) => {
+      for (const isTTY of [false, true]) {
+        const invocation = await resolveEntrypointInvocation(
+          resolveSubcommand(args),
+          {
+            env: {},
+            repoRoot: process.cwd(),
+            stdin: Object.assign((async function* () {})(), { isTTY }),
+            stdoutIsTTY: isTTY,
+          },
+        );
+        expect(invocation.immediatePrompt).toBe("hello world");
+        expect(
+          resolveEntrypointRuntimePlan({ ...invocation, mode: "cli" }),
+        ).toMatchObject({
+          oneShotPrompt: "hello world",
+          shouldStartCli: false,
+          shouldStartApi: false,
+        });
+      }
+    },
+  );
+
+  it("resolves plain positional static commands before runtime startup", async () => {
+    const invocation = await resolveEntrypointInvocation(
+      resolveSubcommand(["plain", "/help"]),
+      {
+        env: {},
+        repoRoot: process.cwd(),
+        stdin: (async function* () {})(),
+        stdoutIsTTY: false,
+      },
+    );
+    expect(invocation.immediatePrompt).toBe("/help");
+    expect(invocation.staticPromptResult).toEqual(
+      resolveStaticCliInput("/help", {
+        agentName: "Eliza",
+        workspaceDir: process.cwd(),
+      }),
+    );
+  });
+
+  it("allows whitespace-only stdin with positional text", async () => {
+    const invocation = await resolveEntrypointInvocation(
+      resolveSubcommand(["hello", "world"]),
+      {
+        env: {},
+        repoRoot: process.cwd(),
+        stdin: (async function* () {
+          yield " \n";
+        })(),
+        stdoutIsTTY: false,
+      },
+    );
+    expect(invocation.immediatePrompt).toBe("hello world");
+  });
+
+  it.each(["start", "plain"])(
+    "rejects competing positional and piped prompts for %s",
+    async (command) => {
+      await expect(
+        resolveEntrypointInvocation(
+          resolveSubcommand([command, "positional"]),
+          {
+            env: {},
+            repoRoot: process.cwd(),
+            stdin: (async function* () {
+              yield "piped";
+            })(),
+            stdoutIsTTY: false,
+          },
+        ),
+      ).rejects.toThrow(
+        new CliUsageError(
+          "Cannot combine positional prompt with piped input. Use doolittle exec -p for an explicit prompt.",
+        ),
+      );
+    },
+  );
+
+  it.each(["start", "plain"])(
+    "preserves piped input and empty shell startup for %s",
+    async (command) => {
+      for (const text of ["", "/help"]) {
+        const invocation = await resolveEntrypointInvocation(
+          resolveSubcommand([command]),
+          {
+            env: {},
+            repoRoot: process.cwd(),
+            stdin: (async function* () {
+              yield text;
+            })(),
+            stdoutIsTTY: false,
+          },
+        );
+        expect(invocation.immediatePrompt).toBe(text);
+      }
+      const invocation = await resolveEntrypointInvocation(
+        resolveSubcommand([command]),
+        {
+          env: {},
+          repoRoot: process.cwd(),
+          stdin: Object.assign((async function* () {})(), { isTTY: true }),
+          stdoutIsTTY: true,
+        },
+      );
+      expect(invocation.immediatePrompt).toBeUndefined();
+      expect(
+        resolveEntrypointRuntimePlan({ ...invocation, mode: "cli" })
+          .shouldStartCli,
+      ).toBe(true);
+    },
+  );
+
   it.each(["exec", "run"])(
     "keeps prompt values out of global dispatch for %s",
     (command) => {
