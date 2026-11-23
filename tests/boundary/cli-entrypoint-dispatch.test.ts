@@ -55,6 +55,12 @@ describe("CLI entrypoint dispatch", () => {
     );
   });
 
+  it("does not expose unknown option values in usage errors", () => {
+    const parse = () => parseOneShotOptions(["--api-key=private-value"]);
+    expect(parse).toThrow("Unknown exec option: --api-key.");
+    expect(parse).not.toThrow(/private-value/);
+  });
+
   it("accepts flag-shaped prompts, inline values, and end-of-options text", () => {
     expect(parseOneShotOptions(["-p", "--version"]).prompt).toBe("--version");
     expect(

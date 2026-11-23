@@ -185,7 +185,7 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
       continue;
     }
     if (value.startsWith("-"))
-      throw new CliUsageError(`Unknown exec option: ${value}.`);
+      throw new CliUsageError(`Unknown exec option: ${option}.`);
     positional.push(value);
   }
 
