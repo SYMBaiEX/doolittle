@@ -1,6 +1,6 @@
 import type { CliExecutionResult } from "../execution/index";
 
-export function isShellCommandInput(line: string): boolean {
+function isShellCommandInput(line: string): boolean {
   return line.startsWith("!");
 }
 

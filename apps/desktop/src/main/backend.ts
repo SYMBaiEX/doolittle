@@ -75,7 +75,7 @@ export async function terminateBackendChild(
   );
 }
 
-export function backendExitDetail(
+function backendExitDetail(
   code: number | null,
   signal: NodeJS.Signals | null,
   output: string,
@@ -88,7 +88,7 @@ export function backendExitDetail(
     : summary;
 }
 
-export function recordUnexpectedBackendExit(
+function recordUnexpectedBackendExit(
   runtimeDataDir: string,
   detail: string,
   code: number | null,
@@ -135,7 +135,7 @@ function sanitizeBackendDiagnostic(
   return redacted.trim().slice(-EXIT_DIAGNOSTIC_LIMIT);
 }
 
-export function isRecoverablePgliteStartupFailure(output: string): boolean {
+function isRecoverablePgliteStartupFailure(output: string): boolean {
   const normalized = output.toLowerCase();
   // Contention is not corruption. Another live process may own this healthy
   // directory; never move it aside and start a second, empty database.
@@ -152,7 +152,7 @@ export function isRecoverablePgliteStartupFailure(output: string): boolean {
   );
 }
 
-export function preserveFailedPgliteDataDir(
+function preserveFailedPgliteDataDir(
   runtimeDataDir: string,
   stamp = Date.now(),
 ): string | null {

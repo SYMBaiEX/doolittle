@@ -78,12 +78,6 @@ export const ROUTE_PROVIDER_OPTIONS: readonly RouteProviderOption[] = [
   },
 ] as const;
 
-export function routeProviderOption(
-  provider: string | undefined,
-): RouteProviderOption | undefined {
-  return ROUTE_PROVIDER_OPTIONS.find((entry) => entry.id === provider);
-}
-
 /** Retain a saved model; new provider selections use the runtime catalog. */
 export function defaultModelForProvider(
   provider: string | undefined,

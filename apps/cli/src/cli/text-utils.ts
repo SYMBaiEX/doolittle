@@ -1,4 +1,4 @@
-export function compactJsonLine(value: unknown): string {
+function compactJsonLine(value: unknown): string {
   const raw = JSON.stringify(value);
   return raw.length > 320 ? `${raw.slice(0, 317)}...` : raw;
 }

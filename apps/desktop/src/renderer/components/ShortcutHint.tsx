@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { COMMAND_SHORTCUT_KEY_CLASS } from "../app-shell/overlay-layout";
 
 export interface ShortcutHintProps {
@@ -35,27 +35,4 @@ export function ShortcutHint({
       })}
     </span>
   );
-}
-
-export function useShortcutHintKeyboardActivation(
-  keys: readonly string[],
-  callback: () => void,
-): (event: KeyboardEvent<HTMLElement>) => void {
-  const normalized = keys.map((raw) => raw.toLowerCase().trim());
-
-  return (event) => {
-    const pressed = [] as string[];
-
-    if (event.metaKey) pressed.push("meta");
-    if (event.ctrlKey) pressed.push("ctrl");
-    if (event.altKey) pressed.push("alt");
-    if (event.shiftKey) pressed.push("shift");
-    pressed.push(event.key.toLowerCase());
-
-    const signature = pressed.join("+");
-    if (normalized.includes(signature)) {
-      event.preventDefault();
-      callback();
-    }
-  };
 }

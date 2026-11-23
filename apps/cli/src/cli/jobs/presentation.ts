@@ -1,4 +1,4 @@
-import { existsSync, lstatSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readRegularFileSync } from "@doolittle/storage";
 import { renderCliTurnEvent } from "../turn-events";
 import {
@@ -64,22 +64,4 @@ export function cliJobStatusSummary(dataDir: string): string {
         `- ${summarizeCliJob(job)}${isUnconfirmed(dataDir, job) ? " (unconfirmed or stale)" : ""}`,
     )
     .join("\n");
-}
-
-export function jobHasLiveLog(dataDir: string, id: string): boolean {
-  const job = getCliJob(dataDir, id);
-  if (!job || !existsSync(job.logPath)) {
-    return false;
-  }
-  try {
-    const info = lstatSync(job.logPath);
-    return (
-      info.isFile() &&
-      !info.isSymbolicLink() &&
-      info.size > 0 &&
-      info.size <= 16 * 1024 * 1024
-    );
-  } catch {
-    return false;
-  }
 }
