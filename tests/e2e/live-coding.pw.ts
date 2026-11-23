@@ -15,6 +15,7 @@ import type {
   TerminalCommandRecord,
 } from "@doolittle/contracts";
 import { expect, test } from "@playwright/test";
+import { inspectWorkspaceCommands } from "../../packages/agent/src/utils/workspace-commands";
 import { createEvalRuntimeEnvironment } from "../../packages/evals/src/runtime-environment";
 import {
   agentRequest,
@@ -123,9 +124,21 @@ test("desktop chat repairs Doolittle code through ElizaOS with real linked Codex
       desktop.profile,
       run,
     );
-    expect(completedTurn?.metadata?.commandResults).toContainEqual(
-      expect.objectContaining({ command: "nub run test:scope", exitCode: 0 }),
+    const verification = completedTurn.metadata?.commandResults?.find(
+      ({ command, exitCode, executedIn }) =>
+        exitCode === 0 &&
+        inspectWorkspaceCommands(command, executedIn).some(
+          (operation) =>
+            operation.runner === "nub" &&
+            operation.kind === "verification" &&
+            operation.script === "test:scope" &&
+            operation.directory === workspace,
+        ),
     );
+    expect(
+      verification,
+      "verified Nub scoped tests in the selected workspace",
+    ).toBeDefined();
     await test.info().attach("independent-verification", {
       body: JSON.stringify({
         ...summary,
