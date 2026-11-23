@@ -1,5 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
@@ -45,3 +51,22 @@ it("rejects a full active job index and reclaims slots from terminal jobs or exi
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+it.skipIf(process.platform === "win32")(
+  "does not create job files through a symlinked jobs directory",
+  () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "cli-job-retention-path-"));
+    try {
+      const target = join(dataDir, "other");
+      mkdirSync(target, { mode: 0o700 });
+      symlinkSync(target, jobsRoot(dataDir));
+
+      expect(() => createCliJob(dataDir, "prompt")).toThrow(
+        "Unsafe job directory",
+      );
+      expect(readdirSync(target)).toEqual([]);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  },
+);
