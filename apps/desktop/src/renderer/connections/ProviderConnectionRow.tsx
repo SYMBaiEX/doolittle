@@ -214,7 +214,10 @@ export function ProviderConnectionRow({
               onClick={primaryAction.onClick}
               disabled={busy}
               emphasis={
-                primaryAction.variant === "secondary" ? "secondary" : "primary"
+                primaryAction.variant !== "secondary" &&
+                (isDefault || signingIn)
+                  ? "primary"
+                  : "secondary"
               }
               icon={
                 signingIn
