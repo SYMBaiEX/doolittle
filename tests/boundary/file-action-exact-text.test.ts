@@ -64,7 +64,12 @@ it.each([
   expect(await readFile(join(root, "patch.txt"), "utf8")).toBe(entry.after);
 });
 
-it.each([{}, { content: null }, { content: 42 }, { content: false }])(
+it.each<NonNullable<HandlerOptions["parameters"]>>([
+  {},
+  { content: null },
+  { content: 42 },
+  { content: false },
+])(
   "rejects missing or non-string content %j without changing the file",
   async (input) => {
     await writeFile(join(root, "existing.txt"), "original");
@@ -85,7 +90,7 @@ it("rejects empty oldText without changing the file", async () => {
   expect(await readFile(join(root, "patch.txt"), "utf8")).toBe("original");
 });
 
-it.each([
+it.each<NonNullable<HandlerOptions["parameters"]>>([
   { text: "" },
   { text: " \n" },
   { content: "", text: "ignored" },
@@ -98,7 +103,7 @@ it.each([
   );
 });
 
-it.each([
+it.each<NonNullable<HandlerOptions["parameters"]>>([
   { old_string: "x", new_string: " \t" },
   { old: "x", new: "" },
   { oldText: "x", old_string: "ignored", newText: "", new_string: "ignored" },
@@ -118,7 +123,7 @@ it.each([
   );
 });
 
-it.each([
+it.each<{ input: NonNullable<HandlerOptions["parameters"]>; error: string }>([
   { input: {}, error: "content is required." },
   { input: { text: false }, error: "content must be a string." },
 ])("reports exact content errors $error", async ({ input, error }) => {
