@@ -21,12 +21,11 @@ export function findBundle(
   if (!labelOrPath) {
     return undefined;
   }
-  return context.services.trajectoryEvaluation
-    .listBundles(50)
-    .find(
-      (entry) =>
-        entry.label === labelOrPath || entry.manifestPath.endsWith(labelOrPath),
-    ) as TrajectoryBundleRecord | undefined;
+  const bundles = context.services.trajectoryEvaluation.listBundles(50);
+  return (bundles.find((entry) => entry.label === labelOrPath) ??
+    bundles.find((entry) => entry.manifestPath.endsWith(labelOrPath))) as
+    | TrajectoryBundleRecord
+    | undefined;
 }
 
 export function buildPackageRequest(bundle: TrajectoryBundleRecord) {
