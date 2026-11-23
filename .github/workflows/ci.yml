@@ -15,6 +15,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  acceptance_changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.paths.outputs.native }}
+      windows_provider: ${{ steps.paths.outputs.windows_provider }}
+    steps:
+      - name: Check out PR merge and its parents
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Match acceptance inputs
+        id: paths
+        shell: bash
+        run: |
+          changed() {
+            local lane=$1 status=0
+            shift
+            # Compare the tested merge tree with its first parent (the base).
+            git diff --quiet --no-ext-diff --no-renames HEAD^1 HEAD -- "$@" || status=$?
+            case "$status" in
+              0) echo "$lane=false" >> "$GITHUB_OUTPUT" ;;
+              1) echo "$lane=true" >> "$GITHUB_OUTPUT" ;;
+              *) return "$status" ;;
+            esac
+          }
+
+          shared=(
+            .github/workflows/ci.yml .gitattributes .node-version .npmrc package.json nub.lock
+            ':(glob)apps/**/package.json' ':(glob)packages/**/package.json'
+            tsconfig.json tsconfig.base.json vitest.config.ts
+            scripts/prepare-eliza-source.ts scripts/eliza-source-policy.ts tooling/eliza-source vendor
+          )
+          changed native "${shared[@]}" \
+            .env.example .gitignore AGENTS.md LICENSE apps/cli apps/desktop packages \
+            scripts/build-cli.ts scripts/cli-build-options.ts scripts/run-desktop-packaged-tests.ts \
+            tests/e2e tests/fixtures tests/integration tests/support \
+            playwright.packaged.config.ts playwright.workbench.config.ts vitest.integration.config.ts
+          changed windows_provider "${shared[@]}" \
+            packages/plugins/provider-transport scripts/vitest-scope.ts tests/boundary/provider-command.test.ts
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -51,6 +94,10 @@ jobs:
         run: nub run check:acceptance
 
   native_acceptance:
+    needs: acceptance_changes
+    if: >-
+      ${{ !cancelled() && (needs.acceptance_changes.result != 'success' ||
+          needs.acceptance_changes.outputs.native != 'false') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
@@ -94,6 +141,10 @@ jobs:
         run: xvfb-run -a nub run test:e2e:release:packaged-core
 
   windows_provider_acceptance:
+    needs: acceptance_changes
+    if: >-
+      ${{ !cancelled() && (needs.acceptance_changes.result != 'success' ||
+          needs.acceptance_changes.outputs.windows_provider != 'false') }}
     runs-on: windows-latest
     timeout-minutes: 15
     # Keep nub's cache and store on the workspace drive; a fresh download there
