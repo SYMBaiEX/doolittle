@@ -118,6 +118,7 @@ export function RuntimePage({
       description="Inspect the active model, local services, and gateway."
       icon={Cpu}
       title="Runtime"
+      titleHidden
     >
       {!active ? (
         <OfflineRouteState>
