@@ -258,7 +258,7 @@ export function settingsCategoryForSection(
   );
 }
 
-/** Desktop is merged into Preferences; its saved deep link still works. */
+/** Desktop leads Preferences; its saved deep link targets that block. */
 export function settingsTabsForCategory(category: SettingsCategoryDefinition) {
   return category.sections
     .filter((section) => section !== "desktop")

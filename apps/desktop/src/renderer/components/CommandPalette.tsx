@@ -300,6 +300,17 @@ export function CommandPalette<TData = unknown>({
           searchRef.current?.focus();
         }}
         onCloseAutoFocus={(event) => {
+          // Navigation commands can deliberately focus their destination.
+          const focused = document.activeElement;
+          if (
+            focused instanceof HTMLElement &&
+            focused !== document.body &&
+            event.currentTarget instanceof HTMLElement &&
+            !event.currentTarget.contains(focused)
+          ) {
+            event.preventDefault();
+            return;
+          }
           if (!returnFocusTarget?.isConnected) return;
           event.preventDefault();
           returnFocusTarget.focus();
