@@ -18,7 +18,7 @@ export async function packageBundle(
   const analysis = saved
     ? {
         ...saved,
-        mode: saved.focus,
+        mode: options.mode ?? saved.bundle.mode,
         tags: saved.reportTags,
       }
     : host.analyze({

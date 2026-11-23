@@ -31,6 +31,7 @@ it.each(["manifestPath", "label", "latest"])(
         sessionId: "saved-session",
         role: "user" as const,
         label: "saved",
+        mode: "dataset" as const,
       };
       const saved = service.exportFilteredBundle(filters);
       const original = readFileSync(saved.dataPath, "utf8");
@@ -69,6 +70,12 @@ it.each(["manifestPath", "label", "latest"])(
         saved.manifestPath,
       );
       expect(result.package.analysis.prompt).not.toContain("new history");
+      expect(result.package.mode).toBe("dataset");
+      expect(result.package.analysis.mode).toBe("dataset");
+      expect(
+        JSON.parse(readFileSync(result.package.packageManifestPath, "utf8"))
+          .analysis.mode,
+      ).toBe("dataset");
     } finally {
       rmSync(baseDir, { recursive: true, force: true });
     }
