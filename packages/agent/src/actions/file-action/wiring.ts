@@ -164,6 +164,17 @@ function stringParam(params: ParamRecord, ...keys: string[]): string {
   return "";
 }
 
+function exactTextParam(
+  options: HandlerOptions | undefined,
+  key: string,
+): string {
+  const value = options?.parameters?.[key];
+  if (typeof value !== "string") {
+    throw new Error(`${key} must be a string.`);
+  }
+  return value;
+}
+
 function numberParam(
   params: ParamRecord,
   key: string,
@@ -336,10 +347,7 @@ function createWriteFileAction(): Action {
           options,
         );
         path = stringParam(params, "path", "file", "target");
-        const content = stringParam(params, "content", "text");
-        if (!content) {
-          throw new Error("content is required.");
-        }
+        const content = exactTextParam(options, "content");
         const result = await writeNativeWorkspaceFileResult(
           runtime,
           path,
@@ -494,8 +502,8 @@ function createPatchFileAction(): Action {
           options,
         );
         path = stringParam(params, "path", "file", "target");
-        const oldText = stringParam(params, "oldText", "old_string", "old");
-        const newText = stringParam(params, "newText", "new_string", "new");
+        const oldText = exactTextParam(options, "oldText");
+        const newText = exactTextParam(options, "newText");
         const result = await patchNativeWorkspaceFile(
           runtime,
           path,
