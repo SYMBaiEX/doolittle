@@ -119,7 +119,8 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
         command,
         rest: userArgs.filter(
           (argument, index) =>
-            !globalArguments.has(index) || !flags.includes(argument),
+            !(index === 0 && COMMAND_ALIASES.has(argument)) &&
+            (!globalArguments.has(index) || !flags.includes(argument)),
         ),
       };
     }

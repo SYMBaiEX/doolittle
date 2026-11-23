@@ -16,6 +16,86 @@ import {
 
 describe("CLI entrypoint dispatch", () => {
   it.each([
+    ["--plain-cli", "plain"],
+    ["--cockpit", "cockpit"],
+    ["--cli", "cockpit"],
+  ])("does not turn a command name into text with %s", (flag, command) => {
+    expect(resolveSubcommand(["start", flag])).toEqual({ command, rest: [] });
+    expect(resolveSubcommand(["start", flag, "hello"])).toEqual({
+      command,
+      rest: ["hello"],
+    });
+    expect(resolveSubcommand(["plain-cli", flag])).toEqual({
+      command,
+      rest: [],
+    });
+  });
+
+  it("preserves piped prompts after selecting plain mode with a flag", async () => {
+    const invocation = await resolveEntrypointInvocation(
+      resolveSubcommand(["start", "--plain-cli"]),
+      {
+        env: {},
+        repoRoot: process.cwd(),
+        stdoutIsTTY: false,
+        stdin: (async function* () {
+          yield "/help";
+        })(),
+      },
+    );
+    expect(invocation.immediatePrompt).toBe("/help");
+  });
+
+  it.each(["start", "plain"])(
+    "removes a leading positional delimiter for %s",
+    async (command) => {
+      const invocation = await resolveEntrypointInvocation(
+        resolveSubcommand([command, "--", "/help"]),
+        {
+          env: {},
+          repoRoot: process.cwd(),
+          stdoutIsTTY: false,
+          stdin: (async function* () {})(),
+        },
+      );
+      expect(invocation.immediatePrompt).toBe("/help");
+      expect(invocation.staticPromptResult).toBeDefined();
+    },
+  );
+
+  it.each([["--"], [" "], [" ", "\t"]])(
+    "treats positional %j as absent with piped input",
+    async (...args) => {
+      const invocation = await resolveEntrypointInvocation(
+        resolveSubcommand(["plain", ...args]),
+        {
+          env: {},
+          repoRoot: process.cwd(),
+          stdoutIsTTY: false,
+          stdin: (async function* () {
+            yield "/help";
+          })(),
+        },
+      );
+      expect(invocation.immediatePrompt).toBe("/help");
+    },
+  );
+
+  it("trims positional prompts consistently with runtime planning", async () => {
+    const invocation = await resolveEntrypointInvocation(
+      resolveSubcommand(["plain", " /help "]),
+      {
+        env: {},
+        repoRoot: process.cwd(),
+        stdoutIsTTY: false,
+        stdin: (async function* () {})(),
+      },
+    );
+    expect(invocation.immediatePrompt).toBe("/help");
+    expect(invocation.staticPromptResult).toBeDefined();
+  });
+
+  it.each([
     ["hello", "world"],
     ["start", "hello", "world"],
     ["plain", "hello", "world"],

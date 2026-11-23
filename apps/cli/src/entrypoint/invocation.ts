@@ -39,8 +39,9 @@ export async function resolveEntrypointInvocation(
     oneShot.prompt = await readEntrypointStdinText(stdin);
   }
   const isShellCommand = command === "start" || command === "plain";
+  const positionalArgs = rest[0] === "--" ? rest.slice(1) : rest;
   const positionalPrompt = isShellCommand
-    ? rest.join(" ") || undefined
+    ? positionalArgs.join(" ").trim() || undefined
     : undefined;
   const pipedPrompt =
     !shellIsInteractive && isShellCommand
