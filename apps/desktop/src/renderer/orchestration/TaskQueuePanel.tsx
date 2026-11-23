@@ -164,8 +164,7 @@ export function TaskQueuePanel({
                 : `No tasks for ${workspaceLabel || "this project"}`
             }
           >
-            Use New task to start coding or research. Progress and results
-            appear here.
+            Progress and results appear here.
           </WorkbenchEmpty>
         </div>
       </WorkbenchSection>

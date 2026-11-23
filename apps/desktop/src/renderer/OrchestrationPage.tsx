@@ -595,7 +595,7 @@ export function OrchestrationPage({
         <div className={oc("orchestration-command-bar")}>
           {activeTab === "tasks" ? (
             <button
-              className="primary-button"
+              className={canDelegate ? "primary-button" : "secondary-button"}
               type="button"
               onClick={() =>
                 showTaskCreate ? setShowTaskCreate(false) : openTaskCreate()
@@ -640,7 +640,7 @@ export function OrchestrationPage({
           <span>{delegationBlockReason}</span>
           {onOpenLeadChat ? (
             <button
-              className="secondary-button"
+              className="primary-button"
               onClick={onOpenLeadChat}
               type="button"
             >
