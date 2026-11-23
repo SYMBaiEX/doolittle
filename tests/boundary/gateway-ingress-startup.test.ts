@@ -5,6 +5,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { deliverGatewayReceiveResponse } from "../../packages/agent/src/gateway/receive/delivery";
 import { GatewayIngressSpool } from "../../packages/agent/src/gateway/receive/ingress-spool";
 import type { GatewayRunnerContext } from "../../packages/agent/src/gateway/runner/context";
+import {
+  createGatewayRunnerControlPlane,
+  type GatewayRunnerControlPlaneDependencies,
+} from "../../packages/agent/src/gateway/runner/control-plane";
 import { GatewayRunner } from "../../packages/agent/src/gateway/runner/service";
 import type { GatewayRunnerRuntimeApi } from "../../packages/agent/src/gateway/runner/service-runtime/api";
 import { wireGatewayRunnerRuntime } from "../../packages/agent/src/gateway/runner/service-runtime/wire";
@@ -58,13 +62,17 @@ function fixture() {
     await starting.promise;
     loadedAdapter = adapter;
   });
-  vi.mocked(wireGatewayRunnerRuntime).mockReturnValue({
-    control: {
-      start,
-      stop: async () => {
-        loadedAdapter = undefined;
-      },
+  const control = createGatewayRunnerControlPlane({
+    lifecycle: {},
+    supervision: {},
+    buildLifecycleHost: () => ({}),
+    runLifecycleStart: start,
+    runLifecycleStop: async () => {
+      loadedAdapter = undefined;
     },
+  } as unknown as GatewayRunnerControlPlaneDependencies);
+  vi.mocked(wireGatewayRunnerRuntime).mockReturnValue({
+    control,
     delivery: { receive },
   } as unknown as GatewayRunnerRuntimeApi);
   const context = {
@@ -129,3 +137,28 @@ it("starts with an empty ingress journal without delivery", async () => {
     await runner.stop();
   }
 });
+
+it.each([1, 2])(
+  "does not drain after stop interrupts %s pending start calls, but can restart later",
+  async (count) => {
+    const { starting, receive, send, runner } = fixture();
+    runner.acceptInbound(message);
+    const starts = Array.from({ length: count }, () => runner.start());
+    const stopped = runner.stop();
+    starting.resolve();
+    try {
+      await Promise.all([...starts, stopped]);
+      await runner.waitForIngressIdle();
+      expect(receive).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+      expect(runner.ingressHistory()[0]?.status).toBe("queued");
+      await runner.start();
+      await runner.waitForIngressIdle();
+      expect(receive).toHaveBeenCalledOnce();
+      expect(send).toHaveBeenCalledOnce();
+      expect(runner.ingressHistory()[0]?.status).toBe("completed");
+    } finally {
+      await runner.stop();
+    }
+  },
+);
