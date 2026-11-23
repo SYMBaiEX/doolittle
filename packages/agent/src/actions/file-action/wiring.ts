@@ -140,9 +140,16 @@ function validateParams(
   parameters: ActionParameters,
   options: HandlerOptions | undefined,
 ): ParamRecord {
+  const params: ParamRecord = { ...options?.parameters };
+  if (actionName === "WRITE_FILE") {
+    params.content = exactTextParam(params, "content", "text");
+  } else if (actionName === "PATCH_FILE") {
+    params.oldText = exactTextParam(params, "oldText", "old_string", "old");
+    params.newText = exactTextParam(params, "newText", "new_string", "new");
+  }
   const validation = validateActionParams(
     { name: actionName, parameters } as Action,
-    options?.parameters,
+    params,
   );
 
   if (!validation.valid) {
@@ -164,15 +171,14 @@ function stringParam(params: ParamRecord, ...keys: string[]): string {
   return "";
 }
 
-function exactTextParam(
-  options: HandlerOptions | undefined,
-  key: string,
-): string {
-  const value = options?.parameters?.[key];
-  if (typeof value !== "string") {
-    throw new Error(`${key} must be a string.`);
+function exactTextParam(params: ParamRecord, ...keys: string[]): string {
+  for (const key of keys) {
+    if (typeof params[key] === "string") return params[key];
   }
-  return value;
+  if (keys.some((key) => Object.hasOwn(params, key))) {
+    throw new Error(`${keys[0]} must be a string.`);
+  }
+  throw new Error(`${keys[0]} is required.`);
 }
 
 function numberParam(
@@ -347,7 +353,7 @@ function createWriteFileAction(): Action {
           options,
         );
         path = stringParam(params, "path", "file", "target");
-        const content = exactTextParam(options, "content");
+        const content = exactTextParam(params, "content", "text");
         const result = await writeNativeWorkspaceFileResult(
           runtime,
           path,
@@ -502,8 +508,8 @@ function createPatchFileAction(): Action {
           options,
         );
         path = stringParam(params, "path", "file", "target");
-        const oldText = exactTextParam(options, "oldText");
-        const newText = exactTextParam(options, "newText");
+        const oldText = exactTextParam(params, "oldText", "old_string", "old");
+        const newText = exactTextParam(params, "newText", "new_string", "new");
         const result = await patchNativeWorkspaceFile(
           runtime,
           path,

@@ -84,3 +84,45 @@ it("rejects empty oldText without changing the file", async () => {
   expect(result?.success).toBe(false);
   expect(await readFile(join(root, "patch.txt"), "utf8")).toBe("original");
 });
+
+it.each([
+  { text: "" },
+  { text: " \n" },
+  { content: "", text: "ignored" },
+  { content: null, text: "fallback" },
+])("accepts exact write aliases in key order %j", async (input) => {
+  const result = await act("WRITE_FILE", { path: "alias.txt", ...input });
+  expect(result?.success).toBe(true);
+  expect(await readFile(join(root, "alias.txt"), "utf8")).toBe(
+    typeof input.content === "string" ? input.content : input.text,
+  );
+});
+
+it.each([
+  { old_string: "x", new_string: " \t" },
+  { old: "x", new: "" },
+  { oldText: "x", old_string: "ignored", newText: "", new_string: "ignored" },
+  { oldText: null, old_string: "x", newText: false, new_string: " \t" },
+])("accepts exact patch aliases in key order %j", async (input) => {
+  await writeFile(join(root, "alias.txt"), "axb");
+  const result = await act("PATCH_FILE", { path: "alias.txt", ...input });
+  expect(result?.success).toBe(true);
+  const replacement =
+    "newText" in input && typeof input.newText === "string"
+      ? input.newText
+      : "new_string" in input
+        ? input.new_string
+        : input.new;
+  expect(await readFile(join(root, "alias.txt"), "utf8")).toBe(
+    `a${replacement}b`,
+  );
+});
+
+it.each([
+  { input: {}, error: "content is required." },
+  { input: { text: false }, error: "content must be a string." },
+])("reports exact content errors $error", async ({ input, error }) => {
+  const result = await act("WRITE_FILE", { path: "alias.txt", ...input });
+  expect(result?.success).toBe(false);
+  expect(result?.text).toContain(error);
+});
