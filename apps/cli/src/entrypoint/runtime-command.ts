@@ -1,7 +1,6 @@
 import { pathToFileURL } from "node:url";
+import { isMainThread } from "node:worker_threads";
 import type { AppLogger } from "@doolittle/agent/logging/logger";
-import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
-import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
 import type { AgentRuntime } from "@elizaos/core";
 import type { EntrypointInvocation } from "./invocation";
 import { prepareEntrypointRuntimeBoot } from "./runtime-boot";
@@ -12,11 +11,27 @@ export async function runEntrypointRuntime(
   entryLogger: AppLogger,
   entryUrl: string,
 ): Promise<number> {
-  installEngineWorkerTransport();
-  const workerEntry = process.env.DOOLITTLE_ENGINE_WORKER_ENTRY;
-  const sharedEngineHost = installSharedEngineHost(
-    workerEntry ? pathToFileURL(workerEntry) : entryUrl,
-  );
+  let sharedEngineHost: ReturnType<
+    typeof import("@doolittle/agent/runtime/engine/host").installSharedEngineHost
+  >;
+  if (!isMainThread) {
+    const { installEngineWorkerTransport } = await import(
+      "@doolittle/agent/runtime/engine/worker-transport"
+    );
+    installEngineWorkerTransport();
+  } else if (
+    process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
+    process.env.DOOLITTLE_SHARED_ENGINE === "1" &&
+    typeof process.send === "function"
+  ) {
+    const { installSharedEngineHost } = await import(
+      "@doolittle/agent/runtime/engine/host"
+    );
+    const workerEntry = process.env.DOOLITTLE_ENGINE_WORKER_ENTRY;
+    sharedEngineHost = installSharedEngineHost(
+      workerEntry ? pathToFileURL(workerEntry) : entryUrl,
+    );
+  }
   const { command, oneShot, jobControlDir } = invocation;
   const {
     context,
@@ -28,24 +43,26 @@ export async function runEntrypointRuntime(
     apiOwnsRuntimeAfterCli,
   } = await prepareEntrypointRuntimeBoot(invocation);
 
-  const shutdown = async (reason: string) => {
-    const { shutdownApplicationRuntime } = await import(
-      "@doolittle/agent/runtime/application"
-    );
-    await shutdownApplicationRuntime(context.runtime as AgentRuntime, reason, {
-      fast: true,
-    });
-  };
+  let closing: Promise<void> | undefined;
+  const closeRuntime = (reason: string) =>
+    (closing ??= (async () => {
+      try {
+        await sharedEngineHost?.stopAll();
+      } finally {
+        const { shutdownApplicationRuntime } = await import(
+          "@doolittle/agent/runtime/application"
+        );
+        await shutdownApplicationRuntime(
+          context.runtime as AgentRuntime,
+          reason,
+          { fast: true },
+        );
+      }
+    })());
   const installApiLifecycle = () =>
     installRuntimeProcessLifecycle({
       label: `${context.config.agentName} ${command}`,
-      async close(reason) {
-        try {
-          await sharedEngineHost?.stopAll();
-        } finally {
-          await shutdown(reason);
-        }
-      },
+      close: closeRuntime,
       captureFatal: (error, origin) => {
         entryLogger.captureError("runtime-process-fatal", error, {
           command,
@@ -56,9 +73,24 @@ export async function runEntrypointRuntime(
 
   if (runtimePlan.shouldStartApiImmediately) {
     const lifecycle = installApiLifecycle();
-    if (!(await startServer())) {
+    let started: boolean;
+    try {
+      started = await startServer();
+    } catch (error) {
       lifecycle.dispose();
-      await shutdown("Doolittle API unavailable");
+      await closeRuntime("Doolittle API could not start").catch(
+        (cleanupError: unknown) => {
+          throw new AggregateError(
+            [error, cleanupError],
+            "Doolittle API startup and runtime cleanup failed",
+          );
+        },
+      );
+      throw error;
+    }
+    if (!started) {
+      lifecycle.dispose();
+      await closeRuntime("Doolittle API unavailable");
       return 1;
     }
     if (command === "api") return 0;
