@@ -271,7 +271,7 @@ export const navigation: NavigationSection[] = [
       { id: "agents", label: "Agents" },
       { id: "review", label: "Review" },
       { id: "automations", label: "Automations" },
-      { id: "gateway", label: "Inbox" },
+      { id: "gateway", label: "Gateway" },
     ],
   },
   {

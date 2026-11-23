@@ -156,6 +156,14 @@
   padding-inline: var(--document-inset);
 }
 
+[data-route-document="orchestration"] .gateway-page > :not(header) {
+  padding-inline: var(--document-inset);
+}
+
+[data-route-document="orchestration"] .agents-workbench {
+  padding: var(--document-gap) var(--document-inset) var(--document-inset);
+}
+
 [data-route-document="orchestration"] .gateway-timeline-panel {
   min-inline-size: 0;
   overflow-wrap: anywhere;

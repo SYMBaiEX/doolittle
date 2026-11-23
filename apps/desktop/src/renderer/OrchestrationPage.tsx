@@ -58,7 +58,7 @@ const WORK_TABS = [
   { id: "automations", label: "Automations" },
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
-  { id: "inbox", label: "Inbox" },
+  { id: "inbox", label: "Gateway" },
 ] as const;
 
 export type WorkTabId = (typeof WORK_TABS)[number]["id"];
@@ -788,7 +788,7 @@ export function OrchestrationPage({
             />
           ) : null}
           {activeTab === "agents" ? (
-            <div className="grid gap-6">
+            <div className={oc("agents-workbench")}>
               <Suspense fallback={<p role="status">Loading bot teams…</p>}>
                 <TeamManagementPanel active={active} />
               </Suspense>

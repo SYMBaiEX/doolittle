@@ -255,9 +255,24 @@ export function GatewayPage({ active }: { active: boolean }) {
     }
   };
 
+  const header = (
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
+      <h2 className="m-0 text-base font-semibold">Gateway</h2>
+      <Button
+        disabled={!active}
+        onClick={refresh}
+        type="button"
+        variant="secondary"
+      >
+        Refresh records
+      </Button>
+    </header>
+  );
+
   if (!active) {
     return (
       <section className={GATEWAY_PAGE_CLASS}>
+        {header}
         <OfflineRouteState>
           Gateway history, routes, and sender approvals are unavailable until
           the local runtime is ready.
@@ -268,11 +283,7 @@ export function GatewayPage({ active }: { active: boolean }) {
 
   return (
     <section className={GATEWAY_PAGE_CLASS}>
-      <div className="flex shrink-0 justify-end border-b border-[var(--border)] px-3 py-2">
-        <Button onClick={refresh} type="button" variant="secondary">
-          Refresh records
-        </Button>
-      </div>
+      {header}
 
       <ResourceStatusBar resources={statusResources} />
 

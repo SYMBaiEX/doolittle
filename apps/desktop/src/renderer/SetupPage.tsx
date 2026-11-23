@@ -1,9 +1,10 @@
 import { Button } from "@doolittle/ui";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ClipboardCheck, RotateCw } from "lucide-react";
 import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { UiIcon } from "./components/UiIcon";
+import { WorkbenchAction } from "./components/workbench/Workbench";
 import {
   DIAGNOSTICS_CHEVRON_CLASS,
   DIAGNOSTICS_DETAILS_CLASS,
@@ -24,6 +25,7 @@ import {
   useApiResource,
 } from "./lib";
 import { setupRequests } from "./resource-request-policy";
+import { DiagnosticWorkspace } from "./runtime-state/DiagnosticWorkspace";
 import { SetupReadinessPanel } from "./setup/SetupReadinessPanel";
 import {
   normalizeSetupChecklist,
@@ -70,28 +72,24 @@ export function SetupPage({
   const primarySummaryEntries = selectPrimarySetupSnapshot(summaryEntries);
 
   return (
-    <div className="settings-embedded-section" data-settings-embedded="true">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Operator</span>
-          <h2>Setup</h2>
-          <p>Confirm local readiness, then configure optional extensions.</p>
-        </div>
-        {active ? (
-          <Button
-            onClick={() => {
-              accountPool.reload();
-              summary.reload();
-              if (requestPolicy.checklist) checklist.reload();
-            }}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            Refresh
-          </Button>
-        ) : null}
-      </header>
+    <DiagnosticWorkspace
+      actions={
+        <WorkbenchAction
+          disabled={!active}
+          icon={RotateCw}
+          onClick={() => {
+            accountPool.reload();
+            summary.reload();
+            if (requestPolicy.checklist) checklist.reload();
+          }}
+        >
+          Refresh
+        </WorkbenchAction>
+      }
+      description="Confirm local readiness, then configure optional extensions."
+      icon={ClipboardCheck}
+      title="Setup"
+    >
       {!active ? (
         <EmptyBlock title="Setup checks are offline">
           Restart the local runtime to inspect onboarding and readiness.
@@ -259,6 +257,6 @@ export function SetupPage({
           </details>
         </>
       )}
-    </div>
+    </DiagnosticWorkspace>
   );
 }

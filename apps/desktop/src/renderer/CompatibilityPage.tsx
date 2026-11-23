@@ -1,11 +1,12 @@
 import { Button } from "@doolittle/ui";
-import { CircleDashed } from "lucide-react";
+import { CircleDashed, RotateCw, ShieldCheck } from "lucide-react";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
 } from "./components/CompactCatalogList";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
+import { WorkbenchAction } from "./components/workbench/Workbench";
 import { COMPATIBILITY_EMPTY_CLASS } from "./diagnostics-layout";
 import {
   asArray,
@@ -18,6 +19,7 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import { DiagnosticWorkspace } from "./runtime-state/DiagnosticWorkspace";
 
 export function compatibilityCatalogEntries(
   value: unknown,
@@ -87,23 +89,16 @@ export function CompatibilityPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="settings-embedded-section" data-settings-embedded="true">
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Runtime</span>
-          <h2>Compatibility</h2>
-          <p>Review provider and runtime readiness.</p>
-        </div>
-        <Button
-          disabled={!active}
-          onClick={refresh}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
+    <DiagnosticWorkspace
+      actions={
+        <WorkbenchAction disabled={!active} icon={RotateCw} onClick={refresh}>
           Refresh
-        </Button>
-      </header>
+        </WorkbenchAction>
+      }
+      description="Review provider and runtime readiness."
+      icon={ShieldCheck}
+      title="Compatibility"
+    >
       {!active ? (
         <OfflineRouteState>
           Compatibility checks are unavailable until the local runtime is ready.
@@ -127,6 +122,6 @@ export function CompatibilityPage({ active }: { active: boolean }) {
           value={compatibility.data}
         />
       ) : null}
-    </div>
+    </DiagnosticWorkspace>
   );
 }

@@ -54,15 +54,9 @@
   margin-block-end: 12px;
 }
 
-.settings-profile-workbench {
-  display: grid;
-  gap: 12px;
-}
-
 .settings-profile-workbench__content {
   display: grid;
   gap: 12px;
-  padding-inline: var(--document-inset, 12px);
 }
 
 .settings-profile-workbench__grid {

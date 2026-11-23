@@ -29,6 +29,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-task-routing-note":
     "orchestration-task-routing-note col-span-full m-0 text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]",
   "orchestration-panel": "orchestration-panel min-h-0 min-w-0 flex-1",
+  "agents-workbench": "agents-workbench grid gap-6",
   "orchestration-loading":
     "grid h-full min-h-48 place-items-center p-6 text-xs text-[var(--muted)]",
   "orchestration-master-detail":

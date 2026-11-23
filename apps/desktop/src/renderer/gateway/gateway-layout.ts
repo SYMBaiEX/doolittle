@@ -1,5 +1,5 @@
 export const GATEWAY_PAGE_CLASS =
-  "@container/gateway flex min-h-full w-full min-w-0 flex-col gap-3";
+  "@container/gateway gateway-page flex min-h-full w-full min-w-0 flex-col gap-3";
 
 export const GATEWAY_LAYOUT_CLASS = "grid grid-cols-1 items-start gap-2.5";
 

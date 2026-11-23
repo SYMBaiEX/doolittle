@@ -1,4 +1,10 @@
-import { ArrowRight, RefreshCw, UserRound, UsersRound } from "lucide-react";
+import {
+  ArrowRight,
+  RefreshCw,
+  RotateCw,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
 import { useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
 import {
@@ -20,6 +26,7 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import { DiagnosticWorkspace } from "./runtime-state/DiagnosticWorkspace";
 
 interface PersonalityResponse {
   active?: unknown;
@@ -117,13 +124,20 @@ export function ProfilesPage({ active }: { active: boolean }) {
   });
 
   return (
-    <div className="settings-profiles-section settings-profile-workbench">
-      <header className="settings-section-header">
-        <div>
-          <h2>Profiles</h2>
-          <p>Choose Doolittle’s voice and working style.</p>
-        </div>
-      </header>
+    <DiagnosticWorkspace
+      actions={
+        <WorkbenchAction
+          disabled={!active || Boolean(busy)}
+          icon={RotateCw}
+          onClick={resource.reload}
+        >
+          Refresh
+        </WorkbenchAction>
+      }
+      description="Choose Doolittle’s voice and working style."
+      icon={UserRound}
+      title="Profiles"
+    >
       <div className="settings-profile-workbench__content">
         {error ? <Notice tone="bad">{error}</Notice> : null}
         {resource.loading ? (
@@ -184,6 +198,6 @@ export function ProfilesPage({ active }: { active: boolean }) {
           </WorkbenchEmpty>
         )}
       </div>
-    </div>
+    </DiagnosticWorkspace>
   );
 }
