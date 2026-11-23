@@ -37,6 +37,8 @@ function smokeStatus(
 
 it.each([
   "curl --fail http://localhost:3000/api/status",
+  "curl --fail 127.0.0.1:3000/api/status",
+  "curl --fail localhost:3000/status",
   "curl -fsS 'http://127.0.0.1:3000/status'",
   'curl --fail --url "http://127.24.5.6:3000/status"',
   "curl --fail http://[::1]:3000/status",
@@ -50,6 +52,9 @@ it.each([
 
 it.each([
   "curl --fail https://example.com/api/status",
+  "curl --fail example.com/api",
+  "curl --fail ftp://localhost/status",
+  "curl --fail user@localhost:3000/status",
   "curl --fail https://localhost.example.com/status",
   "curl --fail https://example.com/localhost",
   "curl --fail -H 'Host: localhost' https://example.com/status",

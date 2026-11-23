@@ -372,7 +372,10 @@ function isLocalCurlSmoke(command: string): boolean {
   }
   if (!failOnHttpError || targets.length !== 1) return false;
   try {
-    const url = new URL(targets[0] ?? "");
+    const target = targets[0] ?? "";
+    const url = new URL(
+      /^[a-z][a-z\d+.-]*:\/\//iu.test(target) ? target : `http://${target}`,
+    );
     return (
       ["http:", "https:"].includes(url.protocol) &&
       !url.username &&
