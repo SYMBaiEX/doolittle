@@ -146,6 +146,20 @@ export function buildAcpPackageMetadata(input: {
   };
 }
 
+function buildAcpDistribution(
+  command?: string,
+): AcpRegistryEntry["distribution"] {
+  if (!command) return { type: "command", command: "doolittle", args: ["acp"] };
+  if (process.platform === "win32") {
+    return {
+      type: "command",
+      command: process.env.ComSpec?.trim() || "cmd.exe",
+      args: ["/D", "/S", "/C", command],
+    };
+  }
+  return { type: "command", command: "/bin/sh", args: ["-lc", command] };
+}
+
 export function buildAcpRegistryEntry(input: {
   agentName: string;
   description: string;
@@ -159,9 +173,7 @@ export function buildAcpRegistryEntry(input: {
     display_name: input.agentName,
     description: input.description,
     package: { name: input.package.name, version: input.package.version },
-    distribution: input.command
-      ? { type: "command", command: "/bin/zsh", args: ["-lc", input.command] }
-      : { type: "command", command: "doolittle", args: ["acp"] },
+    distribution: buildAcpDistribution(input.command),
     capabilities: {
       tools: input.toolCount,
       sessions: true,
