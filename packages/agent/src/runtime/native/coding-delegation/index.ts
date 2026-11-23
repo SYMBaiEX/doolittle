@@ -345,11 +345,11 @@ function wrapAction(
             "Do not launch a duplicate server or run a production build that rewrites this app's framework output while it is running (Next.js dev and build share .next). The parent owns the managed process. Use read-only HTTP/browser verification for the live app; if it needs a rebuild, report that the parent must stop it, build, then restart it.",
           ].join("\n")
         : "No managed app server is currently running in this conversation. If one is requested, complete dependency installation and production build first; let the parent start it with DOOLITTLE_APP_SERVER after verification.";
-      const adapter =
-        resolveDelegationAdapter(
-          userRequest(runtime, message),
-          route.provider,
-        ) ?? string(parameters.agentType);
+      const selectedAdapter = resolveDelegationAdapter(
+        userRequest(runtime, message),
+        route.provider,
+      );
+      const adapter = selectedAdapter ?? string(parameters.agentType);
       const service = (runtime.getService("ACP_SERVICE") ??
         runtime.getService("ACP_SUBPROCESS_SERVICE")) as unknown as
         | ManagedAcpService
@@ -389,6 +389,10 @@ function wrapAction(
             return async (
               spawnOptions: Parameters<ManagedAcpService["spawnSession"]>[0],
             ) => {
+              // Respect SDK adapter allowlists. If the selected adapter was
+              // filtered out, stop before the SDK can launch its fallback.
+              if (selectedAdapter && spawnOptions.agentType !== selectedAdapter)
+                throw new Error("CODING_ADAPTER_SELECTION_MISMATCH");
               if (resolve(spawnOptions.workdir ?? "") !== workdir)
                 throw new Error("CODING_WORKSPACE_MISMATCH");
               const task = buildCacheablePrompt({
@@ -484,6 +488,11 @@ function wrapAction(
                 ...parameters,
                 workdir,
                 lockWorkdir: true,
+                // Eliza treats agentType as a planner guess. Its explicit
+                // routing input must come from the user or the active model.
+                ...(selectedAdapter
+                  ? { requestedBackend: selectedAdapter }
+                  : {}),
                 ...(adapter ? { agentType: adapter } : {}),
               },
             },
@@ -506,14 +515,19 @@ function wrapAction(
         recordScopedTurnActionResult(runtime, result);
         return result;
       }
-      if (result && typeof result === "object" && result.success === false)
+      if (result && typeof result === "object" && result.success === false) {
+        const reason =
+          string(result.error) ?? string(result.text) ?? "spawn failed";
+        if (reason.includes("CODING_ADAPTER_SELECTION_MISMATCH"))
+          return failure(
+            "ElizaOS coding routing could not use the selected adapter. Check the allowed coding backends or choose another adapter explicitly.",
+            "CODING_ADAPTER_SELECTION_MISMATCH",
+          );
         return failure(
-          delegationFailureMessage(
-            adapter ?? "Coding agent",
-            string(result.error) ?? string(result.text) ?? "spawn failed",
-          ),
+          delegationFailureMessage(adapter ?? "Coding agent", reason),
           "CODING_AGENT_LAUNCH_FAILED",
         );
+      }
       return result;
     },
   };
