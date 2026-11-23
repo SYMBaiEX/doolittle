@@ -1,5 +1,5 @@
 import type { RunUpdateEventBus } from "../run-controller/event-bus";
-import type { RunUpdateEvent } from "../run-controller/types";
+import type { RunToolActivity, RunUpdateEvent } from "../run-controller/types";
 import type { RunControllerDependencies, RunTransition } from "./types";
 
 export function onRunUpdate(
@@ -21,6 +21,7 @@ export function applyRunTransition(
   { events, store }: RunControllerDependencies,
   sessionId: string,
   transitionFactory: (current: RunTransition["run"]) => RunTransition,
+  activity?: RunToolActivity,
 ): void {
   const current = store.getInternal(sessionId);
   if (!current || current.endedAt) {
@@ -28,5 +29,5 @@ export function applyRunTransition(
   }
   const transition = transitionFactory(current);
   store.apply(sessionId, transition.run);
-  events.emit(transition.type, transition.run);
+  events.emit(transition.type, transition.run, activity);
 }

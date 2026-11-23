@@ -150,6 +150,7 @@ export const RUN_UPDATE_TYPES = [
   "waiting",
   "message",
   "action-started",
+  "action-progress",
   "action-completed",
   "local-mutation",
   "stream",
@@ -161,8 +162,33 @@ export const RUN_UPDATE_TYPES = [
 ] as const;
 export type RunUpdateType = (typeof RUN_UPDATE_TYPES)[number];
 
+/** Bound the same run activity window for live clients and history recovery. */
+export const RUN_ACTIVITY_REPLAY_LIMIT = 60;
+
+export function isTransientRunUpdate(type: unknown): boolean {
+  return type === "heartbeat" || type === "stream";
+}
+
+/** Client-visible facts from a tool lifecycle event, never raw provider data. */
+export interface RunToolActivity {
+  id?: string;
+  action: string;
+  origin?: "delegated";
+  phase: "queued" | "running" | "completed" | "failed" | "cancelled";
+  title?: string;
+  kind?: string;
+  command?: string;
+  directory?: string;
+  paths?: string[];
+  summary?: string;
+  output?: string;
+  exitCode?: number | null;
+  durationMs?: number;
+}
+
 export interface RunUpdateEvent {
   type: RunUpdateType;
   sessionId: string;
   run: RunSnapshot;
+  activity?: RunToolActivity;
 }

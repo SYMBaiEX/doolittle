@@ -1,6 +1,7 @@
 import type {
   LocalMutationInput,
   RunSnapshot,
+  RunToolActivity,
   RunUpdateType,
   StartTurnInput,
 } from "./types";
@@ -92,6 +93,20 @@ export const actionCompletedTransition = (
       lastAction: action,
     }),
     "action-completed",
+  );
+
+export const actionProgressTransition = (
+  current: RunSnapshot,
+  activity: RunToolActivity,
+): StartRunTransition =>
+  createPatchedTransition(
+    current,
+    meaningfulPatch({
+      status: "acting",
+      activeStream: "action",
+      statusDetail: activity.title,
+    }),
+    "action-progress",
   );
 
 export const localMutationTransition = (

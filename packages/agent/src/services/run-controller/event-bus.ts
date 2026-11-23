@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import type {
   RunSnapshot,
+  RunToolActivity,
   RuntimeCodingVerificationEvent,
   RunUpdateEvent,
   TaskRunEvent,
@@ -17,11 +18,21 @@ export class RunUpdateEventBus {
     };
   }
 
-  emit(type: RunUpdateEvent["type"], run: RunSnapshot): void {
+  emit(
+    type: RunUpdateEvent["type"],
+    run: RunSnapshot,
+    activity?: RunToolActivity,
+  ): void {
     this.events.emit("update", {
       type,
       sessionId: run.sessionId,
       run: cloneRun(run),
+      ...(activity && {
+        activity: {
+          ...activity,
+          ...(activity.paths && { paths: [...activity.paths] }),
+        },
+      }),
     } satisfies RunUpdateEvent);
   }
 }

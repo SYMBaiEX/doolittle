@@ -1,5 +1,10 @@
+import {
+  isTransientRunUpdate,
+  RUN_ACTIVITY_REPLAY_LIMIT,
+} from "@doolittle/contracts/run";
 import { readWorkerBotProfile } from "../../../runtime/bootstrap/bot-profile";
 import type { AppContext } from "../../../runtime/bootstrap/index";
+import { isRecord } from "../../../utils/records";
 import {
   handleChatRoute,
   handleChatRunEventsRoute,
@@ -12,6 +17,31 @@ function runIdFromPath(encoded: string | undefined): string | null {
     return null;
   const id = encoded.replace(/%3A/giu, ":");
   return /^[a-zA-Z0-9:_-]{1,128}$/u.test(id) ? id : null;
+}
+
+function runActivityHistory(
+  context: AppContext,
+  runId: string,
+  byteBudget = 240_000,
+): unknown[] {
+  const history: unknown[] = [];
+  let remainingBytes = byteBudget;
+  const events = context.services.runController.getTaskEvents(runId);
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (
+      event.type !== "agent.run" ||
+      !isRecord(event.data) ||
+      isTransientRunUpdate(event.data.type)
+    )
+      continue;
+    const bytes = Buffer.byteLength(JSON.stringify(event.data));
+    if (bytes > remainingBytes) continue;
+    remainingBytes -= bytes;
+    history.push(event.data);
+    if (history.length >= RUN_ACTIVITY_REPLAY_LIMIT) break;
+  }
+  return history.reverse();
 }
 
 export async function handleConversationRoutes(
@@ -51,6 +81,7 @@ export async function handleConversationRoutes(
   }
 
   if (request.method === "GET") {
+    const includeUpdates = url.searchParams.get("include_updates") === "true";
     const events = url.pathname.match(/^\/chat\/runs\/([^/]+)\/events$/u);
     const eventsRunId = runIdFromPath(events?.[1]);
     if (eventsRunId) {
@@ -61,9 +92,15 @@ export async function handleConversationRoutes(
     if (receiptRunId) {
       const run = context.services.runController.getByRunId(receiptRunId);
       return run
-        ? new Response(JSON.stringify({ run: { ...run, botId } }), {
-            headers: { "content-type": "application/json; charset=utf-8" },
-          })
+        ? new Response(
+            JSON.stringify({
+              run: { ...run, botId },
+              ...(includeUpdates
+                ? { updates: runActivityHistory(context, receiptRunId) }
+                : {}),
+            }),
+            { headers: { "content-type": "application/json; charset=utf-8" } },
+          )
         : new Response(JSON.stringify({ error: "run not found" }), {
             status: 404,
             headers: { "content-type": "application/json; charset=utf-8" },
@@ -77,7 +114,8 @@ export async function handleConversationRoutes(
       const runs = context.services.runController
         .listReceipts(limit)
         .map((run) => ({ ...run, botId }));
-      const includeUpdates = url.searchParams.get("include_updates") === "true";
+      // Leave space for the run summaries within the desktop IPC response cap.
+      const activityBudget = Math.floor(1_000_000 / Math.max(runs.length, 1));
       return new Response(
         JSON.stringify({
           runs,
@@ -86,11 +124,7 @@ export async function handleConversationRoutes(
                 updates: Object.fromEntries(
                   runs.map((run) => [
                     run.runId,
-                    context.services.runController
-                      .getTaskEvents(run.runId)
-                      .filter((event) => event.type === "agent.run")
-                      .slice(-30)
-                      .map((event) => event.data),
+                    runActivityHistory(context, run.runId, activityBudget),
                   ]),
                 ),
               }

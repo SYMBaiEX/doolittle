@@ -7,6 +7,7 @@ import {
 } from "../run-controller/event-bus";
 import { RunControllerStore } from "../run-controller/store";
 import {
+  actionProgressTransition,
   createPatchedTransition,
   createRunStartTransition,
 } from "../run-controller/transitions";
@@ -15,6 +16,7 @@ import type {
   RunReceiptEnvelope,
   RunSnapshot,
   RunStatus,
+  RunToolActivity,
   RuntimeCodingVerificationEvent,
   RunUpdateEvent,
   StartTurnInput,
@@ -190,12 +192,20 @@ export class RunControllerService {
     noteMessage(this.dependencies, sessionId);
   }
 
-  noteActionStarted(sessionId: string, action: string): void {
-    noteActionStarted(this.dependencies, sessionId, action);
+  noteActionStarted(
+    sessionId: string,
+    action: string,
+    activity?: RunToolActivity,
+  ): void {
+    noteActionStarted(this.dependencies, sessionId, action, activity);
   }
 
-  noteActionCompleted(sessionId: string, action?: string): void {
-    noteActionCompleted(this.dependencies, sessionId, action);
+  noteActionCompleted(
+    sessionId: string,
+    action?: string,
+    activity?: RunToolActivity,
+  ): void {
+    noteActionCompleted(this.dependencies, sessionId, action, activity);
   }
 
   recordLocalMutation(sessionId: string, mutation: LocalMutationInput): void {
@@ -439,16 +449,39 @@ export class RunControllerService {
     });
   }
 
-  noteRuntimeActionStarted(roomId: string, action: string): void {
+  noteRuntimeActionStarted(
+    roomId: string,
+    action: string,
+    activity?: RunToolActivity,
+  ): void {
     withSessionForRoom(this.store, roomId, (sessionId) => {
-      this.noteActionStarted(sessionId, action);
+      this.noteActionStarted(sessionId, action, activity);
     });
   }
 
-  noteRuntimeActionCompleted(roomId: string, action?: string): void {
+  noteRuntimeActionCompleted(
+    roomId: string,
+    action?: string,
+    activity?: RunToolActivity,
+  ): void {
     withSessionForRoom(this.store, roomId, (sessionId) => {
-      this.noteActionCompleted(sessionId, action);
+      this.noteActionCompleted(sessionId, action, activity);
     });
+  }
+
+  noteRuntimeActionProgress(
+    roomId: string,
+    runId: string,
+    activity: RunToolActivity,
+  ): void {
+    const run = this.getByRoomId(roomId);
+    if (run?.runId !== runId || run.progressMode === "off") return;
+    applyRunTransition(
+      this.dependencies,
+      run.sessionId,
+      (current) => actionProgressTransition(current, activity),
+      activity,
+    );
   }
 
   recordRuntimeWalletActivity(

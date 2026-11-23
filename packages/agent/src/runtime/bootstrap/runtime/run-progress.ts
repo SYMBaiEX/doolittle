@@ -21,6 +21,8 @@ import {
   extractLocalMutationsFromActionResult,
 } from "../../action-result-metadata";
 import { resolveRunTerminalWriter } from "../../chat-turn/post-provider/types";
+import { projectActionActivity } from "../../tool-activity";
+import { getScopedTurnRunId } from "../../turn-runtime-scope";
 import {
   CodingVerificationReceiptTracker,
   type CodingVerificationRunIdentity,
@@ -54,10 +56,7 @@ export function shouldProjectNativeToolProgress(
   if (mode === "off") {
     return false;
   }
-  if (mode === "new") {
-    return event === "action-started";
-  }
-  if (mode === "all") {
+  if (mode === "new" || mode === "all") {
     return event !== "stream";
   }
   return true;
@@ -225,6 +224,45 @@ function eventActionStatus(payload: RuntimePayload): string | undefined {
   return undefined;
 }
 
+function eventRunId(payload: RuntimePayload): string | undefined {
+  return payload &&
+    typeof payload === "object" &&
+    "runId" in payload &&
+    typeof payload.runId === "string"
+    ? payload.runId
+    : getScopedTurnRunId();
+}
+
+function activeActionRun(
+  services: AppServices,
+  roomId: string,
+  payload: RuntimePayload,
+): RunSnapshot | undefined {
+  const run = services.runController.getByRoomId(roomId);
+  const sourceRunId = eventRunId(payload);
+  return run && !run.endedAt && (!sourceRunId || sourceRunId === run.runId)
+    ? run
+    : undefined;
+}
+
+function toolActionName(payload: RuntimePayload): string | undefined {
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    !("content" in payload) ||
+    !payload.content ||
+    typeof payload.content !== "object"
+  )
+    return undefined;
+  const content = payload.content as { actions?: unknown };
+  const action = Array.isArray(content.actions)
+    ? content.actions[0]
+    : contentActionResultName(content);
+  return typeof action === "string" && /^[a-zA-Z0-9_.:-]{1,128}$/u.test(action)
+    ? action
+    : undefined;
+}
+
 function recordActionTrajectory(input: {
   services: AppServices;
   roomId: string;
@@ -338,21 +376,20 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
       async (payload) => {
         const roomId = eventRoomId(payload);
         if (roomId) {
-          const action = eventActionLabel(payload) ?? "action";
+          const run = activeActionRun(services, roomId, payload);
+          if (!run) return;
+          const action = toolActionName(payload) ?? "action";
           codingVerificationTracker?.actionStarted(
-            codingVerificationRunIdentity(
-              services.runController.getByRoomId(roomId),
-              payload,
-            ),
+            codingVerificationRunIdentity(run, payload),
             action,
           );
           if (
-            shouldProjectNativeToolProgress(
-              progressModeForRoom(services, roomId),
-              "action-started",
-            )
+            shouldProjectNativeToolProgress(run.progressMode, "action-started")
           ) {
-            services.runController.noteRuntimeActionStarted(roomId, action);
+            services.runController.noteRuntimeActionStarted(roomId, action, {
+              action,
+              phase: "running",
+            });
           }
           recordActionTrajectory({
             services,
@@ -367,17 +404,17 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
       async (payload) => {
         const roomId = eventRoomId(payload);
         if (roomId) {
+          const run = activeActionRun(services, roomId, payload);
+          if (!run) return;
           const actionResult = eventActionResult(payload);
-          const action = eventActionLabel(payload);
-          const identity = codingVerificationRunIdentity(
-            services.runController.getByRoomId(roomId),
-            payload,
-          );
+          const action = toolActionName(payload);
+          const status = eventActionStatus(payload);
+          const identity = codingVerificationRunIdentity(run, payload);
           const codingVerification = codingVerificationTracker?.actionCompleted(
             {
               identity,
               action,
-              status: eventActionStatus(payload),
+              status,
               actionResult,
               expectedWorkdir: expectedCodingWorkdir,
             },
@@ -389,20 +426,29 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
           }
           if (
             shouldProjectNativeToolProgress(
-              progressModeForRoom(services, roomId),
+              run.progressMode,
               "action-completed",
               { terminalResult: isTerminalActionResult(actionResult) },
             )
           ) {
-            services.runController.noteRuntimeActionCompleted(roomId, action);
+            services.runController.noteRuntimeActionCompleted(
+              roomId,
+              action,
+              projectActionActivity(
+                action ?? "action",
+                // Some SDK-originated events have only a room identity. Keep
+                // their lifecycle status, but attach private evidence only
+                // to an event tied to this exact parent turn.
+                eventRunId(payload) === run.runId ? actionResult : undefined,
+                status,
+              ),
+            );
           }
           services.runController.recordRuntimeWalletActivity(
             roomId,
             action,
             actionResult,
-            "runId" in payload && typeof payload.runId === "string"
-              ? payload.runId
-              : undefined,
+            run.runId,
           );
           const mutations = extractLocalMutationsFromActionResult(actionResult);
           for (const mutation of mutations) {
@@ -414,7 +460,7 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
             event: "action.completed",
             action,
             actionResult,
-            status: eventActionStatus(payload),
+            status,
           });
         }
       },

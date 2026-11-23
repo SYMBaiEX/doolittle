@@ -168,6 +168,7 @@ export async function runProviderModelTurn(
   return runWithTurnRuntimeScope(
     input.context.runtime,
     {
+      runId: input.turn.runId,
       settings: runtimeSettings,
       abortSignal: input.options?.abortSignal,
       personalityId: input.options?.personalityId,

@@ -7,6 +7,7 @@ export type {
   RunReceiptEnvelope,
   RunSnapshot,
   RunStatus,
+  RunToolActivity,
   RunUpdateEvent,
   RunUpdateType,
 } from "@doolittle/contracts/run";

@@ -10,7 +10,11 @@ import {
   thinkingTransition,
   waitingTransition,
 } from "../run-controller/transitions";
-import type { LocalMutationInput, RunSnapshot } from "../run-controller/types";
+import type {
+  LocalMutationInput,
+  RunSnapshot,
+  RunToolActivity,
+} from "../run-controller/types";
 import { applyRunTransition } from "./event-capture";
 import type { RunControllerDependencies } from "./types";
 
@@ -39,9 +43,13 @@ export function noteActionStarted(
   dependencies: RunControllerDependencies,
   sessionId: string,
   action: string,
+  activity?: RunToolActivity,
 ): void {
-  applyRunTransition(dependencies, sessionId, (current) =>
-    actionStartedTransition(current, action),
+  applyRunTransition(
+    dependencies,
+    sessionId,
+    (current) => actionStartedTransition(current, action),
+    activity,
   );
 }
 
@@ -49,9 +57,13 @@ export function noteActionCompleted(
   dependencies: RunControllerDependencies,
   sessionId: string,
   action?: string,
+  activity?: RunToolActivity,
 ): void {
-  applyRunTransition(dependencies, sessionId, (current) =>
-    actionCompletedTransition(current, action),
+  applyRunTransition(
+    dependencies,
+    sessionId,
+    (current) => actionCompletedTransition(current, action),
+    activity,
   );
 }
 

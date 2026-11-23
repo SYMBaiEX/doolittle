@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
+import type { RunToolActivity } from "@doolittle/contracts/run";
 import { resolveAtDeadline } from "@elizaos/core/protocol";
 import { isRecord } from "../../../utils/records";
+import { projectDelegatedToolActivity } from "../../tool-activity";
 import { DelegationEvidence } from "./evidence";
 import { initialSelectionEvidence } from "./selection-evidence";
 import type {
@@ -103,6 +106,18 @@ export async function executeManagedDelegation(input: {
   const current = () =>
     !signal?.aborted &&
     (!run || services.runController.getByRoomId(roomId)?.runId === run.runId);
+  const publishProgress = (activity: RunToolActivity) => {
+    if (!run || !current()) return;
+    try {
+      services.runController.noteRuntimeActionProgress(
+        roomId,
+        run.runId,
+        activity,
+      );
+    } catch {
+      // A receipt subscriber cannot change the worker's lifecycle.
+    }
+  };
   const task = text(options.initialTask);
   if (!task.trim()) throw new Error("CODING_TASK_MISSING");
   signal?.throwIfAborted();
@@ -124,15 +139,33 @@ export async function executeManagedDelegation(input: {
     delete metadata[key];
   metadata.doolittleParentRoomId = roomId;
   if (run) metadata.doolittleParentRunId = run.runId;
-  const spawnedSession = await service.spawnSession({
-    ...options,
-    initialTask: undefined,
-    model: input.model,
-    // Native beta.7 cannot cancel before session creation. Bound startup and
-    // check cancellation before sending any coding prompt.
-    timeoutMs: Math.min(options.timeoutMs ?? 30_000, 30_000),
-    metadata,
-  });
+  const connection: RunToolActivity = {
+    id: `worker:${randomUUID()}`,
+    action: "TASKS_SPAWN_AGENT",
+    origin: "delegated",
+    phase: "running",
+    title: "Starting coding worker",
+  };
+  publishProgress(connection);
+  let spawnedSession: AcpSession;
+  try {
+    spawnedSession = await service.spawnSession({
+      ...options,
+      initialTask: undefined,
+      model: input.model,
+      // Native beta.7 cannot cancel before session creation. Bound startup and
+      // check cancellation before sending any coding prompt.
+      timeoutMs: Math.min(options.timeoutMs ?? 30_000, 30_000),
+      metadata,
+    });
+  } catch (error) {
+    publishProgress({
+      ...connection,
+      phase: "failed",
+      title: "Coding worker could not start",
+    });
+    throw error;
+  }
   // Retain the SDK's essential identity independently of optional metadata.
   // These core public fields are still required by the spawn contract.
   const session: AcpSession = {
@@ -168,20 +201,30 @@ export async function executeManagedDelegation(input: {
       signal?.aborted ||
       resolve(session.workdir) !== resolve(text(options.workdir))
     ) {
+      publishProgress({
+        ...connection,
+        phase: "failed",
+        title: "Coding worker workspace could not be confirmed",
+      });
       await close();
       signal?.throwIfAborted();
       throw new Error("CODING_WORKSPACE_MISMATCH");
     }
+    publishProgress({
+      ...connection,
+      phase: "completed",
+      title: "Coding worker connected",
+    });
     // ACP may prepare AGENTS.md/identity files while creating a session. Those
     // are harness setup, not implementation evidence for the user's task.
     await evidence.start();
     const tools = new Map<string, DelegatedToolObservation>();
+    const toolActivity = new Map<string, RunToolActivity>();
     const usage = new DelegatedUsageCollector();
     const pendingEvidence: Promise<void>[] = [];
     let response = "";
     let eventFailure = "";
     let streamedProviderFailure = "";
-    let lastProgress = 0;
     let cancellation: Promise<void> | undefined;
     const cancel = () => {
       cancellation ??= service
@@ -199,21 +242,11 @@ export async function executeManagedDelegation(input: {
       if (!isRecord(data)) return;
       if (event === "message") {
         response = `${response}${text(data.text)}`.slice(-64_000);
-        if (Date.now() - lastProgress >= 250) {
-          const safeProgress = /(?:^|\n)\s*(?:data:\s*)?\{/u.test(response)
-            ? `${session.agentType} is returning a structured response…`
-            : `${session.agentType}: ${response.slice(-300)}`;
-          services.runController.noteRuntimeStream(
-            roomId,
-            "action",
-            safeProgress,
-          );
-          lastProgress = Date.now();
-        }
       } else if (event === "tool_running" && isRecord(data.toolCall)) {
         const tool = data.toolCall;
         const id = text(tool.id);
-        if (!id || (tools.size >= 200 && !tools.has(id))) return;
+        if (!id || id.length > 512 || (tools.size >= 200 && !tools.has(id)))
+          return;
         const previous = tools.get(id);
         const observed = {
           id,
@@ -222,16 +255,19 @@ export async function executeManagedDelegation(input: {
           status: text(tool.status) || "running",
         };
         tools.set(id, observed);
-        services.runController.noteRuntimeStream(
-          roomId,
-          "action",
-          `${session.agentType}: ${observed.title.slice(0, 250)} (${observed.status})`,
-        );
-        if (run)
-          services.runController.appendTaskEvent(run.runId, "delegation.tool", {
-            sessionId,
-            ...observed,
-          });
+        if (run && run.progressMode !== "off") {
+          const last = toolActivity.get(id);
+          const activity = projectDelegatedToolActivity(
+            session.sessionId,
+            session.workdir,
+            tool,
+            last,
+          );
+          if (activity && JSON.stringify(activity) !== JSON.stringify(last)) {
+            toolActivity.set(id, activity);
+            publishProgress(activity);
+          }
+        }
         // Capture before an edit, never treat a post-edit existence check as proof.
         if (
           !previous &&
@@ -251,11 +287,6 @@ export async function executeManagedDelegation(input: {
         }
       } else if (["error", "blocked", "login_required"].includes(event)) {
         eventFailure = text(data.message) || event;
-        services.runController.noteRuntimeStream(
-          roomId,
-          "action",
-          delegationFailureMessage(session.agentType, eventFailure),
-        );
         if (event !== "error") cancel();
       }
     });
@@ -339,12 +370,6 @@ export async function executeManagedDelegation(input: {
       usage: usage.receipt(),
       initialSelection,
     };
-    if (run)
-      services.runController.appendTaskEvent(
-        run.runId,
-        "delegation.completed",
-        receipt,
-      );
     return { session: { ...returnedSession, status }, receipt };
   } finally {
     await close().catch(() => undefined);

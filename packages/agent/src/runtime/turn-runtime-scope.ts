@@ -17,6 +17,7 @@ export type TurnCommandHooks = {
 
 type TurnRuntimeScope = {
   runtime: object;
+  runId?: string;
   settings: ReadonlyMap<string, unknown>;
   abortSignal?: AbortSignal;
   personalityId?: string;
@@ -31,6 +32,10 @@ type TurnRuntimeScope = {
 
 const turnRuntimeScope = new AsyncLocalStorage<TurnRuntimeScope>();
 const originalSettingReaders = new WeakMap<object, (key: string) => unknown>();
+
+export function getScopedTurnRunId(): string | undefined {
+  return turnRuntimeScope.getStore()?.runId;
+}
 
 /** Bounds client receipt-continuation passes; ElizaOS owns tool/token limits. */
 export class TurnContinuationBudget {
