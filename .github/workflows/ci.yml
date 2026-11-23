@@ -96,6 +96,11 @@ jobs:
   windows_provider_acceptance:
     runs-on: windows-latest
     timeout-minutes: 15
+    # Keep nub's cache and store on the workspace drive; a fresh download there
+    # is faster than restoring the ~870 MB store archive onto the runner.
+    env:
+      XDG_CACHE_HOME: D:/a/_nub/cache
+      XDG_DATA_HOME: D:/a/_nub/data
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -106,7 +111,7 @@ jobs:
         with:
           nub-version: 0.11.1
           node-version-file: .node-version
-          cache-dependency-path: nub.lock
+          cache: false
       - name: Install dependencies
         run: nub run deps:install -- --frozen-lockfile --ignore-scripts
       - name: Verify provider process trees and capture budgets on Windows
