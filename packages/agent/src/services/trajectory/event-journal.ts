@@ -228,11 +228,21 @@ export function readTrajectoryEventRecords(
   if (!existsSync(path)) {
     return [];
   }
-  return readFileSync(path, "utf8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as TrajectoryEventRecord)
+  const records: TrajectoryEventRecord[] = [];
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    // A crash mid-append can leave a torn final line; skip unparseable lines
+    // instead of discarding every earlier event.
+    try {
+      records.push(JSON.parse(trimmed) as TrajectoryEventRecord);
+    } catch {
+      // skip unparseable lines
+    }
+  }
+  return records
     .filter((record) => matchesFilters(record, filters))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit);
