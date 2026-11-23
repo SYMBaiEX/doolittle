@@ -51,7 +51,6 @@ jobs:
         run: nub run check:acceptance
 
   native_acceptance:
-    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
