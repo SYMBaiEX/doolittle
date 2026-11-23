@@ -34,9 +34,9 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     // Real SDK subprocess fixtures share the host with renderer transforms.
-    // Match the essential lane's worker budget without relaxing deadlines,
-    // excluding behavior coverage, or disabling per-file isolation.
-    maxWorkers: 2,
+    // Bound concurrency to the 4-vCPU CI runner without relaxing deadlines
+    // or disabling per-file isolation.
+    maxWorkers: 4,
     server: {
       deps: {
         inline: ["@elizaos/plugin-agent-skills", "@elizaos/skills"],
