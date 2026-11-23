@@ -174,6 +174,16 @@ export function normalizeTrajectoryEventRecord(
   };
 }
 
+// A crash mid-append can leave a torn final line; skip unparseable lines
+// instead of discarding every earlier event.
+function parseTrajectoryEventLine(line: string): TrajectoryEventRecord | null {
+  try {
+    return JSON.parse(line) as TrajectoryEventRecord;
+  } catch {
+    return null;
+  }
+}
+
 function matchesFilters(
   record: TrajectoryEventRecord,
   filters?: TrajectoryFilters,
@@ -232,7 +242,8 @@ export function readTrajectoryEventRecords(
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => JSON.parse(line) as TrajectoryEventRecord)
+    .map((line) => parseTrajectoryEventLine(line))
+    .filter((record): record is TrajectoryEventRecord => record !== null)
     .filter((record) => matchesFilters(record, filters))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit);
