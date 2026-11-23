@@ -20,8 +20,10 @@ export class SessionReadOperations {
     return this.messageStore.search(query, limit, projectId);
   }
 
-  recent(limit: number): SessionSearchResult[] {
-    return this.messageStore.recent(limit);
+  recent(
+    ...args: Parameters<SessionMessageStore["recent"]>
+  ): SessionSearchResult[] {
+    return this.messageStore.recent(...args);
   }
 
   recentBySession(sessionId: string, limit: number): SessionSearchResult[] {

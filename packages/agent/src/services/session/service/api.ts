@@ -19,6 +19,7 @@ import type {
 } from "../../session-transfer";
 import type {
   SessionMessageActivityEvent,
+  SessionMessageStore,
   SessionRunTranscriptPage,
   SessionTranscriptPage,
 } from "../messages";
@@ -57,7 +58,7 @@ export interface SessionServiceApi {
     limit: number,
     projectId?: string,
   ): SessionSearchResult[];
-  recent(limit: number): SessionSearchResult[];
+  recent: SessionMessageStore["recent"];
   recentBySession(sessionId: string, limit: number): SessionSearchResult[];
   messagesBySession(
     sessionId: string,

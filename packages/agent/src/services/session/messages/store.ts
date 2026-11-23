@@ -296,17 +296,31 @@ export class SessionMessageStore {
     );
   }
 
-  recent(limit: number): SessionSearchResult[] {
+  recent(
+    limit: number,
+    filters?: Partial<Pick<StoredMessage, "sessionId" | "role">>,
+  ): SessionSearchResult[] {
+    const conditions: string[] = [];
+    const parameters: string[] = [];
+    if (filters?.sessionId) {
+      conditions.push("session_id = ?");
+      parameters.push(filters.sessionId);
+    }
+    if (filters?.role) {
+      conditions.push("role = ?");
+      parameters.push(filters.role);
+    }
     return this.db
       .query(
         `
           SELECT session_id as sessionId, created_at as createdAt, role, text
           FROM messages
+          ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}
           ORDER BY created_at DESC
-          LIMIT ?1
+          LIMIT ?
         `,
       )
-      .all(limit) as SessionSearchResult[];
+      .all(...parameters, limit) as SessionSearchResult[];
   }
 
   recentBySession(sessionId: string, limit: number): SessionSearchResult[] {
