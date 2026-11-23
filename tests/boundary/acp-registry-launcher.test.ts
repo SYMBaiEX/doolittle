@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -46,7 +47,7 @@ it.runIf(process.platform === "win32")(
   () => {
     const dir = mkdtempSync(join(tmpdir(), "acp launcher "));
     try {
-      const path = join(dir, "launch worker.cmd");
+      const path = join(dir, "launch '‘’‚‛ worker.cmd");
       writeFileSync(
         path,
         "@echo off\r\nset /p line=\r\necho %line%\r\nexit /b 17\r\n",
@@ -82,6 +83,23 @@ it.runIf(process.platform === "win32")(
     }
   },
 );
+
+it("doubles every PowerShell single-quote character in Windows commands", () => {
+  const command = `"C:\\launch '‘’‚‛ worker.cmd"`;
+  vi.stubGlobal("process", { platform: "win32" });
+  let encoded: string | undefined;
+  try {
+    encoded = buildAcpRegistryEntry({ ...input, command }).distribution.args.at(
+      -1,
+    );
+  } finally {
+    vi.unstubAllGlobals();
+  }
+  const script = Buffer.from(encoded ?? "", "base64").toString("utf16le");
+  expect(script.split("\n")).toContain(
+    `$start.Arguments = '/D /S /C ""C:\\launch ''‘‘’’‚‚‛‛ worker.cmd""'`,
+  );
+});
 
 it.runIf(process.platform !== "win32").each([
   [true, "/bin/zsh"],

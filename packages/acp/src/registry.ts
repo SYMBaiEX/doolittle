@@ -153,7 +153,7 @@ function buildWindowsAcpDistribution(
   command: string,
 ): AcpRegistryEntry["distribution"] {
   const quotePowerShellLiteral = (value: string) =>
-    `'${value.replaceAll("'", "''")}'`;
+    `'${value.replace(/['‘’‚‛]/gu, "$&$&")}'`;
   const script = [
     "$ErrorActionPreference = 'Stop'",
     "$start = New-Object System.Diagnostics.ProcessStartInfo",
