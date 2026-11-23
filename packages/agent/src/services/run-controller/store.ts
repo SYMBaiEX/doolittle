@@ -516,30 +516,33 @@ function normalizeEventData(
     Buffer.byteLength(JSON.stringify(normalized), "utf8") >
       MAX_DELTA_EVENT_BYTES
   ) {
-    normalized.delta = truncateUtf8(
-      String(normalized.delta),
-      Math.max(
-        0,
-        MAX_DELTA_EVENT_BYTES -
-          Buffer.byteLength(
-            JSON.stringify({
-              ...(typeof normalized.id === "string"
-                ? { id: normalized.id }
-                : {}),
-              ...(typeof normalized.part_id === "string"
-                ? { part_id: normalized.part_id }
-                : {}),
-              ...(Number.isSafeInteger(normalized.sequence)
-                ? { sequence: normalized.sequence }
-                : {}),
-              delta: "",
-            }),
-            "utf8",
-          ),
-      ),
+    const delta = String(normalized.delta);
+    normalized.delta = "";
+    let overhead = Buffer.byteLength(JSON.stringify(normalized), "utf8");
+    for (const key of ["id", "part_id"]) {
+      if (overhead <= MAX_DELTA_EVENT_BYTES) break;
+      delete normalized[key];
+      overhead = Buffer.byteLength(JSON.stringify(normalized), "utf8");
+    }
+    normalized.delta = truncateJsonString(
+      delta,
+      MAX_DELTA_EVENT_BYTES - overhead,
     );
   }
   return normalized;
+}
+
+function truncateJsonString(value: string, maxBytes: number): string {
+  let bytes = 0;
+  let end = 0;
+  for (const character of value) {
+    const encodedBytes =
+      Buffer.byteLength(JSON.stringify(character), "utf8") - 2;
+    if (bytes + encodedBytes > maxBytes) break;
+    bytes += encodedBytes;
+    end += character.length;
+  }
+  return value.slice(0, end);
 }
 
 function truncateUtf8(value: string, maxBytes: number): string {
