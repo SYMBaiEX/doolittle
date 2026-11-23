@@ -10,6 +10,8 @@ export const GATEWAY_DUPLICATE_ACK_RESPONSE =
 export const GATEWAY_DELIVERY_PENDING_RESPONSE =
   "The response was computed, but delivery is pending retry.";
 
+export const GATEWAY_RECEIVE_COMPLETED_CACHE_LIMIT = 1024;
+
 function publicGatewayReceiveOutcome(
   outcome: GatewayReceiveOutcome,
   preserveIdempotencyDisposition = false,
@@ -146,7 +148,7 @@ export class GatewayReceiveIdempotencyCoordinator {
     const completed =
       inMemory ?? (stored ? durableGatewayReceiveOutcome(stored) : undefined);
     if (completed) {
-      this.completed.set(idempotencyKey, completed);
+      this.cacheCompleted(idempotencyKey, completed);
       return Promise.resolve(
         duplicateGatewayReceiveOutcome(
           completed,
@@ -176,7 +178,7 @@ export class GatewayReceiveIdempotencyCoordinator {
       .then((outcome) => {
         const durableOutcome = durableGatewayReceiveOutcome(outcome);
         if (durableOutcome) {
-          this.completed.set(idempotencyKey, durableOutcome);
+          this.cacheCompleted(idempotencyKey, durableOutcome);
           this.store.recordOutcome(message, idempotencyKey, durableOutcome);
         }
         return outcome;
@@ -198,6 +200,15 @@ export class GatewayReceiveIdempotencyCoordinator {
         options?.preserveIdempotencyDisposition,
       ),
     );
+  }
+
+  private cacheCompleted(key: string, outcome: GatewayReceiveOutcome): void {
+    this.completed.delete(key);
+    this.completed.set(key, outcome);
+    if (this.completed.size > GATEWAY_RECEIVE_COMPLETED_CACHE_LIMIT) {
+      const oldest = this.completed.keys().next();
+      if (!oldest.done) this.completed.delete(oldest.value);
+    }
   }
 
   private join(
