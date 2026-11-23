@@ -14,6 +14,7 @@ export {
   promptCacheMetrics,
 } from "./metrics";
 export { buildProjectPromptContext } from "./project-context";
+export { buildProjectVerificationContext } from "./project-verification";
 export { resolveProviderCachePolicy } from "./provider-policy";
 export type {
   CacheablePrompt,

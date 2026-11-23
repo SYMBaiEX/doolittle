@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
@@ -13,7 +13,10 @@ import { createCodingAction } from "../../packages/agent/src/actions/coding-acti
 import { createSdkTerminalAction } from "../../packages/agent/src/actions/sdk-terminal-action";
 import { extractCommandResultFromActionResult } from "../../packages/agent/src/runtime/action-result-metadata";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
+import { buildProjectVerificationContext } from "../../packages/agent/src/runtime/prompt-cache";
+import { rememberProjectVerification } from "../../packages/agent/src/runtime/prompt-cache/project-verification";
 import { leaseTerminalActionScope } from "../../packages/agent/src/runtime/terminal-action-scope";
+import { runWithTurnRuntimeScope } from "../../packages/agent/src/runtime/turn-runtime-scope";
 import {
   currentConversationWorkspace,
   runWithConversationWorkspace,
@@ -48,6 +51,13 @@ const budgets = [
     verbose: true,
   },
   {
+    budget: "configured with a recognized verification command",
+    configuredMs: 90_000,
+    sdkLimit: undefined,
+    expectedMs: 90_000,
+    learn: true,
+  },
+  {
     budget: "saved 30 second",
     configuredMs: 30_000,
     sdkLimit: undefined,
@@ -66,12 +76,16 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
   vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
   vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "");
   vi.stubEnv("ELIZA_TERMINAL_MAX_DURATION_MS", sdkLimit);
-  const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-scope-"));
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-terminal-scope-")),
+  );
   const scope = {
     sessionId: randomUUID(),
     botId: "lead",
     workspacePath: root,
+    projectId: "the-project",
   };
+  const command = budget.learn ? "npm test" : "pwd";
   resolveScope.mockResolvedValue(scope);
   const stdout = budget.verbose
     ? `${"✓ test passed\n".repeat(12_000)}${root}`
@@ -79,7 +93,7 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
   const stderr = budget.verbose ? "build diagnostic\n".repeat(4_000) : "";
   const record = {
     id: "",
-    command: "pwd",
+    command,
     exitCode: 0,
     stdout,
     stderr,
@@ -87,20 +101,29 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
     timeoutMs: expectedMs,
     durationMs: 1,
     backend: "local",
+    backendMode: "local",
+    completedAt: new Date().toISOString(),
   };
-  const run = vi.fn(async (_command, timeoutMs, signal, options) => {
+  const run = vi.fn(async (requestedCommand, timeoutMs, signal, options) => {
     expect(currentConversationWorkspace()).toEqual(scope);
+    expect(requestedCommand).toBe(command);
     expect(timeoutMs).toBe(expectedMs);
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal.aborted).toBe(false);
     record.id = options.runId;
     return record;
   });
+  const cache = new Map<string, unknown>();
   const runtime = {
     agentId: randomUUID(),
     getService: (name: string) =>
       name === DOOLITTLE_SHELL_SERVICE ? { run } : null,
     getSetting: () => undefined,
+    getCache: async (key: string) => cache.get(key),
+    setCache: async (key: string, value: unknown) => {
+      cache.set(key, value);
+      return true;
+    },
     redactSecrets: (value: string) => value,
   } as unknown as IAgentRuntime;
   const services = {
@@ -127,19 +150,29 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
   try {
     const action = createSdkTerminalAction(services);
     expect(createCodingAction().subActions).toContain(action.name);
-    const result = await runWithConversationWorkspace(scope, () =>
-      action.handler(
-        runtime,
-        { id: randomUUID(), roomId: scope.sessionId } as Memory,
-        undefined,
-        { parameters: { command: "pwd" } },
-      ),
+    const message = {
+      id: randomUUID(),
+      roomId: scope.sessionId,
+      sessionId: scope.sessionId,
+      entityId: randomUUID(),
+      content: { source: "desktop" },
+    } as Memory;
+    const runTurn = <T>(session: typeof scope, work: () => Promise<T>) =>
+      runWithConversationWorkspace(session, () =>
+        runWithTurnRuntimeScope(
+          runtime,
+          { settings: new Map(), settledActionResults: [] },
+          work,
+        ),
+      );
+    const result = await runTurn(scope, () =>
+      action.handler(runtime, message, undefined, { parameters: { command } }),
     );
     expect(result?.success, result?.text).toBe(true);
     expect(result?.data).toEqual(
       expect.objectContaining({
         actionName: action.name,
-        command: "pwd",
+        command,
         executedIn: root,
         exitCode: 0,
         maxDurationMs: expectedMs,
@@ -150,11 +183,49 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
     );
     if (!result) throw new Error("SDK terminal result was not returned");
     expect(extractCommandResultFromActionResult(result)).toMatchObject({
-      command: "pwd",
+      command,
       executedIn: root,
       exitCode: 0,
       success: true,
     });
+    const futureScope = { ...scope, sessionId: randomUUID() };
+    const remembered = await runTurn(futureScope, () =>
+      buildProjectVerificationContext(services, runtime, {
+        ...message,
+        sessionId: futureScope.sessionId,
+      }),
+    );
+    if (budget.learn) {
+      expect(remembered).toContain(
+        "A previous local run of `npm test` exited successfully",
+      );
+      expect([...cache.values()]).toEqual([
+        { check: "npm test", completedAt: Date.parse(record.completedAt) },
+      ]);
+      const futureMessage = { ...message, sessionId: futureScope.sessionId };
+      for (const otherScope of [
+        { ...futureScope, projectId: "another-project" },
+        { ...futureScope, botId: "another-bot" },
+        { ...futureScope, workspacePath: "/another-workspace" },
+      ]) {
+        await expect(
+          runTurn(otherScope, () =>
+            buildProjectVerificationContext(services, runtime, futureMessage),
+          ),
+        ).resolves.toBeUndefined();
+      }
+      await expect(
+        runTurn(futureScope, () =>
+          buildProjectVerificationContext(services, runtime, {
+            ...futureMessage,
+            entityId: randomUUID(),
+          }),
+        ),
+      ).resolves.toBeUndefined();
+    } else {
+      expect(remembered).toBeUndefined();
+      expect(cache.size).toBe(0);
+    }
     expect(run).toHaveBeenCalledOnce();
     if (!captured) throw new Error("SDK request was not captured");
     const replay = await handler(
@@ -166,6 +237,88 @@ it.each(budgets)("honors the $budget SDK budget", async (budget) => {
     expect(run).toHaveBeenCalledOnce();
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it("retains only current canonical verification receipts in a local CLI workspace", async () => {
+  vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "");
+  const directory = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-cli-verification-")),
+  );
+  const cache = new Map<string, unknown>();
+  const runtime = {
+    agentId: randomUUID(),
+    getSetting: () => undefined,
+    getCache: async (key: string) => cache.get(key),
+    setCache: async (key: string, value: unknown) => {
+      cache.set(key, value);
+      return true;
+    },
+  } as unknown as IAgentRuntime;
+  const services = {
+    sessions: { projectIdForSession: () => undefined },
+    workspace: { root: () => directory },
+  } as unknown as AppServices;
+  const message = {
+    id: randomUUID(),
+    roomId: randomUUID(),
+    sessionId: "cli-session",
+    entityId: randomUUID(),
+    content: { source: "cli" },
+  } as Memory;
+  const receipt = {
+    command: "nub run test",
+    backend: "local",
+    backendMode: "local",
+    cwd: directory,
+    exitCode: 0,
+    completedAt: new Date().toISOString(),
+  } as const;
+  try {
+    await runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), settledActionResults: [] },
+      async () => {
+        for (const invalidReceipt of [
+          { ...receipt, command: "nub run test && echo secret" },
+          { ...receipt, backendMode: "container" as const },
+          { ...receipt, exitCode: 1 },
+          { ...receipt, timedOut: true },
+          { ...receipt, cwd: "/" },
+          { ...receipt, completedAt: "2020-01-01T00:00:00Z" },
+        ]) {
+          await rememberProjectVerification(
+            services,
+            runtime,
+            message,
+            invalidReceipt,
+          );
+        }
+        expect(cache.size).toBe(0);
+        await rememberProjectVerification(services, runtime, message, receipt);
+        await expect(
+          buildProjectVerificationContext(services, runtime, message),
+        ).resolves.toContain("`nub run test`");
+        const [key] = cache.keys();
+        if (!key) throw new Error("The verification cache was not written.");
+        cache.set(key, {
+          check: "nub run test && echo secret",
+          completedAt: Date.now(),
+        });
+        await expect(
+          buildProjectVerificationContext(services, runtime, message),
+        ).resolves.toBeUndefined();
+        cache.set(key, {
+          check: "nub run test",
+          completedAt: Date.parse("2020-01-01"),
+        });
+        await expect(
+          buildProjectVerificationContext(services, runtime, message),
+        ).resolves.toBeUndefined();
+      },
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 

@@ -18,7 +18,10 @@ import {
 import { getNativeServices } from "../../runtime/native/service-bridge/runtime";
 import { getEffectiveToolInventory } from "../../runtime/native/service-bridge/service-resolution/index";
 import { getEffectiveShellHistory } from "../../runtime/native/service-bridge/tooling/index";
-import { buildProjectPromptContext } from "../../runtime/prompt-cache/index";
+import {
+  buildProjectPromptContext,
+  buildProjectVerificationContext,
+} from "../../runtime/prompt-cache/index";
 import { renderDoolittleSoulContext } from "../../runtime/soul";
 import {
   recentMutationHistory,
@@ -210,16 +213,19 @@ async function workspaceContextResult(
 ): Promise<ProviderResult> {
   const skillEntries = getEffectiveSkills(runtime, services);
   const recentTerminal = getEffectiveShellHistory(runtime, 5);
-  const [repoSummary, workspaceSummary] = await Promise.all([
-    renderRepositoryStatus(services),
-    Promise.resolve(services.workspace.summaryAsync?.(16)).then(
-      (summary) => summary ?? services.workspace.summary(16),
-    ),
-  ]);
+  const [repoSummary, workspaceSummary, projectVerification] =
+    await Promise.all([
+      renderRepositoryStatus(services),
+      Promise.resolve(services.workspace.summaryAsync?.(16)).then(
+        (summary) => summary ?? services.workspace.summary(16),
+      ),
+      buildProjectVerificationContext(services, runtime, message),
+    ]);
 
   return {
     text: [
       renderRecentRunFailureContext(services.runController, message),
+      projectVerification,
       ...renderWorkspaceMutationExecutionContract(
         getMemoryText(message),
         recentMutationHistory(services.sessions, sessionIdFor(message)),

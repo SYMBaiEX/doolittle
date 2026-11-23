@@ -1,5 +1,6 @@
 import { terminalAction } from "@elizaos/agent/actions/terminal";
 import type { Action, ActionResult } from "@elizaos/core";
+import { rememberProjectVerification } from "../runtime/prompt-cache/project-verification";
 import { leaseTerminalActionScope } from "../runtime/terminal-action-scope";
 import {
   getScopedTurnAbortSignal,
@@ -7,6 +8,7 @@ import {
 } from "../runtime/turn-runtime-scope";
 import { isDesktopWorkspaceRuntime } from "../runtime/workspace-scope";
 import type { AppServices } from "../services/index";
+import type { TerminalCommandRecord } from "../types/execution";
 import { isRecord } from "../utils/records";
 
 function commandParameter(options: unknown): string | undefined {
@@ -25,20 +27,20 @@ function commandParameter(options: unknown): string | undefined {
   return typeof command === "string" ? command : undefined;
 }
 
-/** Recover SDK-dropped launch metadata only from its exact local run receipt. */
-function resultWithVerifiedDirectory(
+/** Resolve SDK results against the matching local host receipt. */
+function verifiedLocalRecord(
   result: ActionResult | undefined,
   services: AppServices,
-): ActionResult | undefined {
-  if (!isRecord(result?.data)) return result;
+) {
+  if (!isRecord(result?.data)) return undefined;
   const data = result.data;
   if (
     typeof data.runId !== "string" ||
     typeof data.command !== "string" ||
     typeof data.exitCode !== "number"
   )
-    return result;
-  const record = services.terminal
+    return undefined;
+  return services.terminal
     .recent(100)
     .find(
       (entry) =>
@@ -50,11 +52,6 @@ function resultWithVerifiedDirectory(
         entry.backendMode !== "container" &&
         entry.timedOut !== true,
     );
-  if (!record) return result;
-  return {
-    ...result,
-    data: { ...data, executedIn: record.cwd, durationMs: record.durationMs },
-  };
 }
 
 function resultWithAccurateExitStatus(
@@ -111,6 +108,7 @@ export function createSdkTerminalAction(
         };
       } else {
         let releaseScope: (() => void) | undefined;
+        let verifiedTest: TerminalCommandRecord | undefined;
         try {
           if (command && isDesktopWorkspaceRuntime())
             releaseScope = leaseTerminalActionScope(
@@ -118,11 +116,21 @@ export function createSdkTerminalAction(
               getScopedTurnAbortSignal(runtime),
             );
           result = resultWithAccurateExitStatus(
-            resultWithVerifiedDirectory(
-              await sdkHandler(runtime, message, state, options),
-              services,
-            ),
+            await sdkHandler(runtime, message, state, options),
           );
+          const record = verifiedLocalRecord(result, services);
+          if (result && record) {
+            result = {
+              ...result,
+              data: {
+                ...result.data,
+                executedIn: record.cwd,
+                durationMs: record.durationMs,
+              },
+            };
+            if (result.success && command?.trim() === record.command)
+              verifiedTest = record;
+          }
         } catch (error) {
           if (getScopedTurnAbortSignal(runtime)?.aborted) throw error;
           result = {
@@ -137,6 +145,13 @@ export function createSdkTerminalAction(
         } finally {
           releaseScope?.();
         }
+        if (verifiedTest)
+          await rememberProjectVerification(
+            services,
+            runtime,
+            message,
+            verifiedTest,
+          );
       }
       if (result) recordScopedTurnActionResult(runtime, result);
       return (
