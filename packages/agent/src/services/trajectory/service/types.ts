@@ -17,6 +17,7 @@ import type {
   TrajectoryRlDatasetOptions,
   TrajectoryRlReadyOptions,
 } from "../../../types/trajectory";
+import type { PackageTrajectoryOptions } from "../evaluation/types";
 import type {
   TrajectoryEvaluationServiceBatchManifestInput,
   TrajectoryEvaluationServiceBenchmarkManifestInput,
@@ -55,7 +56,7 @@ export interface TrajectoryEvaluationServiceApi {
     options?: TrajectoryEvaluationServiceEvaluateBundleOptions,
   ): Promise<TrajectoryEvaluationBundle>;
   package(
-    options?: TrajectoryExportOptions,
+    options?: PackageTrajectoryOptions,
   ): Promise<TrajectoryResearchPackageBundle>;
   packageLatest(): Promise<TrajectoryResearchPackageBundle | undefined>;
   describeBenchmarkEnvironment(): TrajectoryBenchmarkEnvironmentSummary;

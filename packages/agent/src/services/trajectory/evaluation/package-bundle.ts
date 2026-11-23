@@ -1,22 +1,32 @@
-import type {
-  TrajectoryExportOptions,
-  TrajectoryResearchPackageBundle,
-} from "../../../types/trajectory";
+import type { TrajectoryResearchPackageBundle } from "../../../types/trajectory";
 import { normalizeEvaluationMode } from "../evaluation-heuristics";
 import { writeTrajectoryResearchPackageArtifacts } from "../evaluation-persistence";
 import { evaluateBundle } from "./evaluate-bundle";
-import type { TrajectoryEvaluationHost } from "./types";
+import { resolveTrajectoryEvaluationInput } from "./shared";
+import type {
+  PackageTrajectoryOptions,
+  TrajectoryEvaluationHost,
+} from "./types";
 
 export async function packageBundle(
   host: TrajectoryEvaluationHost,
-  options: TrajectoryExportOptions = {},
+  options: PackageTrajectoryOptions = {},
 ): Promise<TrajectoryResearchPackageBundle> {
-  const analysis = host.analyze({
-    ...options,
-    limit: options.limit ?? 200,
-    mode: options.mode ?? "research",
-    purpose: options.purpose ?? "trajectory research package",
-  });
+  const saved = options.manifestPath
+    ? resolveTrajectoryEvaluationInput(host, options.manifestPath, options)
+    : undefined;
+  const analysis = saved
+    ? {
+        ...saved,
+        mode: options.mode ?? saved.bundle.mode,
+        tags: saved.reportTags,
+      }
+    : host.analyze({
+        ...options,
+        limit: options.limit ?? 200,
+        mode: options.mode ?? "research",
+        purpose: options.purpose ?? "trajectory research package",
+      });
   const evaluation = await evaluateBundle(host, analysis.bundle.manifestPath, {
     ...options,
     replay: analysis.replay,
@@ -65,13 +75,6 @@ export async function packageLatest(
     return undefined;
   }
   return packageBundle(host, {
-    limit: latest.limit,
-    sessionId: latest.filters?.sessionId ?? undefined,
-    role: latest.filters?.role ?? undefined,
-    label: latest.label,
-    purpose: latest.purpose,
-    mode: latest.mode,
-    tags: latest.tags,
-    notes: latest.notes,
+    manifestPath: latest.manifestPath,
   });
 }
