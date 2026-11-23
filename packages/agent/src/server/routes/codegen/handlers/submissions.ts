@@ -1,3 +1,4 @@
+import { win32 } from "node:path";
 import type { AppContext } from "../../../../runtime/bootstrap";
 import {
   createEffectiveRepository,
@@ -56,7 +57,7 @@ export const handleCodegenWorkflowSubmission: CodegenRouteHandler = async (
     if (!nonBlankString(projectPath)) {
       return json({ error: "projectPath is required" }, 400);
     }
-    const projectName = projectPath.split("/").filter(Boolean).at(-1);
+    const projectName = win32.basename(projectPath) || undefined;
     return runCodegenWorkflow(
       context,
       {
