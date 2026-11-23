@@ -12,14 +12,15 @@ export interface LoggerServiceOptions {
 }
 
 export function normalizeMinLevel(value?: string): AppLogLevel {
-  switch ((value ?? "").trim().toLowerCase()) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  switch (normalized) {
     case "trace":
     case "debug":
     case "info":
     case "warn":
     case "error":
     case "fatal":
-      return value as AppLogLevel;
+      return normalized;
     default:
       return "info";
   }
