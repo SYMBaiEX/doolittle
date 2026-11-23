@@ -23,7 +23,7 @@ export async function attachCliJob(
     onEvent?: (event: CliTurnEvent) => void;
   },
 ): Promise<CliJobRecord | undefined> {
-  const seen = new Set<string>();
+  let offset = 0;
   while (true) {
     const job = getCliJob(dataDir, id);
     if (!job) {
@@ -34,12 +34,14 @@ export async function attachCliJob(
       const raw = readRegularFileSync(job.logPath, 16 * 1024 * 1024, {
         singleLink: true,
       }).toString("utf8");
-      for (const line of raw.split(/\r?\n/u)) {
+      const end = raw.lastIndexOf("\n") + 1;
+      const unread = raw.slice(offset, end);
+      offset = end;
+      for (const line of unread.split(/\r?\n/u)) {
         const trimmed = line.trim();
-        if (!trimmed || seen.has(trimmed)) {
+        if (!trimmed) {
           continue;
         }
-        seen.add(trimmed);
         handlers?.onLine?.(trimmed);
         const event = parseCliTurnEvent(trimmed);
         if (event) {
