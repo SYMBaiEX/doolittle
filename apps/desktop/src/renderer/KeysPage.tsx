@@ -28,6 +28,7 @@ import {
   type ActionFeedback,
   asArray,
   asString,
+  Badge,
   desktopRequest,
   ErrorBlock,
   errorMessage,
@@ -57,6 +58,7 @@ export function KeysPage({ active }: { active: boolean }) {
   const [valueVisible, setValueVisible] = useState(false);
   const [busy, setBusy] = useState<"load" | "save" | "">("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
+  const [failedSaves, setFailedSaves] = useState<Set<string>>(() => new Set());
   const operationInFlight = useRef(false);
   const revealRevision = useRef(0);
   const keyNameRef = useRef<HTMLInputElement>(null);
@@ -156,11 +158,17 @@ export function KeysPage({ active }: { active: boolean }) {
         key,
         value: draftValue,
       });
+      setFailedSaves((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
       setSelectedKey(key);
       clearSensitiveValue();
       setFeedback({ message: `Stored ${key}.`, tone: "good" });
       secrets.reload();
     } catch (error) {
+      setFailedSaves((current) => new Set(current).add(key));
       setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       operationInFlight.current = false;
@@ -180,13 +188,10 @@ export function KeysPage({ active }: { active: boolean }) {
         </WorkbenchAction>
       }
       className="settings-keys-section provider-settings provider-settings--keys provider-settings--unframed"
-      description="Manage credentials stored on this computer. The inventory loads key names only."
+      description="Manage credentials for this computer. The inventory loads key names only."
       icon={KeyRound}
       title="Secret store"
     >
-      {active && feedback ? (
-        <Notice tone={feedback.tone}>{feedback.message}</Notice>
-      ) : null}
       {!active ? (
         <OfflineRouteState>
           Local credentials cannot be inspected or changed until the runtime is
@@ -212,7 +217,11 @@ export function KeysPage({ active }: { active: boolean }) {
                   New key
                 </WorkbenchAction>
               }
-              description={keys.length ? `${keys.length} stored` : undefined}
+              description={
+                keys.length
+                  ? `${keys.length} ${keys.length === 1 ? "key" : "keys"}`
+                  : undefined
+              }
               headingLevel={3}
               title="Secret inventory"
             >
@@ -238,7 +247,9 @@ export function KeysPage({ active }: { active: boolean }) {
                     >
                       <ProviderIdentity icon={KeyRound} />
                       <strong>{key}</strong>
-                      {selectedKey === key ? (
+                      {failedSaves.has(key) ? (
+                        <Badge tone="bad">Save failed</Badge>
+                      ) : selectedKey === key ? (
                         <Check aria-hidden="true" size={15} />
                       ) : null}
                     </button>
@@ -259,6 +270,7 @@ export function KeysPage({ active }: { active: boolean }) {
           >
             <form
               aria-busy={Boolean(busy)}
+              aria-describedby={feedback ? "secret-editor-feedback" : undefined}
               className="keys-editor-form"
               onSubmit={saveValue}
             >
@@ -292,6 +304,11 @@ export function KeysPage({ active }: { active: boolean }) {
                   />
                 </label>
               </div>
+              {feedback ? (
+                <Notice id="secret-editor-feedback" tone={feedback.tone}>
+                  {feedback.message}
+                </Notice>
+              ) : null}
               <div className="provider-form-actions">
                 <WorkbenchAction
                   disabled={Boolean(busy) || !draftKey.trim()}

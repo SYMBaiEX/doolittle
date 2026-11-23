@@ -126,3 +126,95 @@ it("opens a fresh key editor without carrying forward a revealed value", async (
     vi.mocked(desktopRequest).mockReset();
   }
 });
+
+it("keeps a failed save inline with its draft and retries without retyping", async () => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const visibility = vi
+    .spyOn(document, "visibilityState", "get")
+    .mockReturnValue("visible");
+  const guidance =
+    "Secure storage is locked or unavailable. Unlock your system keychain, then save again.";
+  let saveAttempts = 0;
+  desktopQueryClient.setQueryData([apiResourceCacheKey("/secrets", [true])], {
+    keys: [],
+  });
+  vi.mocked(desktopRequest).mockImplementation(async (path) => {
+    if (path === "/secrets/set") {
+      saveAttempts += 1;
+      if (saveAttempts === 1) throw new Error(guidance);
+      return { key: "FIXTURE_KEY", valueSet: true };
+    }
+    // The SDK can retain the name in memory even when durable mirroring fails.
+    return { keys: saveAttempts >= 1 ? ["FIXTURE_KEY"] : [] };
+  });
+  try {
+    await act(async () => root.render(<KeysPage active />));
+    const name = container.querySelector<HTMLInputElement>("#secret-key-name");
+    const value =
+      container.querySelector<HTMLInputElement>("#secret-key-value");
+    const save = container.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    act(() => {
+      setValue?.call(name, "FIXTURE_KEY");
+      name?.dispatchEvent(new Event("input", { bubbles: true }));
+      setValue?.call(value, "synthetic-fixture-value");
+      value?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => save?.click());
+
+    const error = container.querySelector('[role="alert"]');
+    expect(error?.textContent).toBe(guidance);
+    expect(error?.closest("form")).toBe(save?.closest("form"));
+    expect(save?.closest("form")?.getAttribute("aria-describedby")).toBe(
+      error?.id,
+    );
+    expect(name?.value).toBe("FIXTURE_KEY");
+    expect(value?.value).toBe("synthetic-fixture-value");
+    expect(value?.type).toBe("password");
+    expect(save?.disabled).toBe(false);
+    expect(container.textContent).not.toContain("Stored FIXTURE_KEY");
+
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent === "Refresh")
+        ?.click();
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain("1 key"));
+    expect(container.textContent).not.toContain("1 stored");
+    expect(
+      container.querySelector('button[aria-pressed="true"]')?.textContent,
+    ).toContain("Save failed");
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      guidance,
+    );
+
+    await act(async () => save?.click());
+    expect(saveAttempts).toBe(2);
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('button[aria-pressed="true"]')?.textContent,
+      ).toBe("FIXTURE_KEY"),
+    );
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).not.toContain("Save failed");
+    expect(container.textContent).toContain("Stored FIXTURE_KEY.");
+    expect(value?.value).toBe("");
+    expect(value?.type).toBe("password");
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    desktopQueryClient.clear();
+    visibility.mockRestore();
+    vi.mocked(desktopRequest).mockReset();
+  }
+});
