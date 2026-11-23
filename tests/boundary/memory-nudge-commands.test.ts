@@ -35,6 +35,10 @@ it.each([
   ["Remember -40 °C", "-40 °C"],
   ["Remember --force flag", "--force flag"],
   ["Remember- X", "X"],
+  ["Remember\n- buy milk\n- call mom", "- buy milk\n- call mom"],
+  ["Remember \t\n- buy milk", "- buy milk"],
+  ["Remember: that was a test", "that was a test"],
+  ["Remember — that was a test", "that was a test"],
   ["Keep in mind — deploys are Fridays", "deploys are Fridays"],
 ])("persists explicit command %j", async (text, fact) => {
   const { add, evaluator, context } = fixture(text);
