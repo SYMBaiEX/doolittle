@@ -143,7 +143,7 @@ export function DesktopWindowTools({
           <DropdownMenuContent
             align="end"
             aria-label="Window actions"
-            className="dl-action-menu"
+            className="dl-action-menu window-actions-menu"
             collisionPadding={8}
             onCloseAutoFocus={(event) => {
               const action = pendingMenuAction.current;

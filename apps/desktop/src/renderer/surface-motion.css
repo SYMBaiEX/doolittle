@@ -34,6 +34,10 @@
   box-shadow: none;
 }
 @media (forced-colors: active) {
+  .window-actions-menu [role="menuitem"][data-highlighted] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
   .desktop-shell
     button:is(
       [role="combobox"],

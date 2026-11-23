@@ -195,6 +195,16 @@ test.describe("fresh native desktop", () => {
         await expect(activity).toBeHidden();
         await expect(menu).toBeFocused();
       }
+      await page.emulateMedia({ forcedColors: "active" });
+      await menu.focus();
+      await page.keyboard.press("Enter");
+      const items = page.getByRole("menuitem");
+      for (const index of [0, 1]) {
+        if (index > 0) await page.keyboard.press("ArrowDown");
+        await expect(items.nth(index)).toBeFocused();
+        await expect(items.nth(index)).toHaveCSS("outline-style", "solid");
+        await expect(items.nth(index)).toHaveCSS("outline-width", "1px");
+      }
     } finally {
       await desktop.dispose();
     }
