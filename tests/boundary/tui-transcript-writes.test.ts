@@ -66,6 +66,32 @@ it("coalesces a burst of renders into at most one disk write per interval and pe
   }
 });
 
+it("flushes a queued trailing write on process exit", () => {
+  vi.useFakeTimers();
+  const dir = mkdtempSync(join(tmpdir(), "tui-transcript-"));
+  const path = join(dir, "transcript.txt");
+  try {
+    const responsePane = pane();
+    renderTranscriptPane({
+      responsePane,
+      responseHistory: [],
+      liveResponse: live("a"),
+      transcriptExportPath: path,
+    });
+    renderTranscriptPane({
+      responsePane,
+      responseHistory: [],
+      liveResponse: live("b"),
+      transcriptExportPath: path,
+    });
+    expect(writes.mock.calls.length).toBe(1);
+    process.emit("exit", 0);
+    expect(readFileSync(path, "utf8")).toContain("b");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 it("writes again on the next interval during sustained streaming", () => {
   vi.useFakeTimers();
   const dir = mkdtempSync(join(tmpdir(), "tui-transcript-"));

@@ -22,6 +22,28 @@ type PendingTranscriptWrite = {
 
 const transcriptWrites = new Map<string, PendingTranscriptWrite>();
 
+let exitFlushRegistered = false;
+
+// A pending trailing write would otherwise be dropped on abrupt exit (e.g.
+// Ctrl+C through forceTerminateCli -> process.exit); flush it synchronously.
+function ensureExitFlush(): void {
+  if (exitFlushRegistered) {
+    return;
+  }
+  exitFlushRegistered = true;
+  process.on("exit", () => {
+    for (const [path, pending] of transcriptWrites) {
+      if (pending.timer) {
+        persistTranscriptExport(
+          path,
+          pending.responseHistory,
+          pending.liveResponse,
+        );
+      }
+    }
+  });
+}
+
 function persistTranscriptExport(
   transcriptExportPath: string,
   responseHistory: ResponseTranscriptEntry[],
@@ -52,6 +74,7 @@ function scheduleTranscriptExport(
   }
   pending.responseHistory = responseHistory;
   pending.liveResponse = liveResponse;
+  ensureExitFlush();
   const elapsed = Date.now() - pending.lastWriteAt;
   if (elapsed >= TRANSCRIPT_WRITE_INTERVAL_MS) {
     if (pending.timer) {
