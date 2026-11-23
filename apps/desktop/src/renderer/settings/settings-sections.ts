@@ -1,5 +1,8 @@
 import type { View } from "../desktop-navigation";
 
+export const DESKTOP_SETTINGS_LANDING_EVENT =
+  "doolittle:desktop-settings-landing";
+
 /** Canonical destinations rendered by the Settings shell. */
 export type SettingsShellSection =
   | "appearance"

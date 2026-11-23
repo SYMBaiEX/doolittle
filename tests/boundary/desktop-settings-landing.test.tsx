@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CommandPalette } from "../../apps/desktop/src/renderer/components/CommandPalette";
 import { SettingsPage } from "../../apps/desktop/src/renderer/SettingsPage";
+import { DESKTOP_SETTINGS_LANDING_EVENT } from "../../apps/desktop/src/renderer/settings/settings-sections";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -122,6 +123,29 @@ it("lands directly on Desktop for initial and in-place deep links without steali
   expect(content?.scrollTop).toBe(64);
   expect(container.scrollTop).toBe(50);
   expect(scrollIntoView).not.toHaveBeenCalled();
+});
+
+it("returns to Desktop when its command repeats on the unchanged route", async () => {
+  await render("desktop");
+  const desktop = container.querySelector<HTMLElement>(
+    '[aria-label="Desktop settings"]',
+  );
+  const content = container.querySelector<HTMLElement>(".settings-content");
+  const background = container.querySelector<HTMLInputElement>(
+    '[aria-label="Keep running in the background"]',
+  );
+  if (!desktop || !content || !background) throw new Error("Missing Desktop");
+  vi.spyOn(desktop, "getBoundingClientRect").mockReturnValue({
+    top: -400,
+  } as DOMRect);
+  content.scrollTop = 500;
+  background.focus();
+  await act(async () => {
+    window.dispatchEvent(new Event(DESKTOP_SETTINGS_LANDING_EVENT));
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  });
+  expect(document.activeElement).toBe(desktop);
+  expect(content.scrollTop).toBe(100);
 });
 
 function PaletteFocusFixture() {

@@ -67,6 +67,7 @@ import {
   SETTINGS_PAGE_CLASS,
 } from "./settings/settings-layout";
 import {
+  DESKTOP_SETTINGS_LANDING_EVENT,
   SETTINGS_CATEGORIES,
   SETTINGS_SHELL_SECTIONS,
   type SettingsCategoryId,
@@ -212,27 +213,40 @@ export function SettingsPage({
     const content = panelRef.current?.parentElement;
     if (content) content.scrollTop = 0;
     if (category === "desktop") {
-      // Let the command palette release its focus trap first.
-      const landing = window.setTimeout(() => {
-        const target = desktopPanelRef.current;
-        target?.focus({ preventScroll: true });
-        if (content && target) {
-          const tabs = content.querySelector<HTMLElement>('[role="tablist"]');
-          const tabsOffset = tabs
-            ? tabs.getBoundingClientRect().height +
-              (Number.parseFloat(window.getComputedStyle(tabs).top) || 0) +
-              (Number.parseFloat(window.getComputedStyle(content).paddingTop) ||
-                0)
-            : 0;
-          // Scroll only Settings, keeping its sticky tabs above the target.
-          // scrollIntoView would also move the outer app at minimum sizes.
-          content.scrollTop +=
-            target.getBoundingClientRect().top -
-            content.getBoundingClientRect().top -
-            tabsOffset;
-        }
-      }, 0);
-      return () => window.clearTimeout(landing);
+      let landing: number;
+      const landOnDesktop = () => {
+        window.clearTimeout(landing);
+        // Let the command palette release its focus trap first.
+        landing = window.setTimeout(() => {
+          const target = desktopPanelRef.current;
+          target?.focus({ preventScroll: true });
+          if (content && target) {
+            const tabs = content.querySelector<HTMLElement>('[role="tablist"]');
+            const tabsOffset = tabs
+              ? tabs.getBoundingClientRect().height +
+                (Number.parseFloat(window.getComputedStyle(tabs).top) || 0) +
+                (Number.parseFloat(
+                  window.getComputedStyle(content).paddingTop,
+                ) || 0)
+              : 0;
+            // Scroll only Settings, keeping its sticky tabs above the target.
+            // scrollIntoView would also move the outer app at minimum sizes.
+            content.scrollTop +=
+              target.getBoundingClientRect().top -
+              content.getBoundingClientRect().top -
+              tabsOffset;
+          }
+        }, 0);
+      };
+      landOnDesktop();
+      window.addEventListener(DESKTOP_SETTINGS_LANDING_EVENT, landOnDesktop);
+      return () => {
+        window.clearTimeout(landing);
+        window.removeEventListener(
+          DESKTOP_SETTINGS_LANDING_EVENT,
+          landOnDesktop,
+        );
+      };
     }
   }, [category]);
   useEffect(() => {
