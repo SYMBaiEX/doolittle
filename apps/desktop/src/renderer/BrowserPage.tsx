@@ -234,7 +234,9 @@ export function BrowserPage({
         >
           <section className={BROWSER_CANVAS_CLASS}>
             <div className={BROWSER_CANVAS_TOOLBAR_CLASS}>
-              <span>{currentUrl || "No preview loaded"}</span>
+              <span title={currentUrl || "No preview loaded"}>
+                {currentUrl || "No preview loaded"}
+              </span>
               <label>
                 <span className="sr-only">Preview size</span>
                 <select
