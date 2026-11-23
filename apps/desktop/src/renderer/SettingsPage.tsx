@@ -217,15 +217,19 @@ export function SettingsPage({
         const target = desktopPanelRef.current;
         target?.focus({ preventScroll: true });
         if (content && target) {
-          const tabsHeight =
-            content.querySelector('[role="tablist"]')?.getBoundingClientRect()
-              .height ?? 0;
+          const tabs = content.querySelector<HTMLElement>('[role="tablist"]');
+          const tabsOffset = tabs
+            ? tabs.getBoundingClientRect().height +
+              (Number.parseFloat(window.getComputedStyle(tabs).top) || 0) +
+              (Number.parseFloat(window.getComputedStyle(content).paddingTop) ||
+                0)
+            : 0;
           // Scroll only Settings, keeping its sticky tabs above the target.
           // scrollIntoView would also move the outer app at minimum sizes.
           content.scrollTop +=
             target.getBoundingClientRect().top -
             content.getBoundingClientRect().top -
-            tabsHeight;
+            tabsOffset;
         }
       }, 0);
       return () => window.clearTimeout(landing);

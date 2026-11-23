@@ -98,6 +98,8 @@ it("lands directly on Desktop for initial and in-place deep links without steali
   const tabs = content?.querySelector<HTMLElement>('[role="tablist"]');
   expect(content).toBeTruthy();
   expect(tabs).toBeTruthy();
+  if (tabs) tabs.style.top = "12px";
+  if (content) content.style.paddingTop = "24px";
   vi.spyOn(desktop as HTMLElement, "getBoundingClientRect").mockReturnValue({
     top: 160,
   } as DOMRect);
@@ -117,7 +119,7 @@ it("lands directly on Desktop for initial and in-place deep links without steali
 
   await render("desktop");
   expect(document.activeElement).toBe(desktop);
-  expect(content?.scrollTop).toBe(100);
+  expect(content?.scrollTop).toBe(64);
   expect(container.scrollTop).toBe(50);
   expect(scrollIntoView).not.toHaveBeenCalled();
 });
