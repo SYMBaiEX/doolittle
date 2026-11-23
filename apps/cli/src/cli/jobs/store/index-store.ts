@@ -15,6 +15,8 @@ import type { CliJobIndex, CliJobRecord, CliJobStatus } from "../types";
 import { reconcileJobRecords } from "./events";
 
 const MAX_INDEX_BYTES = 16 * 1024 * 1024;
+const INDEX_JSON_FORMAT = { indent: 2, trailingNewline: false };
+const TERMINAL_PROMPT_PREVIEW_LENGTH = 1024;
 const MAX_JOBS = 200;
 const INDEX_LOCK_TIMEOUT_MS = 2_000;
 const LEGACY_LOCK_GRACE_MS = 30_000;
@@ -147,14 +149,35 @@ function readIndex(dataDir: string): CliJobIndex {
     throw new Error("Duplicate job id.");
   return { jobs };
 }
+function indexFitsByteBudget(index: CliJobIndex): boolean {
+  return (
+    Buffer.byteLength(JSON.stringify(index, null, INDEX_JSON_FORMAT.indent)) <=
+    MAX_INDEX_BYTES
+  );
+}
+
+function compactTerminalPrompts(index: CliJobIndex): void {
+  for (const job of index.jobs) {
+    if (job.status === "queued" || job.status === "running") continue;
+    if (job.prompt.length <= TERMINAL_PROMPT_PREVIEW_LENGTH) continue;
+    const preview = job.prompt
+      .slice(0, TERMINAL_PROMPT_PREVIEW_LENGTH - 1)
+      .replace(/[\uD800-\uDBFF]$/u, "");
+    job.prompt = `${preview}…`;
+  }
+}
+
 function writeIndex(dataDir: string, index: CliJobIndex): void {
   if (index.jobs.length > MAX_JOBS)
     throw new Error("Job index exceeds maximum entries.");
   for (const record of index.jobs) validateRecord(dataDir, record);
   assertJobPaths(dataDir);
-  if (Buffer.byteLength(JSON.stringify(index), "utf8") > MAX_INDEX_BYTES)
-    throw new Error("Job index exceeds maximum bytes.");
-  writeJsonAtomicSync(indexPath(dataDir), index);
+  if (!indexFitsByteBudget(index)) {
+    compactTerminalPrompts(index);
+    if (!indexFitsByteBudget(index))
+      throw new Error("Job index exceeds maximum bytes.");
+  }
+  writeJsonAtomicSync(indexPath(dataDir), index, INDEX_JSON_FORMAT);
 }
 function prepareIndexLock(lock: string, deadline: number): void {
   const wait = new Int32Array(new SharedArrayBuffer(4));

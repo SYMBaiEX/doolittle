@@ -7,14 +7,17 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
+import { resolve, sep } from "node:path";
 import { type CliTurnEvent, encodeCliTurnEvent } from "../../turn-events";
 import type { CliJobRecord } from "../types";
 import { readCliJobEventsFromPath } from "./events";
 import {
   assertJobPaths,
   jobPaths,
+  jobsRoot,
   mutateJob,
   readJobsIndex,
   updateJobsIndex,
@@ -25,8 +28,29 @@ export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
     throw new Error("Background prompt exceeds 1 MiB.");
   const id = randomUUID();
   readJobsIndex(dataDir);
-  const { root, stateDir, logPath } = jobPaths(dataDir, id);
+  const { root } = jobPaths(dataDir, id);
+  const cleanupPath = resolve(root);
+  if (!cleanupPath.startsWith(resolve(jobsRoot(dataDir)) + sep))
+    throw new Error("Unsafe job directory.");
   mkdirSync(root, { mode: 0o700 });
+  try {
+    return storeNewJob(dataDir, id, prompt);
+  } catch (error) {
+    try {
+      rmSync(cleanupPath, { recursive: true, force: true });
+    } catch {
+      // Preserve the original creation error if cleanup also fails.
+    }
+    throw error;
+  }
+}
+
+function storeNewJob(
+  dataDir: string,
+  id: string,
+  prompt: string,
+): CliJobRecord {
+  const { stateDir, logPath } = jobPaths(dataDir, id);
   mkdirSync(stateDir, { mode: 0o700 });
   assertJobPaths(dataDir, id);
   writeFileSync(logPath, "", { encoding: "utf8", mode: 0o600, flag: "wx" });
