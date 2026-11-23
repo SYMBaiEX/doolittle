@@ -111,8 +111,10 @@ implementation files and find related tests in one batch. It accepts two to six
 targeted text reads and literal searches, keeps two inspections in flight, and
 returns bounded evidence in task order. A desktop batch uses the current
 conversation's authorized workspace, and all inspections share its cancellation
-signal. For example, ask Doolittle to read `src/router.ts` while looking for
-`createRouter` in `tests/`, then compare the findings.
+signal. For example, ask Doolittle to read
+`packages/agent/src/actions/parallel-workspace-inspection.ts` while looking for
+`createParallelWorkspaceInspectionAction` in `tests/`, then compare the
+findings.
 
 ## Finish a change
 
