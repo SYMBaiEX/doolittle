@@ -1,26 +1,13 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LoggerService } from "../services/logger-service/index";
-import { type AppLogger, type AppLogLevel, createNoopLogger } from "./logger";
+import { normalizeMinLevel } from "../services/logger-service/options";
+import { type AppLogger, createNoopLogger } from "./logger";
 
 const loggerCache = new Map<string, AppLogger>();
 
 function defaultRepoRoot(): string {
   return fileURLToPath(new URL("../../../../", import.meta.url));
-}
-
-function normalizeMinLevel(value?: string): AppLogLevel {
-  switch ((value ?? "").trim().toLowerCase()) {
-    case "trace":
-    case "debug":
-    case "info":
-    case "warn":
-    case "error":
-    case "fatal":
-      return value as AppLogLevel;
-    default:
-      return "info";
-  }
 }
 
 function resolveDataDir(value?: string): string {
