@@ -35,25 +35,6 @@ export function registryResultLabel({
   return `${count} results`;
 }
 
-export function registryCatalogPresentation(entry: RegistryEntry) {
-  return {
-    eyebrow: entry.support === "community" ? undefined : entry.support,
-    status: entry.installed
-      ? "Installed"
-      : entry.installable
-        ? undefined
-        : "Restricted",
-    tone: entry.installed
-      ? ("good" as const)
-      : entry.installable
-        ? undefined
-        : ("neutral" as const),
-    code: entry.packageName === entry.name ? undefined : entry.packageName,
-    meta: `${entry.version} · ${entry.trust}`,
-    detailsLabel: "Policy",
-  };
-}
-
 export function normalizeRegistryEntries(value: unknown): RegistryEntry[] {
   const response = asRecord(value);
   const rows = asArray(

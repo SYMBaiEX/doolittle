@@ -72,7 +72,7 @@ export function loadLocalRuntimeEnv(): void {
  * Check whether the onboarding wizard has been completed.
  * Returns true if onboarded, false if setup is still needed.
  */
-export function isOnboarded(): boolean {
+function isOnboarded(): boolean {
   loadApplicationEnv();
   const root = repoRoot();
   return existsSync(resolve(runtimeDataDir(root), "onboarding.json"));

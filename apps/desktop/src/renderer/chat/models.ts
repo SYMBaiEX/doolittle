@@ -153,12 +153,6 @@ export function historicalRunReceipt(
   return { latest: terminal, events: retainRunEvents(events) };
 }
 
-export interface RunEventCopy {
-  label: string;
-  detail: string;
-  tone: "neutral" | "good" | "warn" | "bad";
-}
-
 export function runActionLabel(action: string | null | undefined): string {
   if (!action) return "";
   const known: Record<string, string> = {
@@ -182,101 +176,4 @@ export function runActionLabel(action: string | null | undefined): string {
       .replace(/_/gu, " ")
       .replace(/^\p{L}/u, (value) => value.toUpperCase())
   );
-}
-
-export function runEventCopy(update: DesktopRunUpdate): RunEventCopy {
-  const { activity, run, type } = update;
-  if (activity) {
-    return {
-      label:
-        activity.title || runActionLabel(activity.action) || "Tool activity",
-      detail: activity.summary || activity.command || activity.directory || "",
-      tone:
-        activity.phase === "failed"
-          ? "bad"
-          : activity.phase === "completed"
-            ? "good"
-            : activity.phase === "cancelled"
-              ? "warn"
-              : "neutral",
-    };
-  }
-  const mutation = run.localMutations.at(-1);
-  switch (type) {
-    case "started":
-      return {
-        label: "Run started",
-        detail: `${run.runDepth} depth · ${run.configuredMaxIterations} iteration cap`,
-        tone: "neutral",
-      };
-    case "thinking":
-      return {
-        label: "Thinking",
-        detail: run.statusDetail || "Planning the next step",
-        tone: "neutral",
-      };
-    case "acting":
-    case "action-started":
-      return {
-        label: runActionLabel(run.activeAction) || "Starting next step",
-        detail: `Step ${Math.max(1, run.observedActionCount)} in progress`,
-        tone: "warn",
-      };
-    case "action-completed":
-      return {
-        label: runActionLabel(run.lastAction) || "Step complete",
-        detail: `${run.observedActionCount} ${
-          run.observedActionCount === 1 ? "action" : "actions"
-        } observed`,
-        tone: "good",
-      };
-    case "local-mutation":
-      return {
-        label: mutation?.success ? "Workspace changed" : "Change failed",
-        detail: mutation
-          ? `${mutation.action} · ${fileName(
-              mutation.resolvedPath || mutation.requestedPath || "workspace",
-            )}${
-              mutation.bytes === undefined ? "" : ` · ${mutation.bytes} bytes`
-            }`
-          : "A local mutation was recorded",
-        tone: mutation?.success ? "good" : "bad",
-      };
-    case "approvals":
-      return {
-        label: "Approval required",
-        detail: `${run.pendingApprovals} pending ${
-          run.pendingApprovals === 1 ? "decision" : "decisions"
-        }`,
-        tone: "warn",
-      };
-    case "waiting":
-      return {
-        label: "Waiting",
-        detail: run.statusDetail || "Waiting for the next runtime signal",
-        tone: run.pendingApprovals > 0 ? "warn" : "neutral",
-      };
-    case "completed":
-      return {
-        label: "Run completed",
-        detail: `${run.observedActionCount} ${
-          run.observedActionCount === 1 ? "action" : "actions"
-        } · ${run.localMutations.length} ${
-          run.localMutations.length === 1 ? "change" : "changes"
-        }`,
-        tone: "good",
-      };
-    case "error":
-      return {
-        label: "Run failed",
-        detail: run.errorMessage || run.statusDetail || "Unknown runtime error",
-        tone: "bad",
-      };
-    default:
-      return {
-        label: "Run update",
-        detail: run.statusDetail || run.status,
-        tone: "neutral",
-      };
-  }
 }

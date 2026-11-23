@@ -1,6 +1,6 @@
 import { sanitizeSingleLineTerminalText } from "../cli/render-utils";
 
-export function sanitizeBootLogLine(text: string): string {
+function sanitizeBootLogLine(text: string): string {
   return sanitizeSingleLineTerminalText(text);
 }
 
