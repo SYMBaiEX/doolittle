@@ -1,7 +1,7 @@
 #!/usr/bin/env nub
 import { DOOLITTLE_VERSION } from "@doolittle/agent/version";
 import { renderTopLevelHelp } from "./entrypoint/help";
-import { resolveSubcommand } from "./entrypoint/subcommand";
+import { CliUsageError, resolveSubcommand } from "./entrypoint/subcommand";
 
 async function main(): Promise<number> {
   const selection = resolveSubcommand();
@@ -73,6 +73,11 @@ main()
     process.exitCode = exitCode;
   })
   .catch(async (error) => {
+    if (error instanceof CliUsageError) {
+      process.stderr.write(`${error.message}\n`);
+      process.exitCode = 1;
+      return;
+    }
     const [
       { getEntrypointLogger },
       { getCliErrorMessage },
