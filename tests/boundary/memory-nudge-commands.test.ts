@@ -32,7 +32,9 @@ it.each([
   ["Remember—deploys are on Friday", "deploys are on Friday"],
   ["Remember - X", "X"],
   ["Remember–deploys are on Friday", "deploys are on Friday"],
-  ["Remember-X", "X"],
+  ["Remember -40 °C", "-40 °C"],
+  ["Remember --force flag", "--force flag"],
+  ["Remember- X", "X"],
   ["Keep in mind — deploys are Fridays", "deploys are Fridays"],
 ])("persists explicit command %j", async (text, fact) => {
   const { add, evaluator, context } = fixture(text);
@@ -66,6 +68,8 @@ it.each([
   "keep in mind",
   "Remember,",
   "Keep in mind:",
+  "Remember-X",
+  "Remember -",
   "",
   undefined,
 ])("does not persist non-command or empty input %j", async (text) => {
