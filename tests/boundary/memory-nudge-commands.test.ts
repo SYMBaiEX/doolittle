@@ -29,6 +29,11 @@ it.each([
   ["Keep in mind: deploys are Fridays", "deploys are Fridays"],
   ["Remember; deploys are Fridays", "deploys are Fridays"],
   ["Please remember, thatcher is a surname", "thatcher is a surname"],
+  ["Remember—deploys are on Friday", "deploys are on Friday"],
+  ["Remember - X", "X"],
+  ["Remember–deploys are on Friday", "deploys are on Friday"],
+  ["Remember-X", "X"],
+  ["Keep in mind — deploys are Fridays", "deploys are Fridays"],
 ])("persists explicit command %j", async (text, fact) => {
   const { add, evaluator, context } = fixture(text);
   expect(await evaluator.shouldRun?.(context)).toBe(true);
