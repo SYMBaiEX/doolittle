@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { existsSync } from "node:fs";
 
 export type AcpToolKind =
@@ -148,16 +149,40 @@ export function buildAcpPackageMetadata(input: {
   };
 }
 
+function buildWindowsAcpDistribution(
+  command: string,
+): AcpRegistryEntry["distribution"] {
+  const quotePowerShellLiteral = (value: string) =>
+    `'${value.replaceAll("'", "''")}'`;
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    "$start = New-Object System.Diagnostics.ProcessStartInfo",
+    "$start.FileName = if ($env:ComSpec) { $env:ComSpec } else { 'cmd.exe' }",
+    `$start.Arguments = ${quotePowerShellLiteral(`/D /S /C "${command}"`)}`,
+    "$start.UseShellExecute = $false",
+    "$child = [System.Diagnostics.Process]::Start($start)",
+    "$child.WaitForExit()",
+    "exit $child.ExitCode",
+  ].join("\n");
+  return {
+    type: "command",
+    command: "powershell.exe",
+    args: [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-EncodedCommand",
+      Buffer.from(script, "utf16le").toString("base64"),
+    ],
+  };
+}
+
 function buildAcpDistribution(
   command?: string,
 ): AcpRegistryEntry["distribution"] {
   if (!command) return { type: "command", command: "doolittle", args: ["acp"] };
   if (process.platform === "win32") {
-    return {
-      type: "command",
-      command: process.env.ComSpec?.trim() || "cmd.exe",
-      args: ["/D", "/S", "/C", command],
-    };
+    return buildWindowsAcpDistribution(command);
   }
   return {
     type: "command",
