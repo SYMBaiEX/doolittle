@@ -312,7 +312,7 @@ function bunInstallEvidence(
 function isLocalCurlSmoke(command: string): boolean {
   // Only literal curl invocations attest a target; shell programs and unknown
   // curl options may redirect execution or change the meaning of URL operands.
-  if (/[\\$`\r\n]/u.test(command)) return false;
+  if (/[$`\r\n]/u.test(command)) return false;
   const tokenPattern = /\s*(?:"([^"\n]*)"|'([^'\n]*)'|([^\s"';&|<>]+)|(&&))/uy;
   const tokens: string[] = [];
   let offset = 0;
@@ -330,7 +330,9 @@ function isLocalCurlSmoke(command: string): boolean {
     if (tokens[separator] !== "&&") return false;
     tokens.splice(0, separator + 1);
   }
-  if (!/^(?:\/[^/\s]+)*\/?curl$/u.test(tokens.shift() ?? "")) return false;
+  if (!/^(?:[^\\/]+[\\/]|[\\/])*curl(?:\.exe)?$/iu.test(tokens.shift() ?? ""))
+    return false;
+  if (tokens.some((token) => token.includes("\\"))) return false;
   let failOnHttpError = false;
   const targets: string[] = [];
   const valueOptions = new Set([
@@ -399,6 +401,7 @@ function runtimeSmokeEvidence(
     const receipt = shellReceipt(eventValue);
     if (!metadata || !receipt?.success) continue;
     const { command, commandResult } = receipt;
+    const rawCommand = commandResult?.command;
     const stdout = string(commandResult?.stdout);
     const workingDirectory = command
       ? shellWorkingDirectory(commandResult ?? {}, command, metadata)
@@ -409,7 +412,8 @@ function runtimeSmokeEvidence(
       commandResult?.exitCode !== 0 ||
       !workingDirectory ||
       !pathIsWithin(resolve(expectedWorkspace), workingDirectory) ||
-      !isLocalCurlSmoke(command)
+      typeof rawCommand !== "string" ||
+      !isLocalCurlSmoke(rawCommand)
     ) {
       continue;
     }

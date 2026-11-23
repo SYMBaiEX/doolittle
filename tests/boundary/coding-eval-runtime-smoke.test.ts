@@ -46,6 +46,12 @@ it.each([
   "curl --silent --show-error --fail --url=http://127.255.255.255/status",
   "curl -f -H 'Accept: application/json' --request GET http://localhost/status",
   "cd /workspace && curl --fail http://localhost:3000/status",
+  "curl.exe --fail http://localhost:3000/status",
+  "CURL.EXE --fail http://localhost:3000/status",
+  String.raw`cd C:\work\app && curl --fail http://127.0.0.1:3000/api`,
+  String.raw`C:\Windows\System32\curl.exe --fail http://localhost/status`,
+  String.raw`"C:\Program Files\curl\CURL.EXE" --fail http://localhost/status`,
+  "/usr/bin/curl.exe --fail http://localhost/status",
 ])("accepts a successful local smoke receipt: %s", (command) => {
   expect(smokeStatus(command)).toBe("pass");
 });
@@ -70,6 +76,14 @@ it.each([
   "curl --fail 'http://localhost:3000/status",
   "curl --fail --url",
   "curl --fail",
+  String.raw`curl.exe --fail http:\\localhost\status`,
+  String.raw`curl.exe --fail -H 'X-Path: C:\work' http://localhost/status`,
+  String.raw`curl.exe --fail --data C:\work http://localhost/status`,
+  String.raw`cd C:\work\app && echo curl.exe --fail http://localhost/status`,
+  String.raw`C:\tools\notcurl.exe --fail http://localhost/status`,
+  String.raw`C:\$TOOLS\curl.exe --fail http://localhost/status`,
+  "curl.exe --fail `echo http://localhost/status`",
+  "curl.exe --fail http://localhost/status\n",
   "",
 ])("rejects a command without verified local curl evidence: %s", (command) => {
   expect(smokeStatus(command)).toBe("fail");
