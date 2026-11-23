@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveStaticCliInput } from "../../apps/cli/src/cli/execution/static";
+import { renderHelp } from "../../apps/cli/src/entrypoint/help";
 import { resolveEntrypointInvocation } from "../../apps/cli/src/entrypoint/invocation";
 import { resolveEntrypointCommandPlan } from "../../apps/cli/src/entrypoint/runtime-control";
 import {
@@ -7,6 +8,7 @@ import {
   isEntrypointAliasCommand,
   parseOneShotOptions,
   resolveEntrypointAliasPrompt,
+  resolveHelpTopic,
   resolveSubcommand,
 } from "../../apps/cli/src/entrypoint/subcommand";
 
@@ -27,6 +29,69 @@ describe("CLI entrypoint dispatch", () => {
       ).toBe("help");
     },
   );
+
+  it.each([
+    [["exec", "--help"], "exec"],
+    [["run", "-h"], "exec"],
+    [["exec", "-p", "text", "--json", "--help"], "exec"],
+    [["jobs", "--help"], "jobs"],
+    [["jobs", "show", "-h"], "jobs"],
+  ])("routes %j to the %s help topic", (args, topic) => {
+    expect(resolveSubcommand(args)).toEqual({ command: "help", rest: [topic] });
+  });
+
+  it("keeps help flags that are prompt text inside exec", () => {
+    expect(resolveSubcommand(["exec", "-p", "--help"]).command).toBe("exec");
+    expect(resolveSubcommand(["exec", "--", "-h"]).command).toBe("exec");
+  });
+
+  it.each([
+    [undefined, undefined],
+    ["exec", "exec"],
+    ["run", "exec"],
+    ["jobs", "jobs"],
+    ["status", undefined],
+    ["--gateway", undefined],
+  ])("resolves help topic for %s", (argument, topic) => {
+    expect(resolveHelpTopic(argument)).toBe(topic);
+  });
+
+  it("documents exec input, session and job controls in top-level help", () => {
+    const help = renderHelp();
+    for (const text of [
+      "--prompt-stdin",
+      "--session-id <id>",
+      "doolittle exec --help",
+      "doolittle jobs show <job-id>",
+      "doolittle jobs attach <job-id>",
+      "doolittle jobs cancel <job-id>",
+    ])
+      expect(help).toContain(text);
+  });
+
+  it("gives exec and jobs their own usage text", () => {
+    const execHelp = renderHelp("exec");
+    expect(execHelp).toMatch(/^Usage: doolittle exec /);
+    for (const option of [
+      "-p, --prompt <text>",
+      "--prompt-stdin",
+      "--json",
+      "--json-stream",
+      "--session-id <id>",
+      "--background",
+    ])
+      expect(execHelp).toContain(option);
+    expect(execHelp).not.toContain("--job-id");
+    const jobsHelp = renderHelp("jobs");
+    expect(jobsHelp).toMatch(/^Usage: doolittle jobs /);
+    for (const action of [
+      "list",
+      "show <job-id>",
+      "attach <job-id>",
+      "cancel <job-id>",
+    ])
+      expect(jobsHelp).toContain(action);
+  });
 
   it.each(["-p", "--prompt", "--session-id", "--job-id"])(
     "requires a value for %s",

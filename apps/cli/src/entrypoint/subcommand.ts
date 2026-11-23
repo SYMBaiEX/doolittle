@@ -50,6 +50,17 @@ const FLAG_COMMANDS: ReadonlyArray<{
   { command: "gateway", flags: ["--gateway"] },
 ];
 
+const HELP_TOPICS = ["exec", "jobs"] as const;
+
+export type HelpTopic = (typeof HELP_TOPICS)[number];
+
+export function resolveHelpTopic(
+  argument: string | undefined,
+): HelpTopic | undefined {
+  const command = COMMAND_ALIASES.get(argument ?? "");
+  return HELP_TOPICS.find((topic) => topic === command);
+}
+
 const ALIAS_DEFAULT_PROMPTS = new Map<EntrypointSubcommand, string>([
   ["status", "/status"],
   ["progress", "/progress"],
@@ -107,6 +118,17 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
       continue;
     }
     globalArguments.add(index);
+  }
+  const helpTopic = resolveHelpTopic(userArgs[0]);
+  if (
+    helpTopic &&
+    userArgs.some(
+      (argument, index) =>
+        globalArguments.has(index) &&
+        (argument === "--help" || argument === "-h"),
+    )
+  ) {
+    return { command: "help", rest: [helpTopic] };
   }
   for (const { command, flags } of FLAG_COMMANDS) {
     if (
