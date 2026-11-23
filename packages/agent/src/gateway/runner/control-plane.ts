@@ -100,13 +100,32 @@ export function createGatewayRunnerControlPlane(
     });
   };
 
+  let transition:
+    | { kind: "start" | "stop"; pending: Promise<void> }
+    | undefined;
+
+  function enqueueTransition(
+    kind: "start" | "stop",
+    run: (host: GatewayRunnerLifecycleHost) => Promise<void>,
+  ): Promise<void> {
+    if (transition?.kind === kind) return transition.pending;
+    const previous = transition?.pending.catch(() => undefined);
+    const pending = Promise.resolve(previous)
+      .then(() => run(lifecycleHostBuilder()))
+      .finally(() => {
+        if (transition?.pending === pending) transition = undefined;
+      });
+    transition = { kind, pending };
+    return pending;
+  }
+
   return {
-    async start(): Promise<void> {
-      await runLifecycleStart(lifecycleHostBuilder());
+    start(): Promise<void> {
+      return enqueueTransition("start", runLifecycleStart);
     },
 
-    async stop(): Promise<void> {
-      await runLifecycleStop(lifecycleHostBuilder());
+    stop(): Promise<void> {
+      return enqueueTransition("stop", runLifecycleStop);
     },
 
     heartbeat(reason = "heartbeat"): Promise<GatewayStateSnapshot> {
