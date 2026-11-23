@@ -8,11 +8,11 @@ import type {
   State,
 } from "@elizaos/core";
 import { getMemoryText } from "@elizaos/core";
-import { searchNativeSessions } from "../runtime/native/service-bridge/tooling/index";
 import {
   GLOBAL_SESSION_ACCESS_DENIED,
   hasGlobalSessionOperatorAccess,
 } from "../runtime/session-operator-policy";
+import type { SessionService } from "../services/session/service/index";
 import type { SessionSearchResult } from "../types/index";
 
 function optionQuery(options: HandlerOptions | undefined): string | undefined {
@@ -57,7 +57,10 @@ export function formatSessionSearchResults(
     : "No prior session matches found.";
 }
 
-export function createSessionSearchAction(limit: number): Action {
+export function createSessionSearchAction(
+  sessions: Pick<SessionService, "search">,
+  limit: number,
+): Action {
   return {
     name: "DOOLITTLE_SESSION_SEARCH",
     similes: ["SEARCH_SESSIONS", "LOOK_UP_HISTORY"],
@@ -71,7 +74,7 @@ export function createSessionSearchAction(limit: number): Action {
     validate: async (_runtime, message) =>
       hasGlobalSessionOperatorAccess(messageSource(message)),
     handler: async (
-      runtime: IAgentRuntime,
+      _runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
       _options: HandlerOptions | undefined,
@@ -95,7 +98,7 @@ export function createSessionSearchAction(limit: number): Action {
         await callback?.({ text: usage, source: "session-search-action" });
         return { success: false, text: usage, userFacingText: usage };
       }
-      const matches = searchNativeSessions(runtime, query, limit);
+      const matches = await sessions.search(query, limit);
       const response = formatSessionSearchResults(matches);
 
       await callback?.({ text: response, source: "session-search-action" });

@@ -5,6 +5,7 @@ import {
 import { installDatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-storage";
 import type { AgentRuntime } from "@elizaos/core";
 import { TrajectoriesService } from "@elizaos/plugin-assistant";
+import { migrateLegacyAdvancedMemories } from "./legacy-advanced-memory";
 import { PgliteMaintenanceService } from "./pglite-maintenance";
 import { enforceTrajectoryCaptureBudget } from "./trajectory-capture-budget";
 
@@ -17,7 +18,9 @@ import { enforceTrajectoryCaptureBudget } from "./trajectory-capture-budget";
  */
 export async function finalizeCoreRuntimeServices(
   runtime: AgentRuntime,
+  dataDir: string,
 ): Promise<void> {
+  await migrateLegacyAdvancedMemories(runtime, dataDir);
   await runtime.getServiceLoadPromise(TrajectoriesService.serviceType);
   await installDatabaseTrajectoryLogger(runtime);
   await enforceTrajectoryCaptureBudget(runtime);

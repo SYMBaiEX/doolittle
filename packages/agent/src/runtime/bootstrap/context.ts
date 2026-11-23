@@ -24,7 +24,7 @@ export async function configureBootstrapContext({
   workerBot,
 }: BootstrapContextParams): Promise<BootstrapContext> {
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:start");
-  await finalizeCoreRuntimeServices(runtime);
+  await finalizeCoreRuntimeServices(runtime, config.dataDir);
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:done");
   services.nativeOwnership.attachRuntime(runtime, services);
 

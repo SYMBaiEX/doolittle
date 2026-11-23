@@ -1,9 +1,6 @@
 import type { MemoryStorageProvider } from "@elizaos/core";
-import type { SessionSearchResult } from "../../../../types/index";
 
-export interface NativeMemoryStorageService extends MemoryStorageProvider {
-  searchSessions(query: string, limit: number): SessionSearchResult[];
-}
+export type NativeMemoryStorageService = MemoryStorageProvider;
 
 export interface NativePersonalityService {
   list(): unknown[];

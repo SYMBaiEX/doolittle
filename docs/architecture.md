@@ -181,9 +181,22 @@ empty state. `vendor/elizaos` contains qualified upstream artifacts;
 [SDK maintenance](sdk.md), [development](development.md), and [testing](testing.md)
 for the relevant workflows.
 
-ElizaOS owns native messages and agent memory through its persistence adapter.
-Doolittle's per-runtime SQLite database owns client records such as projects,
-conversation metadata, and run receipts. Its searchable transcript is a read
-projection of native messages. Imported and forked transcripts are staged there
-until the native room is seeded. Runtime reconciliation treats ElizaOS as the
-authority once the native room exists.
+ElizaOS owns native messages and agent memory through its SQL persistence
+adapter. Doolittle's per-runtime SQLite database owns client records such as
+projects, conversation metadata, and run receipts. Its searchable transcript is
+a read projection of native messages. Imported and forked transcripts are
+staged there until the native room is seeded. Runtime reconciliation treats
+ElizaOS as the authority once the native room exists.
+
+The SDK's advanced-memory service also owns long-term memories. On upgrade,
+Doolittle imports the runtime's legacy SQLite memories into PGlite and records
+the migration in the destination. The original rows are retained for recovery.
+
+The local consolidation target is one PGlite database per runtime. The pinned
+SDK SQLite adapter requires a different Node version and cannot migrate the
+PostgreSQL-backed plugin schemas the runtime uses. Move product records behind
+an asynchronous storage boundary before switching their database. The SQLite
+transcript index uses FTS5 and the desktop host reads project consent directly
+from SQLite. Both need equivalent search and authorization behavior before
+retiring that store. Verify existing profiles against staged copies and keep
+the legacy database available for rollback until the new reads are verified.

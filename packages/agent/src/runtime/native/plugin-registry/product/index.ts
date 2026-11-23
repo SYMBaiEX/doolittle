@@ -50,7 +50,6 @@ import { createAwarenessRuntimeService } from "./awareness-service";
 import { createBrowserRuntimeService } from "./browser-service";
 import { createGatewayRuntimeService } from "./gateway-service";
 import { createMcpRuntimeService } from "./mcp-service";
-import { createMemoryStorageService } from "./memory-storage-service";
 import { createSchedulerRuntimeService } from "./scheduler-service";
 import { createShellRuntimeService } from "./shell-service";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
@@ -69,7 +68,7 @@ export function createDoolittleProductPlugin(
     createBrowserAnalysisAction(services),
     createCommandAction(services, config),
     createShellCommandAction(services, config),
-    createSessionSearchAction(config.sessionSearchLimit),
+    createSessionSearchAction(services.sessions, config.sessionSearchLimit),
     memoryAction,
     triggerAction,
     ...createFileActions(),
@@ -133,7 +132,6 @@ export function createDoolittleProductPlugin(
       routes: createDoolittleRuntimeRoutes({ services, config }),
       services: [
         PgliteMaintenanceService,
-        createMemoryStorageService(services.sessions, config.dataDir),
         createAwarenessRuntimeService(services),
         ...(workerBot
           ? []

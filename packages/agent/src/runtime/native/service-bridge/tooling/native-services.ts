@@ -7,7 +7,6 @@ import { getNativeServices } from "../runtime";
 import type {
   NativeCodingAgentService,
   NativeMcpService,
-  NativeMemoryStorageService,
   NativeShellService,
   RuntimeLike,
 } from "../runtime-contracts";
@@ -32,17 +31,6 @@ export function requireNativeMcp(runtime: RuntimeLike): NativeMcpService {
     throw new Error(
       `Required Eliza service ${DOOLITTLE_MCP_SERVICE} is unavailable.`,
     );
-  }
-  return service;
-}
-
-export function requireNativeMemoryStorage(
-  runtime: RuntimeLike,
-): NativeMemoryStorageService {
-  const service = getNativeServices(runtime)
-    .memoryStorage as NativeMemoryStorageService;
-  if (!service) {
-    throw new Error("Required Eliza service memoryStorage is unavailable.");
   }
   return service;
 }
