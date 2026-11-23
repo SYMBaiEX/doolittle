@@ -21,7 +21,8 @@ in the agent runtime bridge.
 
 ## Run and verify
 
-The installed CLI exposes the protocol process:
+Install the `doolittle` command with `bash scripts/install.sh` (on Windows,
+`pwsh scripts/install.ps1`). The installed CLI exposes the protocol process:
 
 ```sh
 doolittle acp
