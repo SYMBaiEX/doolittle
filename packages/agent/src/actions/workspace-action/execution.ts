@@ -31,7 +31,7 @@ async function executeFindCodebaseIntent(
 ): Promise<string> {
   const explicitTarget = resolveNativeProjectTarget(
     runtime,
-    intent.query.trim(),
+    intent.query.trim().replace(/^["'`“”‘’]+|["'`“”‘’]+$/gu, ""),
   );
   if (explicitTarget?.kind === "directory") {
     return summarizeProjectForOutput(runtime, explicitTarget.path);

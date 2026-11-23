@@ -33,13 +33,24 @@ function workspaceRuntime(workspace: string) {
   return { runtime, service };
 }
 
-it.each(["café", "项目", "café.txt", "项目.txt"])(
-  "finds the exact Unicode project path %s before discovery",
-  async (name) => {
+it.each([
+  ...["café", "项目", "café.txt", "项目.txt"].map((name) => [name, name]),
+  ...[
+    ['"', '"'],
+    ["'", "'"],
+    ["`", "`"],
+    ["“", "”"],
+    ["‘", "’"],
+  ].flatMap(([open, close]) =>
+    ["README.md", "café"].map((name) => [name, `${open}${name}${close}`]),
+  ),
+])(
+  "finds the exact project path %s from query %s before discovery",
+  async (name, query) => {
     const fixture = await mkdtemp(join(tmpdir(), "doolittle-project-find-"));
     try {
       const path = join(fixture, name);
-      if (name.endsWith(".txt")) {
+      if (name.endsWith(".txt") || name.endsWith(".md")) {
         await writeFile(path, "fixture");
       } else {
         await mkdir(path);
@@ -48,7 +59,7 @@ it.each(["café", "项目", "café.txt", "项目.txt"])(
       const { runtime, service } = workspaceRuntime(fixture);
       const output = await executeWorkspaceIntent(runtime, {
         kind: "find-codebase",
-        query: `  ${name}  `,
+        query: `  ${query}  `,
       });
       expect(output).toContain(path);
       expect(service.findCodebases).not.toHaveBeenCalled();
