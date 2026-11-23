@@ -1,5 +1,6 @@
-import type { ActionResult } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { tmpdir } from "node:os";
+import type { ActionResult, IAgentRuntime, Memory } from "@elizaos/core";
+import { describe, expect, it, vi } from "vitest";
 import {
   frontendReviewAttempt,
   frontendReviewBlockedByUserConstraint,
@@ -26,6 +27,12 @@ import {
   type WorkspaceNoopRequirements,
   workspaceNoopRequirements,
 } from "../../packages/agent/src/runtime/chat-turn/workspace-noop-completion";
+import { withManagedCodingDelegation } from "../../packages/agent/src/runtime/native/coding-delegation";
+import type {
+  AcpSpawnOptions,
+  CodingDelegationServices,
+  ManagedAcpService,
+} from "../../packages/agent/src/runtime/native/coding-delegation/types";
 import { SDK_TERMINAL_ACTION_NAME } from "../../packages/agent/src/runtime/sdk-terminal-identity";
 import {
   recordScopedTurnActionResult,
@@ -81,6 +88,92 @@ function review(): ActionResult {
     modelEvidence: "text-only",
   });
 }
+
+it.each([
+  { request: "Fix the sum", expected: "codex", sdkFallback: undefined },
+  {
+    request: "Fix the sum using Claude Code",
+    expected: "claude",
+    sdkFallback: undefined,
+  },
+  { request: "Fix the sum", expected: "codex", sdkFallback: "claude" },
+])(
+  "binds local coding to $expected with SDK fallback $sdkFallback",
+  async ({ request, expected, sdkFallback }) => {
+    const workspace = tmpdir();
+    const spawnSession = vi.fn(async (_options: AcpSpawnOptions) => {
+      throw new Error("Fixture ends after adapter admission");
+    });
+    const acp = { spawnSession, sendPrompt: vi.fn(), onSessionEvent: vi.fn() };
+    const runtime = {
+      getSetting: (name: string) =>
+        name === "runtimeSettings"
+          ? JSON.stringify({ model: { provider: "codex", model: "fixture" } })
+          : undefined,
+      getService: (name: string) => (name === "ACP_SERVICE" ? acp : undefined),
+    } as unknown as IAgentRuntime;
+    const services = {
+      workspace: { root: () => workspace },
+      runController: {
+        getByRoomId: () => ({ source: "desktop", runId: "run" }),
+      },
+    } as unknown as CodingDelegationServices;
+    const plugin = withManagedCodingDelegation(
+      {
+        name: "fixture",
+        description: "Exercises the SDK task action routing boundary.",
+        actions: [
+          {
+            name: "TASKS_SPAWN_AGENT",
+            description: "Launch a coding worker.",
+            validate: async () => true,
+            async handler(scopedRuntime, _message, _state, options) {
+              const service = scopedRuntime.getService(
+                "ACP_SERVICE",
+              ) as unknown as ManagedAcpService;
+              const requestedBackend = options?.parameters?.requestedBackend;
+              expect(requestedBackend).toBe(expected);
+              try {
+                await service.spawnSession({
+                  agentType: sdkFallback ?? String(requestedBackend),
+                  workdir: workspace,
+                  initialTask: "Repair sum.mjs.",
+                  approvalPreset: "standard",
+                  env: { CODEX_CONFIG: "{}" },
+                });
+              } catch (error) {
+                return { success: false, error: (error as Error).message };
+              }
+            },
+          },
+        ],
+      },
+      services,
+    );
+
+    const result = await plugin.actions?.[0].handler(
+      runtime,
+      { roomId: "workspace-room", content: { text: request } } as Memory,
+      undefined,
+      { parameters: { requestedBackend: "opencode", agentType: "opencode" } },
+    );
+    if (sdkFallback) {
+      expect(result).toMatchObject({
+        success: false,
+        error: "CODING_ADAPTER_SELECTION_MISMATCH",
+      });
+      expect(spawnSession).not.toHaveBeenCalled();
+    } else {
+      expect(spawnSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentType: expected,
+          approvalPreset: "standard",
+          workdir: workspace,
+        }),
+      );
+    }
+  },
+);
 
 describe("workspace completion across SDK turns", () => {
   it("requires a rebuild and fresh browser review after a later edit", () => {
