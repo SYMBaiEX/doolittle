@@ -115,7 +115,11 @@ const RUNTIME_ACTION_KINDS: Readonly<Record<string, AcpToolKind>> = {
 
 /** Classify an ElizaOS runtime action name (e.g. `SHELL`) for ACP tool calls. */
 export function acpToolKindForAction(action: string): AcpToolKind {
-  return RUNTIME_ACTION_KINDS[action.trim().toUpperCase()] ?? "other";
+  const name = action.trim();
+  return (
+    RUNTIME_ACTION_KINDS[name.toUpperCase()] ??
+    guessAcpToolKind({ id: name.toLowerCase() })
+  );
 }
 
 export function buildAcpPackageMetadata(input: {

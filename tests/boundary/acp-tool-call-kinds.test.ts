@@ -13,6 +13,7 @@ const runtimeActions = [
   "WEB_FETCH",
   "SEARCH_FILES",
   "TASKS",
+  "MCP",
   "REPLY",
 ];
 
@@ -61,6 +62,7 @@ it("classifies ElizaOS runtime actions in ACP tool call updates", async () => {
       ["WEB_FETCH", "fetch"],
       ["SEARCH_FILES", "search"],
       ["TASKS", "think"],
+      ["MCP", "search"],
       ["REPLY", "other"],
     ]);
   } finally {
