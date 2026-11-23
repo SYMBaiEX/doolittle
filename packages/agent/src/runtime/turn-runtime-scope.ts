@@ -21,6 +21,7 @@ type TurnRuntimeScope = {
   settings: ReadonlyMap<string, unknown>;
   abortSignal?: AbortSignal;
   personalityId?: string;
+  mutationObligation?: boolean;
   commandHooks?: TurnCommandHooks;
   settledActionResults?: ActionResult[];
   continuationBudget?: TurnContinuationBudget;
@@ -113,6 +114,19 @@ export function getScopedTurnPersonalityId(
 ): string | undefined {
   const scope = turnRuntimeScope.getStore();
   return scope?.runtime === runtime ? scope.personalityId : undefined;
+}
+
+/** The active turn carries a verified-workspace-mutation obligation. */
+export function markScopedTurnMutationObligation(runtime: object): void {
+  const scope = turnRuntimeScope.getStore();
+  if (scope?.runtime === runtime) scope.mutationObligation = true;
+}
+
+export function getScopedTurnMutationObligation(
+  runtime: object,
+): boolean | undefined {
+  const scope = turnRuntimeScope.getStore();
+  return scope?.runtime === runtime ? scope.mutationObligation : undefined;
 }
 
 /**

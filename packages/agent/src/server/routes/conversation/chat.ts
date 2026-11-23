@@ -370,6 +370,13 @@ async function startServerOwnedChatRun(
   if (!claim.accepted) {
     return conflictResponse(claim.reason, claim.conflictingRunId);
   }
+  try {
+    // A fresh user turn supersedes still-open input requests: the user
+    // answered (or redirected) in chat instead of the input selector.
+    context.services.inputRequests.supersedePendingForSession(sessionId);
+  } catch {
+    // Pending input requests are advisory; a bad store never blocks a run.
+  }
 
   let releaseWorkspace: () => void;
   try {

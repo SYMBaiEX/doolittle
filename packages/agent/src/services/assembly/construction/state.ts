@@ -98,6 +98,7 @@ export function createServiceConstructionState(
     delivery: leaves.delivery,
     gatewaySessions: leaves.gatewaySessions,
     executionApprovals: leaves.executionApprovals,
+    inputRequests: leaves.inputRequests,
     pairing: leaves.pairing,
     hooks: leaves.hooks,
     personalities: leaves.personalities,

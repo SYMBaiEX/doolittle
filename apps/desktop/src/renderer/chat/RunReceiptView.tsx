@@ -2,6 +2,7 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  FileDiff,
   FilePenLine,
   LoaderCircle,
   Minus,
@@ -82,6 +83,7 @@ function stepHasDetails(item: RunActivityItem): boolean {
     item.durationMs !== undefined ||
       item.update.type === "local-mutation" ||
       activity?.command ||
+      activity?.commandDetail ||
       activity?.directory ||
       activity?.paths?.length ||
       activity?.summary ||
@@ -99,6 +101,7 @@ function RunDetail({ item }: { item: RunActivityItem }) {
   const activity = item.activity;
   const mutationPath = mutation?.resolvedPath || mutation?.requestedPath;
   const paths = mutationPath ? [mutationPath] : [...new Set(activity?.paths)];
+  const command = activity?.commandDetail ?? activity?.command;
   return (
     <>
       <dl className="chat-activity-facts">
@@ -148,12 +151,12 @@ function RunDetail({ item }: { item: RunActivityItem }) {
           {activity?.summary || mutation?.message || activity?.title}
         </p>
       ) : null}
-      {activity?.command ? (
+      {command ? (
         <ToolPayload
           copyLabel="Copy command"
           kind="command"
           label="Command"
-          text={activity.command}
+          text={command}
         />
       ) : null}
       {paths?.length ? (
@@ -260,6 +263,7 @@ export function RunReceiptView({
   receipt,
   retryDisabled = false,
   onRetry,
+  onViewChanges,
 }: {
   botName?: string;
   pending: boolean;
@@ -267,6 +271,7 @@ export function RunReceiptView({
   receipt: RunReceipt;
   retryDisabled?: boolean;
   onRetry?: () => void;
+  onViewChanges?: () => void;
 }) {
   const id = useId();
   const state = runReceiptState(receipt);
@@ -284,6 +289,18 @@ export function RunReceiptView({
   }, [pending, terminal]);
 
   const stalled = runIsStalled(receipt, clock, pending);
+  const startedAtMs = Date.parse(run.startedAt);
+  const endedAtMs = Date.parse(run.endedAt ?? run.updatedAt);
+  const elapsedLabel =
+    Number.isFinite(startedAtMs) && (pending || terminal)
+      ? formatRunElapsed(
+          Math.max(
+            0,
+            (terminal && Number.isFinite(endedAtMs) ? endedAtMs : clock) -
+              startedAtMs,
+          ),
+        )
+      : undefined;
   const changedFiles = Array.from(
     new Set(
       (run.localMutations ?? [])
@@ -375,6 +392,11 @@ export function RunReceiptView({
           {displayActivity ? (
             <small title={displayActivity}>{displayActivity}</small>
           ) : null}
+          {elapsedLabel ? (
+            <small title={displayTimestamp(run.startedAt)}>
+              {elapsedLabel}
+            </small>
+          ) : null}
         </span>
         <UiIcon
           className="chat-activity-chevron"
@@ -382,6 +404,16 @@ export function RunReceiptView({
           size="xs"
         />
       </button>
+      {terminal && changedFiles.length > 0 && onViewChanges ? (
+        <button
+          className="chat-activity-copy"
+          onClick={onViewChanges}
+          type="button"
+        >
+          <UiIcon icon={FileDiff} size="xs" />
+          View changes
+        </button>
+      ) : null}
       {recoverable ? (
         <div
           className="chat-activity-warning chat-activity-recovery"
@@ -444,6 +476,16 @@ export function RunReceiptView({
                 <strong>
                   Changed {formatCount(changedFiles.length, "file")}
                 </strong>
+                {onViewChanges ? (
+                  <button
+                    className="chat-activity-copy"
+                    onClick={onViewChanges}
+                    type="button"
+                  >
+                    <UiIcon icon={FileDiff} size="xs" />
+                    View changes
+                  </button>
+                ) : null}
                 <ul>
                   {changedFiles.map((path) => (
                     <li className="chat-activity-path" key={path}>

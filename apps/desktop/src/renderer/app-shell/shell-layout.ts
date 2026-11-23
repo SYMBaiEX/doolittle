@@ -10,8 +10,12 @@ export const WINDOW_DRAGBAR_CLASS =
 export const WINDOW_DRAGBAR_CHAT_CLASS =
   "window-dragbar--chat h-12 basis-12 bg-[var(--bg)]";
 
+// Canvas detaches the sidebar into an overlay, so app-main starts at the
+// window's left edge and its top bar slides under the macOS traffic lights
+// (hiddenInset at {x:18,y:18}). Reserve their width only there; companion
+// keeps the sidebar column as its clearance.
 export const WINDOW_DRAGBAR_PRIMARY_CLASS =
-  "window-dragbar-primary flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4";
+  "window-dragbar-primary flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4 [.platform-darwin.layout-canvas_&]:pl-[92px]";
 
 export const WINDOW_CONTEXT_CLASS =
   "window-context min-w-0 flex-[0_1_auto] overflow-hidden [&_.window-navigation]:flex [&_.window-navigation]:min-w-0 [&_.window-navigation]:items-center [&_.window-navigation]:gap-2 [&_nav]:min-w-0 [&_nav]:overflow-hidden [&_ol]:m-0 [&_ol]:flex [&_ol]:min-w-0 [&_ol]:list-none [&_ol]:items-center [&_ol]:gap-0 [&_ol]:p-0 [&_li]:flex [&_li]:min-w-0 [&_li]:items-center [&_li+li]:before:mx-1.5 [&_li+li]:before:text-[var(--border-strong)] [&_li+li]:before:content-['/'] [&_.window-breadcrumb-section]:shrink-0 [&_.window-breadcrumb-section_button]:border-0 [&_.window-breadcrumb-section_button]:bg-transparent [&_.window-breadcrumb-section_button]:p-0 [&_.window-breadcrumb-section_button]:font-[var(--font-mono)] [&_.window-breadcrumb-section_button]:text-[length:var(--text-meta)] [&_.window-breadcrumb-section_button]:font-bold [&_.window-breadcrumb-section_button]:tracking-[0.1em] [&_.window-breadcrumb-section_button]:text-[var(--text-soft)] [&_.window-breadcrumb-section_button]:uppercase [&_.window-breadcrumb-section_button:hover]:text-[var(--text-soft)] [&_.window-breadcrumb-current]:max-w-64 [&_.window-breadcrumb-current]:truncate [&_.window-breadcrumb-current]:text-[length:var(--text-control)] [&_.window-breadcrumb-current]:font-semibold [&_.window-breadcrumb-current]:text-[var(--text)] [&_.window-breadcrumb-project]:shrink-0 max-[1100px]:[&_.window-breadcrumb-current]:max-w-36 max-[720px]:[&_.window-breadcrumb-section]:hidden max-[560px]:[&_.window-breadcrumb-project]:hidden";

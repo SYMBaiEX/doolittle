@@ -17,6 +17,7 @@ import { checkOllamaReadiness } from "../native/plugin-registry/ollama-readiness
 import {
   getScopedTurnActionResults,
   getScopedTurnContinuationBudget,
+  markScopedTurnMutationObligation,
   recordScopedTurnActionResult,
   resolveScopedTurnActionResult,
   TurnContinuationBudget,
@@ -70,6 +71,7 @@ import {
   incompleteMutationFailure,
   incompleteVerificationScopes,
   incompleteWorkspaceVerificationFailure,
+  isUserDirectedQuestion,
   verifiedWorkspaceNoopResponse,
 } from "./workspace-continuation";
 import {
@@ -143,6 +145,28 @@ function hasPendingApproval(context: AgentExecutionContext, sessionId: string) {
   } catch {
     return false;
   }
+}
+
+function pendingUserInputRequest(
+  context: AgentExecutionContext,
+  sessionId: string,
+) {
+  try {
+    return context.services.inputRequests?.latestPendingForSession(sessionId);
+  } catch {
+    return undefined;
+  }
+}
+
+function awaitingInputSummary(request: {
+  questions: readonly { question: string }[];
+}): string {
+  const questions = request.questions.slice(0, 4);
+  return [
+    `I'm waiting on your answers to ${questions.length} question${questions.length === 1 ? "" : "s"} before I continue:`,
+    ...questions.map((entry, index) => `${index + 1}. ${entry.question}`),
+    "Answer them in the input selector or reply here.",
+  ].join("\n");
 }
 
 function throwIfTurnAborted(signal: AbortSignal | undefined): void {
@@ -304,6 +328,9 @@ export async function executeProviderMessageTurn(
           prompt,
           recentMutationHistory(input.context.services.sessions, sessionId),
         );
+        if (mutationObligation) {
+          markScopedTurnMutationObligation(input.context.runtime);
+        }
         let messageMemory = input.memory;
         let messageResult:
           | Awaited<ReturnType<typeof messageService.handleMessage>>
@@ -486,6 +513,7 @@ export async function executeProviderMessageTurn(
             responseExplicitlyIncomplete || admittedIncomplete !== undefined;
           if (
             managedDelegationFailure(actionResults) ||
+            pendingUserInputRequest(input.context, sessionId) !== undefined ||
             frontendReviewBlockedByUserConstraint(
               actionResults,
               noOpRequirements,
@@ -676,7 +704,50 @@ export async function executeProviderMessageTurn(
           noOpRequirements,
           prompt,
         );
+        // A pending input request or a user-directed question means the agent
+        // is legitimately blocked, not falsely claiming completion. Deliver it
+        // instead of synthesizing a mutation failure; the user answers inline
+        // or replies, and the follow-up turn carries the same obligation.
+        const pendingInputRequest = pendingUserInputRequest(
+          input.context,
+          sessionId,
+        );
+        const awaitingUserInput =
+          !runFailureMessage &&
+          (pendingInputRequest !== undefined ||
+            (mutationObligation &&
+              Boolean(response.trim()) &&
+              isUserDirectedQuestion(response)));
+        if (awaitingUserInput) {
+          if (!response.trim() && pendingInputRequest) {
+            response = awaitingInputSummary(pendingInputRequest);
+          }
+          recordEvaluationTraceEvent(input.context, {
+            category: "turn",
+            event: "turn.awaiting_input",
+            sessionId,
+            runId: input.runId,
+            roomId: input.roomId,
+            source: input.connectionSource,
+            provider: input.settingsDuring.model.provider,
+            model: input.settingsDuring.model.model,
+            text: `[turn:awaiting-input] ${
+              pendingInputRequest
+                ? `input request ${pendingInputRequest.id}`
+                : "question response"
+            } awaiting user input`,
+            metadata: {
+              inputRequestId: pendingInputRequest?.id ?? null,
+              questionCount: pendingInputRequest?.questions.length ?? null,
+              origin: pendingInputRequest
+                ? "input-request"
+                : "question-response",
+              responseChars: response.length,
+            },
+          });
+        }
         if (
+          !awaitingUserInput &&
           mutationObligation &&
           unresolvedInteractiveTextBlocker(
             actionResults,
@@ -697,6 +768,7 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
+          !awaitingUserInput &&
           mutationObligation &&
           frontendReviewBlockedByUserConstraint(
             actionResults,
@@ -709,6 +781,7 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
+          !awaitingUserInput &&
           mutationObligation &&
           !hasVerifiedWorkspaceMutation(actionResults) &&
           !verifiedNoopCompletion
@@ -718,6 +791,7 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
+          !awaitingUserInput &&
           mutationObligation &&
           hasVerifiedWorkspaceMutation(actionResults) &&
           missingWorkspaceMutationRequirements(actionResults, finalRequirements)
@@ -731,6 +805,7 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
+          !awaitingUserInput &&
           mutationObligation &&
           frontendReviewRequired(actionResults, prompt) &&
           !frontendReviewAttempt(actionResults, noOpRequirements, prompt)
@@ -752,6 +827,7 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
+          !awaitingUserInput &&
           mutationObligation &&
           !verifiedNoopCompletion &&
           (admittedIncomplete !== undefined ||
@@ -775,7 +851,12 @@ export async function executeProviderMessageTurn(
         // Mandatory review disclosure makes byte-exact final delivery ineligible.
         // Keep both recovery checks consistent; never suppress the disclosure.
         const allowExactOutput = pendingFrontendReview === undefined;
-        if (!runFailureMessage && !response.trim() && mutationObligation) {
+        if (
+          !runFailureMessage &&
+          !awaitingUserInput &&
+          !response.trim() &&
+          mutationObligation
+        ) {
           const verifiedMutations = actionResults.flatMap((result) =>
             extractLocalMutationsFromActionResult(result).filter(
               (mutation) => result.success === true && mutation.success,

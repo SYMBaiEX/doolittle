@@ -82,6 +82,7 @@ export function ChatMessage({
   actions,
   retryDisabled,
   onRetry,
+  onViewChanges,
 }: {
   message: DisplayMessage;
   botName?: string;
@@ -90,6 +91,7 @@ export function ChatMessage({
   actions: ReactNode;
   retryDisabled?: boolean;
   onRetry?: () => void;
+  onViewChanges?: () => void;
 }) {
   const authorId = useId();
   const timestampId = useId();
@@ -174,6 +176,7 @@ export function ChatMessage({
           <RunReceiptView
             botName={botName}
             onRetry={onRetry}
+            onViewChanges={onViewChanges}
             pending={Boolean(message.pending)}
             progress={progress}
             receipt={receipt}

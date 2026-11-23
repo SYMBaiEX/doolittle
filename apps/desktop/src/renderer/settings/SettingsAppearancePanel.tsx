@@ -31,6 +31,7 @@ import {
   SETTINGS_INLINE_CHOICE_CLASS,
   SETTINGS_THEME_BUTTON_CLASS,
   SETTINGS_THEME_GRID_CLASS,
+  SETTINGS_THEME_HEADING_CLASS,
 } from "./settings-layout";
 
 export function SettingsAppearancePanel({
@@ -69,6 +70,43 @@ export function SettingsAppearancePanel({
   localThemeIds?: readonly string[];
 }) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const themeEntries = themes.map((value, index) => {
+    const entry = asRecord(value);
+    const name = asString(entry.id, asString(entry.name, String(index)));
+    const colors = asRecord(entry.colors);
+    const darkColors = asRecord(colors.dark);
+    const primary = asString(
+      entry.primary,
+      asString(darkColors.accent, "var(--accent)"),
+    );
+    const secondary = asString(
+      entry.secondary,
+      asString(darkColors.accentHover, primary),
+    );
+    const label = asString(entry.label, asString(entry.name, titleCase(name)));
+    const tagline = asString(
+      entry.tagline,
+      asString(entry.description, "Desktop color system"),
+    );
+    const material = asString(entry.material, "flat");
+    // Interface manifests carry an id the host can apply offline; everything
+    // else is a runtime color palette that needs the runtime.
+    const local = localThemeIds
+      ? localThemeIds.includes(name)
+      : Boolean(asString(entry.id));
+    return {
+      darkColors,
+      label,
+      local,
+      material,
+      name,
+      primary,
+      secondary,
+      tagline,
+    };
+  });
+  const interfaceThemes = themeEntries.filter((entry) => entry.local);
+  const colorThemes = themeEntries.filter((entry) => !entry.local);
   return (
     <>
       <WorkbenchSection
@@ -204,131 +242,173 @@ export function SettingsAppearancePanel({
             {themeMigrationError}
           </p>
         ) : null}
-        {active && themesLoading ? (
-          <LoadingBlock label="Loading runtime color themes…" />
+        {interfaceThemes.length ? (
+          <>
+            <div className={SETTINGS_THEME_HEADING_CLASS}>
+              <div className="setting-copy">
+                <strong>Themes</strong>
+                <small>Interface layout and materials.</small>
+              </div>
+            </div>
+            <div
+              className={`${SETTINGS_THEME_GRID_CLASS} settings-workbench-themes`}
+            >
+              {interfaceThemes.map(
+                ({
+                  darkColors,
+                  label,
+                  material,
+                  name,
+                  primary,
+                  secondary,
+                  tagline,
+                }) => {
+                  const selected = activeTheme?.name === name;
+                  return (
+                    <button
+                      aria-label={`${label}: ${tagline}`}
+                      aria-pressed={selected}
+                      className={`${SETTINGS_THEME_BUTTON_CLASS} ${
+                        selected ? "selected" : ""
+                      }`}
+                      key={name}
+                      disabled={themeBusy}
+                      onClick={() => onThemeChange(name)}
+                      title={tagline}
+                      type="button"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="dl-theme-preview"
+                        data-material={material}
+                        style={{
+                          background: asString(
+                            darkColors.background,
+                            "var(--bg)",
+                          ),
+                        }}
+                      >
+                        <span
+                          style={{
+                            background: asString(
+                              darkColors.navigation,
+                              "var(--surface)",
+                            ),
+                          }}
+                        >
+                          <i style={{ background: primary }} />
+                          <i
+                            style={{
+                              background: asString(
+                                darkColors.borderStrong,
+                                "var(--border-strong)",
+                              ),
+                            }}
+                          />
+                          <i
+                            style={{
+                              background: asString(
+                                darkColors.borderStrong,
+                                "var(--border-strong)",
+                              ),
+                            }}
+                          />
+                        </span>
+                        <span className="dl-theme-preview-chat">
+                          <b
+                            style={{
+                              background: asString(
+                                darkColors.secondaryText,
+                                "var(--text-soft)",
+                              ),
+                            }}
+                          />
+                          <b
+                            style={{
+                              background: asString(
+                                darkColors.mutedText,
+                                "var(--muted)",
+                              ),
+                              width: "58%",
+                            }}
+                          />
+                          <b style={{ background: secondary }} />
+                        </span>
+                      </span>
+                      <strong>{label}</strong>
+                      {selected ? <UiIcon icon={Check} size="xs" /> : null}
+                      <span className="dl-theme-description">{tagline}</span>
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          </>
         ) : null}
-        {active && themesError ? (
-          <ErrorBlock error={themesError} retry={onThemeReload} />
-        ) : null}
-        {active && !themesLoading && !themesError && themes.length === 0 ? (
-          <p className="m-0 text-sm text-[var(--text-soft)]" role="status">
-            No color themes are available yet. You can still import a local
-            theme file.
-          </p>
-        ) : null}
-        <div
-          className={`${SETTINGS_THEME_GRID_CLASS} settings-workbench-themes`}
-        >
-          {themes.map((value, index) => {
-            const entry = asRecord(value);
-            const name = asString(
-              entry.id,
-              asString(entry.name, String(index)),
-            );
-            const colors = asRecord(entry.colors);
-            const darkColors = asRecord(colors.dark);
-            const primary = asString(
-              entry.primary,
-              asString(darkColors.accent, "var(--accent)"),
-            );
-            const secondary = asString(
-              entry.secondary,
-              asString(darkColors.accentHover, primary),
-            );
-            const label = asString(
-              entry.label,
-              asString(entry.name, titleCase(name)),
-            );
-            const tagline = asString(
-              entry.tagline,
-              asString(entry.description, "Desktop color system"),
-            );
-            return (
-              <button
-                aria-label={`${label}: ${tagline}`}
-                aria-pressed={activeTheme?.name === name}
-                className={`${SETTINGS_THEME_BUTTON_CLASS} ${
-                  activeTheme?.name === name ? "selected" : ""
-                }`}
-                key={name}
-                disabled={
-                  themeBusy ||
-                  (!active &&
-                    Boolean(localThemeIds) &&
-                    !localThemeIds?.includes(name))
-                }
-                onClick={() => onThemeChange(name)}
-                title={
-                  !active && localThemeIds && !localThemeIds.includes(name)
-                    ? "Start the runtime to apply this theme"
-                    : tagline
-                }
-                type="button"
+        {active || colorThemes.length ? (
+          <>
+            <div className={SETTINGS_THEME_HEADING_CLASS}>
+              <div className="setting-copy">
+                <strong>Colors</strong>
+                <small>Runtime color palettes for the active interface.</small>
+              </div>
+            </div>
+            {active && themesLoading ? (
+              <LoadingBlock label="Loading runtime color themes…" />
+            ) : null}
+            {active && themesError ? (
+              <ErrorBlock error={themesError} retry={onThemeReload} />
+            ) : null}
+            {active &&
+            !themesLoading &&
+            !themesError &&
+            colorThemes.length === 0 ? (
+              <p className="m-0 text-sm text-[var(--text-soft)]" role="status">
+                No color themes are available yet. You can still import a local
+                theme file.
+              </p>
+            ) : null}
+            {colorThemes.length ? (
+              <div
+                className={`${SETTINGS_THEME_GRID_CLASS} settings-workbench-colors`}
               >
-                <span
-                  aria-hidden="true"
-                  className="dl-theme-preview"
-                  data-material={asString(entry.material, "flat")}
-                  style={{
-                    background: asString(darkColors.background, "var(--bg)"),
-                  }}
-                >
-                  <span
-                    style={{
-                      background: asString(
-                        darkColors.navigation,
-                        "var(--surface)",
-                      ),
-                    }}
-                  >
-                    <i style={{ background: primary }} />
-                    <i
-                      style={{
-                        background: asString(
-                          darkColors.borderStrong,
-                          "var(--border-strong)",
-                        ),
-                      }}
-                    />
-                    <i
-                      style={{
-                        background: asString(
-                          darkColors.borderStrong,
-                          "var(--border-strong)",
-                        ),
-                      }}
-                    />
-                  </span>
-                  <span className="dl-theme-preview-chat">
-                    <b
-                      style={{
-                        background: asString(
-                          darkColors.secondaryText,
-                          "var(--text-soft)",
-                        ),
-                      }}
-                    />
-                    <b
-                      style={{
-                        background: asString(
-                          darkColors.mutedText,
-                          "var(--muted)",
-                        ),
-                        width: "58%",
-                      }}
-                    />
-                    <b style={{ background: secondary }} />
-                  </span>
-                </span>
-                <strong>{label}</strong>
-                {activeTheme?.name === name ? (
-                  <UiIcon icon={Check} size="xs" />
-                ) : null}
-                <span className="dl-theme-description">{tagline}</span>
-              </button>
-            );
-          })}
-        </div>
+                {colorThemes.map(
+                  ({ label, name, primary, secondary, tagline }) => {
+                    const selected = activeTheme?.name === name;
+                    return (
+                      <button
+                        aria-label={`${label}: ${tagline}`}
+                        aria-pressed={selected}
+                        className={`${SETTINGS_THEME_BUTTON_CLASS} dl-color-choice ${
+                          selected ? "selected" : ""
+                        }`}
+                        key={name}
+                        disabled={themeBusy || !active}
+                        onClick={() => onThemeChange(name)}
+                        title={
+                          !active
+                            ? "Start the runtime to apply this theme"
+                            : tagline
+                        }
+                        type="button"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="dl-color-swatch"
+                          style={{
+                            background: `linear-gradient(105deg, ${primary} 0 55%, ${secondary} 55% 100%)`,
+                          }}
+                        />
+                        <strong>{label}</strong>
+                        {selected ? <UiIcon icon={Check} size="xs" /> : null}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </WorkbenchSection>
     </>
   );

@@ -243,7 +243,7 @@ export function SettingsTabs({
 }) {
   return (
     <PanelTabList
-      className="dl-settings-tabs p-0"
+      className="dl-settings-tabs"
       items={items.map((item) => ({
         id: item.id,
         label: item.label,

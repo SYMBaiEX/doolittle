@@ -13,6 +13,7 @@ import { MediaService } from "../../media";
 import { PersonalityService } from "../../personality-service";
 import { TerminalService } from "../../terminal/service";
 import { TrajectoryEvaluationService } from "../../trajectory/service";
+import { UserInputRequestService } from "../../user-input/service";
 import { createSdkRenderedCapturePort } from "../../web/rendered-capture";
 import { WebService } from "../../web/service";
 import { WorkspaceService } from "../../workspace-service/index";
@@ -80,6 +81,7 @@ export function createServiceConstructionLeaves(params: {
     executionApprovals: new ExecutionApprovalService(
       directories.gatewayApprovalDir,
     ),
+    inputRequests: new UserInputRequestService(directories.inputRequestsDir),
     pairing: new GatewayPairingProjection(
       Object.keys(gatewayConfig.platforms) as Array<
         keyof ServiceBootstrapState["gatewayConfig"]["platforms"]

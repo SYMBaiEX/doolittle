@@ -9,7 +9,7 @@ import {
   FileText,
   ListEnd,
   LoaderCircle,
-  Paperclip,
+  Plus,
   Square,
   X,
 } from "lucide-react";
@@ -36,6 +36,7 @@ import {
   ComposerProjectSelector,
 } from "../components/ComposerSelectors";
 import { InlineApprovalPanel } from "../components/InlineApprovalPanel";
+import { InlineInputRequestPanel } from "../components/InlineInputRequestPanel";
 import { UiIcon } from "../components/UiIcon";
 import {
   VoiceComposerButton,
@@ -65,6 +66,7 @@ import {
 } from "./reusable-completion";
 
 import { pendingApprovalsForSession } from "./session-approvals";
+import { pendingInputRequestsForSession } from "./session-input-requests";
 import "./composer-design.css";
 
 /** Border-box approval allowance from actual chrome, never empty-track slack. */
@@ -135,6 +137,8 @@ export interface ChatComposerProps {
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
   onSubmit: (event?: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  /** Sends a selector-submitted answer as the user's next message. */
+  onSendAnswers?: (text: string) => boolean | Promise<boolean>;
   composerRef: RefObject<HTMLTextAreaElement | null>;
   queueRef: RefObject<HTMLDivElement | null>;
   queuedMessages: PersistedQueuedMessage[];
@@ -206,6 +210,7 @@ export function ChatComposer({
   draft,
   setDraft,
   onSubmit,
+  onSendAnswers,
   composerRef,
   queueRef,
   queuedMessages,
@@ -262,6 +267,18 @@ export function ChatComposer({
     selectedId,
   );
   const pendingApprovals = approvals.length;
+  const inputRequestsEnabled =
+    approvalsEnabled && typeof onSendAnswers === "function";
+  const inputRequestsResource = useApiResource<{ requests?: unknown[] }>(
+    inputRequestsEnabled ? "/execution/input-requests?status=pending" : null,
+    [inputRequestsEnabled],
+    approvalBotId,
+  );
+  useVisibleInterval(inputRequestsResource.reload, 5_000, inputRequestsEnabled);
+  const inputRequests = pendingInputRequestsForSession(
+    inputRequestsResource.data?.requests,
+    selectedId,
+  );
   const formRef = useRef<HTMLFormElement>(null);
   const [approvalHeightBudget, setApprovalHeightBudget] = useState<
     number | null
@@ -555,6 +572,15 @@ export function ChatComposer({
           compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
           resource={approvalResource}
           roomId={selectedId}
+        />
+        <InlineInputRequestPanel
+          active={inputRequestsEnabled}
+          botId={approvalBotId}
+          disabled={Boolean(activeRequest)}
+          onPrefillDraft={(text) => setDraft(text)}
+          onSendAnswers={onSendAnswers ?? (() => false)}
+          requests={inputRequests}
+          resource={inputRequestsResource}
         />
       </div>
       {showOperationalStatus ? (
@@ -972,8 +998,8 @@ export function ChatComposer({
             variant="secondary"
           >
             <UiIcon
-              icon={attachmentImporting ? LoaderCircle : Paperclip}
-              size="sm"
+              icon={attachmentImporting ? LoaderCircle : Plus}
+              size="md"
               className={
                 attachmentImporting
                   ? "animate-spin motion-reduce:animate-none"
@@ -1002,12 +1028,6 @@ export function ChatComposer({
               <UiIcon icon={Ellipsis} size="md" />
             </summary>
             <div className="chat-composer-tool-menu">
-              <VoiceComposerButton
-                disabled={backend.phase !== "ready"}
-                presentationActive={approvalsVisible}
-                importAndTranscribe={importAndTranscribeRecording}
-                onTranscript={insertDictationTranscript}
-              />
               <PromptLibrary
                 namespace={selectedId}
                 activeProject={activeProject}
@@ -1018,22 +1038,14 @@ export function ChatComposer({
               />
             </div>
           </details>
-        </div>
-        <div className="chat-composer-config">
           <div
             className="chat-composer-routing"
             data-has-project={workspaceSelector ? "true" : undefined}
           >
             {workspaceSelector}
-            <ComposerModelSelector
-              bot={bot && !bot.isDefault ? bot : undefined}
-              active={backend.phase === "ready"}
-              onOpenModelsPage={onOpenModelsPage}
-              onOpenProvidersPage={onOpenProvidersPage}
-              refreshRuntime={refreshRuntime}
-              runtime={runtime}
-            />
           </div>
+        </div>
+        <div className="chat-composer-dispatch">
           {canInspectContext ? (
             <ElizaButton
               aria-controls={controlId("chat-composer-details")}
@@ -1052,8 +1064,20 @@ export function ChatComposer({
               </span>
             </ElizaButton>
           ) : null}
-        </div>
-        <div className="chat-composer-dispatch">
+          <ComposerModelSelector
+            bot={bot && !bot.isDefault ? bot : undefined}
+            active={backend.phase === "ready"}
+            onOpenModelsPage={onOpenModelsPage}
+            onOpenProvidersPage={onOpenProvidersPage}
+            refreshRuntime={refreshRuntime}
+            runtime={runtime}
+          />
+          <VoiceComposerButton
+            disabled={backend.phase !== "ready"}
+            presentationActive={approvalsVisible}
+            importAndTranscribe={importAndTranscribeRecording}
+            onTranscript={insertDictationTranscript}
+          />
           {activeRequest && canQueue && !isCancellingActive ? (
             <ElizaButton
               aria-label="Queue message"
@@ -1108,20 +1132,15 @@ export function ChatComposer({
                     ? Square
                     : ArrowUp
               }
-              size="sm"
+              size="md"
             />
-            <span className="chat-composer-action-label">
+            <span className="chat-composer-action-label sr-only">
               {isCancellingActive
                 ? "Stopping…"
                 : activeRequest
                   ? "Stop"
                   : "Send"}
             </span>
-            {!activeRequest && canSubmit ? (
-              <span aria-hidden="true" className="chat-composer-submit-key">
-                ↵
-              </span>
-            ) : null}
           </ElizaButton>
         </div>
       </div>

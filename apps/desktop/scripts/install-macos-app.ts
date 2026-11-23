@@ -12,7 +12,14 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -21,6 +28,7 @@ const verifierPath = fileURLToPath(
 );
 const bundleIdentifier = "ai.doolittle.desktop";
 const releaseTeamIdentifier = "3VZKJ253J2";
+const defaultNotaryProfile = "doolittle-notary";
 const teamIdentifierPattern = /^[A-Z0-9]{10}$/u;
 
 type FileSystem = Pick<
@@ -48,6 +56,9 @@ export type MacOSInstallOptions = {
   allowAdHoc?: boolean;
   destination?: string;
   fileSystem?: FileSystem;
+  notarize?: boolean;
+  notarizeApp?: (appBundlePath: string, profile: string) => void;
+  notaryProfile?: string;
   prepareTrust?: (
     appBundlePath: string,
     trustMode: MacOSInstallTrustMode,
@@ -396,6 +407,44 @@ function defaultPrepareTrust(
   }
 }
 
+function defaultNotarizeApp(appBundlePath: string, profile: string): void {
+  if (
+    spawnSync("xcrun", ["stapler", "validate", appBundlePath], {
+      encoding: "utf8",
+    }).status === 0
+  )
+    return;
+  const zipPath = join(
+    dirname(appBundlePath),
+    `${basename(appBundlePath, ".app")}.zip`,
+  );
+  try {
+    console.log(
+      `Notarizing ${appBundlePath} with keychain profile "${profile}".`,
+    );
+    runRequired(
+      "ditto",
+      ["-c", "-k", "--keepParent", appBundlePath, zipPath],
+      appBundlePath,
+    );
+    runRequired(
+      "xcrun",
+      [
+        "notarytool",
+        "submit",
+        zipPath,
+        "--keychain-profile",
+        profile,
+        "--wait",
+      ],
+      appBundlePath,
+    );
+    runRequired("xcrun", ["stapler", "staple", appBundlePath], appBundlePath);
+  } finally {
+    rmSync(zipPath, { force: true });
+  }
+}
+
 function signedLocalTrust(
   teamIdentifier: string | undefined,
 ): MacOSInstallTrust {
@@ -608,6 +657,7 @@ export function installMacOSApp(
   const failure = uniqueSiblingPath(paths.destinationParent, "failure");
   const lock = lockPath(paths.destinationParent);
   const verifyPackage = options.verifyPackage ?? defaultVerifyPackage;
+  const notarizeApp = options.notarizeApp ?? defaultNotarizeApp;
   const verifyTrust = options.verifyTrust ?? defaultVerifyTrust;
   const prepareTrust =
     options.prepareTrust ??
@@ -660,7 +710,14 @@ export function installMacOSApp(
         protectSignedDestination(paths.destination, trust, readSignature);
       }
     }
-    if (trust.mode !== "ad-hoc") verifyAppTrust(paths.source);
+    if (trust.mode !== "ad-hoc") {
+      if (options.notarize && trust.mode === "release")
+        notarizeApp(
+          paths.source,
+          options.notaryProfile ?? defaultNotaryProfile,
+        );
+      verifyAppTrust(paths.source);
+    }
     if (process.platform === "darwin" && !options.fileSystem) {
       copyMacOSApp(paths.source, stage);
     } else {
@@ -783,6 +840,12 @@ function main(): void {
   const args = process.argv.slice(2);
   const result = installMacOSApp({
     allowAdHoc: args.includes("--allow-ad-hoc"),
+    notarize: args.includes("--notarize"),
+    notaryProfile: argumentValue(
+      args,
+      "--notary-profile",
+      "a notarytool keychain profile",
+    ),
     source: argumentValue(args, "--source"),
     destination: argumentValue(args, "--destination"),
     teamIdentifier: argumentValue(args, "--team-id", "an Apple Team ID"),

@@ -30,6 +30,17 @@
   gap: 10px;
 }
 
+.settings-workbench-section .settings-workbench-colors {
+  grid-template-columns: repeat(auto-fill, minmax(min(152px, 100%), 1fr));
+}
+
+.settings-workbench-section .dl-color-swatch {
+  inline-size: 22px;
+  block-size: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
 .settings-workbench-section .dl-theme-preview {
   min-block-size: clamp(52px, 7cqi, 88px);
 }

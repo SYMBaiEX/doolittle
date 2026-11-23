@@ -347,6 +347,164 @@ it("shows structured exit metadata and copies the full selected output without f
   expect(writeText).toHaveBeenCalledExactlyOnceWith(stdout);
 });
 
+it("recovers shell streams from an ActionResult text blob", async () => {
+  const command: ToolActivity = {
+    id: "shell-text",
+    name: "TERMINAL_SHELL",
+    status: "completed",
+    input: { command: "pnpm install" },
+    output: {
+      success: true,
+      text: [
+        "Command: cd /path && pnpm install",
+        "Exit code: 0",
+        "Timed out: no",
+        "STDOUT:",
+        "added 42 packages",
+        "STDERR:",
+        "warning: deprecated catalog",
+      ].join("\n"),
+    },
+  };
+  expect(toolActivityDetails(command)).toMatchObject({
+    command: "pnpm install",
+    exitCode: 0,
+    stdout: "added 42 packages",
+    stderr: "warning: deprecated catalog",
+    timedOut: false,
+    status: "completed",
+  });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[command]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Shell command details").click());
+  expect(
+    host.querySelector('section[aria-label="Standard output"]')?.textContent,
+  ).toBe("added 42 packages");
+  expect(
+    host.querySelector('section[aria-label="Standard error"]')?.textContent,
+  ).toBe("warning: deprecated catalog");
+  await act(async () => button("Copy output").click());
+  expect(writeText).toHaveBeenCalledExactlyOnceWith("added 42 packages");
+});
+
+it("surfaces timeout metadata and incomplete output from the text blob", () => {
+  const command: ToolActivity = {
+    id: "shell-timeout",
+    name: "TERMINAL_SHELL",
+    status: "completed",
+    input: { command: "pnpm install" },
+    output: {
+      success: true,
+      text: [
+        "Command: cd /path && pnpm install",
+        "Exit code: 124",
+        "Timed out: yes (30000 ms limit); output below is incomplete",
+        "STDOUT:",
+        "partial install logs",
+        "STDERR:",
+        "",
+      ].join("\n"),
+    },
+  };
+  expect(toolActivityDetails(command)).toMatchObject({
+    exitCode: 124,
+    timedOut: true,
+    duration: "30 s",
+    stdout: "partial install logs",
+    truncated: true,
+    status: "error",
+  });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[command]} />),
+  );
+  act(() => button("Tool activity").click());
+  const row = button("Show Shell command details");
+  expect(row.textContent).toContain("Exit 124");
+  expect(row.dataset.toolStatus).toBe("error");
+  act(() => row.click());
+  expect(host.textContent).toContain("Command timed out.");
+  expect(
+    host.querySelector('section[aria-label="Standard output"]')?.textContent,
+  ).toBe("partial install logs");
+});
+
+it("tail-bounds captured stream text and marks it truncated", () => {
+  const command: ToolActivity = {
+    id: "shell-huge",
+    name: "TERMINAL_SHELL",
+    status: "completed",
+    input: { command: "build" },
+    output: {
+      success: true,
+      text: `Command: build\nExit code: 0\nSTDOUT:\nhead ${"x".repeat(
+        10_000,
+      )} TAIL\nSTDERR:\n`,
+    },
+  };
+  const details = toolActivityDetails(command);
+  expect(details.truncated).toBe(true);
+  expect(details.stdout?.startsWith("… (truncated)\n")).toBe(true);
+  expect(details.stdout?.endsWith(" TAIL")).toBe(true);
+  expect(details.stdout?.includes("head")).toBe(false);
+  expect(details.stdout?.length).toBeLessThan(8_300);
+});
+
+it("shows result text and file paths for non-shell actions", () => {
+  const read: ToolActivity = {
+    id: "read",
+    name: "READ_FILE",
+    status: "completed",
+    input: { path: "src/index.ts" },
+    output: { success: true, text: "export const value = 1;\n" },
+  };
+  const write: ToolActivity = {
+    id: "write",
+    name: "WRITE_FILE",
+    status: "completed",
+    output: { data: { path: "src/created.ts" }, success: true },
+  };
+  expect(toolActivityDetails(read)).toMatchObject({
+    target: "src/index.ts",
+    output: "export const value = 1;\n",
+  });
+  expect(toolActivityDetails(write)).toMatchObject({
+    target: "src/created.ts",
+  });
+  act(() => root.render(<ToolActivityGroup pending={false} tools={[read]} />));
+  act(() => button("Tool activity").click());
+  act(() => button("Show Reading file details").click());
+  expect(host.querySelector('section[aria-label="Result"]')?.textContent).toBe(
+    "export const value = 1;\n",
+  );
+});
+
+it("renders an error block for failed actions carrying a text blob", () => {
+  const failure: ToolActivity = {
+    id: "failed",
+    name: "WRITE_FILE",
+    status: "error",
+    error: "Write failed.",
+    output: {
+      success: false,
+      text: "Error: permission denied\n  at writeFile (fs.ts:12)",
+    },
+  };
+  const details = toolActivityDetails(failure);
+  expect(details.status).toBe("error");
+  expect(details.error).toContain("permission denied");
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[failure]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Writing file details").click());
+  expect(host.textContent).toContain("Write failed.");
+  expect(
+    host.querySelector('section[aria-label="Error"]')?.textContent,
+  ).toContain("permission denied");
+});
+
 it("renders an explicit tool diff without modifying the captured patch", async () => {
   const diff = "--- a/index.ts\n+++ b/index.ts\n@@ -1 +1 @@\n-before\n+after\n";
   const edit: ToolActivity = {

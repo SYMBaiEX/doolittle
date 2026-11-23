@@ -39,6 +39,7 @@ import type { StartupStateService } from "../../startup-state-service";
 import type { TerminalService } from "../../terminal/service";
 import type { CapabilityCatalogService } from "../../tools/service";
 import type { TrajectoryEvaluationService } from "../../trajectory/service";
+import type { UserInputRequestService } from "../../user-input/service";
 import type { UserProfileService } from "../../user-profile/service";
 import type { WebService } from "../../web/service";
 import type { WorkspaceService } from "../../workspace-service/index";
@@ -70,6 +71,7 @@ export interface ServiceAssemblyEager {
   logger: LoggerService;
   gatewaySessions: GatewaySessionService;
   executionApprovals: ExecutionApprovalService;
+  inputRequests: UserInputRequestService;
   delivery: DeliveryService;
   gatewayConfig: ServiceBootstrapState["gatewayConfig"];
   personalities: PersonalityService;
@@ -178,6 +180,7 @@ export interface ServiceConstructionState {
   delivery: DeliveryService;
   gatewaySessions: GatewaySessionService;
   executionApprovals: ExecutionApprovalService;
+  inputRequests: UserInputRequestService;
   pairing: GatewayPairingProjection;
   hooks: HookProjectionService;
   personalities: PersonalityService;

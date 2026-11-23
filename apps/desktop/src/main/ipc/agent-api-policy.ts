@@ -270,6 +270,17 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
           "expired",
         ]),
     },
+    {
+      exact: "/execution/input-requests",
+      allowedQueries: ["status", "roomId"],
+      validateQuery: (query) =>
+        validateEnumQuery(query, "status", [
+          "pending",
+          "answered",
+          "dismissed",
+          "superseded",
+        ]),
+    },
     { exact: "/skills" },
     { exact: "/skills/summary" },
     { exact: "/skills/installed" },
@@ -656,6 +667,13 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         matchesResourceActionPath(pathname, "/execution/approvals", [
           "approve",
           "deny",
+        ]),
+    },
+    {
+      predicate: (pathname) =>
+        matchesResourceActionPath(pathname, "/execution/input-requests", [
+          "answer",
+          "dismiss",
         ]),
     },
     { exact: "/plans/create" },

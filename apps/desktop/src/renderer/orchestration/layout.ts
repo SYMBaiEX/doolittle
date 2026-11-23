@@ -6,7 +6,7 @@ const DETAIL_CODE =
 
 const ORCHESTRATION_CLASS = {
   "orchestration-page":
-    "page orchestration-page relative flex h-full min-h-0 w-full flex-col gap-0 overflow-hidden bg-[var(--bg)] p-0",
+    "orchestration-page relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--bg)]",
   "orchestration-header":
     "orchestration-header flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] bg-transparent px-4 py-3 [&>div:first-child]:min-w-0 [&_.eyebrow]:text-[length:var(--text-meta)] [&_.eyebrow]:text-[var(--muted)] [&_h1]:m-0 [&_h1]:font-[var(--font-display)] [&_h1]:text-[length:var(--text-section)] [&_h1]:font-semibold [&_p]:mt-1 [&_p]:mb-0 [&_p]:text-[length:var(--text-control)] [&_p]:leading-[1.5] [&_p]:text-[var(--muted)] max-[680px]:px-3",
   "orchestration-header-metrics":
@@ -22,13 +22,13 @@ const ORCHESTRATION_CLASS = {
   "orchestration-command-bar":
     "orchestration-command-bar flex flex-wrap items-center gap-2 max-[680px]:w-full [&_button]:min-h-10 [&_button]:px-3 [&_button]:py-2 [&_button]:text-[length:var(--text-control)] max-[680px]:[&_button]:min-h-11",
   "orchestration-queue-starter":
-    "orchestration-queue-starter mx-3 mt-3 mb-2 flex min-h-14 max-w-[640px] shrink-0 items-start gap-2.5 bg-transparent px-1 py-2 [&>.eyebrow]:shrink-0 [&>.eyebrow]:pt-px [&>.eyebrow]:text-[length:var(--text-meta)] [&>.eyebrow]:text-[var(--accent-text)] [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]",
+    "orchestration-queue-starter flex min-h-14 min-w-0 shrink-0 items-start gap-2.5 bg-transparent px-3 py-2 [&>.eyebrow]:shrink-0 [&>.eyebrow]:pt-px [&>.eyebrow]:text-[length:var(--text-meta)] [&>.eyebrow]:text-[var(--accent-text)] [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]",
   "orchestration-quick-create": `orchestration-quick-create grid shrink-0 grid-cols-[minmax(160px,0.7fr)_minmax(240px,1.2fr)_repeat(4,minmax(92px,0.45fr))_auto] items-end gap-1.75 border-[var(--border)] border-b bg-[var(--surface)] px-3 py-2.25  max-[1400px]:grid-cols-4 max-[1180px]:grid-cols-3 max-[900px]:grid-cols-2 max-[680px]:max-h-[52vh] max-[680px]:grid-cols-1 max-[680px]:overflow-auto max-[900px]:[&_.quick-title]:col-span-full max-[900px]:[&_.quick-objective]:col-span-full max-[900px]:[&_.quick-create-actions]:col-span-full ${FORM_LABEL} [&_input]:min-h-10 [&_input]:w-full [&_input]:px-1.75 [&_input]:py-1 [&_input]:text-[length:var(--text-control)] [&_select]:min-h-10 [&_select]:w-full [&_select]:px-1.75 [&_select]:py-1 [&_select]:text-[length:var(--text-control)]`,
   "quick-create-actions":
     "quick-create-actions flex items-center gap-1.75 pb-px max-[680px]:[&>button]:flex-1",
   "orchestration-task-routing-note":
     "orchestration-task-routing-note col-span-full m-0 text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]",
-  "orchestration-panel": "orchestration-panel min-h-0 flex-1 overflow-hidden",
+  "orchestration-panel": "orchestration-panel min-h-0 min-w-0 flex-1",
   "orchestration-loading":
     "grid h-full min-h-48 place-items-center p-6 text-xs text-[var(--muted)]",
   "orchestration-master-detail":
@@ -72,13 +72,13 @@ const ORCHESTRATION_CLASS = {
   "orchestration-task-rail-meta":
     "orchestration-task-rail-meta block truncate text-[length:var(--text-meta)] leading-[1.25] text-[var(--muted)]",
   "orchestration-detail":
-    "orchestration-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-4 pt-3 pb-4 max-[680px]:min-h-95 max-[680px]:overflow-visible [&>*]:w-[min(100%,1080px)]",
+    "orchestration-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-4 pt-3 pb-4 max-[680px]:min-h-95 max-[680px]:overflow-visible",
   "orchestration-detail-header":
-    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 pb-1.5 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[length:var(--text-control)] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
+    "orchestration-detail-header flex min-w-0 items-start justify-between gap-3.5 pb-1.5 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[length:var(--text-control)] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
   "detail-kicker":
     "detail-kicker block font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.09em] text-[var(--accent-text)] uppercase",
   "orchestration-detail-tags":
-    "orchestration-detail-tags flex max-w-225 flex-wrap items-center gap-1.5 px-0 pt-2.5 pb-0.5 max-[680px]:items-start",
+    "orchestration-detail-tags flex min-w-0 flex-wrap items-center gap-1.5 px-0 pt-2.5 pb-0.5 max-[680px]:items-start",
   "orchestration-detail-facts": "orchestration-detail-facts items-center",
   "orchestration-detail-tag":
     "orchestration-detail-tag inline-flex min-h-5 items-center rounded-full border border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[color-mix(in_srgb,var(--surface-soft)_70%,transparent)] px-2 py-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]",
@@ -87,7 +87,7 @@ const ORCHESTRATION_CLASS = {
   bad: "bad border-[color-mix(in_srgb,var(--bad)_34%,var(--border))]",
   neutral: "neutral",
   "orchestration-action-card":
-    "orchestration-action-card mt-4 grid max-w-225 gap-3 border-y border-[var(--border)] bg-transparent py-4",
+    "orchestration-action-card mt-4 grid min-w-0 gap-3 border-y border-[var(--border)] bg-transparent py-4",
   "orchestration-action-deck":
     "orchestration-action-deck flex flex-wrap items-start justify-start gap-3 p-0 [&_button]:min-h-10 [&_button]:px-3 [&_button]:py-2 [&_button]:text-[length:var(--text-control)] max-[680px]:[&_button]:min-h-11",
   "orchestration-action-main":
@@ -104,7 +104,7 @@ const ORCHESTRATION_CLASS = {
     "orchestration-run-confirm mt-2.5 mb-0 border-[color-mix(in_srgb,var(--bad)_34%,var(--border))]",
   "orchestration-inline-form": `orchestration-inline-form grid grid-cols-[minmax(140px,0.4fr)_minmax(240px,1fr)_minmax(180px,0.55fr)_auto] items-end gap-2 border-[var(--border)] border-b bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] p-3 max-[900px]:grid-cols-2 max-[900px]:[&_.inline-form-wide]:col-span-full ${FORM_LABEL} [&_input]:w-full [&_select]:w-full`,
   "orchestration-detail-grid":
-    "orchestration-detail-grid grid max-w-245 grid-cols-[minmax(240px,0.62fr)_minmax(300px,1.38fr)] gap-5 py-3 max-[900px]:grid-cols-1 [&>dl]:m-0 [&>dl]:grid [&>dl]:content-start [&>dl]:gap-0.5",
+    "orchestration-detail-grid grid min-w-0 grid-cols-[minmax(240px,0.62fr)_minmax(300px,1.38fr)] gap-5 py-3 max-[900px]:grid-cols-1 [&>dl]:m-0 [&>dl]:grid [&>dl]:content-start [&>dl]:gap-0.5",
   "orchestration-detail-row":
     "orchestration-detail-row grid min-w-0 grid-cols-[minmax(88px,0.4fr)_minmax(0,1fr)] gap-3 rounded-[var(--radius-xs)] px-1 py-2 [&_dt]:font-[var(--font-mono)] [&_dt]:text-[length:var(--text-meta)] [&_dt]:text-[var(--muted)] [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:text-[length:var(--text-control)] [&_dd]:leading-[1.4] [&_dd]:text-[var(--text-soft)] [&_dd]:[overflow-wrap:anywhere]",
   "orchestration-mini-dl":
@@ -116,9 +116,9 @@ const ORCHESTRATION_CLASS = {
     "orchestration-empty-line m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]",
   "orchestration-note-composer": `orchestration-note-composer grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 pt-1 max-[680px]:grid-cols-1 ${FORM_LABEL} [&_textarea]:min-h-13 [&_textarea]:w-full [&_textarea]:resize-y`,
   "orchestration-task-diagnostics":
-    "orchestration-task-diagnostics group mt-3.5 max-w-225 border-[var(--border)] border-b [&>summary]:grid [&>summary]:min-h-9.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:grid-cols-[minmax(0,1fr)_auto_14px] [&>summary]:items-center [&>summary]:gap-3 [&>summary]:px-0 [&>summary]:py-2 [&>summary]:text-[var(--text-soft)] [&>summary::-webkit-details-marker]:hidden [&>summary>span]:grid [&>summary>span]:gap-0.5 [&>summary_strong]:text-[length:var(--text-meta)] [&>summary_strong]:text-[var(--text)] [&>summary_small]:font-[var(--font-mono)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary_small]:leading-[1.35] [&>summary_small]:text-[var(--muted)] [&>summary]:after:text-right [&>summary]:after:font-[var(--font-mono)] [&>summary]:after:text-sm [&>summary]:after:leading-none [&>summary]:after:text-[var(--muted)] [&>summary]:after:content-['+'] group-open:[&>summary]:after:content-['−'] [&>dl]:m-0 [&>dl]:grid [&>dl]:grid-cols-2 [&>dl]:border-[color-mix(in_srgb,var(--border)_70%,transparent)] [&>dl]:border-t [&>dl]:pt-0 [&>dl]:pb-2.5 max-[900px]:[&>dl]:grid-cols-1 [&_.orchestration-detail-row]:py-1.75 [&_.orchestration-detail-row]:pr-2.5",
+    "orchestration-task-diagnostics group mt-3.5 min-w-0 border-[var(--border)] border-b [&>summary]:grid [&>summary]:min-h-9.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:grid-cols-[minmax(0,1fr)_auto_14px] [&>summary]:items-center [&>summary]:gap-3 [&>summary]:px-0 [&>summary]:py-2 [&>summary]:text-[var(--text-soft)] [&>summary::-webkit-details-marker]:hidden [&>summary>span]:grid [&>summary>span]:gap-0.5 [&>summary_strong]:text-[length:var(--text-meta)] [&>summary_strong]:text-[var(--text)] [&>summary_small]:font-[var(--font-mono)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary_small]:leading-[1.35] [&>summary_small]:text-[var(--muted)] [&>summary]:after:text-right [&>summary]:after:font-[var(--font-mono)] [&>summary]:after:text-sm [&>summary]:after:leading-none [&>summary]:after:text-[var(--muted)] [&>summary]:after:content-['+'] group-open:[&>summary]:after:content-['−'] [&>dl]:m-0 [&>dl]:grid [&>dl]:grid-cols-2 [&>dl]:border-[color-mix(in_srgb,var(--border)_70%,transparent)] [&>dl]:border-t [&>dl]:pt-0 [&>dl]:pb-2.5 max-[900px]:[&>dl]:grid-cols-1 [&_.orchestration-detail-row]:py-1.75 [&_.orchestration-detail-row]:pr-2.5",
   "orchestration-task-workspace":
-    "orchestration-task-workspace grid max-w-225 grid-cols-[minmax(220px,0.78fr)_minmax(260px,1.22fr)] gap-4 pt-4 max-[900px]:grid-cols-1",
+    "orchestration-task-workspace grid min-w-0 grid-cols-[minmax(220px,0.78fr)_minmax(260px,1.22fr)] gap-4 pt-4 max-[900px]:grid-cols-1",
   "orchestration-health-strip":
     "orchestration-health-strip grid grid-cols-3 gap-0 border-[var(--border)] border-b bg-[var(--border)] px-2 py-1.5 [&_span]:bg-[var(--surface)] [&_span]:px-1.5 [&_span]:py-1.75 [&_span]:text-center [&_span]:text-[length:var(--text-meta)] [&_span]:text-[var(--muted)] [&_strong]:text-[var(--text)]",
   "orchestration-signal-grid":
@@ -149,7 +149,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-run-list": "orchestration-run-list min-h-0 max-h-none flex-1",
   "orchestration-run-detail": "orchestration-run-detail",
   "orchestration-run-toolbar":
-    "orchestration-run-toolbar flex max-w-245 items-center justify-between gap-3 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2 text-[length:var(--text-meta)] text-[var(--muted)] max-[680px]:flex-col max-[680px]:items-start",
+    "orchestration-run-toolbar flex min-w-0 items-center justify-between gap-3 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2 text-[length:var(--text-meta)] text-[var(--muted)] max-[680px]:flex-col max-[680px]:items-start",
   "orchestration-run-actions":
     "orchestration-run-actions flex items-center gap-1.75",
   "orchestration-bundle-receipt": `orchestration-bundle-receipt my-3 grid grid-cols-[auto_minmax(160px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--good)_28%,var(--border))] bg-[var(--good-soft)] p-2.5 text-[length:var(--text-meta)] text-[var(--muted)] max-[680px]:grid-cols-1 [&_strong]:text-[var(--good)] ${DETAIL_CODE}`,

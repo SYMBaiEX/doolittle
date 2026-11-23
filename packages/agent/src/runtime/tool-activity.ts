@@ -5,6 +5,7 @@ import type { RunToolActivity } from "@doolittle/contracts/run";
 import type { ActionResult } from "@elizaos/core";
 import { isSensitiveKeyName, redactWithSecrets } from "@elizaos/core/protocol";
 import { isRecord } from "../utils/records";
+import { sanitizeTerminalText } from "../utils/terminal-text";
 import { inspectWorkspaceCommands } from "../utils/workspace-commands";
 import {
   extractCommandResultFromActionResult,
@@ -13,8 +14,10 @@ import {
 } from "./action-result-metadata";
 
 const MAX_COMMAND = 512;
+const MAX_OUTPUT = 4 * 1024;
 const MAX_PATH = 768;
 const MAX_PATHS = 4;
+const UNSAFE_TEXT = /[\p{Cc}\u202a-\u202e\u2066-\u2069]/u;
 const SAFE_PROGRAM =
   /^(?:bun|cargo|cat|cd|curl|find|git|go|grep|ls|make|node|npm|nub|pnpm|python3?|rg|sed|sh|yarn|zsh)$/u;
 const READ_COMMAND =
@@ -22,23 +25,33 @@ const READ_COMMAND =
 const KNOWN_CHECK =
   /^(?:build|test|check|lint|typecheck|type-check|validate|verify)(?::(?:scope|related|all|release|check|tools))?$/u;
 
-function preview(value: unknown, limit: number): string | undefined {
-  if (
-    typeof value !== "string" ||
-    !value ||
-    value.length > limit ||
-    /[\p{Cc}\u202a-\u202e\u2066-\u2069]/u.test(value)
-  )
-    return undefined;
+/** Mask configured secrets and credential shapes, keeping the tail when bounded. */
+function redactText(value: string, limit: number): string | undefined {
+  if (!value) return undefined;
   const secrets = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key, secret]) => isSensitiveKeyName(key) && typeof secret === "string",
     ),
   ) as Record<string, string>;
+  const redacted = redactWithSecrets(value, { secrets, applyPatterns: true });
+  if (!redacted) return undefined;
+  if (redacted.length <= limit) return redacted;
+  // Bound after masking so a credential split at the cut is already replaced.
+  const tail = redacted.slice(-(limit - 1)).trimStart();
+  return tail ? `…${tail}` : undefined;
+}
+
+function preview(value: unknown, limit: number): string | undefined {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value.length > limit ||
+    UNSAFE_TEXT.test(value)
+  )
+    return undefined;
   const candidate = value.trim();
   // Suppress a redaction match entirely, including partial token prefixes.
-  return candidate &&
-    redactWithSecrets(candidate, { secrets, applyPatterns: true }) === candidate
+  return candidate && redactText(candidate, limit) === candidate
     ? candidate
     : undefined;
 }
@@ -87,6 +100,17 @@ function testSummary(shell: CommandResult): string | undefined {
   return pass && fail ? `${pass} passed · ${fail} failed` : undefined;
 }
 
+/** Durable shell outcome: a safe test count, else the bounded redacted tail. */
+function shellOutput(shell: CommandResult): string | undefined {
+  const summary = testSummary(shell);
+  if (summary) return summary;
+  const source = shell.stderr.trim() ? shell.stderr : shell.stdout;
+  const tail = redactText(source, MAX_OUTPUT);
+  if (!tail) return undefined;
+  const cleaned = sanitizeTerminalText(tail);
+  return cleaned || undefined;
+}
+
 export function projectActionActivity(
   action: string,
   result: ActionResult | undefined,
@@ -109,13 +133,19 @@ export function projectActionActivity(
         : "completed";
   if (shell) {
     const directory = safePath(shell.executedIn);
+    const detail = shell.command.trim();
     return {
       action,
       phase,
       kind: "execute",
       command: commandPreview(shell.command, directory),
+      // The durable preview above still hides arbitrary arguments; the full
+      // invocation is masked for secrets and bounded like any other payload.
+      commandDetail: UNSAFE_TEXT.test(detail)
+        ? undefined
+        : redactText(detail, MAX_COMMAND),
       directory,
-      output: testSummary(shell),
+      output: shellOutput(shell),
       exitCode: shell.exitCode,
       durationMs: shell.durationMs,
     };

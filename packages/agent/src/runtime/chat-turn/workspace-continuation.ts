@@ -92,6 +92,22 @@ export function explicitlyReportsIncompleteWork(
     : undefined;
 }
 
+const QUESTION_COMPLETION_CLAIM =
+  /\b(?:i(?:'ve| have)?\s+(?:now\s+)?(?:completed|finished|implemented|built|created|added|fixed|updated|written|done)|(?:the|this|that|all|every)\s+[\w -]{0,40}\s(?:is|are|has been|have been)\s+(?:now\s+)?(?:complete|completed|done|ready|fixed|implemented|built|verified|updated))\b/iu;
+
+/**
+ * A response whose substance is questions back to the user is a valid
+ * terminal state, not an unverified completion claim. Completion claims and
+ * explicit incomplete-work admissions disqualify it: the mutation gate still
+ * owns false "done" replies and acknowledged unfinished work.
+ */
+export function isUserDirectedQuestion(response: string): boolean {
+  const trimmed = response.trim();
+  if (!trimmed.includes("?")) return false;
+  if (explicitlyReportsIncompleteWork(trimmed)) return false;
+  return !QUESTION_COMPLETION_CLAIM.test(trimmed);
+}
+
 export function verifiedWorkspaceNoopResponse(
   completion: NonNullable<ReturnType<typeof verifyWorkspaceNoopCompletion>>,
   providerUnavailable?: string,
@@ -219,6 +235,7 @@ export function continuationMemory(
         hasVerifiedMutation
           ? "A verified local file change has already occurred. Inspect the current state, avoid repeating completed writes, and continue any remaining requested implementation or verification."
           : "Inspect the current state before repeating commands, then make the requested change and verify it.",
+        "If a decision only the user can make blocks the task, call DOOLITTLE_ASK_USER with concrete options instead of asking in prose; waiting on their answer is a valid terminal state.",
         ...(missingRequirements.length > 0
           ? [
               "The task is not complete yet. These receipt-backed steps are still required; perform them in the same workspace as the changed files and do not report success until their results are present:",

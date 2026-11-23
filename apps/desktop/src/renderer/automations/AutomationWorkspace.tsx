@@ -281,7 +281,7 @@ export function AutomationWorkspace({
 }) {
   return (
     <div
-      className={`${AUTOMATION_WORKSPACE_CLASS}${jobs.length ? "" : " is-empty max-w-225 grid-cols-1"}`}
+      className={`${AUTOMATION_WORKSPACE_CLASS}${jobs.length ? "" : " is-empty grid-cols-1"}`}
     >
       {jobsLoading || jobsError || jobs.length ? (
         <section className="content-card automation-jobs-panel min-w-0">

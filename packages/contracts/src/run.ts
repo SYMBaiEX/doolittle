@@ -178,6 +178,8 @@ export interface RunToolActivity {
   title?: string;
   kind?: string;
   command?: string;
+  /** Full secret-redacted command for expansion; `command` stays the safe preview. */
+  commandDetail?: string;
   directory?: string;
   paths?: string[];
   summary?: string;

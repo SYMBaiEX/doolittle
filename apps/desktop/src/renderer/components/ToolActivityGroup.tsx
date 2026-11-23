@@ -129,12 +129,27 @@ function ToolActivityDetail({
   activity: ToolActivity;
   details: ToolDetails;
 }) {
-  const { command, stdout, stderr, diff, truncated, timedOut } = details;
+  const {
+    command,
+    stdout,
+    stderr,
+    diff,
+    output: resultText,
+    error: errorText,
+    truncated,
+    timedOut,
+  } = details;
   const input = formatToolPayload(activity.input);
-  const output = formatToolPayload(activity.output);
+  const formattedOutput = formatToolPayload(activity.output);
   const hasStreams = stdout !== undefined || stderr !== undefined;
-  const hasStructuredOutput = hasStreams || diff !== undefined;
+  const hasStructuredOutput =
+    hasStreams ||
+    diff !== undefined ||
+    resultText !== undefined ||
+    errorText !== undefined;
   const error = activity.error || (timedOut ? "Command timed out." : "");
+  // Skip the raw payload when the surfaced result text already covers it.
+  const rawOutput = formattedOutput !== resultText ? formattedOutput : "";
   return (
     <>
       {error ? (
@@ -169,8 +184,16 @@ function ToolActivityDetail({
       {hasStreams && !stdout && !stderr ? (
         <p className="chat-activity-note">No command output.</p>
       ) : null}
+      {errorText ? (
+        <ToolPayload
+          copyLabel="Copy error"
+          kind="stderr"
+          label="Error"
+          text={errorText}
+        />
+      ) : null}
       {truncated ? (
-        <p className="chat-activity-note">The runtime truncated this output.</p>
+        <p className="chat-activity-note">This output was truncated.</p>
       ) : null}
       {diff ? (
         <ToolPayload
@@ -180,14 +203,21 @@ function ToolActivityDetail({
           text={diff}
         />
       ) : null}
+      {resultText ? (
+        <ToolPayload copyLabel="Copy result" label="Result" text={resultText} />
+      ) : null}
       <WebSearchSources activity={activity} />
-      {output && hasStructuredOutput ? (
+      {rawOutput && hasStructuredOutput ? (
         <details className="chat-activity-more">
           <summary>Full result</summary>
-          <ToolPayload copyLabel="Copy result" label="Result" text={output} />
+          <ToolPayload
+            copyLabel="Copy result"
+            label="Result"
+            text={rawOutput}
+          />
         </details>
-      ) : output ? (
-        <ToolPayload copyLabel="Copy output" label="Output" text={output} />
+      ) : rawOutput ? (
+        <ToolPayload copyLabel="Copy output" label="Output" text={rawOutput} />
       ) : null}
       {input && input !== command ? (
         <details className="chat-activity-more">
@@ -195,7 +225,12 @@ function ToolActivityDetail({
           <ToolPayload copyLabel="Copy input" label="Input" text={input} />
         </details>
       ) : null}
-      {!error && !command && !output && !input ? (
+      {!error &&
+      !errorText &&
+      !command &&
+      !resultText &&
+      !rawOutput &&
+      !input ? (
         <p className="chat-activity-note">No details recorded.</p>
       ) : null}
     </>

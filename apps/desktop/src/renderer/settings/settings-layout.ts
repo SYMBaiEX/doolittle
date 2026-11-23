@@ -1,13 +1,5 @@
 /** Settings uses the shared UI composition, with one token-driven form rhythm. */
-export const SETTINGS_PAGE_CLASS = "page page-settings !min-h-0 !p-0 !gap-0";
-export const SETTINGS_LAYOUT_CLASS = "settings-layout dl-settings-layout";
-export const SETTINGS_NAV_CLASS = "settings-nav dl-settings-menu";
-export const SETTINGS_NAV_SEARCH_CLASS =
-  "settings-section-search dl-settings-menu-search";
-export const SETTINGS_NAV_GROUP_CLASS =
-  "settings-nav-group dl-settings-menu-group";
-export const SETTINGS_NAV_BUTTON_CLASS = "dl-settings-menu-item";
-export const SETTINGS_CONTENT_CLASS = "settings-content dl-settings-content";
+export const SETTINGS_PAGE_CLASS = "page-settings";
 export const SETTINGS_CONTENT_HEADER_CLASS =
   "settings-content-header dl-settings-page-heading";
 export const SETTINGS_GROUP_CLASS = "settings-group dl-settings-group";
@@ -17,6 +9,7 @@ export const SETTINGS_APPEARANCE_BUTTON_CLASS = "dl-settings-choice";
 export const SETTINGS_INLINE_CHOICE_CLASS =
   "settings-inline-choice dl-settings-preference-row";
 export const SETTINGS_THEME_GRID_CLASS = "theme-grid dl-settings-theme-grid";
+export const SETTINGS_THEME_HEADING_CLASS = "dl-settings-theme-heading";
 export const SETTINGS_THEME_BUTTON_CLASS = "dl-settings-theme-choice";
 export const SETTINGS_ROW_LAYOUT_CLASS =
   "setting-row dl-settings-field-row min-h-10";

@@ -49,9 +49,49 @@ it("keeps private path and script arguments out of the durable command preview",
     },
   });
   expect(activity.command).toBe("nub run test:scope …");
-  expect(JSON.stringify(activity)).not.toMatch(
+  // The collapsed preview still hides arbitrary arguments; the expansion
+  // detail keeps the full invocation with secrets masked, not dropped.
+  expect(activity.command).not.toMatch(
     /opaque-value|hidden-key|opaque-script/u,
   );
+  expect(activity.commandDetail).toBe(
+    "cd /approved/opaque-value && nub run test:scope hidden-key.test.ts && nub run opaque-script",
+  );
+});
+
+it("carries the full masked command and a bounded redacted output tail on shell results", () => {
+  const secret = "doolittle-fixture-secret-value";
+  process.env.DOOLITTLE_TEST_SECRET_VALUE = secret;
+  try {
+    const activity = projectActionActivity("TERMINAL_SHELL", {
+      success: true,
+      data: {
+        commandResult: {
+          command: `cd /approved/app && echo ${secret}`,
+          cwd: "/approved/app",
+          exitCode: 2,
+          stdout: "ignored stdout",
+          stderr: `first line\n${"error detail\n".repeat(400)}\u001b[31m${secret}\u001b[0m\n`,
+        },
+      },
+    });
+    expect(activity.phase).toBe("failed");
+    // A redaction match collapses the durable preview but only masks the detail.
+    expect(activity.command).toBeUndefined();
+    expect(activity.commandDetail).toBe(
+      "cd /approved/app && echo [REDACTED:DOOLITTLE_TEST_SECRET_VALUE]",
+    );
+    const output = activity.output ?? "";
+    expect(output.length).toBeLessThanOrEqual(4 * 1024);
+    expect(output.startsWith("…")).toBe(true);
+    expect(output).toContain("[REDACTED:DOOLITTLE_TEST_SECRET_VALUE]");
+    expect(output).not.toContain("first line");
+    expect(output).not.toContain("ignored stdout");
+    expect(output).not.toContain(secret);
+    expect(output).not.toContain("\u001b");
+  } finally {
+    delete process.env.DOOLITTLE_TEST_SECRET_VALUE;
+  }
 });
 
 it("replays the default shell outcome and safe test counts without stdout or stderr", async () => {
@@ -116,6 +156,7 @@ it("replays the default shell outcome and safe test counts without stdout or std
             phase: "completed",
             kind: "execute",
             command: "nub run test:scope",
+            commandDetail: "nub run test:scope",
             directory: "/approved/project",
             output: "3 passed · 0 failed",
             exitCode: 0,
@@ -134,6 +175,8 @@ it("replays the default shell outcome and safe test counts without stdout or std
 
 it("keeps prior runs and secret-bearing arguments out of the current receipt", async () => {
   const runs = new RunControllerService();
+  const secret = "arbitrary-private-string";
+  process.env.DOOLITTLE_TEST_COMMAND_SECRET = secret;
   try {
     startSubmit(runs, "old-run");
     runs.finishTurn("chat-session", "cancelled");
@@ -151,7 +194,7 @@ it("keeps prior runs and secret-bearing arguments out of the current receipt", a
               success: true,
               data: {
                 commandResult: {
-                  command: "curl --data arbitrary-private-string",
+                  command: `curl --data ${secret}`,
                   exitCode: 22,
                 },
               },
@@ -176,11 +219,15 @@ it("keeps prior runs and secret-bearing arguments out of the current receipt", a
     );
     expect(updates[1]?.activity).toMatchObject({
       phase: "failed",
-      command: "curl …",
+      // A redaction match still collapses the durable preview entirely,
+      // while the expansion detail keeps the masked invocation.
+      command: undefined,
+      commandDetail: "curl --data [REDACTED:DOOLITTLE_TEST_COMMAND_SECRET]",
       exitCode: 22,
     });
-    expect(JSON.stringify(updates)).not.toContain("arbitrary-private-string");
+    expect(JSON.stringify(updates)).not.toContain(secret);
   } finally {
+    delete process.env.DOOLITTLE_TEST_COMMAND_SECRET;
     runs.dispose();
   }
 });

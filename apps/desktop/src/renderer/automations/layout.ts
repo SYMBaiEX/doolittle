@@ -1,5 +1,5 @@
 export const AUTOMATION_PAGE_CLASS =
-  "page automation-page gap-4 [--automation-line:var(--border)]";
+  "automation-page flex min-h-full w-full min-w-0 flex-col gap-3 [--automation-line:var(--border)]";
 
 export const AUTOMATION_BUILDER_CLASS =
   "automation-builder overflow-hidden rounded-[var(--radius-md)] border border-[var(--automation-line)] bg-[var(--surface)]";

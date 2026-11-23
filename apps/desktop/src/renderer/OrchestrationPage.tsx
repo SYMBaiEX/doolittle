@@ -535,6 +535,10 @@ export function OrchestrationPage({
     onSectionChange(tab);
   };
   const activeTabLabel = WORK_TABS.find((tab) => tab.id === activeTab)?.label;
+  const scrollsWorkPanel =
+    activeTab === "agents" ||
+    activeTab === "automations" ||
+    activeTab === "inbox";
 
   return (
     <div className={oc("orchestration-page")}>
@@ -700,7 +704,12 @@ export function OrchestrationPage({
         id="work-panel"
         role="tabpanel"
         aria-labelledby={`work-${activeTab}-tab`}
-        className={oc("orchestration-panel")}
+        className={oc(
+          "orchestration-panel",
+          scrollsWorkPanel
+            ? "overflow-x-hidden overflow-y-auto"
+            : "overflow-hidden",
+        )}
       >
         <Suspense
           fallback={

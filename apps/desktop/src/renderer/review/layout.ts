@@ -1,5 +1,5 @@
 export const REVIEW_PAGE_CLASS =
-  "page review-page flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-[var(--bg)] px-3.5 pt-3 pb-3.5 max-[760px]:overflow-auto review-page--embedded gap-0 p-0";
+  "review-page review-page--embedded flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--bg)] max-[760px]:overflow-auto";
 
 const REVIEW_OVERVIEW_BASE =
   "review-work-overview grid min-h-16.5 shrink-0 grid-cols-[minmax(260px,1fr)_auto_minmax(132px,0.24fr)] items-stretch overflow-hidden rounded-none border border-x-0 border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-transparent shadow-[inset_2px_0_var(--border-strong)] max-[1180px]:grid-cols-[minmax(280px,1fr)_auto] max-[860px]:grid-cols-[minmax(0,1fr)_auto]";
@@ -14,7 +14,7 @@ export function reviewOverviewClass(tone: string, empty: boolean): string {
           ? "bad shadow-[inset_2px_0_var(--bad)]"
           : "neutral";
   const emptyClass = empty
-    ? "is-empty mt-[clamp(12px,6vh,72px)] min-h-22 w-[min(100%,920px)] self-center grid-cols-[minmax(0,1fr)] rounded-[var(--radius-sm)] border-x border-l-2 border-l-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface)_90%,var(--bg))] max-[1180px]:grid-cols-[minmax(0,1fr)] max-[860px]:grid-cols-[minmax(0,1fr)]"
+    ? "is-empty min-h-22 w-full grid-cols-[minmax(0,1fr)] bg-[color-mix(in_srgb,var(--surface)_90%,var(--bg))] max-[1180px]:grid-cols-[minmax(0,1fr)] max-[860px]:grid-cols-[minmax(0,1fr)]"
     : "";
   return `${REVIEW_OVERVIEW_BASE} ${toneClass} ${emptyClass}`;
 }
@@ -88,9 +88,9 @@ export const REVIEW_DETAIL_CLASS =
   "review-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-4 pt-3 pb-4 [scrollbar-gutter:stable] max-[760px]:overflow-visible";
 
 export const REVIEW_DETAIL_HEADER_CLASS =
-  "review-detail-header flex max-w-245 items-start justify-between gap-4 pb-1.5 [&>div]:min-w-0 [&>div>span]:font-[var(--font-mono)] [&>div>span]:text-[length:var(--text-meta)] [&>div>span]:font-bold [&>div>span]:tracking-[0.1em] [&>div>span]:text-[var(--accent-text)] [&>div>span]:uppercase [&_h2]:mt-1 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:leading-[var(--line-title)] [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:max-w-175 [&_p]:text-xs [&_p]:leading-[var(--line-body)] [&_p]:text-[var(--muted)]";
+  "review-detail-header flex min-w-0 items-start justify-between gap-4 pb-1.5 [&>div]:min-w-0 [&>div>span]:font-[var(--font-mono)] [&>div>span]:text-[length:var(--text-meta)] [&>div>span]:font-bold [&>div>span]:tracking-[0.1em] [&>div>span]:text-[var(--accent-text)] [&>div>span]:uppercase [&_h2]:mt-1 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:leading-[var(--line-title)] [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:max-w-175 [&_p]:text-xs [&_p]:leading-[var(--line-body)] [&_p]:text-[var(--muted)]";
 
-export const REVIEW_DETAIL_BODY_CLASS = "grid max-w-245 gap-3.5 pt-4";
+export const REVIEW_DETAIL_BODY_CLASS = "grid min-w-0 gap-3.5 pt-4";
 
 export const REVIEW_CI_HERO_CLASS =
   "review-ci-hero flex min-h-14.5 items-center justify-between gap-4.5 rounded-sm border border-[var(--accent-border)] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-raised))] px-3.5 py-3 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1 [&_span]:font-[var(--font-mono)] [&_span]:text-[length:var(--text-meta)] [&_span]:font-bold [&_span]:tracking-[0.08em] [&_span]:text-[var(--accent-text)] [&_span]:uppercase [&_strong]:truncate [&_strong]:text-[13px] [&_a]:inline-flex [&_a]:shrink-0 [&_a]:items-center [&_a]:gap-1 [&_a]:font-[var(--font-mono)] [&_a]:text-[length:var(--text-meta)] [&_a]:font-bold [&_a]:text-[var(--accent-text)] [&_a]:uppercase [&_a]:no-underline [&_a:hover]:underline [&_a:hover]:[text-underline-offset:3px]";

@@ -20,6 +20,7 @@ export function createServiceAssemblyEagerServices(
     logger: state.logger,
     gatewaySessions: state.gatewaySessions,
     executionApprovals: state.executionApprovals,
+    inputRequests: state.inputRequests,
     delivery: state.delivery,
     gatewayConfig: state.gatewayConfig,
     personalities: state.personalities,

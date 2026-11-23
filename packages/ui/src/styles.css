@@ -56,6 +56,7 @@
 .dl-settings-frame {
   container-type: inline-size;
   container-name: dl-settings;
+  width: 100%;
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -179,18 +180,15 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 16px;
   min-width: 0;
   min-height: 0;
-  padding: 24px clamp(20px, 3vw, 36px) 32px;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable;
 }
 .dl-settings-content > * {
   flex-shrink: 0;
+  min-width: 0;
   width: 100%;
-  max-width: 960px;
 }
 .dl-settings-page-heading {
   display: flex;
@@ -198,7 +196,7 @@
   justify-content: space-between;
   gap: 16px;
   min-height: 48px;
-  padding-bottom: 8px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
 }
 .dl-settings-page-heading h1 {
@@ -221,6 +219,9 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+}
+.dl-settings-content .settings-section-header {
+  padding: 8px 12px;
 }
 .dl-settings-content
   :where(.settings-section-header, .settings-group-heading)
@@ -252,13 +253,17 @@
   min-width: 0;
   align-content: start;
   gap: 0;
-  padding-block: 8px;
+  padding: 8px 12px;
 }
 .settings-category-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   align-content: start;
-  gap: 16px;
+  gap: 12px;
+}
+.settings-category-panel > .settings-search {
+  margin: 8px 12px 0;
 }
 .dl-settings-group > .settings-group-heading {
   padding-bottom: 4px;
@@ -382,7 +387,7 @@
   flex-wrap: wrap;
   gap: 4px;
   min-width: 0;
-  padding-bottom: 8px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--border);
 }
 .dl-settings-tabs [role="tab"] {
@@ -501,8 +506,7 @@
     grid-template-rows: auto minmax(0, 1fr);
   }
   .dl-settings-menu {
-    gap: 12px;
-    padding: 16px;
+    padding: 6px 12px 8px;
     overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--border);
@@ -524,10 +528,6 @@
     max-width: 100%;
     font-size: 14px;
     color: var(--text);
-  }
-  .dl-settings-content {
-    gap: 16px;
-    padding: 20px 16px 32px;
   }
   .dl-settings-content .settings-control-feedback {
     grid-column: 1;
@@ -711,10 +711,6 @@
 .dl-composer textarea:focus-visible {
   outline: none;
   box-shadow: none;
-}
-.dl-composer:has(textarea:focus-visible) {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
 }
 .dl-composer-actions {
   display: flex;

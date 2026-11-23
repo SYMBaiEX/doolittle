@@ -688,16 +688,11 @@
   color: var(--accent-ink);
 }
 [data-ui-material="glass"] .dl-settings-menu {
-  margin: 12px;
-  padding: 16px 10px;
-  border: 1px solid var(--glass-edge);
-  border-radius: 20px;
+  border-color: var(--glass-edge);
   background: var(--glass-fill);
-  box-shadow: var(--glass-shadow);
 }
 [data-ui-material="glass"] .dl-settings-group {
   padding: 24px;
-  margin-bottom: 20px;
   border: 1px solid var(--glass-edge);
   border-radius: 22px;
   background: var(--glass-fill);

@@ -14,6 +14,11 @@ import {
   resolveTuiThemeName,
 } from "../../runtime/theme-catalog/index";
 import { isSafeSettingPath } from "../../services/settings/path";
+import { formatInputAnswerSubmission } from "../../services/user-input/service";
+import type {
+  UserInputAnswer,
+  UserInputRequestStatus,
+} from "../../services/user-input/types";
 import { readRouteJsonBody } from "../request-body";
 import { json } from "../responses";
 
@@ -43,6 +48,79 @@ function executionApprovalAction(pathname: string): {
     return null;
   }
   return { id, action: match[2] as "approve" | "deny" };
+}
+
+const INPUT_REQUEST_STATUSES = new Set([
+  "pending",
+  "answered",
+  "dismissed",
+  "superseded",
+]);
+
+function inputRequestAction(pathname: string): {
+  id: string;
+  action: "answer" | "dismiss";
+} | null {
+  const match = pathname.match(
+    /^\/execution\/input-requests\/([^/]+)\/(answer|dismiss)$/u,
+  );
+  if (!match) return null;
+  let id = "";
+  try {
+    id = decodeURIComponent(match[1] ?? "");
+  } catch {
+    return null;
+  }
+  if (!id || id.length > 256 || !/^[\p{L}\p{N}][\p{L}\p{N}._:-]*$/u.test(id)) {
+    return null;
+  }
+  return { id, action: match[2] as "answer" | "dismiss" };
+}
+
+function normalizeInputAnswers(
+  body: unknown,
+  questions: readonly { question: string }[],
+): UserInputAnswer[] | undefined {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return undefined;
+  }
+  const raw = (body as { answers?: unknown }).answers;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > questions.length)
+    return undefined;
+  const answers: UserInputAnswer[] = [];
+  for (const [index, entry] of raw.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return undefined;
+    }
+    const selected = (entry as { selected?: unknown }).selected;
+    if (
+      selected !== undefined &&
+      (!Array.isArray(selected) ||
+        selected.length > 8 ||
+        selected.some(
+          (label) => typeof label !== "string" || label.length > 500,
+        ))
+    )
+      return undefined;
+    const customText = (entry as { customText?: unknown }).customText;
+    if (
+      customText !== undefined &&
+      (typeof customText !== "string" || customText.length > 4000)
+    )
+      return undefined;
+    const question = questions[index]?.question;
+    if (!question) return undefined;
+    answers.push({
+      question,
+      selected: (selected ?? [])
+        .map((label: string) => label.trim())
+        .filter(Boolean),
+      ...(typeof customText === "string" && customText.trim()
+        ? { customText: customText.trim() }
+        : {}),
+    });
+  }
+  return answers;
 }
 
 function buildThemePayload(theme: string) {
@@ -77,6 +155,22 @@ export async function handleSettingsExecutionRoutes(
     });
   }
 
+  if (
+    request.method === "GET" &&
+    url.pathname === "/execution/input-requests"
+  ) {
+    const status = url.searchParams.get("status")?.trim().toLowerCase();
+    if (status && !INPUT_REQUEST_STATUSES.has(status)) {
+      return json({ error: "invalid input request status" }, 400);
+    }
+    const roomId = url.searchParams.get("roomId")?.trim();
+    return json({
+      requests: context.services.inputRequests
+        .list(status as UserInputRequestStatus | undefined, roomId || undefined)
+        .slice(0, 100),
+    });
+  }
+
   if (request.method === "GET" && url.pathname === "/execution/approvals") {
     const status = url.searchParams.get("status")?.trim().toLowerCase();
     if (status && !APPROVAL_STATUSES.has(status)) {
@@ -98,6 +192,52 @@ export async function handleSettingsExecutionRoutes(
   }
 
   if (request.method === "POST") {
+    const inputAction = inputRequestAction(url.pathname);
+    if (inputAction) {
+      const record = context.services.inputRequests.get(inputAction.id);
+      if (!record) {
+        return json({ error: "input request not found" }, 404);
+      }
+      if (record.status !== "pending") {
+        return json(
+          {
+            error: `input request is already ${record.status}`,
+            request: record,
+          },
+          409,
+        );
+      }
+      if (inputAction.action === "dismiss") {
+        try {
+          return json({
+            request: context.services.inputRequests.dismiss(record.id),
+          });
+        } catch {
+          return json({ error: "Input request could not be updated." }, 409);
+        }
+      }
+      const parsed = await readRouteJsonBody(request);
+      if ("response" in parsed) return parsed.response;
+      const answers = normalizeInputAnswers(parsed.body, record.questions);
+      if (!answers) {
+        return json(
+          { error: "answers must match the request's questions" },
+          400,
+        );
+      }
+      try {
+        const answered = context.services.inputRequests.answer(
+          record.id,
+          answers,
+        );
+        return json({
+          request: answered,
+          message: formatInputAnswerSubmission(answered, answers),
+        });
+      } catch {
+        return json({ error: "Input request could not be updated." }, 409);
+      }
+    }
     const approvalAction = executionApprovalAction(url.pathname);
     if (approvalAction) {
       const record = context.services.executionApprovals.get(approvalAction.id);

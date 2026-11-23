@@ -12,7 +12,8 @@ The default interface is a restrained messenger: one readable conversation,
 a compact composer, and supporting tools shown on demand. Companion and Canvas
 are presentations of the same underlying sessions and capabilities.
 
-- Preserve the existing reading width, typography, spacing, and density tokens.
+- Keep the chat reading width and composer gutters. Other desktop routes fill
+  the available workbench. Apply spacing inside panel headers, rows, and controls.
 - Use semantic text emphasis for persistent selection, with `aria-current` or
   `aria-selected` as appropriate.
 - Keep normal lists and forms visually quiet; avoid decorative cards around each row.

@@ -112,7 +112,7 @@ export function ActivityPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className={OBSERVABILITY_PAGE_CLASS}>
+    <div className={OBSERVABILITY_PAGE_CLASS} data-activity-page="true">
       <PageHeader
         eyebrow="Operator"
         title="Activity"

@@ -36,6 +36,7 @@ import type { StartupStateService } from "./startup-state-service";
 import type { TerminalService } from "./terminal/service";
 import type { CapabilityCatalogService } from "./tools/service";
 import type { TrajectoryEvaluationService } from "./trajectory/service";
+import type { UserInputRequestService } from "./user-input/service";
 import type { UserProfileService } from "./user-profile/service";
 import type { WebService } from "./web/service";
 import type { WorkspaceService } from "./workspace-service/index";
@@ -54,6 +55,7 @@ export interface AppServices {
   logger: LoggerService;
   gatewaySessions: GatewaySessionService;
   executionApprovals: ExecutionApprovalService;
+  inputRequests: UserInputRequestService;
   delivery: DeliveryService;
   documents: DocumentsService;
   ecosystem: EcosystemService;

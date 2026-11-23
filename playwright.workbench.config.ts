@@ -2,9 +2,13 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: ["desktop-core.pw.ts", "desktop-automations.pw.ts"],
-  fullyParallel: true,
-  workers: 2,
+  testMatch: [
+    "desktop-core.pw.ts",
+    "desktop-automations.pw.ts",
+    "desktop-layout.pw.ts",
+  ],
+  fullyParallel: false,
+  workers: 1,
   retries: 0,
   outputDir: "./var/playwright/desktop-core",
   reporter: [["list", { printSteps: true }]],

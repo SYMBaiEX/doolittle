@@ -15,6 +15,7 @@ import { getSessionProviders } from "@elizaos/core";
 import type { HttpPlugin as Plugin } from "@elizaos/host/protocol";
 import { memoryAction } from "@elizaos/plugin-assistant";
 import { createAppServerAction } from "../../../../actions/app-server-action";
+import { createAskUserAction } from "../../../../actions/ask-user-action";
 import { createBrowserAnalysisAction } from "../../../../actions/browser-analysis-action";
 import { createCodingAction } from "../../../../actions/coding-action";
 import { createCommandAction } from "../../../../actions/command-action";
@@ -65,6 +66,7 @@ export function createDoolittleProductPlugin(
     createCodingAction(),
     createConsultBotAction(services),
     createAppServerAction(services),
+    createAskUserAction(services),
     createBrowserAnalysisAction(services),
     createCommandAction(services, config),
     createShellCommandAction(services, config),

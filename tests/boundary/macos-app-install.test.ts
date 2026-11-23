@@ -170,3 +170,59 @@ it("rechecks the existing app immediately before promotion", () => {
   ).toThrow("cannot replace the signed app");
   expect(installedContents()).toBe("old");
 });
+
+it("notarizes a release source before trust verification", () => {
+  const { options, installedContents } = fixture();
+  const notarizeApp = vi.fn();
+  const order: string[] = [];
+  notarizeApp.mockImplementation(() => order.push("notarize"));
+  options.verifyTrust.mockImplementation((path) => {
+    if (path === options.source) order.push("verify-source");
+  });
+
+  const result = installMacOSApp({
+    ...options,
+    notarize: true,
+    notarizeApp,
+    notaryProfile: "custom-profile",
+  });
+
+  expect(result.trustMode).toBe("release");
+  expect(notarizeApp).toHaveBeenCalledExactlyOnceWith(
+    options.source,
+    "custom-profile",
+  );
+  expect(order.slice(0, 2)).toEqual(["notarize", "verify-source"]);
+  expect(installedContents()).toBe("new");
+});
+
+it("notarizes with the default keychain profile", () => {
+  const { options } = fixture();
+  const notarizeApp = vi.fn();
+
+  installMacOSApp({ ...options, notarize: true, notarizeApp });
+
+  expect(notarizeApp).toHaveBeenCalledExactlyOnceWith(
+    options.source,
+    "doolittle-notary",
+  );
+});
+
+it.each(["ad-hoc", "signed"] as const)(
+  "skips notarization for a %s source outside release trust",
+  (kind) => {
+    const { options } = fixture();
+    const notarizeApp = vi.fn();
+
+    installMacOSApp({
+      ...options,
+      allowAdHoc: true,
+      notarize: true,
+      notarizeApp,
+      readSignature: () =>
+        kind === "signed" ? { kind, teamIdentifier } : { kind },
+    });
+
+    expect(notarizeApp).not.toHaveBeenCalled();
+  },
+);

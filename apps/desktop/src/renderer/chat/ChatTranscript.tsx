@@ -50,6 +50,7 @@ export interface ChatTranscriptProps {
   onRetryMessage?: (message: DisplayMessage) => void;
   onStopReading: () => void;
   onPromote?: (message: DisplayMessage) => void;
+  onViewChanges?: () => void;
   onSelectPrompt: (prompt: string) => void;
   hasEarlierMessages?: boolean;
   loadingEarlierHistory?: boolean;
@@ -64,6 +65,7 @@ type MessageCallbacks = Pick<
   | "onRetryMessage"
   | "onStopReading"
   | "onPromote"
+  | "onViewChanges"
 >;
 
 interface TranscriptMessageRowProps {
@@ -73,6 +75,7 @@ interface TranscriptMessageRowProps {
   callbacks: RefObject<MessageCallbacks>;
   canPromote: boolean;
   canRetry: boolean;
+  canViewChanges: boolean;
   copyState?: CopyState;
   forkingMessageId: string;
   message: DisplayMessage;
@@ -89,6 +92,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   callbacks,
   canPromote,
   canRetry,
+  canViewChanges,
   copyState,
   forkingMessageId,
   message,
@@ -149,6 +153,9 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
             ? () => callbacks.current.onRetryMessage?.(message)
             : undefined
         }
+        onViewChanges={
+          canViewChanges ? () => callbacks.current.onViewChanges?.() : undefined
+        }
         receipt={receipt}
         retryDisabled={
           !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
@@ -191,6 +198,7 @@ export function ChatTranscript({
   onRetryHistory,
   onRetryMessage,
   onStopReading,
+  onViewChanges,
   onSelectPrompt,
   hasEarlierMessages = false,
   loadingEarlierHistory = false,
@@ -255,6 +263,7 @@ export function ChatTranscript({
     onRetryMessage,
     onStopReading,
     onPromote,
+    onViewChanges,
   };
   const callbacks = useRef(messageCallbacks);
   useLayoutEffect(() => {
@@ -264,6 +273,7 @@ export function ChatTranscript({
   });
   const canPromote = Boolean(onPromote);
   const canRetry = Boolean(onRetryMessage);
+  const canViewChanges = Boolean(onViewChanges);
   const rows = useMemo(
     () =>
       messages.slice(firstMessageIndex).map((message) => {
@@ -276,6 +286,7 @@ export function ChatTranscript({
             callbacks={callbacks}
             canPromote={canPromote}
             canRetry={canRetry}
+            canViewChanges={canViewChanges}
             copyState={copyStates[message.id]}
             forkingMessageId={forkingMessageId}
             key={message.id}
@@ -296,6 +307,7 @@ export function ChatTranscript({
       backendReady,
       canPromote,
       canRetry,
+      canViewChanges,
       copyStates,
       forkingMessageId,
       runReceipts,

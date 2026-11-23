@@ -268,7 +268,7 @@ export function GatewayPage({ active }: { active: boolean }) {
 
   return (
     <section className={GATEWAY_PAGE_CLASS}>
-      <div className="flex justify-end">
+      <div className="flex shrink-0 justify-end border-b border-[var(--border)] px-3 py-2">
         <Button onClick={refresh} type="button" variant="secondary">
           Refresh records
         </Button>

@@ -1682,6 +1682,10 @@ export function ChatSessionPanel({
                 : (message) => void branchMessage(message, "retry")
             }
             onLoadEarlier={() => loadEarlierHistory(selectedId)}
+            onViewChanges={() => {
+              setInspectorVisible(true);
+              setInspectorTab("changes");
+            }}
             onSelectPrompt={(prompt) => {
               setDraft(prompt);
               requestAnimationFrame(() => composerRef.current?.focus());
@@ -1863,6 +1867,13 @@ export function ChatSessionPanel({
             draft={draft}
             setDraft={setDraft}
             onSubmit={submit}
+            onSendAnswers={(text) =>
+              sendMessage({
+                input: text,
+                attachments: [],
+                sessionId: selectedId,
+              })
+            }
             composerRef={composerRef}
             queueRef={queueRef}
             queuedMessages={visibleQueuedMessages}
