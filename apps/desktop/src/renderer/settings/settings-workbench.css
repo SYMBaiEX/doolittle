@@ -18,11 +18,12 @@
   color: var(--text);
 }
 
-.settings-category-panel > .settings-workbench-section {
+.settings-category-panel > :not(.diagnostic-workspace, .dl-settings-group) {
   margin-inline: var(--document-inset, 12px);
 }
 
-.settings-category-panel > .settings-workbench-section:first-child {
+.settings-category-panel
+  > :not(.diagnostic-workspace, .dl-settings-group):first-child {
   margin-block-start: 8px;
 }
 

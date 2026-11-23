@@ -200,7 +200,7 @@ export function ModelsPage({
   const activeModel = runtime?.model || asString(model?.model);
 
   return (
-    <div className="settings-model-section provider-settings provider-settings--models">
+    <div className="settings-workbench-section settings-model-section provider-settings provider-settings--models">
       <WorkbenchSection
         actions={
           <WorkbenchAction

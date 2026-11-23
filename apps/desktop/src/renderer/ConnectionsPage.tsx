@@ -143,7 +143,7 @@ export function ConnectionsPage({ active }: { active: boolean }) {
   if (!active) {
     return (
       <WorkbenchSection
-        className="settings-provider-section"
+        className="settings-workbench-section settings-provider-section"
         icon={Cable}
         title="Provider accounts"
       >
@@ -178,7 +178,7 @@ export function ConnectionsPage({ active }: { active: boolean }) {
     (provider) => provider.ready,
   ).length;
   return (
-    <div className="settings-provider-section">
+    <div className="settings-workbench-section settings-provider-section">
       <WorkbenchSection
         actions={checkAction}
         className="provider-console provider-settings"

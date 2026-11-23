@@ -15,6 +15,7 @@ import {
   loadStoredThemeManifest,
   loadThemeColorSelection,
   selectDesktopTheme,
+  THEME_TRANSITION_ATTRIBUTE,
   THEME_V2_STORAGE_KEY,
 } from "../../apps/desktop/src/renderer/desktop-theme";
 import {
@@ -236,3 +237,90 @@ for (const theme of [ANIME_ATELIER_THEME, GOLDEN_GATE_GLASS_THEME]) {
     expect(loadStoredThemeManifest()).toEqual(previous);
   });
 }
+
+it("eases later theme applies through a short transition window", async () => {
+  delete document.documentElement.dataset.themeTransition;
+  vi.resetModules();
+  const { applyThemeManifest: applyFresh } = await import(
+    "../../apps/desktop/src/renderer/desktop-theme"
+  );
+  vi.useFakeTimers();
+  try {
+    // The first apply seeds the palette before the UI mounts and stays instant.
+    applyFresh(COMPANION_THEME, "builtin");
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(false);
+    applyFresh(CANVAS_THEME, "builtin");
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(true);
+    // Rapid consecutive applies re-arm one window rather than stacking.
+    applyFresh(COMPANION_THEME, "builtin");
+    vi.advanceTimersByTime(500);
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("opens the transition window for later appearance and density changes", async () => {
+  delete document.documentElement.dataset.themeTransition;
+  vi.resetModules();
+  const {
+    applyDesktopAppearance: applyAppearance,
+    applyDesktopDensity: applyDensity,
+  } = await import("../../apps/desktop/src/renderer/desktop-theme");
+  vi.useFakeTimers();
+  try {
+    applyAppearance("dark", true);
+    applyDensity("comfortable");
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(false);
+    applyAppearance("light", false);
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(true);
+    vi.advanceTimersByTime(500);
+    applyDensity("compact");
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("never opens the transition window under reduced motion or forced colors", async () => {
+  delete document.documentElement.dataset.themeTransition;
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query.includes("reduce") || query.includes("forced-colors"),
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }));
+  vi.resetModules();
+  try {
+    const {
+      applyThemeManifest: applyFresh,
+      applyDesktopAppearance: applyAppearance,
+    } = await import("../../apps/desktop/src/renderer/desktop-theme");
+    applyFresh(COMPANION_THEME, "builtin");
+    applyFresh(CANVAS_THEME, "builtin");
+    applyAppearance("dark", true);
+    applyAppearance("light", false);
+    expect(
+      document.documentElement.hasAttribute(THEME_TRANSITION_ATTRIBUTE),
+    ).toBe(false);
+  } finally {
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.themeTransition;
+  }
+});

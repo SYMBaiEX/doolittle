@@ -291,6 +291,41 @@ export function applyDesktopFoundationTokens(): void {
   root.style.textRendering = "optimizeLegibility";
 }
 
+/**
+ * Theme and color picks rewrite dozens of root tokens in one pass. While
+ * THEME_TRANSITION_ATTRIBUTE is set on the root, theme-materials.css eases
+ * paint properties to their new values instead of every surface snapping.
+ * Each surface's first apply seeds the palette before the UI mounts, so it
+ * stays instant; later applies transition.
+ */
+export const THEME_TRANSITION_ATTRIBUTE = "data-theme-transition";
+const THEME_TRANSITION_WINDOW_MS = 320;
+const appliedThemeSurfaces = new Set<"appearance" | "density" | "theme">();
+let themeTransitionTimer: ReturnType<typeof setTimeout> | null = null;
+
+function themeTransitionsAllowed(): boolean {
+  if (typeof window.matchMedia !== "function") return true;
+  return !(
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    window.matchMedia("(forced-colors: active)").matches
+  );
+}
+
+function beginThemeTransition(
+  surface: "appearance" | "density" | "theme",
+): void {
+  const applied = appliedThemeSurfaces.has(surface);
+  appliedThemeSurfaces.add(surface);
+  if (!applied || !themeTransitionsAllowed()) return;
+  const root = document.documentElement;
+  root.dataset.themeTransition = "";
+  if (themeTransitionTimer) clearTimeout(themeTransitionTimer);
+  themeTransitionTimer = setTimeout(() => {
+    themeTransitionTimer = null;
+    delete root.dataset.themeTransition;
+  }, THEME_TRANSITION_WINDOW_MS);
+}
+
 const CSS_COLOR =
   /^(#[\da-f]{3,8}|[a-z]+|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
 const THEME_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
@@ -795,6 +830,7 @@ export function applyThemeManifest(
   validateThemeAccessibility(theme);
   const root = document.documentElement;
   const appearance = root.dataset.appearance === "light" ? "light" : "dark";
+  beginThemeTransition("theme");
   root.dataset.theme = theme.id;
   root.dataset.uiMaterial = theme.material ?? "flat";
   root.dataset.uiLayout = theme.layout;
@@ -932,6 +968,7 @@ export function applyDesktopAppearance(
 ): void {
   const root = document.documentElement;
   const resolved = resolveAppearance(preference, systemPrefersDark);
+  beginThemeTransition("appearance");
   root.dataset.appearance = resolved;
   setCssTokens(
     resolved === "dark" ? DARK_DESKTOP_TOKENS : LIGHT_DESKTOP_TOKENS,
@@ -947,6 +984,7 @@ export function applyDesktopAppearance(
 }
 
 export function applyDesktopDensity(density: DesktopDensity): void {
+  beginThemeTransition("density");
   setCssTokens(
     density === "compact" ? COMPACT_DESKTOP_TOKENS : COMFORTABLE_DESKTOP_TOKENS,
   );

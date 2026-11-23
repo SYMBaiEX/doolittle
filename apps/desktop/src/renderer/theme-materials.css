@@ -983,3 +983,28 @@
   color: var(--text);
   background: var(--surface-raised);
 }
+
+/*
+ * Theme and color picks rewrite the root tokens in one pass; desktop-theme.ts
+ * marks that window on the root so paint properties ease to the new values
+ * instead of every surface snapping at once.
+ */
+@media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+  :root[data-theme-transition],
+  :root[data-theme-transition] *,
+  :root[data-theme-transition] *::before,
+  :root[data-theme-transition] *::after {
+    transition:
+      background-color var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      border-color var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      color var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      fill var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      stroke var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      box-shadow var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      text-decoration-color var(--motion-surface, 240ms)
+      var(--ease-liquid, ease),
+      caret-color var(--motion-surface, 240ms) var(--ease-liquid, ease),
+      /* biome-ignore lint/complexity/noImportantStyles: the token swap must repaint uniformly, ahead of per-component transitions. */
+      outline-color var(--motion-surface, 240ms) var(--ease-liquid, ease) !important;
+  }
+}

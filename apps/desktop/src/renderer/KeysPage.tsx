@@ -187,7 +187,7 @@ export function KeysPage({ active }: { active: boolean }) {
           Refresh
         </WorkbenchAction>
       }
-      className="settings-keys-section provider-settings provider-settings--keys provider-settings--unframed"
+      className="settings-workbench-section settings-keys-section provider-settings provider-settings--keys provider-settings--unframed"
       description="Manage credentials for this computer. The inventory loads key names only."
       icon={KeyRound}
       title="Secret store"
