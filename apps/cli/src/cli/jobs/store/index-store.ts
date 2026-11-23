@@ -1,11 +1,14 @@
 import {
+  closeSync,
   existsSync,
   lstatSync,
   mkdirSync,
+  openSync,
   realpathSync,
   rmdirSync,
 } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import type { CliJobIndex, CliJobRecord, CliJobStatus } from "../types";
@@ -13,6 +16,8 @@ import { reconcileJobRecords } from "./events";
 
 const MAX_INDEX_BYTES = 16 * 1024 * 1024;
 const MAX_JOBS = 200;
+const INDEX_LOCK_TIMEOUT_MS = 2_000;
+const LEGACY_LOCK_GRACE_MS = 30_000;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const statuses = new Set<CliJobStatus>([
@@ -151,35 +156,63 @@ function writeIndex(dataDir: string, index: CliJobIndex): void {
     throw new Error("Job index exceeds maximum bytes.");
   writeJsonAtomicSync(indexPath(dataDir), index);
 }
-function withLock<T>(dataDir: string, operation: () => T): T {
-  ensureStore(dataDir);
-  const lock = join(jobsRoot(dataDir), ".index-lock");
-  const deadline = Date.now() + 2000;
+function prepareIndexLock(lock: string, deadline: number): void {
+  const wait = new Int32Array(new SharedArrayBuffer(4));
   for (;;) {
     try {
-      mkdirSync(lock, { mode: 0o700 });
-      break;
+      closeSync(openSync(lock, "wx", 0o600));
+      return;
     } catch (error) {
-      if (
-        (error as NodeJS.ErrnoException).code !== "EEXIST" ||
-        Date.now() >= deadline
-      )
-        throw new Error("Job index is locked.", { cause: error });
-      try {
-        const info = lstatSync(lock);
-        if (!info.isDirectory() || info.isSymbolicLink())
-          throw new Error("Unsafe job index lock.");
-      } catch (inspectError) {
-        if ((inspectError as NodeJS.ErrnoException).code === "ENOENT") continue;
-        throw inspectError;
-      }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
+    const info = lstatSync(lock, { throwIfNoEntry: false });
+    if (!info) continue;
+    if (
+      info.isSymbolicLink() ||
+      (process.platform !== "win32" && (info.mode & 0o077) !== 0) ||
+      (process.getuid && info.uid !== process.getuid())
+    )
+      throw new Error("Unsafe job index lock.");
+    if (info.isFile() && info.nlink === 1) return;
+    if (!info.isDirectory()) throw new Error("Unsafe job index lock.");
+
+    // Legacy holders leave no owner information. Migrate only an empty
+    // directory older than the grace period; stop older CLIs before upgrading.
+    if (Date.now() - info.mtimeMs >= LEGACY_LOCK_GRACE_MS) {
+      try {
+        rmdirSync(lock);
+      } catch (error) {
+        const { code } = error as NodeJS.ErrnoException;
+        if (code !== "ENOENT" && code !== "ENOTDIR") throw error;
+      }
+      continue;
+    }
+    if (Date.now() >= deadline) throw new Error("Job index is locked.");
+    Atomics.wait(wait, 0, 0, 20);
   }
+}
+
+function withLock<T>(dataDir: string, operation: () => T): T {
+  ensureStore(dataDir);
+  const root = resolve(jobsRoot(dataDir));
+  const lock = resolve(root, ".index-lock");
+  if (!lock.startsWith(root + sep)) throw new Error("Unsafe job index lock.");
+  const deadline = Date.now() + INDEX_LOCK_TIMEOUT_MS;
+  prepareIndexLock(lock, deadline);
+  const db = new DatabaseSync(lock, {
+    timeout: Math.max(0, deadline - Date.now()),
+  });
   try {
+    try {
+      db.exec("BEGIN IMMEDIATE");
+    } catch (error) {
+      if ((error as { errcode?: number }).errcode === 5)
+        throw new Error("Job index is locked.", { cause: error });
+      throw error;
+    }
     return operation();
   } finally {
-    rmdirSync(lock);
+    db.close();
   }
 }
 export function readJobsIndex(dataDir: string): CliJobIndex {
