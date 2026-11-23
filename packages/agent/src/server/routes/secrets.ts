@@ -58,7 +58,7 @@ export async function handleSecretsRoutes(
         return json(
           {
             error:
-              "Secure storage is locked or unavailable. Unlock your system keychain (or install GNOME Keyring/KWallet on Linux), then restart Doolittle and save again.",
+              "Secure storage is locked or unavailable. Unlock your system keychain (or install GNOME Keyring/KWallet on Linux), then try Save key again.",
           },
           503,
         );

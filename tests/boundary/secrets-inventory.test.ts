@@ -97,7 +97,7 @@ it.each([
       "vault: master key unavailable (keychain://eliza/vault.masterKey): fixture-value",
     ),
     message:
-      "Secure storage is locked or unavailable. Unlock your system keychain (or install GNOME Keyring/KWallet on Linux), then restart Doolittle and save again.",
+      "Secure storage is locked or unavailable. Unlock your system keychain (or install GNOME Keyring/KWallet on Linux), then try Save key again.",
   },
 ])(
   "returns safe recovery guidance when the SDK $failure",
