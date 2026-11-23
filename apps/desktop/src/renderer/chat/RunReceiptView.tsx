@@ -15,7 +15,7 @@ import { ToolPayload } from "../components/ToolActivityGroup";
 import { toolActionLabel } from "../components/tool-activity-details";
 import { UiIcon } from "../components/UiIcon";
 import { displayTimestamp } from "../lib";
-import { fileName, type RunReceipt } from "./models";
+import type { RunReceipt } from "./models";
 import {
   type ActivityStatus,
   ended,
@@ -463,7 +463,16 @@ export function RunReceiptView({
                   {changedFiles.map((path) => (
                     <li className="chat-activity-path" key={path}>
                       <UiIcon icon={FilePenLine} size="xs" />
-                      <code title={path}>{fileName(path)}</code>
+                      <code title={path}>
+                        <span aria-hidden="true">
+                          {path
+                            .split(/[/\\]+/u)
+                            .filter(Boolean)
+                            .slice(-3)
+                            .join("/")}
+                        </span>
+                        <span className="sr-only">{path}</span>
+                      </code>
                     </li>
                   ))}
                 </ul>
