@@ -8,7 +8,7 @@ type MemoryNudgePrepared = {
 };
 
 const MEMORY_COMMAND_PREFIX =
-  /^\s*(?:please\s+)?(?:remember|save\s+that|keep\s+in\s+mind)\b(?:\s+|$)(?:that\b(?:\s+|$))?/iu;
+  /^\s*(?:please\s+)?(?:remember|save\s+that|keep\s+in\s+mind)\b(?:\s*[,;:]\s*|\s+|$)(?:that\b(?:\s+|$))?/iu;
 const MEMORY_NUDGE_SCHEMA = {
   type: "string",
   enum: ["STORE"],
@@ -35,9 +35,11 @@ function extractMemoryNudge(message: Memory): MemoryNudgePrepared | null {
 
   return {
     fact,
-    target: /\b(?:i prefer|my preference|remember that i)\b/iu.test(text)
-      ? "user"
-      : "memory",
+    target:
+      /\b(?:i prefer|my preference)\b/iu.test(fact) ||
+      /\bremember that i\b/iu.test(text)
+        ? "user"
+        : "memory",
   };
 }
 

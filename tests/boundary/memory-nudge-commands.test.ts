@@ -26,6 +26,9 @@ it.each([
   ["remember thatcher is a surname", "thatcher is a surname"],
   ["  PLEASE REMEMBER this fact  ", "this fact"],
   ["remember this line\nand this line", "this line\nand this line"],
+  ["Keep in mind: deploys are Fridays", "deploys are Fridays"],
+  ["Remember; deploys are Fridays", "deploys are Fridays"],
+  ["Please remember, thatcher is a surname", "thatcher is a surname"],
 ])("persists explicit command %j", async (text, fact) => {
   const { add, evaluator, context } = fixture(text);
   expect(await evaluator.shouldRun?.(context)).toBe(true);
@@ -56,6 +59,8 @@ it.each([
   "please remember   ",
   "save that",
   "keep in mind",
+  "Remember,",
+  "Keep in mind:",
   "",
   undefined,
 ])("does not persist non-command or empty input %j", async (text) => {
@@ -67,17 +72,17 @@ it.each([
   expect(add).not.toHaveBeenCalled();
 });
 
-it("retains user preference ownership", async () => {
-  const { add, evaluator, context } = fixture("Remember that I prefer tea");
+it.each([
+  ["Remember that I prefer tea", "I prefer tea"],
+  ["Remember, I prefer tabs", "I prefer tabs"],
+  ["Remember that I live in Paris", "I live in Paris"],
+])("retains user preference ownership for %j", async (text, fact) => {
+  const { add, evaluator, context } = fixture(text);
   const prepared = await evaluator.prepare?.(context);
-  expect(prepared).toEqual({ fact: "I prefer tea", target: "user" });
+  expect(prepared).toEqual({ fact, target: "user" });
   if (!prepared) throw new Error("Missing prepared memory");
   await evaluator.processors?.[0].process({ ...context, prepared });
-  expect(add).toHaveBeenCalledExactlyOnceWith(
-    "user",
-    "I prefer tea",
-    "test-user",
-  );
+  expect(add).toHaveBeenCalledExactlyOnceWith("user", fact, "test-user");
 });
 
 it("tolerates a rejected storage write", async () => {
