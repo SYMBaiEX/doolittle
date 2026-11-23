@@ -84,7 +84,6 @@ export function useBrowserWorkspace(
     fetch(url, {
       cache: "no-store",
       mode: "no-cors",
-      redirect: "manual",
       signal: controller.signal,
     })
       .then(() => {
