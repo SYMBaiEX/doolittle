@@ -7,6 +7,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -16,8 +17,10 @@ import type { CliJobRecord } from "../types";
 import { readCliJobEventsFromPath } from "./events";
 import {
   assertJobPaths,
+  isJobId,
   jobPaths,
   jobsRoot,
+  MAX_JOBS,
   mutateJob,
   readJobsIndex,
   updateJobsIndex,
@@ -27,48 +30,63 @@ export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
   if (Buffer.byteLength(prompt, "utf8") > 1024 * 1024)
     throw new Error("Background prompt exceeds 1 MiB.");
   const id = randomUUID();
-  readJobsIndex(dataDir);
-  const { root } = jobPaths(dataDir, id);
-  const cleanupPath = resolve(root);
-  if (!cleanupPath.startsWith(resolve(jobsRoot(dataDir)) + sep))
-    throw new Error("Unsafe job directory.");
-  mkdirSync(root, { mode: 0o700 });
+  if (!isJobId(id)) throw new Error("Invalid job id.");
+  let createdRoot: string | undefined;
   try {
-    return storeNewJob(dataDir, id, prompt);
+    return updateJobsIndex(dataDir, (index) => {
+      if (index.jobs.length >= MAX_JOBS) {
+        let terminalIndex = index.jobs.length - 1;
+        for (; terminalIndex >= 0; terminalIndex--) {
+          const { status } = index.jobs[terminalIndex];
+          if (status !== "queued" && status !== "running") break;
+        }
+        if (terminalIndex < 0)
+          throw new Error("Job index is full of active jobs.");
+        index.jobs.splice(terminalIndex, 1);
+      }
+
+      assertJobPaths(dataDir);
+      const base = realpathSync(jobsRoot(dataDir));
+      const resolvedRoot = resolve(base, id);
+      const resolvedState = resolve(resolvedRoot, "state");
+      const resolvedLog = resolve(resolvedRoot, "events.jsonl");
+      if (!resolvedRoot.startsWith(base + sep))
+        throw new Error("Unsafe job directory.");
+      if (
+        !resolvedState.startsWith(resolvedRoot + sep) ||
+        !resolvedLog.startsWith(resolvedRoot + sep)
+      )
+        throw new Error("Unsafe job files.");
+      mkdirSync(resolvedRoot, { mode: 0o700 });
+      createdRoot = resolvedRoot;
+      mkdirSync(resolvedState, { mode: 0o700 });
+      assertJobPaths(dataDir, id);
+      writeFileSync(resolvedLog, "", { encoding: "utf8", mode: 0o600, flag: "wx" });
+
+      const now = new Date().toISOString();
+      const paths = jobPaths(dataDir, id);
+      const record: CliJobRecord = {
+        id,
+        prompt,
+        createdAt: now,
+        updatedAt: now,
+        status: "queued",
+        logPath: paths.logPath,
+        stateDir: paths.stateDir,
+      };
+      index.jobs.unshift(record);
+      return record;
+    });
   } catch (error) {
-    try {
-      rmSync(cleanupPath, { recursive: true, force: true });
-    } catch {
-      // Preserve the original creation error if cleanup also fails.
+    if (createdRoot) {
+      try {
+        rmSync(createdRoot, { recursive: true, force: true });
+      } catch {
+        // Preserve the original creation error if cleanup also fails.
+      }
     }
     throw error;
   }
-}
-
-function storeNewJob(
-  dataDir: string,
-  id: string,
-  prompt: string,
-): CliJobRecord {
-  const { stateDir, logPath } = jobPaths(dataDir, id);
-  mkdirSync(stateDir, { mode: 0o700 });
-  assertJobPaths(dataDir, id);
-  writeFileSync(logPath, "", { encoding: "utf8", mode: 0o600, flag: "wx" });
-  const now = new Date().toISOString();
-  const record: CliJobRecord = {
-    id,
-    prompt,
-    createdAt: now,
-    updatedAt: now,
-    status: "queued",
-    logPath,
-    stateDir,
-  };
-  updateJobsIndex(dataDir, (index) => {
-    index.jobs.unshift(record);
-    index.jobs = index.jobs.slice(0, 200);
-  });
-  return record;
 }
 
 export function listCliJobs(dataDir: string): CliJobRecord[] {

@@ -17,7 +17,7 @@ import { reconcileJobRecords } from "./events";
 const MAX_INDEX_BYTES = 16 * 1024 * 1024;
 const INDEX_JSON_FORMAT = { indent: 2, trailingNewline: false };
 const TERMINAL_PROMPT_PREVIEW_LENGTH = 1024;
-const MAX_JOBS = 200;
+export const MAX_JOBS = 200;
 const INDEX_LOCK_TIMEOUT_MS = 2_000;
 const LEGACY_LOCK_GRACE_MS = 30_000;
 const UUID =
