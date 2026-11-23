@@ -156,18 +156,33 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
       );
     expect(arrow("right")).toBeNull();
     act(() => resize());
-    expect(arrow("left")?.disabled).toBe(true);
-    expect(arrow("right")?.disabled).toBe(false);
+    expect(arrow("left")?.getAttribute("aria-disabled")).toBe("true");
+    expect(arrow("right")?.getAttribute("aria-disabled")).toBe("false");
     expect(list.contains(arrow("right"))).toBe(false);
 
+    act(() => arrow("right")?.focus());
     act(() => arrow("right")?.click());
     act(() => arrow("right")?.click());
     expect(list.scrollLeft).toBe(264);
-    expect(arrow("right")?.disabled).toBe(true);
-    expect(arrow("left")?.disabled).toBe(false);
+    expect(arrow("right")?.getAttribute("aria-disabled")).toBe("true");
+    expect(arrow("left")?.getAttribute("aria-disabled")).toBe("false");
+    expect(document.activeElement).toBe(arrow("right"));
+    vi.mocked(list.scrollBy).mockClear();
+    act(() => arrow("right")?.click());
+    expect(list.scrollBy).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(arrow("right"));
     expect(onSelect).not.toHaveBeenCalled();
+    act(() => arrow("left")?.focus());
     act(() => arrow("left")?.click());
     expect(list.scrollLeft).toBeLessThan(264);
+    act(() => arrow("left")?.click());
+    expect(list.scrollLeft).toBe(0);
+    expect(arrow("left")?.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(arrow("left"));
+    vi.mocked(list.scrollBy).mockClear();
+    act(() => arrow("left")?.click());
+    expect(list.scrollBy).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(arrow("left"));
 
     const queue = host.querySelector<HTMLButtonElement>(
       "#overflow-work-tasks-tab",
@@ -201,10 +216,12 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
     expect(inbox?.getAttribute("aria-selected")).toBe("true");
 
     // Enough space for all labels removes the arrows, including their width.
+    act(() => arrow("left")?.focus());
     width = 520;
     act(() => resize());
     expect(arrow("left")).toBeNull();
     expect(arrow("right")).toBeNull();
+    expect(document.activeElement).toBe(inbox);
   } finally {
     act(() => root.unmount());
     host.remove();
