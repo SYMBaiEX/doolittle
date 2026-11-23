@@ -326,7 +326,7 @@ function bunInstallEvidence(
   return evidence;
 }
 
-function isLocalCurlSmoke(command: string): boolean {
+function isLocalCurlSmoke(command: string, windowsShell: boolean): boolean {
   // Only literal curl invocations attest a target; shell programs and unknown
   // curl options may redirect execution or change the meaning of URL operands.
   if (/[$`\r\n]/u.test(command)) return false;
@@ -342,7 +342,10 @@ function isLocalCurlSmoke(command: string): boolean {
     if (offset < command.length && !/\s/u.test(command[offset] ?? ""))
       return false;
   }
-  if (tokens[0] === "cd") {
+  if (
+    tokens[0] === "cd" ||
+    (windowsShell && tokens[0]?.toLowerCase() === "cd")
+  ) {
     const separator = ["--", "/d"].includes(tokens[1]?.toLowerCase() ?? "")
       ? 3
       : 2;
@@ -432,7 +435,10 @@ function runtimeSmokeEvidence(
       !workingDirectory ||
       !pathIsWithin(resolve(expectedWorkspace), workingDirectory) ||
       typeof rawCommand !== "string" ||
-      !isLocalCurlSmoke(rawCommand)
+      !isLocalCurlSmoke(
+        rawCommand,
+        /^[a-z]:[\\/]|^\\\\/iu.test(workingDirectory),
+      )
     ) {
       continue;
     }

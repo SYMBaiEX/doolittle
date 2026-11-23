@@ -58,6 +58,7 @@ it.each([
 
 it.each([
   "curl --fail https://example.com/api/status",
+  "CD /workspace && curl --fail http://localhost/status",
   "curl --fail example.com/api",
   "curl --fail ftp://localhost/status",
   "curl --fail user@localhost:3000/status",
