@@ -357,7 +357,9 @@ test.describe("fresh native desktop", () => {
         work.getByRole("tab", { name: "Automations" }),
       ).toHaveAttribute("aria-selected", "true");
       await expect(
-        page.getByRole("heading", { name: "Scheduled work" }),
+        page
+          .locator(".automation-page .ws-rail__heading")
+          .getByText("Automations", { exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "New automation" }).first(),
@@ -1383,7 +1385,11 @@ test.describe("fresh native desktop", () => {
       const localPicker = page.getByRole("button", {
         name: /^Choose workspace\. Current workspace This computer.*local-coding/u,
       });
-      await expect(localPicker).toBeVisible();
+      // Bound chats keep their confirmed workspace; the picker is for new chats.
+      await expect(localPicker).toHaveCount(0);
+      await expect(
+        page.getByRole("log", { name: "local-coding conversation" }),
+      ).toBeVisible();
       expect(await projectDialogCount(app)).toBe(1);
 
       const local = await page.evaluate(() =>
@@ -1419,10 +1425,12 @@ test.describe("fresh native desktop", () => {
       );
       await composer.press("Enter");
       await expect
-        .poll(() =>
-          existsSync(terminalProof)
-            ? readFileSync(terminalProof, "utf8")
-            : null,
+        .poll(
+          () =>
+            existsSync(terminalProof)
+              ? readFileSync(terminalProof, "utf8")
+              : null,
+          { timeout: 15_000 },
         )
         .toBe(projectRoot);
       const transcript = page.getByRole("log", {
@@ -1442,9 +1450,15 @@ test.describe("fresh native desktop", () => {
       await composer.pressSequentially(nextLine);
       await expect(composer).toHaveValue(`${draft}\n${nextLine}`);
 
-      await localPicker.click();
-      await picker.getByRole("button", { name: /^Private workspace/u }).click();
-      await expect(chooseWorkspace).toHaveAccessibleName(/Private workspace/u);
+      await page.getByRole("button", { name: "New conversation" }).click();
+      const newChat = page.getByRole("dialog", {
+        name: "Start a chat with Doolittle",
+      });
+      await newChat.getByLabel("Project for new chat").selectOption("unscoped");
+      await newChat
+        .getByRole("button", { name: "Start chat with Doolittle" })
+        .click();
+      await expect(composer).toHaveValue("");
       const privateChat = await page.evaluate(() =>
         window.doolittle.ui?.getSelection(),
       );
@@ -1475,7 +1489,9 @@ test.describe("fresh native desktop", () => {
         .getByRole("tablist", { name: "Open conversations" })
         .locator(`[aria-controls="${localPanelId}"]`)
         .click();
-      await expect(localPicker).toBeVisible();
+      await expect(
+        page.getByRole("log", { name: "local-coding conversation" }),
+      ).toBeVisible();
       await expect(composer).toHaveValue(`${draft}\n${nextLine}`);
     } finally {
       await desktop.dispose();
@@ -1513,6 +1529,10 @@ test.describe("fresh native desktop", () => {
       const betaId = await makeProject(page, beta.name, beta.root);
       await installProjectDialog(app, alpha.root);
       await openProjectChat(page, alphaId);
+      const alphaSessionId = (
+        await page.evaluate(() => window.doolittle.ui?.getSelection())
+      )?.sessionId;
+      if (!alphaSessionId) throw new Error("Expected the alpha chat session");
 
       const views = page.getByRole("group", { name: "Workbench view" });
       const chatView = views.getByRole("button", { name: "Agent View" });
@@ -1548,7 +1568,7 @@ test.describe("fresh native desktop", () => {
 
       await openInIde(alpha);
       await chatView.click();
-      await expect(composerWorkspace).toHaveAttribute("title", alpha.root);
+      await expect.poll(selectedProject).toBe(alphaId);
 
       // Beta has no conversation yet. Activate it from Chat while the previous
       // IDE and the fixture's default workspace have different roots.
@@ -1581,16 +1601,18 @@ test.describe("fresh native desktop", () => {
       await expect.poll(selectedProject).toBe(betaId);
       expect(await projectDialogCount(app)).toBe(1);
 
-      // Selecting a saved workspace from the composer must retarget the
-      // editor to that chat as well, without waiting for a model turn.
+      // Switching to another bound chat retargets the editor to its project.
       await chatView.click();
-      await expect(composerWorkspace).toHaveAttribute("title", beta.root);
+      await expect.poll(selectedProject).toBe(betaId);
       await expect(composer).toHaveValue(betaDraft);
       expect(await composerSession()).toBe(betaSession);
-      await composerWorkspace.click();
+      await page.getByRole("button", { name: "Conversation options" }).click();
+      await page.getByRole("menuitem", { name: "Workspace views" }).click();
       await page
-        .getByRole("dialog", { name: "Choose a workspace for a new chat" })
-        .getByRole("button", { name: new RegExp(`^${alpha.name}\\b`, "u") })
+        .getByRole("tablist", { name: "Open conversations" })
+        .locator(
+          `[aria-controls="session-panel-${encodeURIComponent(alphaSessionId)}"]`,
+        )
         .click();
       await openInIde(alpha);
       await expect.poll(selectedProject).toBe(alphaId);

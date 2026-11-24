@@ -55,7 +55,13 @@ export function MemorySnapshotPanel({
     return <LoadingBlock label={`Loading ${target} memory snapshot…`} />;
   }
   if (resource.error) {
-    return <ErrorBlock error={resource.error} retry={resource.reload} />;
+    return (
+      <ErrorBlock
+        error={resource.error}
+        detail={resource.errorDetail}
+        retry={resource.reload}
+      />
+    );
   }
   if (!resource.data) {
     return (

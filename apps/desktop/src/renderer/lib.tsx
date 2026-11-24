@@ -34,6 +34,8 @@ export { asArray, asNumber, asRecord, asString } from "./value-guards";
 export interface ApiResource<T> {
   data: T | null;
   error: string;
+  /** Raw transport message kept for diagnostic disclosures; `error` stays display-clean. */
+  errorDetail?: string;
   loading: boolean;
   reload: () => void;
   /** Rich lifecycle fields are optional so existing consumers remain source-compatible. */
@@ -107,8 +109,9 @@ export async function prefetchApiResource<T>(
 export function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message
+    .replace(/^\[[A-Z]+\]\s+"[^"]*"\s*:\s*<no response>\s*/iu, "")
     .replace(
-      /^Error invoking remote method ['"]?agent:request['"]?:\s*(?:Error:\s*)?/iu,
+      /^Error invoking remote method\s+['"]?[\w:.-]+['"]?:\s*(?:Error:\s*)?/iu,
       "",
     )
     .replace(/^Error:\s*/iu, "")
@@ -190,6 +193,11 @@ export function useApiResource<T>(
   return {
     data: query.data ?? null,
     error: query.error ? errorMessage(query.error) : "",
+    errorDetail: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : String(query.error)
+      : "",
     loading: status === "loading",
     reload,
     status,
@@ -282,12 +290,17 @@ export function LoadingBlock({ label = "Loading…" }: { label?: string }) {
 
 export function ErrorBlock({
   error,
+  detail,
   retry,
 }: {
   error: string;
+  detail?: string;
   retry?: () => void;
 }) {
   const runtimeOffline = /local runtime is not ready/iu.test(error);
+  const cleaned = runtimeOffline ? "" : errorMessage(error);
+  const rawDetail = (detail ?? "").trim();
+  const showDetails = !runtimeOffline && rawDetail.length > cleaned.length + 20;
   return (
     <Notice tone="bad">
       <strong>
@@ -296,12 +309,22 @@ export function ErrorBlock({
       <span>
         {runtimeOffline
           ? "Restart the local runtime, then try this view again."
-          : errorMessage(error)}
+          : cleaned}
       </span>
       {retry ? (
         <button className="text-button" onClick={retry} type="button">
           Try again
         </button>
+      ) : null}
+      {showDetails ? (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-xs text-[var(--muted)]">
+            Details
+          </summary>
+          <code className="mt-1 block break-all text-xs text-[var(--muted)]">
+            {rawDetail}
+          </code>
+        </details>
       ) : null}
     </Notice>
   );
