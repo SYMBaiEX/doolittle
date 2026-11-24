@@ -1,6 +1,5 @@
 # Security Model
 
-
 ## System overview
 
 Doolittle is a desktop (Electron) and CLI client for ElizaOS: a local-first agent harness that lets a model-driven agent run tools, shell commands, file operations and network actions on the user's machine. Conversation transcripts and trajectories live in a local data directory (SQLite / PGlite). Plugins, skills and MCP servers extend the runtime at the user's permission level.
