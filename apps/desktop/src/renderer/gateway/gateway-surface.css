@@ -1,14 +1,5 @@
 /* Gateway work surface: pieces the shared kit does not cover. */
 
-.ws-rail__controls label:has(> input[type="search"]) {
-  flex: 1;
-  min-inline-size: 7rem;
-}
-
-.ws-rail__controls label:has(> input[type="search"]) > input {
-  inline-size: 100%;
-}
-
 .gateway-connection-summary {
   overflow: hidden;
   font-family: var(--font-mono);

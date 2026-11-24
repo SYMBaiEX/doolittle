@@ -163,13 +163,28 @@
   min-inline-size: 0;
 }
 
+/* Controls arrive wrapped in bare <label> elements; make each label a flex
+   item that can shrink, and a flex container so the field inside it fills the
+   label instead of overflowing it at the rail's 260px minimum. */
+.ws-rail__controls > label {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.ws-rail__controls label:has(> input[type="search"]) {
+  flex: 1;
+  min-inline-size: 7rem;
+}
+
 .ws-rail__controls input[type="search"] {
   flex: 1;
   min-block-size: 30px;
+  min-inline-size: 0;
 }
 
 .ws-rail__controls select {
   min-block-size: 30px;
+  min-inline-size: 0;
 }
 
 .ws-rail__note {
