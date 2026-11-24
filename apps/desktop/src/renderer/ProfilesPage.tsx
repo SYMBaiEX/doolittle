@@ -137,6 +137,7 @@ export function ProfilesPage({ active }: { active: boolean }) {
       description="Choose Doolittle’s voice and working style."
       icon={UserRound}
       title="Profiles"
+      titleHidden
     >
       <div className="settings-profile-workbench__content">
         {error ? <Notice tone="bad">{error}</Notice> : null}

@@ -98,6 +98,7 @@ export function CompatibilityPage({ active }: { active: boolean }) {
       description="Review provider and runtime readiness."
       icon={ShieldCheck}
       title="Compatibility"
+      titleHidden
     >
       {!active ? (
         <OfflineRouteState>
