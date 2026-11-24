@@ -115,7 +115,6 @@
   grid-template-columns: minmax(12rem, 0.85fr) minmax(0, 1.6fr);
   grid-template-rows: minmax(0, 1fr);
   min-inline-size: 0;
-  block-size: clamp(21rem, calc(100dvh - 17rem), 44rem);
   overflow: hidden;
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-md);
@@ -159,9 +158,7 @@
   min-block-size: 0;
   min-inline-size: 0;
   gap: 2px;
-  overflow: auto;
   padding-inline: 6px;
-  scrollbar-gutter: stable;
 }
 
 .catalog-browser-item {
@@ -261,9 +258,7 @@
   min-inline-size: 0;
   gap: 16px;
   padding: 16px;
-  overflow: auto;
   background: var(--bg);
-  overscroll-behavior: contain;
   container-type: inline-size;
 }
 
@@ -422,7 +417,6 @@
   .catalog-browser {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
-    block-size: auto;
     overflow: visible;
   }
 
@@ -431,18 +425,12 @@
     border-radius: inherit;
   }
 
-  .catalog-browser-index__list {
-    overflow: visible;
-    scrollbar-gutter: auto;
-  }
-
   .catalog-browser-compact-action {
     display: inline-flex;
     justify-self: start;
   }
 
   .catalog-browser-detail {
-    overflow: visible;
     padding: 14px;
     border-radius: inherit;
     scroll-margin-block-start: 12px;
