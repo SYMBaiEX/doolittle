@@ -414,7 +414,11 @@ export function SessionDetail({
             {continuityOpen && continuity.loading ? (
               <LoadingBlock />
             ) : continuityOpen && continuity.error ? (
-              <ErrorBlock error={continuity.error} retry={continuity.reload} />
+              <ErrorBlock
+                error={continuity.error}
+                detail={continuity.errorDetail}
+                retry={continuity.reload}
+              />
             ) : continuityOpen && continuity.data?.sessions?.length ? (
               <div className="grid">
                 {continuity.data.sessions.map((session) => (
@@ -462,7 +466,11 @@ export function SessionDetail({
           {transcript.loading ? (
             <LoadingBlock label="Loading transcript…" />
           ) : transcript.error ? (
-            <ErrorBlock error={transcript.error} retry={transcript.reload} />
+            <ErrorBlock
+              error={transcript.error}
+              detail={transcript.errorDetail}
+              retry={transcript.reload}
+            />
           ) : transcriptCount ? (
             transcriptMessages.map((message) => (
               <SessionTranscriptMessage key={message.id} message={message} />

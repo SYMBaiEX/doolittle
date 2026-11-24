@@ -228,7 +228,11 @@ export function KeysPage({ active }: { active: boolean }) {
               {secrets.loading ? (
                 <LoadingBlock label="Loading secret names…" />
               ) : secrets.error ? (
-                <ErrorBlock error={secrets.error} retry={secrets.reload} />
+                <ErrorBlock
+                  error={secrets.error}
+                  detail={secrets.errorDetail}
+                  retry={secrets.reload}
+                />
               ) : (
                 <div className="keys-inventory-list">
                   {keys.map((key) => (

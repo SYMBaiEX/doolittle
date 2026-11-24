@@ -111,7 +111,11 @@ export function PluginsPage({ active }: { active: boolean }) {
           {resource.loading ? (
             <LoadingBlock label="Inspecting native plugin assembly…" />
           ) : resource.error ? (
-            <ErrorBlock error={resource.error} retry={resource.reload} />
+            <ErrorBlock
+              error={resource.error}
+              detail={resource.errorDetail}
+              retry={resource.reload}
+            />
           ) : filtered.length ? (
             <PluginCatalogWorkspace
               entries={filtered}
