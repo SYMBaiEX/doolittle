@@ -159,6 +159,7 @@ export function DocsPage({ active }: { active: boolean }) {
       }
       icon={LifeBuoy}
       title="About Doolittle"
+      titleHidden
     >
       <div className="diagnostic-workspace__stats">
         <CompactStatStrip

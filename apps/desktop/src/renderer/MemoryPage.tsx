@@ -112,6 +112,7 @@ export function MemoryPage({ active }: { active: boolean }) {
       description="Browse private memory, shared project findings, and saved profile details."
       icon={BookOpen}
       title="Memory & recall"
+      titleHidden
     >
       {!active ? (
         <OfflineRouteState>

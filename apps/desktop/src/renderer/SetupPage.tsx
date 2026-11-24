@@ -89,6 +89,7 @@ export function SetupPage({
       description="Confirm local readiness, then configure optional extensions."
       icon={ClipboardCheck}
       title="Setup"
+      titleHidden
     >
       {!active ? (
         <EmptyBlock title="Setup checks are offline">
