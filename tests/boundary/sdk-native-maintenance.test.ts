@@ -271,7 +271,10 @@ it("admits only the approved desktop workspace and leaves ACP tool policy with E
         expect(await service.listSessions()).toEqual([]);
         const sub = join(workspace, "sub");
         mkdirSync(sub);
-        const contained = await service.spawnSession({ ...spawn, workdir: sub });
+        const contained = await service.spawnSession({
+          ...spawn,
+          workdir: sub,
+        });
         await service.closeSession(contained.sessionId);
         const readOnly = await service.spawnSession(spawn);
         expect(await service.getSession(readOnly.sessionId)).toMatchObject({
