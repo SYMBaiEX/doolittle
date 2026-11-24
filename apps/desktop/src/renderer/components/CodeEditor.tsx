@@ -145,6 +145,7 @@ export function CodeEditor({
   workspacePath,
   botId,
   originConversationId,
+  wordWrap = false,
   viewState,
 }: {
   active?: boolean;
@@ -160,6 +161,8 @@ export function CodeEditor({
   workspacePath?: string;
   botId?: string;
   originConversationId?: string;
+  /** Wrap long lines at the editor edge; off keeps horizontal scrolling. */
+  wordWrap?: boolean;
   /** A per-workspace cache indexed by the immutable document identity. */
   viewState?: { key: string; cache: Map<string, CodeEditorViewState> };
 }) {
@@ -169,6 +172,7 @@ export function CodeEditor({
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
   const valueRef = useRef(value);
   const disabledRef = useRef(disabled);
+  const wordWrapRef = useRef(wordWrap);
   const projectDiagnosticsReleaseRef = useRef<(() => void) | null>(null);
   const projectSupportReleaseRef = useRef<(() => void) | null>(null);
   const projectSupportRequestRef = useRef(0);
@@ -183,6 +187,7 @@ export function CodeEditor({
 
   valueRef.current = value;
   disabledRef.current = disabled;
+  wordWrapRef.current = wordWrap;
   const supportSignature = projectSupportSignature(value);
   const viewStateCache = viewState?.cache;
   const viewStateKey = viewState?.key;
@@ -247,7 +252,7 @@ export function CodeEditor({
       smoothScrolling: true,
       stickyScroll: { enabled: true, maxLineCount: compact ? 2 : 4 },
       tabSize: 2,
-      wordWrap: "off",
+      wordWrap: wordWrapRef.current ? "on" : "off",
     });
     const previousViewState = viewStateKey
       ? viewStateCache?.get(viewStateKey)
@@ -367,6 +372,12 @@ export function CodeEditor({
     if (!editor) return;
     editor.updateOptions({ readOnly: disabled, domReadOnly: disabled });
   }, [disabled]);
+
+  useEffect(() => {
+    editorRef.current?.updateOptions({
+      wordWrap: wordWrap ? "on" : "off",
+    });
+  }, [wordWrap]);
 
   useEffect(() => {
     const model = modelRef.current;
