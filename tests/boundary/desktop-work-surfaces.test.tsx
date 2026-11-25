@@ -80,6 +80,32 @@ it("keeps a review item selected and returns focus after clearing a search", () 
   ).toContain("summary.ts");
 });
 
+it("lets an empty gateway history rail size to its content", () => {
+  act(() =>
+    root.render(
+      <GatewayTimelinePanel
+        direction="all"
+        entries={[]}
+        loading={false}
+        onDirectionChange={noop}
+        onPlatformChange={noop}
+        onQueryChange={noop}
+        onReplay={noop}
+        onRetryDelivery={noop}
+        platform="all"
+        platforms={[]}
+        query=""
+        replayingId=""
+        retryingDeliveryId=""
+        visibleEntries={[]}
+      />,
+    ),
+  );
+  expect(host.querySelector(".ws-rail")?.className).toContain(
+    "ws-rail--fit-content",
+  );
+});
+
 it("waits for replay confirmation and returns focus after cancellation", () => {
   const replay = vi.fn();
   const entry: GatewayTimelineItem = {
@@ -116,6 +142,9 @@ it("waits for replay confirmation and returns focus after cancellation", () => {
         visibleEntries={[entry]}
       />,
     ),
+  );
+  expect(host.querySelector(".ws-rail")?.className).not.toContain(
+    "ws-rail--fit-content",
   );
   const opener = button("Replay inbound Discord message");
   expect(opener).toBeDefined();

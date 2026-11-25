@@ -197,6 +197,11 @@ export function GatewayPage({ active }: { active: boolean }) {
     resourceSummary.status === "loading" ||
     resourceSummary.status === "refreshing" ||
     resourceSummary.status === "error";
+  const approvalSummary = pairingOpen
+    ? pairingPending.loading || pairingApproved.loading
+      ? "approvals loading…"
+      : `${pendingPairings.length} awaiting approval`
+    : "approvals on demand";
 
   const refresh = () => {
     if (!active) return;
@@ -306,16 +311,18 @@ export function GatewayPage({ active }: { active: boolean }) {
 
       <WorkToolbar>
         <span className="gateway-connection-summary">
-          <strong>{gateway.ready}</strong>/{gateway.configured} adapters ready ·{" "}
-          <strong>{gateway.operational}</strong> transports operational ·{" "}
-          <strong>{entries.length}</strong> records (
-          {asArray(inbox.data?.inbox).length} in ·{" "}
-          {asArray(outbox.data?.outbox).length} out) ·{" "}
-          {pairingOpen
-            ? pairingPending.loading || pairingApproved.loading
-              ? "approvals loading…"
-              : `${pendingPairings.length} awaiting approval`
-            : "approvals on demand"}
+          <span>
+            <strong>{gateway.ready}</strong>/{gateway.configured} adapters ready
+          </span>
+          <span>
+            <strong>{gateway.operational}</strong> transports operational
+          </span>
+          <span>
+            <strong>{entries.length}</strong> records (
+            {asArray(inbox.data?.inbox).length} in ·{" "}
+            {asArray(outbox.data?.outbox).length} out)
+          </span>
+          <span>{approvalSummary}</span>
         </span>
       </WorkToolbar>
 

@@ -1,12 +1,29 @@
 /* Gateway work surface: pieces the shared kit does not cover. */
 
 .gateway-connection-summary {
-  overflow: hidden;
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 8px;
   font-family: var(--font-mono);
   font-size: var(--text-meta);
+  color: var(--muted);
+}
+
+.gateway-connection-summary > span {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--muted);
+}
+
+.gateway-connection-summary > span:not(:last-child)::after {
+  margin-inline-start: 8px;
+  color: var(--faint);
+  content: "·";
 }
 
 .gateway-connection-summary strong {

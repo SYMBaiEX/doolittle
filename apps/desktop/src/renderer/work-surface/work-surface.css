@@ -129,6 +129,11 @@
     border-inline-end: 0;
     border-block-end: 1px solid var(--border);
   }
+
+  .ws-rail--fit-content {
+    min-block-size: 0;
+    max-block-size: none;
+  }
 }
 
 .ws-rail__heading {

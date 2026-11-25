@@ -100,6 +100,7 @@ export function GatewayTimelinePanel({
   return (
     <WorkSplit>
       <WorkRail
+        className={entries.length ? "" : "ws-rail--fit-content"}
         controls={
           entries.length ? (
             <>
