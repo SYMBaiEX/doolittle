@@ -267,7 +267,7 @@ export function KeysPage({ active }: { active: boolean }) {
             description={
               inventoryEmpty
                 ? "Save the first credential in this local store."
-                : "Values stay concealed until you choose to reveal them."
+                : "Values stay concealed until you choose to reveal them. Revealing copies the value into the desktop renderer, so reveal only to inspect or replace it."
             }
             headingLevel={3}
             icon={ShieldCheck}
@@ -352,12 +352,7 @@ export function KeysPage({ active }: { active: boolean }) {
                   Clear from renderer
                 </WorkbenchAction>
               </Notice>
-            ) : (
-              <Notice tone="warn">
-                Revealing a key copies its current value into the desktop
-                renderer. Only do that when you need to inspect or replace it.
-              </Notice>
-            )}
+            ) : null}
           </WorkbenchSection>
         </div>
       )}
