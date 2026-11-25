@@ -1,4 +1,11 @@
-import type { ReactNode } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import type { WorkTier } from "./status";
 import "./work-surface.css";
@@ -200,26 +207,82 @@ export function WorkActions({
 export function WorkConfirm({
   title,
   detail,
-  children,
-  dialogRef,
+  confirmLabel,
+  cancelLabel = "Cancel",
+  confirmDisabled = false,
+  cancelDisabled = false,
+  returnFocusRef,
+  onConfirm,
+  onCancel,
 }: {
   title: ReactNode;
   detail: ReactNode;
-  children: ReactNode;
-  dialogRef?: React.RefObject<HTMLDivElement | null>;
+  confirmLabel: ReactNode;
+  cancelLabel?: ReactNode;
+  confirmDisabled?: boolean;
+  cancelDisabled?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
+  const titleId = useId();
+  const detailId = useId();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    cancelRef.current?.focus();
+  }, []);
+
+  const cancel = () => {
+    const restoreTarget = returnFocusRef?.current ?? previousFocusRef.current;
+    if (restoreTarget?.isConnected) {
+      restoreTarget.focus({ preventScroll: true });
+    }
+    onCancel();
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    cancel();
+  };
+
   return (
     <div
+      aria-describedby={detailId}
+      aria-labelledby={titleId}
+      aria-modal="false"
       className="ws-confirm"
-      aria-live="polite"
-      ref={dialogRef}
+      onKeyDown={onKeyDown}
+      role="alertdialog"
       tabIndex={-1}
     >
       <div>
-        <strong>{title}</strong>
-        <span>{detail}</span>
+        <strong id={titleId}>{title}</strong>
+        <span id={detailId}>{detail}</span>
       </div>
-      {children}
+      <button
+        className="danger-button"
+        disabled={confirmDisabled}
+        onClick={onConfirm}
+        type="button"
+      >
+        {confirmLabel}
+      </button>
+      <button
+        className="text-button"
+        disabled={cancelDisabled}
+        onClick={cancel}
+        ref={cancelRef}
+        type="button"
+      >
+        {cancelLabel}
+      </button>
     </div>
   );
 }

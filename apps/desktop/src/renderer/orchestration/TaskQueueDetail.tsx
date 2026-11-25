@@ -1,5 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
-import { type FormEvent, type RefObject, useRef } from "react";
+import { type FormEvent, useRef } from "react";
 import { copyContextText } from "../context-menu-clipboard";
 import { asArray, asNumber, asString, Badge, displayTimestamp } from "../lib";
 import {
@@ -40,7 +40,6 @@ export type TaskQueueDetailProps = {
   childObjective: string;
   childTitle: string;
   childWorkspaceRoot: string;
-  confirmDialogRef: RefObject<HTMLDivElement | null>;
   confirmedAction: ConfirmedAction | null;
   onChildObjectiveChange: (value: string) => void;
   onChildTitleChange: (value: string) => void;
@@ -69,7 +68,6 @@ export function TaskQueueDetail({
   childObjective,
   childTitle,
   childWorkspaceRoot,
-  confirmDialogRef,
   confirmedAction,
   onChildObjectiveChange,
   onChildTitleChange,
@@ -271,32 +269,20 @@ export function TaskQueueDetail({
 
       {confirmedAction?.taskId === selectedTask.id ? (
         <WorkConfirm
+          cancelLabel="Keep task"
+          confirmDisabled={!active}
+          confirmLabel={`Confirm ${confirmedAction.action}`}
           detail="This changes this task's state. Child tasks are unchanged."
-          dialogRef={confirmDialogRef}
+          onCancel={onCloseConfirmation}
+          onConfirm={() =>
+            onRunTaskAction(selectedTask, confirmedAction.action)
+          }
           title={
             confirmedAction.action === "fail"
               ? "Mark this task failed?"
               : "Cancel this task?"
           }
-        >
-          <button
-            className="danger-button"
-            type="button"
-            onClick={() =>
-              onRunTaskAction(selectedTask, confirmedAction.action)
-            }
-            disabled={!active}
-          >
-            Confirm {confirmedAction.action}
-          </button>
-          <button
-            className="text-button"
-            type="button"
-            onClick={onCloseConfirmation}
-          >
-            Keep task
-          </button>
-        </WorkConfirm>
+        />
       ) : null}
 
       {showChildCreate ? (

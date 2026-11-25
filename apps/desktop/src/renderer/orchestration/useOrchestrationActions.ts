@@ -196,7 +196,6 @@ export function useOrchestrationActions({
   const [bundleError, setBundleError] = useState("");
   const [bundleLoading, setBundleLoading] = useState(false);
   const [confirmedRunCancellation, setConfirmedRunCancellation] = useState("");
-  const confirmDialogRef = useRef<HTMLDivElement>(null);
   const confirmReturnRef = useRef<HTMLButtonElement | null>(null);
   const guidedCodingLaunchId = useRef("");
 
@@ -227,11 +226,6 @@ export function useOrchestrationActions({
       setConfirmedRunCancellation("");
     }
   }, [confirmedRunCancellation, selectedRun?.id]);
-
-  useEffect(() => {
-    if (!confirmedAction) return;
-    requestAnimationFrame(() => confirmDialogRef.current?.focus());
-  }, [confirmedAction]);
 
   const publishNotice = useCallback(
     ({
@@ -719,7 +713,6 @@ export function useOrchestrationActions({
     codegenTargetType,
     confirmedAction,
     confirmedRunCancellation,
-    confirmDialogRef,
     loadBundle,
     notices,
     publishNotice,
