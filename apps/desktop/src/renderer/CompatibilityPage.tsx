@@ -62,7 +62,7 @@ export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
           No compatibility checks reported
         </strong>
         <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
-          The runtime returned no checks payload.
+          The runtime didn't provide any compatibility results.
         </small>
       </div>
       <Button
@@ -87,13 +87,21 @@ export function CompatibilityPage({ active }: { active: boolean }) {
   const refresh = () => {
     if (active) compatibility.reload();
   };
+  // The empty state offers its own more specific retry control.
+  const emptyStateVisible =
+    active &&
+    !compatibility.loading &&
+    !compatibility.error &&
+    checks.length === 0;
 
   return (
     <DiagnosticWorkspace
       actions={
-        <WorkbenchAction disabled={!active} icon={RotateCw} onClick={refresh}>
-          Refresh
-        </WorkbenchAction>
+        emptyStateVisible ? null : (
+          <WorkbenchAction disabled={!active} icon={RotateCw} onClick={refresh}>
+            Refresh
+          </WorkbenchAction>
+        )
       }
       description="Review provider and runtime readiness."
       icon={ShieldCheck}
