@@ -159,35 +159,6 @@ export function ToolsPage({ active }: { active: boolean }) {
               resources={[{ label: "Tool catalog", resource: tools }]}
             />
           </div>
-          <details
-            className={TOOLS_INTEGRATIONS_CLASS}
-            onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
-            open={integrationsOpen}
-          >
-            <summary>
-              <UiIcon icon={Plug} size="md" />
-              <span>
-                <strong>Integration bridges</strong>
-                <small>MCP and ACP diagnostics</small>
-              </span>
-              <UiIcon
-                className="tools-integrations__disclosure"
-                icon={ChevronRight}
-              />
-            </summary>
-            {integrationsOpen ? (
-              <div className={TOOLS_INTEGRATIONS_BODY_CLASS}>
-                <Suspense fallback={<McpControlPanelFallback />}>
-                  <LazyMcpControlPanel active={active} />
-                </Suspense>
-                <Suspense
-                  fallback={<LoadingBlock label="Loading ACP bridge…" />}
-                >
-                  <LazyAcpBridgePanel active={active} />
-                </Suspense>
-              </div>
-            ) : null}
-          </details>
           <CatalogFilterBar
             category={{
               label: "Tool category",
@@ -241,6 +212,35 @@ export function ToolsPage({ active }: { active: boolean }) {
                 : "The runtime has not reported available tools."}
             </WorkbenchEmpty>
           )}
+          <details
+            className={TOOLS_INTEGRATIONS_CLASS}
+            onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
+            open={integrationsOpen}
+          >
+            <summary>
+              <UiIcon icon={Plug} size="md" />
+              <span>
+                <strong>Integration bridges</strong>
+                <small>MCP and ACP diagnostics</small>
+              </span>
+              <UiIcon
+                className="tools-integrations__disclosure"
+                icon={ChevronRight}
+              />
+            </summary>
+            {integrationsOpen ? (
+              <div className={TOOLS_INTEGRATIONS_BODY_CLASS}>
+                <Suspense fallback={<McpControlPanelFallback />}>
+                  <LazyMcpControlPanel active={active} />
+                </Suspense>
+                <Suspense
+                  fallback={<LoadingBlock label="Loading ACP bridge…" />}
+                >
+                  <LazyAcpBridgePanel active={active} />
+                </Suspense>
+              </div>
+            ) : null}
+          </details>
         </>
       ) : (
         <OfflineRouteState>
