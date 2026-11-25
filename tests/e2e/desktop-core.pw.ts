@@ -719,7 +719,7 @@ test.describe("fresh native desktop", () => {
       await expect(drawer).toBeHidden();
       await expect(openNavigation).toBeFocused();
       await expect(
-        page.getByRole("textbox", { name: /^Message /u }),
+        page.getByRole("combobox", { name: /^Message /u }),
       ).toBeVisible();
     } finally {
       await desktop.dispose();
@@ -916,7 +916,7 @@ test.describe("fresh native desktop", () => {
         page.getByRole("heading", { name: "No group chats yet", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("textbox", { name: /^Message /u }),
+        page.getByRole("combobox", { name: /^Message /u }),
       ).toHaveCount(0);
       // Seed the same durable records a connector writes before reopening the
       // profile. The encoded account name makes this a legacy opaque session ID.
@@ -2146,7 +2146,7 @@ test.describe("fresh native desktop", () => {
     );
     try {
       let page = desktop.page;
-      const composer = () => page.getByRole("textbox", { name: /^Message /u });
+      const composer = () => page.getByRole("combobox", { name: /^Message /u });
       const draft = "Keep this coding draft while I change the theme.";
       const chooseTheme = async (name: string) => {
         await page
