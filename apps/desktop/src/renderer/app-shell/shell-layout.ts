@@ -4,6 +4,14 @@ export const DESKTOP_SHELL_CLASS =
 export const APP_MAIN_CLASS =
   "app-main relative flex min-h-0 min-w-0 flex-col overflow-hidden";
 
+export const APP_MAIN_ID = "doolittle-main";
+
+// Visually quiet skip link: fixed out of layout and parked above the window
+// until keyboard focus slides it into view, then a plain filled chip with the
+// shell's standard thin focus outline.
+export const SKIP_LINK_CLASS =
+  "app-skip-link fixed top-2 left-2 z-50 -translate-y-[calc(100%_+_1rem)] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[length:var(--text-control)] font-medium text-[var(--text)] no-underline shadow-[var(--shell-shadow-lg)] focus:translate-y-0";
+
 export const WINDOW_DRAGBAR_CLASS =
   "window-dragbar relative flex h-12 min-h-12 shrink-0 flex-col items-stretch border-b border-[var(--border)] bg-[var(--bg)] text-[var(--muted)] [-webkit-app-region:drag]";
 
