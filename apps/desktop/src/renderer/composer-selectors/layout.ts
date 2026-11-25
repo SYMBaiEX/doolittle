@@ -38,7 +38,7 @@ export const COMPOSER_MODEL_NAME_CLASS = "composer-route-label";
 export const COMPOSER_MODEL_EFFORT_BADGE_CLASS = "composer-route-mode";
 
 export const COMPOSER_MODEL_GROUPS_CLASS =
-  "composer-model-groups grid min-h-0 max-h-[min(470px,56vh)] flex-1 gap-0.5 overflow-y-auto px-1.75 pb-1.75 [&>section]:grid";
+  "composer-model-groups grid min-h-0 flex-1 gap-0.5 overflow-y-auto px-1.75 pb-1.75 [&>section]:grid";
 
 export const COMPOSER_PROVIDER_HEADING_CLASS =
   "grid min-h-9 grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-1.5 rounded-[var(--radius-md)] border-0 bg-transparent px-1.75 py-1 text-left text-[var(--muted)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] [&>svg]:text-[var(--faint)] [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-inherit [&_strong]:normal-case";

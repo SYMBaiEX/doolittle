@@ -315,7 +315,7 @@ export function SessionDetail({
         </div>
       ) : null}
       <div
-        className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 border-y border-[var(--border-subtle)] py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-muted)]"
+        className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 border-y border-[var(--border-subtle)] py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]"
         data-session-summary="true"
       >
         <span>
@@ -336,11 +336,11 @@ export function SessionDetail({
         onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
       >
         <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
-          <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)]">
+          <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)]">
             <strong>Conversation details</strong>
             <small>Technical metadata and related conversations</small>
           </span>
-          <span className="text-[length:var(--text-meta)] text-[var(--text-muted)]">
+          <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
             {continuityOpen
               ? continuity.loading
                 ? "Loading…"
@@ -448,7 +448,7 @@ export function SessionDetail({
                 This conversation does not currently have a continuity chain.
               </EmptyBlock>
             ) : (
-              <p className="mb-0 text-[length:var(--text-meta)] text-[var(--text-muted)]">
+              <p className="mb-0 text-[length:var(--text-meta)] text-[var(--muted)]">
                 Open details to find related branches.
               </p>
             )}

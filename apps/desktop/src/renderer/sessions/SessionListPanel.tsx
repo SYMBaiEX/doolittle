@@ -195,7 +195,7 @@ export function SessionListPanel({
               onClick={() => onSelect(session)}
               type="button"
             >
-              <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
+              <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
                 <strong>
                   {compactSessionPreview(session.title || "") ||
                     compactSessionPreview(session.preview?.[0] || "") ||
@@ -206,7 +206,7 @@ export function SessionListPanel({
                     session.sessionId}
                 </small>
               </span>
-              <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]">
+              <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
                 <small>{session.messageCount} messages</small>
                 <small>{displayTimestamp(session.endedAt)}</small>
               </span>
@@ -248,7 +248,7 @@ export function SessionListPanel({
             className="mt-1 flex min-h-[38px] items-center justify-between gap-2 border-t border-[var(--border-subtle)] px-1 pt-[5px]"
             data-session-list-footer="true"
           >
-            <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--text-muted)] uppercase">
+            <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--muted)] uppercase">
               Showing {sessionWindow.visible.length} of {filtered.length}
             </span>
             <Button
