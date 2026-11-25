@@ -8,13 +8,17 @@ export const SESSIONS_EMPTY_WORKSPACE_CLASS =
   "grid min-h-0 flex-none grid-cols-1 overflow-hidden";
 
 export const SESSION_LIST_PANEL_CLASS =
-  "flex min-h-0 flex-col gap-2 overflow-hidden border-r border-[var(--border)] p-2.5 max-[760px]:max-h-[42vh] max-[760px]:border-r-0 max-[760px]:border-b";
+  "@container/sessions flex min-h-0 flex-col gap-2 overflow-hidden border-r border-[var(--border)] p-2.5 max-[760px]:max-h-[42vh] max-[760px]:border-r-0 max-[760px]:border-b";
 
 export const SESSION_LIST_HEADER_CLASS =
   "flex min-h-6 items-center justify-between gap-2 px-0.25 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text-strong)] [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
 
+// Narrow panels cannot fit the timestamp/count column beside the title, so
+// below ~300px the row stacks: the title uses the full width and the metadata
+// moves onto its own line underneath. The pr-12 reserve keeps row text clear
+// of the absolutely positioned hover actions trigger.
 export const SESSION_ROW_CLASS =
-  "group grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border-subtle)] px-3 py-2 text-left text-[var(--text)] transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
+  "group grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border-subtle)] py-2 pl-3 pr-12 text-left text-[var(--text)] transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none @max-[300px]/sessions:grid-cols-1 @max-[300px]/sessions:content-start @max-[300px]/sessions:gap-0.5";
 
 export const SESSION_ROW_SELECTED_CLASS =
   "font-semibold [&_strong]:font-semibold text-[var(--text)]";

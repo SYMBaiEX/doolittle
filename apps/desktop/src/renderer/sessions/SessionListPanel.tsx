@@ -145,7 +145,7 @@ export function SessionListPanel({
       >
         {sessionWindow.visible.map((session) => (
           <ContextActionMenu
-            className="group flex min-w-0 items-center"
+            className="group relative flex min-w-0 items-center"
             items={[
               {
                 id: "preview",
@@ -181,7 +181,7 @@ export function SessionListPanel({
             trigger={
               <button
                 aria-label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
-                className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
+                className="absolute top-1/2 right-1 z-10 grid size-10 shrink-0 -translate-y-1/2 place-items-center rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
                 type="button"
               >
                 <UiIcon icon={MoreHorizontal} size="sm" />
@@ -206,7 +206,7 @@ export function SessionListPanel({
                     session.sessionId}
                 </small>
               </span>
-              <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
+              <span className="grid shrink-0 justify-items-end gap-0.5 @max-[300px]/sessions:grid-flow-col @max-[300px]/sessions:justify-start @max-[300px]/sessions:justify-items-start @max-[300px]/sessions:gap-x-2 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
                 <small>{session.messageCount} messages</small>
                 <small>{displayTimestamp(session.endedAt)}</small>
               </span>
