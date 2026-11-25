@@ -178,9 +178,11 @@ export function BrowserPage({
           >
             <UiIcon icon={ArrowLeft} size="sm" />
           </button>
+          {/* Forward and reload stay in the navigation context menu at
+              minimum widths so the URL field keeps usable room. */}
           <button
             aria-label="Go forward"
-            className={BROWSER_NAV_BUTTON_CLASS}
+            className={`${BROWSER_NAV_BUTTON_CLASS} max-[420px]:hidden`}
             disabled={!canGoForward}
             onClick={() => travelHistory(1)}
             type="button"
@@ -189,7 +191,7 @@ export function BrowserPage({
           </button>
           <button
             aria-label="Reload preview"
-            className={BROWSER_NAV_BUTTON_CLASS}
+            className={`${BROWSER_NAV_BUTTON_CLASS} max-[420px]:hidden`}
             disabled={!currentUrl}
             onClick={reloadPreview}
             type="button"
@@ -290,8 +292,9 @@ export function BrowserPage({
                 </span>
                 <h2>Localhost isn’t reachable</h2>
                 <p>
-                  Nothing responded at {currentUrl}. Start your development
-                  server or check the port, then try again.
+                  Nothing responded at {currentUrl || "No preview loaded"}.
+                  Start your development server or check the port, then try
+                  again.
                 </p>
                 <Button
                   onClick={reloadPreview}
