@@ -168,6 +168,12 @@
   }
 }
 
+/* The detail column owns the pane scroll; the detail body grows with its
+   content instead of nesting a second scrollport inside it. */
+.automation-detail-column .ws-detail {
+  overflow: visible;
+}
+
 .work-disclosure {
   min-inline-size: 0;
   border: 1px solid var(--border);
