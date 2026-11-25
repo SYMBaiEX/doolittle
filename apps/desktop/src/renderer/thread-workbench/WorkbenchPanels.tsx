@@ -583,7 +583,6 @@ export function WorkbenchPanels({
   const selectedFullView = FULL_VIEW[model.selectedTab];
   const panelMeta = workbenchPanelMeta(model.selectedTab, {
     approvals: controller.approvalEntries.length,
-    commands: controller.commandEntries.length,
     files: controller.fileEntries.length,
     plans: controller.planEntries.length,
     preview: previewMode,

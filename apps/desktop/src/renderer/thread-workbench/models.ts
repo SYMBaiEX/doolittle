@@ -24,7 +24,6 @@ export interface NavigationCard {
 
 export interface WorkbenchPanelMetrics {
   approvals: number;
-  commands: number;
   files: number;
   plans: number;
   preview: string;
@@ -65,7 +64,9 @@ export function workbenchPanelMeta(
       // here would render the same number twice in one panel.
       return "";
     case "terminal":
-      return `${metrics.commands} commands`;
+      // The command count stays in the command history header; repeating it
+      // here would render the same number twice in one panel.
+      return "";
     case "plans":
       return `${metrics.plans} plans`;
     case "brief":
