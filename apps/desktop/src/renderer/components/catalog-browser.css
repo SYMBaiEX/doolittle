@@ -11,9 +11,28 @@
 }
 
 .catalog-page > .workbench-section__header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* Flatten the heading/copy wrappers so the glyph, title, actions, and
+   description wrap as peers: actions stay beside the title while they fit
+   and drop below it when they do not, instead of squeezing the copy. */
+.catalog-page .workbench-section__heading,
+.catalog-page .workbench-section__copy {
+  display: contents;
+}
+
+:where(.catalog-page .workbench-section__copy) > div {
+  flex: 1 1 100%;
+  order: 1;
+  min-inline-size: 0;
+}
+
+.catalog-page .workbench-section__actions {
+  margin-inline-start: auto;
 }
 
 .catalog-page .workbench-section__glyph {
