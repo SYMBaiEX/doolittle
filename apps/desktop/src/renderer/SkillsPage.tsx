@@ -127,54 +127,48 @@ export function SkillsPage({ active }: { active: boolean }) {
             id="skills-catalog-panel"
             role="tabpanel"
           >
-            {section === "catalog" ? (
-              <>
-                <CatalogFilterBar
-                  onQueryChange={setQuery}
-                  placeholder="Search skills"
-                  query={query}
-                  resultLabel={
-                    skills.loading
-                      ? "Loading…"
-                      : skills.error
-                        ? "Unavailable"
-                        : `${filtered.length} of ${entries.length}`
-                  }
-                  searchLabel="Search skills"
-                />
-                {skills.loading && !catalogData ? (
-                  <LoadingBlock label="Reading workspace skills…" />
-                ) : skills.error && !catalogData ? (
-                  <ErrorBlock error={skills.error} retry={skills.reload} />
-                ) : filtered.length ? (
-                  <SkillCatalogWorkspace
-                    entries={filtered}
-                    resetKey={query.trim().toLowerCase()}
-                  />
-                ) : (
-                  <WorkbenchEmpty
-                    actions={
-                      query.trim() ? (
-                        <WorkbenchAction
-                          emphasis="secondary"
-                          onClick={() => setQuery("")}
-                        >
-                          Clear search
-                        </WorkbenchAction>
-                      ) : undefined
-                    }
-                    icon={BookOpen}
-                    title={
-                      query.trim() ? "No skills match" : "No skills reported"
-                    }
-                  >
-                    {query.trim()
-                      ? "Try a different skill name or command."
-                      : "Add skills to the local skill workspace to browse them here."}
-                  </WorkbenchEmpty>
-                )}
-              </>
-            ) : null}
+            <CatalogFilterBar
+              onQueryChange={setQuery}
+              placeholder="Search skills"
+              query={query}
+              resultLabel={
+                skills.loading
+                  ? "Loading…"
+                  : skills.error
+                    ? "Unavailable"
+                    : `${filtered.length} of ${entries.length}`
+              }
+              searchLabel="Search skills"
+            />
+            {skills.loading && !catalogData ? (
+              <LoadingBlock label="Reading workspace skills…" />
+            ) : skills.error && !catalogData ? (
+              <ErrorBlock error={skills.error} retry={skills.reload} />
+            ) : filtered.length ? (
+              <SkillCatalogWorkspace
+                entries={filtered}
+                resetKey={query.trim().toLowerCase()}
+              />
+            ) : (
+              <WorkbenchEmpty
+                actions={
+                  query.trim() ? (
+                    <WorkbenchAction
+                      emphasis="secondary"
+                      onClick={() => setQuery("")}
+                    >
+                      Clear search
+                    </WorkbenchAction>
+                  ) : undefined
+                }
+                icon={BookOpen}
+                title={query.trim() ? "No skills match" : "No skills reported"}
+              >
+                {query.trim()
+                  ? "Try a different skill name or command."
+                  : "Add skills to the local skill workspace to browse them here."}
+              </WorkbenchEmpty>
+            )}
           </section>
           <div
             aria-labelledby="skills-workshop-tab"
