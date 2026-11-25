@@ -89,6 +89,8 @@ export function MediaLibraryTab({
   }, [assets, filter, query]);
   const selectedAsset =
     visibleAssets.find((asset) => asset.id === selectedId) ?? visibleAssets[0];
+  const showEmptyState =
+    !library.loading && !library.error && visibleAssets.length === 0;
   const payload = useApiResource<AssetPayload>(
     active && selectedAsset
       ? `/media/library/${encodeURIComponent(selectedAsset.id)}`
@@ -144,7 +146,11 @@ export function MediaLibraryTab({
       hidden={!active}
       id="media-panel-library"
     >
-      <aside className="flex min-h-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] max-[760px]:max-h-[42vh] max-[760px]:min-h-64 max-[760px]:border-r-0 max-[760px]:border-b">
+      <aside
+        className={`flex min-h-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] max-[760px]:max-h-[42vh] max-[760px]:border-r-0 max-[760px]:border-b ${
+          showEmptyState ? "max-[760px]:min-h-0" : "max-[760px]:min-h-64"
+        }`}
+      >
         <div className="grid gap-2 border-b border-[var(--border)] p-2.5">
           <div className="flex items-center justify-between gap-2">
             <strong className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--text-soft)] uppercase">
@@ -172,6 +178,11 @@ export function MediaLibraryTab({
             >
               <Button
                 aria-pressed={!allAssets}
+                className={`rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] ${
+                  !allAssets
+                    ? "font-semibold text-[var(--text)]"
+                    : "font-medium text-[var(--muted)]"
+                }`}
                 onClick={() => setAllAssets(false)}
                 type="button"
                 variant="ghost"
@@ -180,6 +191,11 @@ export function MediaLibraryTab({
               </Button>
               <Button
                 aria-pressed={allAssets}
+                className={`rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] ${
+                  allAssets
+                    ? "font-semibold text-[var(--text)]"
+                    : "font-medium text-[var(--muted)]"
+                }`}
                 onClick={() => setAllAssets(true)}
                 type="button"
                 variant="ghost"
@@ -215,40 +231,16 @@ export function MediaLibraryTab({
             ))}
           </fieldset>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto p-1.5">
+        <div
+          className={`min-h-0 flex-1 overflow-auto p-1.5 ${
+            showEmptyState ? "max-[760px]:hidden" : ""
+          }`}
+        >
           {library.loading ? (
             <LoadingBlock label="Loading assets…" />
           ) : library.error ? (
             <ErrorBlock error={library.error} retry={library.reload} />
-          ) : visibleAssets.length === 0 ? (
-            <div className="grid gap-1 p-3">
-              <strong className="text-[length:var(--text-control)] text-[var(--text)]">
-                {assets.length === 0
-                  ? chatFilter
-                    ? "No assets in this chat"
-                    : "No generated assets yet"
-                  : "No matches"}
-              </strong>
-              <span className="text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
-                {assets.length === 0
-                  ? "Images, speech, and future generated media will appear here automatically."
-                  : "Try another search or asset type."}
-              </span>
-              {query.trim() || filter !== "all" ? (
-                <Button
-                  onClick={() => {
-                    setQuery("");
-                    setFilter("all");
-                    searchInputRef.current?.focus();
-                  }}
-                  type="button"
-                  variant="secondary"
-                >
-                  Clear filters
-                </Button>
-              ) : null}
-            </div>
-          ) : (
+          ) : visibleAssets.length === 0 ? null : (
             <div className="grid gap-0.5">
               {visibleAssets.map((asset) => {
                 const Icon = assetIcon(asset.kind);
@@ -291,7 +283,40 @@ export function MediaLibraryTab({
           )}
         </div>
       </aside>
-      <div className="min-h-0 min-w-0 overflow-auto bg-[var(--bg)] p-4 max-[760px]:min-h-96">
+      {showEmptyState ? (
+        <div className="hidden gap-1 bg-[var(--surface)] p-3 max-[760px]:grid">
+          <strong className="text-[length:var(--text-control)] text-[var(--text)]">
+            {assets.length === 0
+              ? chatFilter
+                ? "No assets in this chat"
+                : "No generated assets yet"
+              : "No matches"}
+          </strong>
+          <span className="text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
+            {assets.length === 0
+              ? "Images, speech, and future generated media will appear here automatically."
+              : "Try another search or asset type."}
+          </span>
+          {query.trim() || filter !== "all" ? (
+            <Button
+              onClick={() => {
+                setQuery("");
+                setFilter("all");
+                searchInputRef.current?.focus();
+              }}
+              type="button"
+              variant="secondary"
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      <div
+        className={`min-h-0 min-w-0 overflow-auto bg-[var(--bg)] p-4 ${
+          showEmptyState ? "max-[760px]:hidden" : "max-[760px]:min-h-96"
+        }`}
+      >
         {library.loading || library.error ? null : !selectedAsset ? (
           <div className="grid min-h-48 max-w-lg content-center gap-1">
             <span className="eyebrow">Asset library</span>
