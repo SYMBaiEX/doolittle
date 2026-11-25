@@ -179,7 +179,7 @@ it("keeps logs keyboard reachable and focuses the requested event", () => {
   Object.defineProperty(target, "scrollIntoView", { value: scrollIntoView });
   records.focus();
   expect(document.activeElement).toBe(records);
-  expect(records.tabIndex).toBe(0);
+  expect(records.tabIndex).toBe(-1);
   expect(target.querySelector("time")?.dateTime).toBe(timestamp);
   act(() => onFrame?.(0));
   expect(document.activeElement).toBe(target);
