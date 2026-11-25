@@ -13,7 +13,9 @@
   overflow: hidden;
 }
 
-.work-embedded > * {
+/* Notices become in-flow banners in narrow containers, so they must not
+   compete with the embedded view for flex height. */
+.work-embedded > :not(.orchestration-notices) {
   flex: 1 1 0%;
   min-block-size: 0;
   min-inline-size: 0;
