@@ -120,7 +120,6 @@
   gap: 4px;
   overflow-x: auto;
   padding: 2px var(--inspector-row-inset) 8px;
-  scrollbar-width: thin;
 }
 
 .workspace-inspector-tabs [role="tab"] {

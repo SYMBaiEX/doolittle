@@ -8,7 +8,51 @@
   padding: 4px 6px 2px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  /* Fade whichever edge still hides tabs so clipped panes stay
+     discoverable while overlay scrollbars auto-hide. Both fades collapse
+     to zero when every tab fits. */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--ide-pane-tabs-fade-start),
+    #000 calc(100% - var(--ide-pane-tabs-fade-end)),
+    transparent
+  );
+  animation:
+    ide-pane-tabs-fade-start linear both,
+    ide-pane-tabs-fade-end linear both;
+  animation-timeline: scroll(self inline), scroll(self inline);
+}
+
+@property --ide-pane-tabs-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --ide-pane-tabs-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes ide-pane-tabs-fade-start {
+  from {
+    --ide-pane-tabs-fade-start: 0px;
+  }
+  to {
+    --ide-pane-tabs-fade-start: 16px;
+  }
+}
+
+@keyframes ide-pane-tabs-fade-end {
+  from {
+    --ide-pane-tabs-fade-end: 16px;
+  }
+  to {
+    --ide-pane-tabs-fade-end: 0px;
+  }
 }
 
 .ide-pane-tabs .ide-pane-tab {
