@@ -33,6 +33,10 @@ function section(host: HTMLElement, title: string): HTMLElement {
   return result;
 }
 
+function maybeSection(host: HTMLElement, title: string): HTMLElement | null {
+  return host.querySelector<HTMLElement>(`section[aria-label="${title}"]`);
+}
+
 function button(host: HTMLElement, title: string): HTMLButtonElement {
   const result = Array.from(host.querySelectorAll("button")).find(
     (element) =>
@@ -189,14 +193,50 @@ describe("desktop chat history sections", () => {
       act(() => header.click());
       expect(header.getAttribute("aria-pressed")).toBe("true");
       expect(section(host, "Pinned").textContent).toContain("Saved group");
-      expect(section(host, "General").textContent).not.toContain("Saved group");
+      expect(maybeSection(host, "General")).toBeNull();
       expect(loadConversationPins(localStorage)[sessionId]).toBe(true);
 
       act(() => header.click());
       expect(header.getAttribute("aria-pressed")).toBe("false");
-      expect(section(host, "Pinned").textContent).not.toContain("Saved group");
+      expect(maybeSection(host, "Pinned")).toBeNull();
       expect(section(host, "General").textContent).toContain("Saved group");
       expect(loadConversationPins(localStorage)[sessionId]).toBeUndefined();
+    } finally {
+      act(() => renderer.unmount());
+    }
+  });
+
+  it("hides empty sections and keeps the empty-state message", () => {
+    const renderer = createRoot(host);
+    const draw = (sessions: SessionSummary[]) =>
+      act(() =>
+        renderer.render(
+          <ChatHistorySidebar
+            filtered={false}
+            onOpenSession={vi.fn()}
+            projects={[]}
+            sessions={sessions}
+            showingGroups={false}
+          />,
+        ),
+      );
+    try {
+      draw([
+        conversation("Recent chat", { endedAt: new Date().toISOString() }),
+      ]);
+      expect(section(host, "Recent").textContent).toContain("Recent chat");
+      for (const title of ["Pinned", "Projects", "General"]) {
+        expect(maybeSection(host, title)).toBeNull();
+      }
+      expect(host.querySelector(".chat-history-empty")).toBeNull();
+
+      draw([]);
+      for (const title of ["Pinned", "Projects", "Recent", "General"]) {
+        expect(maybeSection(host, title)).toBeNull();
+      }
+      expect(host.querySelector(".chat-history-empty")?.textContent).toContain(
+        "No conversations yet.",
+      );
     } finally {
       act(() => renderer.unmount());
     }
