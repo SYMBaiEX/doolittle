@@ -94,3 +94,23 @@ it("suppresses the stale value tooltip while pending", () => {
   expect(value?.getAttribute("title")).toBeNull();
   expect(value?.textContent).not.toContain("main");
 });
+
+it("accepts layout overrides for dense presentations", () => {
+  act(() => {
+    root.render(
+      <CompactStatStrip
+        className="test-three-column-layout"
+        label="Activity overview"
+        stats={[
+          { label: "Pending", value: 1 },
+          { label: "Attention", value: 2 },
+          { label: "Recorded", value: 3 },
+        ]}
+      />,
+    );
+  });
+
+  expect(container.querySelector("section")?.className).toContain(
+    "test-three-column-layout",
+  );
+});

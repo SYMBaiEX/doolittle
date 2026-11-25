@@ -220,6 +220,7 @@ export function ActivityPage({ active }: { active: boolean }) {
       ) : rows.length ? (
         <>
           <CompactStatStrip
+            className="@max-[420px]/observability:grid-cols-3 @max-[420px]/observability:gap-x-2"
             label={
               hasFilters ? "Matching activity overview" : "Activity overview"
             }
