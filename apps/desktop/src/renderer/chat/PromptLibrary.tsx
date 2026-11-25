@@ -69,18 +69,21 @@ export function PromptLibrary({
   const [editingId, setEditingId] = useState("");
   const [editingTitle, setEditingTitle] = useState("");
   const [restoreComposerOnClose, setRestoreComposerOnClose] = useState(false);
+  const [restoreTriggerOnClose, setRestoreTriggerOnClose] = useState(true);
   const renameRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useModalFocusBoundary({
     active: showLibrary,
     initialFocusSelector: '[aria-label="Saved prompt title"]',
     onClose: () => setOpen(false),
-    restoreFocus: !restoreComposerOnClose,
+    restoreFocus: restoreTriggerOnClose && !restoreComposerOnClose,
     restoreFocusRef: triggerRef,
+    trapFocus: false,
   });
 
   useEffect(() => {
     if (menuOwner.current === scopeIdentity) return;
+    setRestoreTriggerOnClose(false);
     setOpen(false);
     setManageOpen(false);
     setEditingId("");
@@ -136,6 +139,7 @@ export function PromptLibrary({
       if (panel?.contains(target) || triggerRef.current?.contains(target)) {
         return;
       }
+      setRestoreTriggerOnClose(false);
       setOpen(false);
     };
     document.addEventListener("pointerdown", closeOutside);
@@ -262,6 +266,7 @@ export function PromptLibrary({
         className="secondary-button !inline-flex !h-10 !min-h-10 !w-auto !flex-row !flex-nowrap !items-center !justify-center gap-1.25 !rounded-[7px] !border-transparent !bg-transparent !px-2 !py-0 text-[length:var(--text-control)] font-semibold text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10 max-[480px]:!px-0"
         onClick={() => {
           menuOwner.current = scopeIdentity;
+          setRestoreTriggerOnClose(true);
           setOpen((current) => !current);
         }}
         ref={triggerRef}
@@ -282,6 +287,7 @@ export function PromptLibrary({
       {showLibrary ? (
         <section
           aria-labelledby={controlId("chat-prompt-library-title")}
+          aria-modal="false"
           className="chat-prompt-library absolute bottom-[calc(100%+10px)] left-0 z-60 grid max-h-[min(440px,62vh)] w-[min(380px,calc(100vw-32px))] gap-2 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-3 text-[var(--text-soft)] shadow-[var(--shell-shadow-lg)]"
           id={controlId("chat-prompt-library")}
           ref={panelRef}
@@ -306,6 +312,7 @@ export function PromptLibrary({
               <ElizaButton
                 className="!min-h-10 gap-1.5 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)]"
                 onClick={() => {
+                  setRestoreTriggerOnClose(false);
                   setOpen(false);
                   setManageOpen(true);
                 }}
@@ -319,10 +326,7 @@ export function PromptLibrary({
               <ElizaButton
                 aria-label="Close prompt library"
                 className="!size-10 !min-h-10 !min-w-10 !rounded-[var(--radius-xs)] !p-0"
-                onClick={() => {
-                  setOpen(false);
-                  requestAnimationFrame(() => triggerRef.current?.focus());
-                }}
+                onClick={() => setOpen(false)}
                 size="icon-sm"
                 type="button"
                 variant="ghost"
