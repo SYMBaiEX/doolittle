@@ -124,6 +124,11 @@
   outline-offset: -1px;
 }
 
+.chat-messages:focus-visible {
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+
 .chat-composer-dock {
   grid-row: 2;
   min-height: 0;

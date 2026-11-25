@@ -363,7 +363,8 @@ export function ChatTranscript({
       className="chat-messages"
       ref={transcriptRef}
       role="log"
-      tabIndex={-1}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users must be able to focus and scroll long stretches of non-interactive transcript history.
+      tabIndex={0}
     >
       {loading && !messages.length ? (
         <StateSurface kind="loading" title="Loading conversation…" />
