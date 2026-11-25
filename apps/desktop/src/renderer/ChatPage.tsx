@@ -1836,7 +1836,13 @@ export function ChatSessionPanel({
                     />
                   ) : null}
                   {!botReady && !currentBot ? (
-                    <ChatNotice tone="error">
+                    <ChatNotice
+                      action={{
+                        label: "Refresh bot list",
+                        invoke: refreshRuntime,
+                      }}
+                      tone="error"
+                    >
                       This conversation’s bot is unavailable. Refresh the bot
                       list to continue.
                     </ChatNotice>
