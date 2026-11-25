@@ -59,10 +59,6 @@
 
 .runtime-log-stream__records {
   min-block-size: 120px;
-  block-size: clamp(12rem, calc(100dvh - 18rem), 43rem);
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
 }
 
 .runtime-log-stream__records:focus-visible,

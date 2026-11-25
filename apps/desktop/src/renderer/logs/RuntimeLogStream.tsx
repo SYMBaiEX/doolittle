@@ -75,8 +75,7 @@ export function RuntimeLogStream({
           aria-label="Runtime log records"
           className="runtime-log-stream__records"
           role="log"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: The log is an independent scroll region with no nested focusable controls.
-          tabIndex={0}
+          tabIndex={-1}
         >
           {entries.map((entry) => (
             <article
