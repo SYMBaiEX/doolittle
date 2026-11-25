@@ -124,10 +124,11 @@ function TeamEditor({
           {activeBots.map((bot) => (
             <label
               key={bot.id}
-              className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"
+              className="flex min-h-11 min-w-0 cursor-pointer items-center gap-3 text-sm"
             >
               <input
                 type="checkbox"
+                className="shrink-0"
                 disabled={busy}
                 checked={members.has(bot.id)}
                 onChange={(event) =>
@@ -139,7 +140,9 @@ function TeamEditor({
                   })
                 }
               />
-              {bot.name}
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                {bot.name}
+              </span>
             </label>
           ))}
         </fieldset>

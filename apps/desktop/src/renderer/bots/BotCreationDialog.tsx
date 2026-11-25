@@ -404,11 +404,12 @@ export function BotCreationDialog({
                 {accountOptions.length ? (
                   accountOptions.map((account) => (
                     <label
-                      className="flex items-center gap-2 text-sm"
+                      className="flex min-w-0 items-center gap-2 text-sm"
                       key={account.id}
                     >
                       <input
                         checked={connectionIds.includes(account.id)}
+                        className="shrink-0"
                         disabled={!account.enabled}
                         onChange={(event) =>
                           setConnectionIds((current) =>
@@ -419,8 +420,10 @@ export function BotCreationDialog({
                         }
                         type="checkbox"
                       />
-                      {account.label}
-                      {account.enabled ? "" : " · disabled"}
+                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                        {account.label}
+                        {account.enabled ? "" : " · disabled"}
+                      </span>
                     </label>
                   ))
                 ) : (
@@ -439,22 +442,24 @@ export function BotCreationDialog({
               </p>
             </>
           ) : (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
               <dt className="text-[var(--muted)]">Name</dt>
-              <dd className="m-0">{name}</dd>
+              <dd className="m-0 min-w-0 [overflow-wrap:anywhere]">{name}</dd>
               <dt className="text-[var(--muted)]">Purpose</dt>
-              <dd className="m-0 whitespace-pre-wrap">{persona}</dd>
+              <dd className="m-0 min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {persona}
+              </dd>
               <dt className="text-[var(--muted)]">Model</dt>
-              <dd className="m-0">
+              <dd className="m-0 min-w-0 [overflow-wrap:anywhere]">
                 {provider} / {model}
               </dd>
               <dt className="text-[var(--muted)]">Access</dt>
-              <dd className="m-0">
+              <dd className="m-0 min-w-0 [overflow-wrap:anywhere]">
                 {allowMutation ? "Changes allowed" : "Read only"} ·{" "}
                 {allowDelegation ? "Delegation allowed" : "No delegation"}
               </dd>
               <dt className="text-[var(--muted)]">Accounts</dt>
-              <dd className="m-0">
+              <dd className="m-0 min-w-0 [overflow-wrap:anywhere]">
                 {connectionIds.length
                   ? `${connectionIds.length} selected`
                   : "None selected"}
