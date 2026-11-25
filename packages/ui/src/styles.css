@@ -165,6 +165,33 @@
 .dl-settings-mobile-select {
   display: none;
 }
+.dl-settings-mobile-select-control {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  color: var(--muted);
+}
+.dl-settings-mobile-select-control select {
+  width: 100%;
+  padding-inline-end: 32px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.dl-settings-mobile-select-control::after {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  content: "";
+  pointer-events: none;
+  transform: translateY(-70%) rotate(45deg);
+}
+.dl-settings-mobile-select-control:focus-within {
+  color: var(--text-soft);
+}
 .dl-settings-search-empty {
   color: var(--muted);
   font-size: 14px;
