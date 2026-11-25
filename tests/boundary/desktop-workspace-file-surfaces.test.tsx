@@ -2,8 +2,19 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  type CodingWorkspaceAcpViewModel,
+  CodingWorkspaceEditor,
+} from "../../apps/desktop/src/renderer/coding-workspace/CodingWorkspaceEditor";
 import { OpenEditorTabs } from "../../apps/desktop/src/renderer/coding-workspace/OpenEditorTabs";
 import { WorkspaceFileTree } from "../../apps/desktop/src/renderer/components/WorkspaceFileTree";
+
+vi.mock("../../apps/desktop/src/renderer/components/CodeEditor", () => ({
+  CodeEditor: (props: { wordWrap?: boolean }) => (
+    <div data-word-wrap={props.wordWrap ? "on" : "off"} />
+  ),
+}));
+
 import {
   parseWorkspacePatch,
   WorkspacePatchView,
@@ -184,4 +195,83 @@ it("reveals the selected file, exposes Git status, and restores the tree after f
   expect(host.querySelector('[role="tree"]')?.textContent).toContain(
     "engine.ts",
   );
+});
+
+it("toggles line wrapping for the file editor only", async () => {
+  const acpEditor: CodingWorkspaceAcpViewModel = {
+    cancel: vi.fn(),
+    error: "",
+    lastUpdateLabel: "",
+    phase: "idle",
+    promptBusy: false,
+    promptError: "",
+    promptPhase: "idle",
+    responseText: "",
+    retryConnection: vi.fn(),
+    sessionId: "",
+    stopReason: "",
+    updates: [],
+  };
+  const fileResource = {
+    data: { path: ".env.example", content: "A=1" },
+    error: "",
+    loading: false,
+    reload: vi.fn(),
+  };
+  const patchResource = {
+    data: null,
+    error: "",
+    loading: false,
+    reload: vi.fn(),
+  };
+  const renderEditor = (editorPane: "file" | "diff") =>
+    root.render(
+      <CodingWorkspaceEditor
+        acpEditor={acpEditor}
+        acpTaskDraft=""
+        acpTaskOpen={false}
+        draftContent="A=1"
+        editingLocked={false}
+        editorPane={editorPane}
+        fileDirty={false}
+        fileNotice={null}
+        fileResource={fileResource}
+        onAcpTaskDraftChange={() => undefined}
+        onAcpTaskOpenChange={() => undefined}
+        onCloseDocument={() => true}
+        onDiscard={() => undefined}
+        onDraftChange={() => undefined}
+        onEditorPaneChange={() => undefined}
+        onEditorStateChange={() => undefined}
+        onMutateVisiblePatch={() => undefined}
+        onOpenDocument={() => true}
+        onSave={() => undefined}
+        onSendSelectedContext={() => undefined}
+        onSetStagedPatch={() => undefined}
+        onSubmitAcpTask={() => undefined}
+        openDocuments={[{ path: ".env.example", dirty: false }]}
+        patchResource={patchResource}
+        savingFile={false}
+        selectedChange={undefined}
+        selectedLanguage={{ id: "ini", label: "Environment" }}
+        selectedPath=".env.example"
+        stagedPatch={false}
+        workspacePath="/repo"
+      />,
+    );
+
+  await act(async () => renderEditor("file"));
+  const wrap = host.querySelector<HTMLButtonElement>(
+    'button[aria-label="Wrap lines"]',
+  );
+  expect(wrap).not.toBeNull();
+  expect(wrap?.getAttribute("aria-pressed")).toBe("false");
+  expect(host.querySelector("[data-word-wrap='off']")).not.toBeNull();
+
+  act(() => wrap?.click());
+  expect(wrap?.getAttribute("aria-pressed")).toBe("true");
+  expect(host.querySelector("[data-word-wrap='on']")).not.toBeNull();
+
+  await act(async () => renderEditor("diff"));
+  expect(host.querySelector('button[aria-label="Wrap lines"]')).toBeNull();
 });

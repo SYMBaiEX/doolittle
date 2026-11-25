@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Plus,
   Save,
+  WrapText,
   X,
 } from "lucide-react";
 import {
@@ -197,6 +198,7 @@ export function CodingWorkspaceEditor({
   const scopeKey = JSON.stringify([documentScope, editorPane, stagedPatch]);
   const viewStates = useRef(new Map<string, CodeEditorViewState>());
   const [cursor, setCursor] = useState({ scope: "", label: "" });
+  const [wrap, setWrap] = useState(false);
   const acpTaskInputRef = useRef<HTMLInputElement>(null);
   const acpTaskToggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -341,20 +343,33 @@ export function CodingWorkspaceEditor({
           tabClassName={`${EDITOR_CONTROL_CLASS} aria-selected:font-semibold data-[state=active]:bg-[var(--surface-raised)] data-[state=active]:text-[var(--text)] forced-colors:aria-selected:outline forced-colors:aria-selected:outline-1`}
         />
         {editorPane === "file" && selectedPath ? (
-          <button
-            aria-keyshortcuts="Meta+S Control+S"
-            aria-label={savingFile ? "Saving file" : "Save file"}
-            className={EDITOR_CONTROL_CLASS}
-            disabled={fileActionsDisabled}
-            onClick={onSave}
-            title={savingFile ? "Saving…" : "Save file (⌘/Ctrl+S)"}
-            type="button"
-          >
-            <UiIcon icon={Save} size="xs" />
-            <span className="@max-[560px]/code:hidden">
-              {savingFile ? "Saving…" : "Save"}
-            </span>
-          </button>
+          <>
+            <button
+              aria-label="Wrap lines"
+              aria-pressed={wrap}
+              className={`${EDITOR_CONTROL_CLASS} aria-pressed:bg-[var(--surface-hover)] aria-pressed:text-[var(--text)]`}
+              onClick={() => setWrap((current) => !current)}
+              title="Wrap lines"
+              type="button"
+            >
+              <UiIcon icon={WrapText} size="xs" />
+              <span className="@max-[560px]/code:hidden">Wrap</span>
+            </button>
+            <button
+              aria-keyshortcuts="Meta+S Control+S"
+              aria-label={savingFile ? "Saving file" : "Save file"}
+              className={EDITOR_CONTROL_CLASS}
+              disabled={fileActionsDisabled}
+              onClick={onSave}
+              title={savingFile ? "Saving…" : "Save file (⌘/Ctrl+S)"}
+              type="button"
+            >
+              <UiIcon icon={Save} size="xs" />
+              <span className="@max-[560px]/code:hidden">
+                {savingFile ? "Saving…" : "Save"}
+              </span>
+            </button>
+          </>
         ) : editorPane === "diff" && selectedChange ? (
           <>
             {selectedChange.staged && selectedChange.unstaged ? (
@@ -472,6 +487,7 @@ export function CodingWorkspaceEditor({
                 onSave={onSave}
                 path={selectedPath}
                 value={draftContent}
+                wordWrap={wrap}
                 viewState={{ key: documentScope, cache: viewStates.current }}
                 workspacePath={workspacePath}
               />
