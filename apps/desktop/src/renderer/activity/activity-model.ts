@@ -108,6 +108,20 @@ export const ACTIVITY_SOURCE_LABELS: Record<ActivityEventKind, string> = {
   log: "Runtime",
 };
 
+export function activityTargetIsDistinct(
+  kind: ActivityEventKind,
+  target: string,
+): boolean {
+  const normalize = (value: string) => value.trim().toLocaleLowerCase();
+  const source = normalize(ACTIVITY_SOURCE_LABELS[kind]);
+  const normalizedTarget = normalize(target);
+  return Boolean(
+    normalizedTarget &&
+      normalizedTarget !== source &&
+      normalizedTarget !== `${source}s`,
+  );
+}
+
 export function activityTone(
   event: ActivityEvent,
 ): "good" | "warn" | "bad" | "neutral" {
