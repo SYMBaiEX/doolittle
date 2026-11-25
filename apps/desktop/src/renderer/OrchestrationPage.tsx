@@ -380,7 +380,6 @@ export function OrchestrationPage({
     codegenTargetType,
     confirmedAction,
     confirmedRunCancellation,
-    confirmDialogRef,
     loadBundle,
     notices,
     onSubmitCodegen,
@@ -755,7 +754,6 @@ export function OrchestrationPage({
               childWorkspaceRoot={childWorkspaceRoot}
               worktrees={worktrees}
               confirmedAction={confirmedAction}
-              confirmDialogRef={confirmDialogRef}
               onSelectTask={(task) => {
                 setSelectedTaskId(task.id);
                 setConfirmedAction(null);

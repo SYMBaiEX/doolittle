@@ -1,11 +1,5 @@
 import { ClipboardList, Inbox, ListTodo } from "lucide-react";
-import {
-  type FormEvent,
-  type RefObject,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { progressiveWindow } from "../components/progressive-window";
 import {
   WorkbenchEmpty,
@@ -57,7 +51,6 @@ export function TaskQueuePanel({
   childWorkspaceRoot,
   worktrees,
   confirmedAction,
-  confirmDialogRef,
   onSelectTask,
   onRunTaskAction,
   onRunBulkTaskAction,
@@ -87,7 +80,6 @@ export function TaskQueuePanel({
   childWorkspaceRoot: string;
   worktrees: readonly RepositoryWorktreeRecord[];
   confirmedAction: ConfirmedAction | null;
-  confirmDialogRef: RefObject<HTMLDivElement | null>;
   onSelectTask: (task: DelegationTaskRecord) => void;
   onRunTaskAction: (task: DelegationTaskRecord, action: TaskAction) => void;
   onRunBulkTaskAction: (
@@ -309,7 +301,6 @@ export function TaskQueuePanel({
             childObjective={childObjective}
             childTitle={childTitle}
             childWorkspaceRoot={childWorkspaceRoot}
-            confirmDialogRef={confirmDialogRef}
             confirmedAction={confirmedAction}
             onChildObjectiveChange={onChildObjectiveChange}
             onChildTitleChange={onChildTitleChange}

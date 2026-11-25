@@ -1,6 +1,6 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import { CalendarClock } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useRef, useState } from "react";
 import {
   type AutomationStarterChoice,
   summarizeAutomation,
@@ -41,39 +41,27 @@ export type AutomationAction = "pause" | "resume" | "trigger" | "delete";
 export function AutomationDeleteConfirmation({
   automationName,
   busy,
+  returnFocusRef,
   onCancel,
   onConfirm,
 }: {
   automationName: string;
   busy: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   onCancel(): void;
   onConfirm(): void;
 }) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => cancelRef.current?.focus(), []);
   return (
     <WorkConfirm
+      cancelDisabled={busy}
+      confirmDisabled={busy}
+      confirmLabel={busy ? "Deleting…" : "Confirm delete"}
       detail="This removes its configuration and stops future triggers."
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      returnFocusRef={returnFocusRef}
       title={`Delete ${automationName}?`}
-    >
-      <button
-        className="danger-button"
-        disabled={busy}
-        onClick={onConfirm}
-        type="button"
-      >
-        {busy ? "Deleting…" : "Confirm delete"}
-      </button>
-      <button
-        className="text-button"
-        disabled={busy}
-        onClick={onCancel}
-        ref={cancelRef}
-        type="button"
-      >
-        Cancel
-      </button>
-    </WorkConfirm>
+    />
   );
 }
 
@@ -135,6 +123,7 @@ function AutomationDetail({
   const timing = automationTimingLabel(entry, status);
   const prompt = asString(entry.prompt, "No prompt configured.");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const deleting = busy === `${id}:delete`;
   const copyWebhookPath = async () => {
     if (!summary.webhookPath) return;
@@ -255,6 +244,7 @@ function AutomationDetail({
               className="text-button danger-text-button"
               disabled={Boolean(busy)}
               onClick={() => setConfirmDelete(true)}
+              ref={deleteButtonRef}
               type="button"
             >
               Delete
@@ -269,6 +259,7 @@ function AutomationDetail({
           busy={deleting}
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => void deleteAutomation()}
+          returnFocusRef={deleteButtonRef}
         />
       ) : null}
 

@@ -1,6 +1,6 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import { Workflow } from "lucide-react";
-import type { FormEvent } from "react";
+import { type FormEvent, useRef } from "react";
 import { ArtifactViewer } from "../components/ArtifactViewer";
 import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
@@ -393,6 +393,7 @@ function WorkflowDetail({
   const status = asString(selectedWorkflow.status, "pending");
   const tier = statusTier(status);
   const bundling = bundleLoading && bundleWorkflowId === selectedWorkflow.id;
+  const cancelRunButtonRef = useRef<HTMLButtonElement>(null);
   return (
     <>
       <DetailHeader
@@ -454,6 +455,7 @@ function WorkflowDetail({
                   disabled={
                     !active || busyKeys[`codegen:${selectedRun.id}:cancel`]
                   }
+                  ref={cancelRunButtonRef}
                 >
                   Cancel run…
                 </button>
@@ -464,27 +466,21 @@ function WorkflowDetail({
       />
       {selectedRun && confirmedRunCancellation === selectedRun.id ? (
         <WorkConfirm
-          detail="This records a cancelled lifecycle state. The current pipeline cannot guarantee that in-flight model work stops immediately."
-          title="Cancel this run?"
-        >
-          <button
-            className="danger-button"
-            type="button"
-            onClick={() => void onCancelRun(selectedRun)}
-            disabled={!active || busyKeys[`codegen:${selectedRun.id}:cancel`]}
-          >
-            {busyKeys[`codegen:${selectedRun.id}:cancel`]
+          cancelLabel="Keep running"
+          confirmDisabled={
+            !active || busyKeys[`codegen:${selectedRun.id}:cancel`]
+          }
+          confirmLabel={
+            busyKeys[`codegen:${selectedRun.id}:cancel`]
               ? "Cancelling…"
-              : "Confirm cancellation"}
-          </button>
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => onDismissRunCancellation()}
-          >
-            Keep running
-          </button>
-        </WorkConfirm>
+              : "Confirm cancellation"
+          }
+          detail="This records a cancelled lifecycle state. The current pipeline cannot guarantee that in-flight model work stops immediately."
+          onCancel={onDismissRunCancellation}
+          onConfirm={() => void onCancelRun(selectedRun)}
+          returnFocusRef={cancelRunButtonRef}
+          title="Cancel this run?"
+        />
       ) : null}
       {bundleError && bundleWorkflowId === selectedWorkflow.id ? (
         <ErrorBlock error={bundleError} retry={() => void onLoadBundle()} />
