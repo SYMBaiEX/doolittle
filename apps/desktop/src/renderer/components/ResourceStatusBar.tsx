@@ -47,7 +47,7 @@ export function ResourceStatusBar({
       role={requiredUnavailable ? "alert" : "status"}
     >
       <span
-        className={`resource-status-bar__indicator size-1.5 flex-none rounded-full ${STATUS_INDICATOR_CLASS_NAMES[summary.status]}`}
+        className={`resource-status-bar__indicator size-1.5 flex-none self-center rounded-full ${STATUS_INDICATOR_CLASS_NAMES[summary.status]}`}
         aria-hidden="true"
       />
       <span>
