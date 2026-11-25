@@ -42,13 +42,6 @@
   height: 15px;
   border-radius: 7px 7px 2px 7px;
 }
-.dl-settings-theme-choice:has(.dl-theme-preview) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  padding: 12px;
-}
 .dl-settings-theme-choice > .dl-theme-description {
   flex: 0 0 100%;
   min-width: 0;
@@ -59,6 +52,23 @@
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.5;
+}
+.dl-settings-theme-choice:has(.dl-theme-preview) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+}
+.dl-settings-theme-choice:has(.dl-theme-preview) > .dl-theme-preview,
+.dl-settings-theme-choice:has(.dl-theme-preview) > .dl-theme-description {
+  grid-column: 1 / -1;
+}
+.dl-settings-theme-choice:has(.dl-theme-preview) > strong {
+  min-block-size: 24px;
+  padding-block: 2px;
+  line-height: 20px;
 }
 
 /* Materials change composition, not conversation, editor or permission owners. */
