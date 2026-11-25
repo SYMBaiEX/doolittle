@@ -3,6 +3,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import { ROUTE_PROVIDER_CARD_CLASS } from "../../apps/desktop/src/renderer/app-shell/overlay-layout";
 import { desktopRequest } from "../../apps/desktop/src/renderer/eliza-client";
 import {
   apiResourceCacheKey,
@@ -151,6 +152,12 @@ it("waits for the provider-readiness disclosure before requesting accounts", asy
     desktopQueryClient.clear();
     vi.mocked(desktopRequest).mockReset();
   }
+});
+
+it("keeps route provider card hover affordances off disabled providers", () => {
+  expect(ROUTE_PROVIDER_CARD_CLASS).not.toMatch(/(?:^|\s)hover:/);
+  expect(ROUTE_PROVIDER_CARD_CLASS).toContain("enabled:hover:");
+  expect(ROUTE_PROVIDER_CARD_CLASS).toContain("disabled:opacity-55");
 });
 
 it("keeps a removed saved provider visible but unavailable until another route is selected", () => {
