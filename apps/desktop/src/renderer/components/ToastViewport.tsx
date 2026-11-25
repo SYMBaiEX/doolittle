@@ -23,8 +23,6 @@ export function ToastViewport({
   return (
     <section
       className={`pointer-events-none fixed top-14.5 right-4.5 z-1400 w-[min(360px,calc(100vw-36px))] ${isReducedMotion ? "motion-reduce:transition-none" : ""} ${className}`.trim()}
-      aria-live="polite"
-      aria-relevant="additions removals"
     >
       <ul className="m-0 grid list-none gap-2 p-0">
         {toasts.map((toast) => {
@@ -42,7 +40,6 @@ export function ToastViewport({
                       : "before:bg-[var(--accent)]"
               }`}
               role={isError ? "alert" : "status"}
-              tabIndex={0}
               onMouseEnter={() => onPause(toast.id)}
               onMouseLeave={() => onResume(toast.id)}
               onFocus={() => onPause(toast.id)}
