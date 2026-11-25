@@ -1,5 +1,4 @@
-import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/button";
+import { Button, type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { ChevronRight } from "lucide-react";
 import { Fragment, type ReactNode, useState } from "react";
 import { Badge } from "../lib";

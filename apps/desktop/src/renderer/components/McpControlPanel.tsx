@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/button";
+import { Button } from "@doolittle/ui";
 import { type FormEvent, useMemo, useState } from "react";
 import {
   asNumber,

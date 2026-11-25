@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/button";
+import { Button } from "@doolittle/ui";
 import {
   File,
   FilePlus2,

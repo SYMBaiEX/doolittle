@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/button";
+import { Button } from "@doolittle/ui";
 import { Input } from "@elizaos/ui/input";
 import { Plus, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
