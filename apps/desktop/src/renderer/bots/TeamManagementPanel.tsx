@@ -11,13 +11,10 @@ import {
   Input,
   StateSurface,
 } from "@doolittle/ui";
-import { Bot, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
-import {
-  WorkbenchEmpty,
-  WorkbenchSection,
-} from "../components/workbench/Workbench";
+import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
 import { WorkCard, WorkCards, WorkEmpty } from "../work-surface/WorkSurface";
@@ -240,7 +237,7 @@ export function TeamManagementPanel({
   if (empty) {
     return (
       <>
-        <WorkbenchSection title="Agents" icon={Bot}>
+        <section className="workbench-section agents-empty" aria-label="Agents">
           {catalog.error ? (
             <StateSurface kind="error" title="Bots are unavailable">
               {catalog.error}
@@ -269,7 +266,7 @@ export function TeamManagementPanel({
             Workers appear as delegated tasks execute. Create a team to share
             selected findings across persistent bots.
           </WorkbenchEmpty>
-        </WorkbenchSection>
+        </section>
         {editorDialog}
       </>
     );
