@@ -57,10 +57,6 @@
   background: var(--surface-soft);
 }
 
-.runtime-log-stream__records {
-  min-block-size: 120px;
-}
-
 .runtime-log-stream__records:focus-visible,
 .runtime-log-stream__row:focus-visible {
   outline: 1px solid var(--focus-ring);
@@ -115,5 +111,16 @@
   .runtime-log-stream__row {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas: "level time" "message message";
+  }
+}
+
+@container observability (max-width: 420px) {
+  .runtime-log-filters__search {
+    flex-basis: 8rem;
+  }
+
+  .runtime-log-filters > select {
+    flex-basis: 6.5rem;
+    min-inline-size: 5.5rem;
   }
 }
