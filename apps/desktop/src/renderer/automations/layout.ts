@@ -14,7 +14,7 @@ export const AUTOMATION_FIELD_CONTROL_CLASS =
   "min-h-[var(--control-height)] w-full rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-2 text-[length:var(--text-control)] text-[var(--text)] max-[760px]:min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
 
 export const AUTOMATION_BUILDER_GRID_CLASS =
-  "automation-builder__grid grid grid-cols-3 gap-1.5 px-4 pb-3 max-[1040px]:grid-cols-1";
+  "automation-builder__grid grid grid-cols-3 gap-1.5 px-4 pb-3";
 
 export const AUTOMATION_BUILDER_SECTION_CLASS =
   "automation-builder__section grid content-start gap-4 border-t border-[var(--border)] bg-transparent py-4";

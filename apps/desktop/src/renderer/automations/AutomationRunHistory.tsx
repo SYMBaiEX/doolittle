@@ -172,7 +172,7 @@ export function AutomationRunHistory({
             <ErrorBlock error={runsError} retry={onReload} />
           ) : runs.length ? (
             <>
-              <ul aria-label="Automation runs" className="ws-list max-h-61.5">
+              <ul aria-label="Automation runs" className="ws-list">
                 {runs.map((entry, index) => {
                   const id = asString(entry.id, String(index));
                   const status = asString(entry.status, "completed");
