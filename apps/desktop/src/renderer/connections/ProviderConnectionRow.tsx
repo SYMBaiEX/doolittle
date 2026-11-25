@@ -72,14 +72,12 @@ export function ProviderConnectionRow({
     ? authState?.message || `Waiting for ${descriptor.label} sign-in…`
     : fallbackReady
       ? "CLI fallback is available; subscription sign-in needs attention."
-      : unchecked
-        ? "Check saved accounts to find an existing sign-in."
-        : asString(
-            status.detail,
-            authProvider
-              ? `Use your ${descriptor.label} subscription; API keys remain optional.`
-              : "No account details available.",
-          );
+      : asString(
+          status.detail,
+          authProvider
+            ? `Use your ${descriptor.label} subscription; API keys remain optional.`
+            : "No account details available.",
+        );
   const facts = [
     { label: "Runtime", value: runtimeLabel },
     { label: "Account", value: asString(status.accountLabel) },

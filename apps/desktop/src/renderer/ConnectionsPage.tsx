@@ -142,15 +142,13 @@ export function ConnectionsPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <WorkbenchSection
-        className="settings-workbench-section settings-provider-section"
-        icon={Cable}
-        title="Provider accounts"
-      >
-        <OfflineRouteState>
-          Provider accounts are available when the local runtime is ready.
-        </OfflineRouteState>
-      </WorkbenchSection>
+      <div className="settings-workbench-section settings-provider-section">
+        <WorkbenchSection icon={Cable} title="Provider accounts">
+          <OfflineRouteState>
+            Provider accounts are available when the local runtime is ready.
+          </OfflineRouteState>
+        </WorkbenchSection>
+      </div>
     );
   }
 
@@ -174,6 +172,9 @@ export function ConnectionsPage({ active }: { active: boolean }) {
   });
   const activeDefault = providerViews.find((provider) => provider.isDefault);
   const configuredProvider = asString(resource.data?.activeProvider);
+  const hasUncheckedProviders = providerViews.some(
+    (entry) => entry.status.checked === false,
+  );
   const readyProviderCount = providerViews.filter(
     (provider) => provider.ready,
   ).length;
@@ -186,10 +187,15 @@ export function ConnectionsPage({ active }: { active: boolean }) {
         icon={Cable}
         title="Provider accounts"
       >
+        {hasUncheckedProviders ? (
+          <p className="m-0 text-sm text-[var(--muted)]">
+            Use Check saved accounts to find existing sign-ins.
+          </p>
+        ) : null}
         {(!resource.data ||
           inventory === "unchecked" ||
           inventory === "unavailable" ||
-          providerViews.some((entry) => entry.status.checked === false)) &&
+          hasUncheckedProviders) &&
         window.doolittle.platform === "darwin" ? (
           <p className="m-0 text-sm text-[var(--muted)]">
             Checking saved accounts may open a macOS Keychain prompt.

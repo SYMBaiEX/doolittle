@@ -114,7 +114,7 @@ export function AccountPoolDirectory({
         <p className={PROVIDER_POOL_EMPTY_CLASS}>
           {direct
             ? "Add an API account to use this pool."
-            : "Check saved accounts above to find existing sign-ins, or add an account below."}
+            : "Add an account below to use this pool."}
         </p>
       ) : (
         <ul className={PROVIDER_POOL_ACCOUNTS_CLASS}>
