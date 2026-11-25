@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/button";
+import { Button } from "@doolittle/ui";
 import { Input } from "@elizaos/ui/input";
 import { type FormEvent, useMemo, useState } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";

@@ -1,5 +1,4 @@
-import { ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/button";
+import { Button, ContextActionMenu } from "@doolittle/ui";
 import {
   Check,
   ChevronRight,

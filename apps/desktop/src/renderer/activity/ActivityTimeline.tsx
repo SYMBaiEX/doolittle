@@ -1,3 +1,4 @@
+import { Button } from "@doolittle/ui";
 import type { ActivityEvent } from "../../shared/contracts";
 import { displayTimestamp } from "../lib";
 import {
@@ -138,5 +139,3 @@ export function ActivityTimeline({
     </section>
   );
 }
-
-import { Button } from "@elizaos/ui/button";

@@ -1,5 +1,4 @@
-import { ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/button";
+import { Button, ContextActionMenu } from "@doolittle/ui";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { copyContextText } from "../context-menu-clipboard";

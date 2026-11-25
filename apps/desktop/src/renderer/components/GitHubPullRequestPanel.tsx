@@ -2,7 +2,7 @@ import type {
   RepositoryMutationRequest,
   RepositoryMutationResult,
 } from "@doolittle/contracts/repository";
-import { Button } from "@elizaos/ui/button";
+import { Button } from "@doolittle/ui";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { Input } from "@elizaos/ui/input";
 import { ExternalLink } from "lucide-react";
