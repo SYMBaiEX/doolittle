@@ -303,9 +303,8 @@ export function BrowserPage({
                 </span>
                 <h2>Localhost isn’t reachable</h2>
                 <p>
-                  Nothing responded at {currentUrl || "No preview loaded"}.
-                  Start your development server or check the port, then try
-                  again.
+                  Nothing responded at {currentUrl}. Start your development
+                  server or check the port, then try again.
                 </p>
                 <Button
                   onClick={reloadPreview}

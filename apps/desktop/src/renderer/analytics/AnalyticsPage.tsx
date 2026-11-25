@@ -137,7 +137,7 @@ export function AnalyticsPage({
             >
               No local activity yet
             </h2>
-            <p className="text-[length:var(--text-control)] text-[var(--text-muted)]">
+            <p className="text-[length:var(--text-control)] text-[var(--muted)]">
               Start a conversation to see its activity here.
             </p>
           </div>

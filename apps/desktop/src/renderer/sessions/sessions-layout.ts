@@ -11,7 +11,7 @@ export const SESSION_LIST_PANEL_CLASS =
   "flex min-h-0 flex-col gap-2 overflow-hidden border-r border-[var(--border)] p-2.5 max-[760px]:max-h-[42vh] max-[760px]:border-r-0 max-[760px]:border-b";
 
 export const SESSION_LIST_HEADER_CLASS =
-  "flex min-h-6 items-center justify-between gap-2 px-0.25 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text-strong)] [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";
+  "flex min-h-6 items-center justify-between gap-2 px-0.25 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text-strong)] [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
 
 export const SESSION_ROW_CLASS =
   "group grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border-subtle)] px-3 py-2 text-left text-[var(--text)] transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
@@ -31,19 +31,19 @@ export const SESSION_DISCLOSURE_SUMMARY_CLASS =
   "flex min-h-[38px] cursor-pointer list-none items-center justify-between gap-2.5 px-2 py-[5px] group-open:border-b group-open:border-[var(--border-subtle)] [&::-webkit-details-marker]:hidden";
 
 export const SESSION_STATUS_ROW_CLASS =
-  "flex min-h-[42px] w-full items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-[7px] text-left last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:break-words [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";
+  "flex min-h-[42px] w-full items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-[7px] text-left last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:break-words [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
 
 export const SESSION_TRANSCRIPT_PANEL_CLASS =
   "mt-4 overflow-hidden border-t border-[var(--border-subtle)] bg-transparent";
 
 export const SESSION_TRANSCRIPT_HEADER_CLASS =
-  "flex items-baseline justify-between gap-3 border-b border-[var(--border-subtle)] px-3 py-2 max-[860px]:flex-col max-[860px]:items-start [&>span]:grid [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";
+  "flex items-baseline justify-between gap-3 border-b border-[var(--border-subtle)] px-3 py-2 max-[860px]:flex-col max-[860px]:items-start [&>span]:grid [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
 
 export const SESSION_TRANSCRIPT_MESSAGE_CLASS =
   "mx-auto grid w-full grid-cols-1 border-b border-[var(--border-subtle)] py-2.5 last:border-b-0";
 
 export const SESSION_TRANSCRIPT_LABEL_CLASS =
-  "mb-1.25 flex w-full max-w-[min(100%,760px)] items-baseline justify-between gap-3 text-[length:var(--text-meta)] [&_strong]:font-semibold [&_strong]:text-[var(--text-soft)] [&_time]:font-[var(--font-mono)] [&_time]:text-[var(--text-muted)]";
+  "mb-1.25 flex w-full max-w-[min(100%,760px)] items-baseline justify-between gap-3 text-[length:var(--text-meta)] [&_strong]:font-semibold [&_strong]:text-[var(--text-soft)] [&_time]:font-[var(--font-mono)] [&_time]:text-[var(--muted)]";
 
 export const SESSION_TRANSCRIPT_BODY_CLASS =
   "min-w-0 w-full max-w-[min(100%,760px)] text-[length:var(--text-body)] leading-[var(--line-body)] text-[var(--text-soft)] [&_.message-content]:text-[length:var(--text-body)] [&_.message-content]:leading-[1.6] [&_.message-content_[data-streamdown=code-block-body]]:!max-h-[180px] [&_.message-content_[data-streamdown=table-wrapper]]:!max-w-full [&_.message-content_[data-streamdown=table-wrapper]]:!overflow-x-auto [&_.message-content_table]:!min-w-full [&_.message-content_table]:!w-max";
