@@ -6,7 +6,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useId, useMemo, useState } from "react";
 import { errorMessage } from "../lib";
 import {
   type GitNotice,
@@ -19,6 +19,7 @@ import {
 import { GitAdvancedControls } from "./git/GitAdvancedControls";
 import {
   GIT_CODE_CLASS,
+  GIT_FIELD_LABEL_CLASS,
   GIT_LIST_CLASS,
   GIT_ROW_CLASS,
   GIT_SECTION_CLASS,
@@ -195,6 +196,7 @@ export function GitControlPanel({
   const [selection, setSelection] = useState<Record<string, boolean>>({});
   const [commitMessage, setCommitMessage] = useState("");
   const [amend, setAmend] = useState(false);
+  const fieldId = useId();
   const grouped = useMemo(() => groupRepositoryChanges(changes), [changes]);
   const selected = selectedPaths(selection);
   const currentBranch = branches.find((branch) => branch.current);
@@ -359,13 +361,20 @@ export function GitControlPanel({
               <span>{grouped.staged.length} staged</span>
             ) : null}
           </header>
-          <GitTextarea
-            className={variant === "compact" ? "min-h-10 resize-none" : ""}
-            disabled={busy}
-            onChange={(event) => setCommitMessage(event.target.value)}
-            placeholder="Describe the change"
-            value={commitMessage}
-          />
+          <label
+            className={GIT_FIELD_LABEL_CLASS}
+            htmlFor={`${fieldId}-commit-message`}
+          >
+            Commit message
+            <GitTextarea
+              className={variant === "compact" ? "min-h-10 resize-none" : ""}
+              disabled={busy}
+              id={`${fieldId}-commit-message`}
+              onChange={(event) => setCommitMessage(event.target.value)}
+              placeholder="Describe the change"
+              value={commitMessage}
+            />
+          </label>
           <label className="text-[length:var(--text-control)] text-[var(--muted)]">
             <input
               checked={amend}

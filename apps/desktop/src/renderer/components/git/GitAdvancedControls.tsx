@@ -5,7 +5,7 @@ import type {
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 import { Trash2 } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import {
   branchNameIsValid,
   remoteNameIsValid,
@@ -14,6 +14,7 @@ import {
 import { UiIcon } from "../UiIcon";
 import {
   GIT_CODE_CLASS,
+  GIT_FIELD_LABEL_CLASS,
   GIT_LIST_CLASS,
   GIT_ROW_CLASS,
   GIT_SECTION_CLASS,
@@ -47,6 +48,7 @@ export function GitAdvancedControls({
   const [remoteName, setRemoteName] = useState("origin");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [editingRemote, setEditingRemote] = useState("");
+  const fieldId = useId();
 
   const submitBranch = async (event: FormEvent) => {
     event.preventDefault();
@@ -158,12 +160,19 @@ export function GitAdvancedControls({
             </div>
           ))}
         </div>
-        <GitInput
-          disabled={busy}
-          onChange={(event) => setBranchName(event.target.value)}
-          placeholder="feature/short-name"
-          value={branchName}
-        />
+        <label
+          className={GIT_FIELD_LABEL_CLASS}
+          htmlFor={`${fieldId}-branch-name`}
+        >
+          New branch name
+          <GitInput
+            disabled={busy}
+            id={`${fieldId}-branch-name`}
+            onChange={(event) => setBranchName(event.target.value)}
+            placeholder="feature/short-name"
+            value={branchName}
+          />
+        </label>
         <GitButton
           disabled={busy || !branchNameIsValid(branchName)}
           type="submit"
@@ -218,12 +227,19 @@ export function GitAdvancedControls({
             </div>
           ))}
         </div>
-        <GitInput
-          disabled={busy}
-          onChange={(event) => setStashMessage(event.target.value)}
-          placeholder="Optional stash message"
-          value={stashMessage}
-        />
+        <label
+          className={GIT_FIELD_LABEL_CLASS}
+          htmlFor={`${fieldId}-stash-message`}
+        >
+          Stash message
+          <GitInput
+            disabled={busy}
+            id={`${fieldId}-stash-message`}
+            onChange={(event) => setStashMessage(event.target.value)}
+            placeholder="Optional stash message"
+            value={stashMessage}
+          />
+        </label>
         <GitButton disabled={busy} type="submit">
           Stash including untracked
         </GitButton>
@@ -303,12 +319,19 @@ export function GitAdvancedControls({
         <header className={GIT_SECTION_HEADER_CLASS}>
           <strong>Cherry-pick</strong>
         </header>
-        <GitInput
-          disabled={busy}
-          onChange={(event) => setCherryPickCommit(event.target.value)}
-          placeholder="Commit SHA or ref"
-          value={cherryPickCommit}
-        />
+        <label
+          className={GIT_FIELD_LABEL_CLASS}
+          htmlFor={`${fieldId}-cherry-pick-commit`}
+        >
+          Commit SHA or ref
+          <GitInput
+            disabled={busy}
+            id={`${fieldId}-cherry-pick-commit`}
+            onChange={(event) => setCherryPickCommit(event.target.value)}
+            placeholder="Commit SHA or ref"
+            value={cherryPickCommit}
+          />
+        </label>
         <GitButton disabled={busy || !cherryPickCommit.trim()} type="submit">
           Apply commit
         </GitButton>
@@ -353,18 +376,32 @@ export function GitAdvancedControls({
             </div>
           ))}
         </div>
-        <GitInput
-          disabled={busy || Boolean(editingRemote)}
-          onChange={(event) => setRemoteName(event.target.value)}
-          placeholder="Remote name"
-          value={remoteName}
-        />
-        <GitInput
-          disabled={busy}
-          onChange={(event) => setRemoteUrl(event.target.value)}
-          placeholder="https://github.com/org/repo.git"
-          value={remoteUrl}
-        />
+        <label
+          className={GIT_FIELD_LABEL_CLASS}
+          htmlFor={`${fieldId}-remote-name`}
+        >
+          Remote name
+          <GitInput
+            disabled={busy || Boolean(editingRemote)}
+            id={`${fieldId}-remote-name`}
+            onChange={(event) => setRemoteName(event.target.value)}
+            placeholder="Remote name"
+            value={remoteName}
+          />
+        </label>
+        <label
+          className={GIT_FIELD_LABEL_CLASS}
+          htmlFor={`${fieldId}-remote-url`}
+        >
+          Remote URL
+          <GitInput
+            disabled={busy}
+            id={`${fieldId}-remote-url`}
+            onChange={(event) => setRemoteUrl(event.target.value)}
+            placeholder="https://github.com/org/repo.git"
+            value={remoteUrl}
+          />
+        </label>
         <GitButton
           disabled={
             busy ||

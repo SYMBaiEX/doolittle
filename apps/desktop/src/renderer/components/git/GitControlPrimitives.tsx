@@ -54,6 +54,9 @@ export function GitTextarea({
   );
 }
 
+export const GIT_FIELD_LABEL_CLASS =
+  "grid gap-1 text-[length:var(--text-control)] font-bold text-[var(--text-soft)]";
+
 export const GIT_SECTION_CLASS =
   "grid gap-3 border-t border-[var(--border)] bg-transparent py-4";
 
