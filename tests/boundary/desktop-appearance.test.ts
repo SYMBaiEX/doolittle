@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -323,4 +325,24 @@ it("never opens the transition window under reduced motion or forced colors", as
     vi.unstubAllGlobals();
     delete document.documentElement.dataset.themeTransition;
   }
+});
+
+it("keeps text color out of the theme transition so the sweep stays paintable", () => {
+  // Measured in the running desktop app: easing the `color` property forces
+  // every text run in the window to re-rasterize on every frame of the sweep,
+  // collapsing frame production to a slideshow for exactly the transition's
+  // duration — light/dark and color flips read as a snap instead of a fade.
+  // Surface paints (backgrounds, borders, shadows) are cheap to interpolate
+  // and stay; text flips with the tokens.
+  const css = readFileSync(
+    resolve("apps/desktop/src/renderer/theme-materials.css"),
+    "utf8",
+  );
+  const transitionBlock = css.match(
+    /\[data-theme-transition\][\s\S]*?transition:([\s\S]*?)!important;/u,
+  );
+  expect(transitionBlock).not.toBeNull();
+  const properties = transitionBlock?.[1] ?? "";
+  expect(properties).toContain("background-color");
+  expect(properties).not.toMatch(/(?:^|[\s,])color\s+var\(/u);
 });
