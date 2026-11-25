@@ -389,6 +389,7 @@ export function MediaLibraryTab({
                   // Generated narration may not include a truthful caption track.
                   // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
                   <audio
+                    aria-label={`Generated audio asset ${selectedAsset.name}`}
                     className="w-full"
                     controls
                     src={assetUrl(payload.data)}
@@ -397,6 +398,7 @@ export function MediaLibraryTab({
                   // Generated video may not include a truthful caption track.
                   // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
                   <video
+                    aria-label={`Generated video asset ${selectedAsset.name}`}
                     className="max-h-[62vh] max-w-full"
                     controls
                     src={assetUrl(payload.data)}
