@@ -89,21 +89,23 @@ export function SettingsMenu({
       </header>
       <label className="dl-settings-mobile-select" htmlFor={`${id}-section`}>
         <span>Settings section</span>
-        <NativeSelect
-          id={`${id}-section`}
-          value={pickerValue}
-          onChange={(event) => onPickerChange(event.target.value)}
-        >
-          {pickerGroups.map(([group, entries]) => (
-            <optgroup key={group} label={group}>
-              {entries.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </NativeSelect>
+        <span className="dl-settings-mobile-select-control">
+          <NativeSelect
+            id={`${id}-section`}
+            value={pickerValue}
+            onChange={(event) => onPickerChange(event.target.value)}
+          >
+            {pickerGroups.map(([group, entries]) => (
+              <optgroup key={group} label={group}>
+                {entries.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </NativeSelect>
+        </span>
       </label>
       {onQueryChange ? (
         <label
