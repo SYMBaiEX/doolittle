@@ -131,7 +131,7 @@ export function ReviewQueue({
         <input
           aria-label="Search review queue"
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search decisions and changes"
+          placeholder="Search review"
           ref={searchRef}
           type="search"
           value={query}
