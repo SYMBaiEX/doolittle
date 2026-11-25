@@ -1,4 +1,5 @@
 import type { SessionSummary } from "../shared/contracts";
+import { workspaceName } from "./desktop-navigation";
 import { asArray, asNumber, asRecord, asString, titleCase } from "./lib";
 import { compactSessionPreview } from "./session-preview";
 
@@ -121,7 +122,9 @@ function parseAheadBehind(flags: string): { ahead: number; behind: number } {
 
 export function summarizeRepoStatus(
   status: string | undefined,
+  workspacePath?: string,
 ): DashboardRepoSnapshot {
+  const folderLabel = workspaceName(workspacePath ?? "");
   const lines = (status ?? "")
     .split(/\r?\n/u)
     .map((line) => line.trimEnd())
@@ -129,7 +132,7 @@ export function summarizeRepoStatus(
 
   if (!lines.length) {
     return {
-      branch: "Workspace",
+      branch: folderLabel,
       ahead: 0,
       behind: 0,
       dirty: false,
@@ -145,7 +148,7 @@ export function summarizeRepoStatus(
   const flags = parseAheadBehind(match?.groups?.flags ?? "");
 
   return {
-    branch: match?.groups?.branch ?? "Workspace",
+    branch: match?.groups?.branch ?? folderLabel,
     upstream: match?.groups?.upstream,
     ahead: flags.ahead,
     behind: flags.behind,
