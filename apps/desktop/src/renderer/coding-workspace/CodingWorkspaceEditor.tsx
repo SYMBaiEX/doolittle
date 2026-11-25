@@ -298,7 +298,10 @@ export function CodingWorkspaceEditor({
     }
   }
   return (
-    <main className={`${CODING_PANE_CLASS} ${CODING_EDITOR_CLASS}`}>
+    <section
+      aria-label="Code editor"
+      className={`${CODING_PANE_CLASS} ${CODING_EDITOR_CLASS}`}
+    >
       <OpenEditorTabs
         disabled={editingLocked}
         documents={openDocuments}
@@ -730,6 +733,6 @@ export function CodingWorkspaceEditor({
           ) : null}
         </footer>
       </ContextActionMenu>
-    </main>
+    </section>
   );
 }
