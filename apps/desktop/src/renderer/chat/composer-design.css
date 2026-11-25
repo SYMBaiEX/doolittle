@@ -620,13 +620,33 @@
     --composer-control: 40px;
   }
 
+  /* The controls are compact icon-only buttons at this width and fit side by
+     side in the common case, so keep them on one row instead of splitting the
+     footer into two stacked rows. Flex wrapping still drops the dispatch
+     group to a second row in crowded states (queue visible, details open)
+     rather than overlapping. */
   .chat-composer-footer {
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .chat-composer-tools {
+    flex: 1 1 auto;
+  }
+
+  .chat-composer-dispatch {
+    margin-inline-start: auto;
   }
 
   /* Workspace and model pills collapse to compact icon buttons; their labels
      truncated to a few characters at this width anyway. */
   .composer-route-label {
+    display: none;
+  }
+
+  /* The Queue control keeps its hit area and aria-label but drops the text
+     label, matching the other icon-only controls. */
+  .chat-composer-action-label:not(.sr-only) {
     display: none;
   }
 
