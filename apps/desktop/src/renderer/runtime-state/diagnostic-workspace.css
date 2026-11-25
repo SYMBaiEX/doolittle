@@ -323,7 +323,10 @@
   }
 }
 
-@container memory (max-width: 920px) {
+/* Four memory tabs with visible descriptions need roughly 350px each before
+   they overflow the scrollport and clip mid-word; fall back to the compact
+   icon-and-label layout whenever the pane cannot fit them all. */
+@container memory (max-width: 1400px) {
   .runtime-section-nav__item small {
     display: none;
   }
