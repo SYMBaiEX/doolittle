@@ -54,6 +54,7 @@ import { createPreloadedComponent } from "./app-shell/preloaded-component";
 import type { DesktopRouteFocusStore } from "./app-shell/route-focus-state";
 import {
   APP_MAIN_CLASS,
+  APP_MAIN_ID,
   APP_SIDEBAR_CLASS,
   APP_SIDEBAR_DARWIN_CLASS,
   APP_SIDEBAR_DESKTOP_CLASS,
@@ -62,6 +63,7 @@ import {
   APP_SIDEBAR_MOBILE_OPEN_CLASS,
   CHAT_CHROME_HOST_CLASS,
   DESKTOP_SHELL_CLASS,
+  SKIP_LINK_CLASS,
   VIEW_CONTAINER_CLASS,
   VIEW_CONTAINER_WORKSPACE_CLASS,
   WINDOW_CONTEXT_CLASS,
@@ -2901,6 +2903,18 @@ export function App() {
         } as CSSProperties
       }
     >
+      <a
+        className={SKIP_LINK_CLASS}
+        href={`#${APP_MAIN_ID}`}
+        onClick={(event) => {
+          // The shell routes on location.hash, so the link moves focus
+          // directly instead of navigating to the fragment.
+          event.preventDefault();
+          appMainRef.current?.focus();
+        }}
+      >
+        Skip to main content
+      </a>
       {paletteMounted ? (
         <Suspense
           fallback={
@@ -3093,7 +3107,9 @@ export function App() {
       </Suspense>
       <main
         className={`${APP_MAIN_CLASS}${renderedView === "chat" ? " app-main--chat" : ""}`}
+        id={APP_MAIN_ID}
         ref={appMainRef}
+        tabIndex={-1}
       >
         <div
           className={`${WINDOW_DRAGBAR_CLASS}${
