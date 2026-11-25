@@ -123,7 +123,6 @@
 }
 
 .chat-sidebar-picker-menu.dl-action-menu {
-  z-index: 60;
   width: var(--radix-dropdown-menu-trigger-width);
   min-width: min(176px, calc(100vw - 24px));
   padding: 4px;

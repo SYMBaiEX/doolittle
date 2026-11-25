@@ -281,7 +281,7 @@ function ChatHistoryRow({
           </button>
         </TooltipTrigger>
         <TooltipContent
-          className="chat-history-tooltip"
+          className="dl-tooltip-content chat-history-tooltip"
           collisionPadding={12}
           side="right"
           sideOffset={34}

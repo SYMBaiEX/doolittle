@@ -189,7 +189,7 @@ export function BotCreationDialog({
 
   return (
     <div
-      className="fixed inset-0 z-120 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_40%,transparent)] p-4"
+      className="bot-creation-dialog-backdrop fixed inset-0 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_40%,transparent)] p-4"
       ref={backdropRef}
     >
       <section

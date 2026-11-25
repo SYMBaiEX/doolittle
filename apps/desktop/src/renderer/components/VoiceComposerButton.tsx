@@ -519,7 +519,7 @@ export function VoiceComposerButton({
             aria-label="Voice dictation"
             align="end"
             avoidCollisions
-            className="z-80 w-[min(340px,calc(100vw-24px))] max-h-[min(400px,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 text-[var(--text)] shadow-[0_18px_46px_var(--shadow)] motion-reduce:animate-none"
+            className="dl-popover-content w-[min(340px,calc(100vw-24px))] max-h-[min(400px,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 text-[var(--text)] shadow-[0_18px_46px_var(--shadow)] motion-reduce:animate-none"
             collisionPadding={12}
             id={panelId}
             onEscapeKeyDown={(event) => {

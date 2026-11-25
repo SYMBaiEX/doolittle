@@ -1,5 +1,5 @@
 export const PROJECT_MANAGER_BACKDROP_CLASS =
-  "project-manager-backdrop fixed inset-0 z-[95] flex items-center justify-center bg-[color-mix(in_srgb,var(--shadow)_62%,transparent)] p-4 max-[740px]:items-end max-[740px]:p-0";
+  "project-manager-backdrop fixed inset-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--shadow)_62%,transparent)] p-4 max-[740px]:items-end max-[740px]:p-0";
 
 export const PROJECT_MANAGER_CLASS =
   "project-manager flex h-[min(780px,calc(100svh-56px))] w-[min(100%,1060px)] max-w-[1060px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] shadow-[0_28px_90px_color-mix(in_srgb,var(--shadow)_76%,transparent)] outline-none max-[740px]:h-[min(90svh,820px)] max-[740px]:w-full max-[740px]:rounded-b-none max-[740px]:rounded-t-[14px] max-[740px]:border-b-0";

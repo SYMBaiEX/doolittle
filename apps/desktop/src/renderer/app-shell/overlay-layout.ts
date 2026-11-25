@@ -1,5 +1,5 @@
 export const COMMAND_PALETTE_CLASS =
-  "command-palette z-1700 max-h-[min(590px,calc(100svh-96px))] w-[min(620px,calc(100vw-32px))] gap-0 overflow-hidden rounded-2xl border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,transparent)] p-0 shadow-[var(--shell-shadow-lg)]";
+  "command-palette max-h-[min(590px,calc(100svh-96px))] w-[min(620px,calc(100vw-32px))] gap-0 overflow-hidden rounded-2xl border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,transparent)] p-0 shadow-[var(--shell-shadow-lg)]";
 
 export const COMMAND_PALETTE_HEADER_CLASS =
   "command-palette__header flex min-h-9 items-center justify-between px-2.5 pt-1.5 pb-0.5";
@@ -45,7 +45,7 @@ export const COMMAND_SHORTCUT_KEY_CLASS =
   "command-shortcut__key rounded border border-[var(--border)] bg-[var(--surface)] px-1.25 py-0.75 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[inherit]";
 
 export const ROUTE_DIALOG_BACKDROP_CLASS =
-  "dialog-backdrop fixed inset-0 z-1000 grid place-items-center overflow-auto bg-[color-mix(in_srgb,var(--shadow)_78%,transparent)] p-[clamp(12px,3vw,32px)] max-[760px]:items-end max-[760px]:p-2.5";
+  "dialog-backdrop fixed inset-0 grid place-items-center overflow-auto bg-[color-mix(in_srgb,var(--shadow)_78%,transparent)] p-[clamp(12px,3vw,32px)] max-[760px]:items-end max-[760px]:p-2.5";
 export const ROUTE_DIALOG_CLASS =
   "route-control-dialog w-[min(720px,100%)] max-h-[min(86svh,720px)] overflow-auto rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[var(--surface-raised)] p-[clamp(14px,2vw,24px)] shadow-[var(--shell-shadow-lg)] outline-none max-[760px]:max-h-[calc(100svh-20px)] max-[760px]:rounded-[var(--radius-md)_var(--radius-md)_var(--radius-xs)_var(--radius-xs)]";
 export const ROUTE_DIALOG_HEADER_CLASS =
