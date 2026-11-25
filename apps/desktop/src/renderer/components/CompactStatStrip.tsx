@@ -16,16 +16,18 @@ const STAT_TONE_CLASS_NAMES = {
 } as const;
 
 export function CompactStatStrip({
+  className = "",
   label,
   stats,
 }: {
+  className?: string;
   label: string;
   stats: readonly CompactStat[];
 }) {
   return (
     <section
       aria-label={label}
-      className="compact-stat-strip grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] items-start gap-x-4 gap-y-3"
+      className={`compact-stat-strip grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] items-start gap-x-4 gap-y-3${className ? ` ${className}` : ""}`}
     >
       {stats.map((stat) => (
         <div
