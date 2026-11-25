@@ -438,6 +438,12 @@
   }
 }
 
+@container keys (max-width: 30rem) {
+  .keys-refresh-action__label {
+    display: none;
+  }
+}
+
 @media (forced-colors: active) {
   .keys-inventory-row[aria-pressed="true"] {
     outline: 1px solid Highlight;
