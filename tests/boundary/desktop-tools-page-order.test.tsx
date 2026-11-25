@@ -67,16 +67,14 @@ it("places search and results before the integration bridges diagnostics", async
   const bridges = Array.from(container.querySelectorAll("summary")).find(
     (element) => element.textContent?.includes("Integration bridges"),
   );
-  expect(search).not.toBeNull();
-  expect(results).not.toBeNull();
-  expect(bridges).not.toBeNull();
+  if (!search || !results || !bridges) {
+    throw new Error("expected search, results, and bridges elements");
+  }
   // DOM order matches visual order so keyboard focus follows the layout.
   expect(
-    search?.compareDocumentPosition(bridges as Node) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
+    search.compareDocumentPosition(bridges) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(
-    results?.compareDocumentPosition(bridges as Node) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
+    results.compareDocumentPosition(bridges) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 });
