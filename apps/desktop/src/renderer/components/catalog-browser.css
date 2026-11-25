@@ -200,12 +200,13 @@
 }
 
 .catalog-browser-item__copy strong {
+  display: -webkit-box;
   overflow: hidden;
   font-size: var(--text-control);
   font-weight: var(--catalog-row-weight, 550);
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .catalog-browser-item__meta {
