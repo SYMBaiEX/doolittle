@@ -179,8 +179,8 @@ export function DashboardPriorityPanel({
             </div>
           )}
           <details className="group mt-1.5">
-            <summary className="flex min-h-8.5 cursor-pointer list-none items-center justify-between gap-2.5 rounded-[var(--radius-sm)] px-1 text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden">
-              <span className="flex min-w-0 items-center gap-2 font-medium">
+            <summary className="flex min-h-8.5 cursor-pointer list-none items-center justify-between gap-2.5 rounded-[var(--radius-sm)] px-1 text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] [&>.badge]:shrink-0 [&::-webkit-details-marker]:hidden">
+              <span className="flex min-w-0 flex-1 items-center gap-2 font-medium">
                 <UiIcon
                   className="text-[var(--muted)] group-open:rotate-90"
                   icon={ChevronRight}

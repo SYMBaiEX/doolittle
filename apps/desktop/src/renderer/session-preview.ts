@@ -1,5 +1,8 @@
 export function compactSessionPreview(value: string): string {
-  const normalized = value.replace(/\s+/gu, " ").trim();
+  const normalized = value
+    .replace(/\s+/gu, " ")
+    .trim()
+    .replace(/^\[(?:assistant|system|user)\]\s*/iu, "");
   if (!normalized) return "";
 
   const embeddedResource = normalized.match(
