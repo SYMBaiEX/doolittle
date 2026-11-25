@@ -11,10 +11,10 @@ export const COMPATIBILITY_EMPTY_CLASS =
   "grid min-h-[52px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-[11px] py-2 max-[700px]:grid-cols-[auto_minmax(0,1fr)]";
 
 export const SETUP_READINESS_CLASS =
-  "setup-readiness relative grid gap-[7px] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-[15px] pt-3.5 pb-[13px]";
+  "setup-readiness relative grid min-w-0 gap-[7px] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-[15px] pt-3.5 pb-[13px]";
 
 export const SETUP_READINESS_HEADING_CLASS =
-  "flex items-start justify-between gap-5 max-[700px]:gap-2.5 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_h2]:m-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:leading-[1.12] [&_h2]:tracking-[-0.02em]";
+  "flex flex-wrap items-start justify-between gap-x-5 gap-y-1.5 max-[700px]:gap-x-2.5 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_h2]:m-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:leading-[1.12] [&_h2]:tracking-[-0.02em]";
 
 export function setupReadinessSignalClass(
   tone: "neutral" | "good" | "warn" | "bad",
