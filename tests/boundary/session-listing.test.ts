@@ -159,6 +159,33 @@ it("backfills legacy messages once and keeps the inventory current through moves
   }
 });
 
+it("groups daily analytics in the local timezone used by session timestamps", () => {
+  const previousTimeZone = process.env.TZ;
+  process.env.TZ = "America/Chicago";
+  const db = new NodeSessionDatabase(":memory:");
+  try {
+    migrateSessionDatabase(db);
+    const endedAt = "2026-11-25T02:00:00.000Z";
+    db.query(`
+      INSERT INTO messages (id, session_id, room_id, entity_id, role, text, created_at)
+      VALUES ('late-local', 'late-local-session', 'room', 'entity', 'user', 'evening', ?1)
+    `).run(endedAt);
+
+    const analytics = resolveSessionAnalytics(db, 10);
+    expect(analytics.recentSessions[0]).toMatchObject({
+      sessionId: "late-local-session",
+      endedAt,
+    });
+    expect(analytics.dailyActivity).toEqual([
+      expect.objectContaining({ date: "2026-11-24", messages: 1 }),
+    ]);
+  } finally {
+    db.close();
+    if (previousTimeZone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimeZone;
+  }
+});
+
 it("rolls back a failed schema upgrade before accepting a retry", () => {
   const db = new NodeSessionDatabase(":memory:");
   try {
