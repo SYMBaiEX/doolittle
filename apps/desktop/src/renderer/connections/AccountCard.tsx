@@ -104,6 +104,7 @@ export function AccountCard({
       expired: "Expired",
       unknown: "Unknown",
     }[account.health] ?? "Unknown";
+  const canRefreshUsage = account.source !== "api-key";
   return (
     <div
       className={`flex flex-col gap-2 rounded-sm border border-[var(--border)] p-3 ${account.enabled ? "" : "opacity-60"}`}
@@ -210,14 +211,16 @@ export function AccountCard({
         >
           {testBusy ? "Testing…" : "Test"}
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={disabled || refreshBusy}
-          onClick={() => void run(onRefreshUsage)}
-        >
-          {refreshBusy ? "Refreshing…" : "Refresh"}
-        </Button>
+        {canRefreshUsage ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={disabled || refreshBusy}
+            onClick={() => void run(onRefreshUsage)}
+          >
+            {refreshBusy ? "Refreshing…" : "Refresh"}
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -248,7 +251,11 @@ export function AccountCard({
           ) : null}
         </div>
       ) : (
-        <small>No usage data yet. Refresh to check.</small>
+        <small>
+          {canRefreshUsage
+            ? "No usage data yet. Refresh to check."
+            : "Usage refresh is unavailable for API-key accounts."}
+        </small>
       )}
       {!account.hasCredential ? (
         <small>Orphan metadata: no local credential found.</small>

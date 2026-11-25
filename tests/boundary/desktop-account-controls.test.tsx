@@ -44,11 +44,11 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
 });
-function render(saving = false) {
+function render(saving = false, accountFixture = account) {
   act(() =>
     root.render(
       createElement(AccountCard, {
-        account,
+        account: accountFixture,
         saving,
         isFirst: true,
         isLast: true,
@@ -92,6 +92,23 @@ it("keeps account health, usage, enablement, test and refresh connected to Eliza
     container.querySelector<HTMLInputElement>('input[type="checkbox"]')
       ?.disabled,
   ).toBe(true);
+});
+it("hides usage refresh for API-key accounts that cannot report usage", () => {
+  render(false, {
+    ...account,
+    providerId: "openai-api",
+    source: "api-key",
+    usage: undefined,
+  });
+  expect(
+    [...document.querySelectorAll("button")].some(
+      (button) => button.textContent === "Refresh",
+    ),
+  ).toBe(false);
+  expect(container.textContent).toContain(
+    "Usage refresh is unavailable for API-key accounts.",
+  );
+  expect(container.textContent).not.toContain("Refresh to check");
 });
 it("renames accounts and keeps failed delete confirmation open for retry", async () => {
   render();

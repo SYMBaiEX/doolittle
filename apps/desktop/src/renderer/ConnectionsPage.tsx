@@ -392,7 +392,9 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                         updateAccount(entry.provider, account, changes)
                       }
                       onPreview={() => void selectAccount(entry.provider)}
-                      onRefreshUsage={async () => undefined}
+                      onRefreshUsage={(account) =>
+                        refreshPoolAccountUsage(entry.provider, account)
+                      }
                       onSetStrategy={(strategy) =>
                         void setPoolStrategy(entry.provider, strategy)
                       }
