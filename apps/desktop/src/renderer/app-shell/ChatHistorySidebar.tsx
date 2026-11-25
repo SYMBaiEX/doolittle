@@ -167,6 +167,9 @@ function HistoryDisclosure({
   children: ReactNode;
 }) {
   const bodyId = useId();
+  // Empty buckets leave no header behind; the list-level empty state covers
+  // the fully-empty history.
+  if (count === 0) return null;
   const Container = nested ? "div" : "section";
   return (
     <Container
