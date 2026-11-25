@@ -103,7 +103,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-@container observability (max-width: 770px) {
+@container observability (max-width: 960px) {
   .analytics-grid {
     grid-template-columns: minmax(0, 1fr);
   }
