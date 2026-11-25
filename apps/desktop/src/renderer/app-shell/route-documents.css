@@ -159,11 +159,55 @@
   overflow-x: auto;
   padding-inline: var(--document-inset);
   scrollbar-width: thin;
+  /* Fade whichever edge still hides tabs so clipped sections stay
+     discoverable while overlay scrollbars auto-hide. Both fades collapse
+     to zero when every tab fits. */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--dl-settings-tabs-fade-start),
+    #000 calc(100% - var(--dl-settings-tabs-fade-end)),
+    transparent
+  );
+  animation:
+    dl-settings-tabs-fade-start linear both,
+    dl-settings-tabs-fade-end linear both;
+  animation-timeline: scroll(self inline), scroll(self inline);
 }
 
 [data-route-document="settings"] .dl-settings-tabs [role="tab"] {
   flex: none;
   white-space: nowrap;
+}
+
+@property --dl-settings-tabs-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --dl-settings-tabs-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes dl-settings-tabs-fade-start {
+  from {
+    --dl-settings-tabs-fade-start: 0px;
+  }
+  to {
+    --dl-settings-tabs-fade-start: 16px;
+  }
+}
+
+@keyframes dl-settings-tabs-fade-end {
+  from {
+    --dl-settings-tabs-fade-end: 16px;
+  }
+  to {
+    --dl-settings-tabs-fade-end: 0px;
+  }
 }
 
 [data-route-document="settings"] .dl-settings-menu {
