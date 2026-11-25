@@ -1,6 +1,12 @@
 .chat-composer.dl-composer {
   --composer-control: 34px;
   --composer-inset: 12px;
+  --composer-footer-inline: max(8px, calc(var(--composer-inset) - 3px));
+  --composer-prompt-library-offset: calc(
+    var(--composer-footer-inline) +
+    var(--composer-control) +
+    4px
+  );
   position: relative;
   display: grid;
   flex: none;
@@ -93,7 +99,7 @@
   align-items: center;
   gap: 5px 8px;
   min-width: 0;
-  padding: 4px max(8px, calc(var(--composer-inset) - 3px)) 8px;
+  padding: 4px var(--composer-footer-inline) 8px;
 }
 
 .chat-composer-tools,
