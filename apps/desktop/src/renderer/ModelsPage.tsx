@@ -198,6 +198,10 @@ export function ModelsPage({
 
   const activeProvider = runtime?.provider || asString(model?.provider);
   const activeModel = runtime?.model || asString(model?.model);
+  const activeModelLabel =
+    models.data?.providers
+      .find((entry) => entry.id === activeProvider)
+      ?.models.find((entry) => entry.id === activeModel)?.label || activeModel;
 
   return (
     <div className="settings-workbench-section settings-model-section provider-settings provider-settings--models">
@@ -230,7 +234,7 @@ export function ModelsPage({
             </div>
             <div>
               <dt>{runtime?.model ? "Current model" : "Saved model"}</dt>
-              <dd>{activeModel || "None selected"}</dd>
+              <dd>{activeModelLabel || "None selected"}</dd>
             </div>
           </dl>
         ) : null}
