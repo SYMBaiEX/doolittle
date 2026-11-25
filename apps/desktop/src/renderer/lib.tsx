@@ -292,10 +292,13 @@ export function ErrorBlock({
   error,
   detail,
   retry,
+  title,
 }: {
   error: string;
   detail?: string;
   retry?: () => void;
+  /** Names the failed operation; defaults to a generic view-load message. */
+  title?: string;
 }) {
   const runtimeOffline = /local runtime is not ready/iu.test(error);
   const cleaned = runtimeOffline ? "" : errorMessage(error);
@@ -304,7 +307,9 @@ export function ErrorBlock({
   return (
     <Notice tone="bad">
       <strong>
-        {runtimeOffline ? "Runtime is offline." : "Could not load this view."}
+        {runtimeOffline
+          ? "Runtime is offline."
+          : (title ?? "Could not load this view.")}
       </strong>
       <span>
         {runtimeOffline

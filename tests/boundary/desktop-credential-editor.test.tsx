@@ -218,3 +218,41 @@ it("keeps a failed save inline with its draft and retries without retyping", asy
     vi.mocked(desktopRequest).mockReset();
   }
 });
+
+it("names the failed operation when the secret inventory cannot load", async () => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const visibility = vi
+    .spyOn(document, "visibilityState", "get")
+    .mockReturnValue("visible");
+  vi.mocked(desktopRequest).mockRejectedValue(
+    new Error("Internal server error"),
+  );
+
+  try {
+    await act(async () => root.render(<KeysPage active />));
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(container.textContent).toContain(
+          "Couldn't load saved key names.",
+        ),
+      );
+    });
+    expect(container.textContent).toContain("Internal server error");
+    expect(
+      [...container.querySelectorAll("button")].some(
+        (button) => button.textContent === "Try again",
+      ),
+    ).toBe(true);
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    desktopQueryClient.clear();
+    visibility.mockRestore();
+    vi.mocked(desktopRequest).mockReset();
+  }
+});

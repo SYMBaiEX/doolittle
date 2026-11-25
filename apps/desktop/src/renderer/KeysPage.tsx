@@ -232,6 +232,7 @@ export function KeysPage({ active }: { active: boolean }) {
                   error={secrets.error}
                   detail={secrets.errorDetail}
                   retry={secrets.reload}
+                  title="Couldn't load saved key names."
                 />
               ) : (
                 <div className="keys-inventory-list">
