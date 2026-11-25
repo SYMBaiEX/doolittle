@@ -26,6 +26,17 @@ export function taskExecutionLabel(executionMode?: string): string {
     : "local runtime";
 }
 
+export function orchestrationScopeLabel({
+  projectScope,
+  workspaceLabel,
+}: {
+  projectScope: string;
+  workspaceLabel?: string;
+}): string {
+  if (projectScope === "all") return "All projects";
+  return workspaceLabel?.trim() || "Selected project";
+}
+
 export function taskCreatePayload(input: {
   title: string;
   objective: string;

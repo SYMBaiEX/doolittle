@@ -9,7 +9,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-notices":
     "orchestration-notices pointer-events-none absolute top-2.5 right-3 z-6 w-[min(360px,calc(100%_-_20px))] @max-[680px]/work:static @max-[680px]/work:w-full [&_.notice]:rounded-[5px] [&_.notice]:px-2.5 [&_.notice]:py-2.25 [&_.notice]:shadow-[0_16px_48px_color-mix(in_srgb,var(--shadow)_46%,transparent)] @max-[680px]/work:[&_.notice]:rounded-none @max-[680px]/work:[&_.notice]:border-x-0 @max-[680px]/work:[&_.notice]:shadow-none",
   "orchestration-nav-row":
-    "orchestration-nav-row flex min-h-10.5 shrink-0 items-center justify-between gap-3.5 border-[var(--border)] border-b bg-[var(--surface)] px-2.5 shadow-[inset_0_-1px_color-mix(in_srgb,var(--text)_2%,transparent)] max-[900px]:flex-col max-[900px]:items-stretch max-[900px]:gap-0 max-[900px]:px-2 max-[900px]:pt-0 max-[900px]:pb-1.5 max-[680px]:items-start max-[680px]:py-2",
+    "orchestration-nav-row flex min-h-10.5 shrink-0 items-center justify-between gap-3.5 border-[var(--border)] border-b bg-[var(--surface)] px-2.5 shadow-[inset_0_-1px_color-mix(in_srgb,var(--text)_2%,transparent)] max-[680px]:flex-col max-[680px]:items-stretch max-[680px]:gap-0 max-[680px]:px-2 max-[680px]:py-2",
   "orchestration-command-bar":
     "orchestration-command-bar flex flex-wrap items-center gap-2 max-[680px]:w-full [&_button]:min-h-10 [&_button]:px-3 [&_button]:py-2 [&_button]:text-[length:var(--text-control)] max-[680px]:[&_button]:min-h-11",
   "orchestration-queue-starter":
