@@ -20,7 +20,7 @@ export const COMMAND_PALETTE_SEARCH_ICON_CLASS =
 export const COMMAND_PALETTE_SEARCH_CLASS =
   "command-palette__search h-10 rounded-[inherit] border-0 bg-transparent pr-3 pl-9.5 text-[length:var(--text-body)] text-[var(--text)] shadow-none outline-none focus-visible:ring-0";
 export const COMMAND_PALETTE_SCROLL_CLASS =
-  "command-palette__scroll h-[min(438px,calc(100svh-246px))] min-h-47 border-y border-[var(--border)]";
+  "command-palette__scroll max-h-[min(438px,calc(100svh-246px))] border-y border-[var(--border)]";
 export const COMMAND_PALETTE_LIST_CLASS =
   "command-palette__list px-1.75 pt-1.25 pb-2";
 export const COMMAND_PALETTE_GROUP_CLASS =
@@ -28,7 +28,7 @@ export const COMMAND_PALETTE_GROUP_CLASS =
 export const COMMAND_PALETTE_GROUP_LABEL_CLASS =
   "command-palette__group-label m-0 px-2.5 pt-1.25 pb-1 font-[var(--font-mono)] text-[length:var(--text-meta)] font-semibold tracking-[0.12em] text-[var(--faint)] uppercase";
 export const COMMAND_PALETTE_ITEM_CLASS =
-  "command-palette__item relative grid min-h-10 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 rounded-[var(--radius-sm)] border border-transparent bg-transparent py-1.25 pr-2.5 pl-3 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-disabled:cursor-default aria-disabled:opacity-40 aria-selected:bg-[var(--surface-hover)] aria-selected:text-[var(--text)]";
+  "command-palette__item relative grid min-h-10 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 rounded-[var(--radius-sm)] border border-transparent bg-transparent py-1.25 pr-2.5 pl-3 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-disabled:cursor-default aria-disabled:opacity-40 aria-selected:bg-[var(--surface-hover)] aria-selected:text-[var(--text)] aria-selected:before:absolute aria-selected:before:top-2.25 aria-selected:before:bottom-2.25 aria-selected:before:left-0.75 aria-selected:before:w-0.5 aria-selected:before:rounded-sm aria-selected:before:bg-[var(--accent)] aria-selected:before:content-[''] forced-colors:aria-selected:outline forced-colors:aria-selected:outline-1";
 export const COMMAND_PALETTE_ITEM_LABEL_CLASS =
   "command-palette__item-label overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] font-semibold";
 export const COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS =
