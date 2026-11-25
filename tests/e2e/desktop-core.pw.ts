@@ -1705,7 +1705,10 @@ test.describe("fresh native desktop", () => {
       const terminalTab = terminal.getByRole("tab", { selected: true });
       const writeShellProof = async (file: string, command: string) => {
         await terminal.locator(".xterm-helper-textarea").focus();
-        await page.keyboard.insertText(command);
+        // Type real key events: with screenReaderMode enabled xterm ignores
+        // input-event-only text insertion (keyboard.insertText), so synthetic
+        // text must arrive through the keypress path like real typing.
+        await page.keyboard.type(command);
         await page.keyboard.press("Enter");
         const proof = join(workspace, file);
         await expect
