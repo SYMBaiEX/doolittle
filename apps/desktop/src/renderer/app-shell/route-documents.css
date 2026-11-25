@@ -13,6 +13,13 @@
   padding: 0;
 }
 
+/* EmptyBlock already owns the inset and centering; the shared state surface
+   keeps its standalone padding, so nested copies would double the gutter. This
+   needs unlayered CSS: the surface padding is unlayered and beats utilities. */
+.empty-block .dl-state-surface {
+  padding: 0;
+}
+
 [data-route-document] .page-header {
   display: block;
   min-block-size: 0;
