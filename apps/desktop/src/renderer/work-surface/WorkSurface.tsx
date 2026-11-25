@@ -49,16 +49,18 @@ export function WorkRail({
   meta,
   controls,
   note,
+  className = "",
   children,
 }: {
   heading: ReactNode;
   meta?: ReactNode;
   controls?: ReactNode;
   note?: ReactNode;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <aside className="ws-rail">
+    <aside className={`ws-rail ${className}`}>
       <div className="ws-rail__heading">
         <span>{heading}</span>
         {meta ? <small>{meta}</small> : null}
