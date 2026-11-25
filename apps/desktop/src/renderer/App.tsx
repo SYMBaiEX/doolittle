@@ -3131,11 +3131,18 @@ export function App() {
                   className="min-w-0 truncate text-sm font-semibold text-[var(--text)]"
                   title={windowTitle}
                 >
-                  {windowTitle}
+                  {activeItem?.id === "browser" ? (
+                    <>
+                      <span className="max-[560px]:hidden">{windowTitle}</span>
+                      <span className="min-[561px]:hidden">Preview</span>
+                    </>
+                  ) : (
+                    windowTitle
+                  )}
                 </strong>
                 {chatRouteActive ? (
                   <span
-                    className="truncate text-sm text-[var(--muted)] max-[560px]:hidden"
+                    className="min-w-0 flex-1 truncate text-sm text-[var(--muted)] max-[560px]:hidden"
                     title={currentRouteLabel}
                   >
                     {currentRouteLabel}
@@ -3143,7 +3150,7 @@ export function App() {
                 ) : null}
                 {editorVisible && computerOrigin?.workspacePath ? (
                   <span
-                    className="truncate text-sm text-[var(--muted)] max-[560px]:hidden"
+                    className="min-w-0 flex-1 truncate text-sm text-[var(--muted)] max-[560px]:hidden"
                     title={computerOrigin.workspacePath}
                   >
                     {workspaceName(computerOrigin.workspacePath)}
