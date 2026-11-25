@@ -455,7 +455,10 @@ function AdvancedSettingsGroup({
       <summary>
         <span>
           <strong>{settingsCategoryLabel(group.category)}</strong>
-          <small>{group.fields.length} runtime fields</small>
+          <small>
+            {group.fields.length} runtime{" "}
+            {group.fields.length === 1 ? "field" : "fields"}
+          </small>
         </span>
         <span>{open ? "Hide" : "Edit"}</span>
       </summary>
