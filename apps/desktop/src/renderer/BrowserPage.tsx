@@ -14,6 +14,7 @@ import {
   RefreshCw,
   TriangleAlert,
 } from "lucide-react";
+import { useState } from "react";
 import {
   BROWSER_ACTION_CLASS,
   BROWSER_ACTIONS_CLASS,
@@ -94,6 +95,14 @@ export function BrowserPage({
     updateAddress,
     updateCompareUrl,
   } = browser;
+  const [previewFrameLoaded, setPreviewFrameLoaded] = useState(false);
+  const [seenPreviewUrl, setSeenPreviewUrl] = useState(currentUrl);
+  if (seenPreviewUrl !== currentUrl) {
+    setSeenPreviewUrl(currentUrl);
+    setPreviewFrameLoaded(false);
+  }
+  const previewLive =
+    embedded && previewStatus === "ready" && previewFrameLoaded;
   const previewActions: ContextAction[] = [
     {
       id: "back",
@@ -260,7 +269,7 @@ export function BrowserPage({
                   embedded
                     ? previewStatus === "unreachable"
                       ? "bad"
-                      : previewStatus === "ready"
+                      : previewLive
                         ? "good"
                         : "neutral"
                     : "neutral"
@@ -269,9 +278,11 @@ export function BrowserPage({
                 {embedded
                   ? previewStatus === "unreachable"
                     ? "Unreachable"
-                    : previewStatus === "checking"
-                      ? "Checking localhost"
-                      : "Live localhost"
+                    : previewStatus === "ready"
+                      ? previewLive
+                        ? "Live localhost"
+                        : "Loading localhost"
+                      : "Checking localhost"
                   : evidenceAvailable
                     ? "Capture mode"
                     : "Local preview"}
@@ -309,6 +320,7 @@ export function BrowserPage({
               >
                 <iframe
                   key={currentUrl}
+                  onLoad={() => setPreviewFrameLoaded(true)}
                   referrerPolicy="no-referrer"
                   sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-same-origin allow-scripts"
                   src={currentUrl}
