@@ -190,7 +190,9 @@ export function SessionListPanel({
           >
             <button
               className={`${SESSION_ROW_CLASS} min-w-0 flex-1 ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
-              aria-pressed={selectedId === session.sessionId}
+              aria-current={
+                selectedId === session.sessionId ? "true" : undefined
+              }
               data-session-row="true"
               onClick={() => onSelect(session)}
               type="button"

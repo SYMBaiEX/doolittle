@@ -113,7 +113,9 @@ export function McpMarketplacePanel({
               {servers.map((server) => (
                 <li key={server.name}>
                   <button
-                    aria-pressed={selectedName === server.name}
+                    aria-current={
+                      selectedName === server.name ? "true" : undefined
+                    }
                     className={`${MCP_TOOL_BUTTON_CLASS} ${selectedName === server.name ? MCP_TOOL_BUTTON_SELECTED_CLASS : ""}`}
                     onClick={() => onSelect(server.name)}
                     type="button"
