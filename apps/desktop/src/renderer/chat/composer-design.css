@@ -86,7 +86,10 @@
 
 .chat-composer-footer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* The dispatch row may grow to its content width, but never past ~62% of the
+     footer; otherwise its max-content track starves the tools column and the
+     controls overlap at narrow session widths. */
+  grid-template-columns: minmax(0, 1fr) fit-content(62%);
   align-items: center;
   gap: 5px 8px;
   min-width: 0;
@@ -613,8 +616,22 @@
 }
 
 @container session (max-width: 450px) {
+  .chat-composer.dl-composer {
+    --composer-control: 40px;
+  }
+
   .chat-composer-footer {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Workspace and model pills collapse to compact icon buttons; their labels
+     truncated to a few characters at this width anyway. */
+  .composer-route-label {
+    display: none;
+  }
+
+  .composer-route-trigger {
+    padding-inline: 6px;
   }
 
   .chat-composer .chat-composer-input {
