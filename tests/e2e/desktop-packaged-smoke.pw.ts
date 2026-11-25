@@ -15,7 +15,7 @@ test.describe("packaged desktop smoke", () => {
         .poll(() => page.evaluate(() => typeof window.doolittle))
         .toBe("object");
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
-      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
       await expect(composer).toBeEnabled();
       await composer.focus();
       await page.keyboard.press(

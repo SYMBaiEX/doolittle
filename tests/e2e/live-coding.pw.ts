@@ -373,7 +373,7 @@ async function runLiveTurn(
     observe?: (progress: LiveRun | undefined) => void;
   } = {},
 ) {
-  const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+  const composer = page.getByRole("combobox", { name: "Message Doolittle" });
   await composer.fill(prompt);
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled({
     timeout: 30_000,
