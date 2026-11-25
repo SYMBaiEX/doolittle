@@ -413,7 +413,7 @@
   gap: 6px;
 }
 
-@container catalog-page (max-width: 620px) {
+@container catalog-page (max-width: 680px) {
   .catalog-browser {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
