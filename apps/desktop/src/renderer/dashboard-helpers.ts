@@ -11,6 +11,10 @@ export interface DashboardSessionCard {
   lastActivityLabel: string;
 }
 
+export function sessionMessageCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "message" : "messages"}`;
+}
+
 export interface DashboardApprovalCard {
   id: string;
   command: string;

@@ -4,10 +4,11 @@ import {
   WorkbenchEmpty,
   WorkbenchSection,
 } from "../components/workbench/Workbench";
-import type {
-  DashboardApprovalCard,
-  DashboardSessionCard,
-  DashboardTaskCard,
+import {
+  type DashboardApprovalCard,
+  type DashboardSessionCard,
+  type DashboardTaskCard,
+  sessionMessageCountLabel,
 } from "../dashboard-helpers";
 import { Badge, displayTimestamp, ErrorBlock, LoadingBlock } from "../lib";
 import {
@@ -78,12 +79,16 @@ export function DashboardActivityPanels({
                 onClick={() => onOpenChat?.(session.id)}
                 type="button"
               >
-                <span className="grid min-w-0 gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
-                  <strong>{session.title}</strong>
+                <span className="grid min-w-0 gap-0.5 [&>small]:overflow-hidden [&>small]:text-ellipsis [&>small]:whitespace-nowrap">
+                  <strong className="line-clamp-2 leading-snug [overflow-wrap:anywhere]">
+                    {session.title}
+                  </strong>
                   {session.preview ? <small>{session.preview}</small> : null}
                 </span>
                 <span className="grid justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
-                  <small>{session.messageCount} messages</small>
+                  <small>
+                    {sessionMessageCountLabel(session.messageCount)}
+                  </small>
                   <small>{displayTimestamp(session.lastActivityLabel)}</small>
                 </span>
               </button>
