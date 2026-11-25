@@ -622,54 +622,24 @@
   color: var(--muted);
 }
 
-/* ── Overflow menu ────────────────────────────────────────────────────── */
+/* ── Overflow trigger ─────────────────────────────────────────────────── */
 
-.ws-overflow {
-  position: relative;
-}
-
-.ws-overflow > summary {
-  display: flex;
+.ws-overflow-trigger {
+  display: inline-flex;
   align-items: center;
   min-block-size: 24px;
   padding: 2px 8px;
+  border: 0;
   border-radius: 6px;
-  list-style: none;
+  background: transparent;
   cursor: pointer;
+  font: inherit;
   font-size: var(--text-meta);
   color: var(--muted);
 }
 
-.ws-overflow > summary::-webkit-details-marker {
-  display: none;
-}
-
-.ws-overflow > summary:hover {
+.ws-overflow-trigger:hover,
+.ws-overflow-trigger[aria-expanded="true"] {
   background: var(--surface-hover);
   color: var(--text);
-}
-
-.ws-overflow[open] > summary {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-
-.ws-overflow__menu {
-  position: absolute;
-  inset-inline-end: 0;
-  inset-block-start: calc(100% + 2px);
-  z-index: 30;
-  display: grid;
-  min-inline-size: 140px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-menu, 0 8px 24px rgba(0, 0, 0, 0.28));
-}
-
-.ws-overflow__menu > button {
-  justify-content: flex-start;
-  inline-size: 100%;
-  text-align: start;
 }

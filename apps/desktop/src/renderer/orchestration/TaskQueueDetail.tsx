@@ -88,14 +88,10 @@ export function TaskQueueDetail({
   const status = asString(selectedTask.status, "pending");
   const tier = statusTier(status);
   const notes = asArray(selectedTask.notes);
-  const failButtonRef = useRef<HTMLButtonElement>(null);
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const overflowActionsRef = useRef<HTMLButtonElement>(null);
   const requestDestructiveAction = (action: "cancel" | "fail") => {
-    const button =
-      action === "cancel" ? cancelButtonRef.current : failButtonRef.current;
+    const button = overflowActionsRef.current;
     if (!button) return;
-    const disclosure = button.closest("details");
-    if (disclosure) disclosure.open = true;
     onRequestDestructiveAction(selectedTask, action, button);
   };
   return (
@@ -226,43 +222,38 @@ export function TaskQueueDetail({
             >
               Add child
             </button>
-            <details className="ws-overflow">
-              <summary>More</summary>
-              <div className="ws-overflow__menu">
+            <ContextActionMenu
+              label="More task actions"
+              scopeKey={`task-overflow:${selectedTask.id}:${status}`}
+              items={[
+                {
+                  id: "fail",
+                  label: "Mark failed",
+                  destructive: true,
+                  disabled: !active || busyKeys[`task:${selectedTask.id}:fail`],
+                  onSelect: () => requestDestructiveAction("fail"),
+                },
+                {
+                  id: "cancel",
+                  label: "Cancel",
+                  destructive: true,
+                  disabled:
+                    !active || busyKeys[`task:${selectedTask.id}:cancel`],
+                  onSelect: () => requestDestructiveAction("cancel"),
+                },
+              ]}
+              trigger={
                 <button
-                  className="text-button danger-text-button"
-                  ref={failButtonRef}
+                  className="ws-overflow-trigger"
+                  ref={overflowActionsRef}
                   type="button"
-                  onClick={(event) =>
-                    onRequestDestructiveAction(
-                      selectedTask,
-                      "fail",
-                      event.currentTarget,
-                    )
-                  }
-                  disabled={!active || busyKeys[`task:${selectedTask.id}:fail`]}
                 >
-                  Mark failed
+                  More
                 </button>
-                <button
-                  className="text-button danger-text-button"
-                  ref={cancelButtonRef}
-                  type="button"
-                  onClick={(event) =>
-                    onRequestDestructiveAction(
-                      selectedTask,
-                      "cancel",
-                      event.currentTarget,
-                    )
-                  }
-                  disabled={
-                    !active || busyKeys[`task:${selectedTask.id}:cancel`]
-                  }
-                >
-                  Cancel
-                </button>
-              </div>
-            </details>
+              }
+            >
+              {null}
+            </ContextActionMenu>
           </>
         }
       />
