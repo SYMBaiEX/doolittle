@@ -77,11 +77,8 @@ export function RuntimeOverview({
                   : enabledAccounts.length
                     ? "good"
                     : "warn",
-              value: accountPool.loading
-                ? "Loading…"
-                : accountPool.error
-                  ? "Unavailable"
-                  : enabledAccounts.length,
+              pending: accountPool.loading,
+              value: accountPool.error ? "Unavailable" : enabledAccounts.length,
             },
             {
               label: "Autonomy",
@@ -91,13 +88,12 @@ export function RuntimeOverview({
                 !autonomy.error
                   ? "good"
                   : "neutral",
-              value: autonomy.loading
-                ? "Loading…"
-                : autonomy.error
-                  ? "Unavailable"
-                  : autonomyPayload.running === true
-                    ? "Running"
-                    : "Manual",
+              pending: autonomy.loading,
+              value: autonomy.error
+                ? "Unavailable"
+                : autonomyPayload.running === true
+                  ? "Running"
+                  : "Manual",
             },
           ]}
         />

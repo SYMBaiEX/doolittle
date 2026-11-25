@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export interface CompactStat {
   detail?: ReactNode;
   label: string;
+  pending?: boolean;
   tone?: "neutral" | "good" | "warn" | "bad";
   value: ReactNode;
 }
@@ -40,12 +41,22 @@ export function CompactStatStrip({
           <strong
             className={`truncate text-base leading-tight tabular-nums ${STAT_TONE_CLASS_NAMES[stat.tone ?? "neutral"]}`}
             title={
-              typeof stat.value === "string" || typeof stat.value === "number"
+              !stat.pending &&
+              (typeof stat.value === "string" || typeof stat.value === "number")
                 ? String(stat.value)
                 : undefined
             }
           >
-            {stat.value}
+            {stat.pending ? (
+              <span
+                className="inline-block size-3.5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--muted)] align-middle motion-reduce:animate-none"
+                role="status"
+              >
+                <span className="sr-only">Loading…</span>
+              </span>
+            ) : (
+              stat.value
+            )}
           </strong>
           {stat.detail ? (
             <small
