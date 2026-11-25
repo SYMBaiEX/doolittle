@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ChangeFileList } from "../../apps/desktop/src/renderer/thread-workbench/ChangeFileList";
 import { TerminalPanel } from "../../apps/desktop/src/renderer/thread-workbench/ChangesAndTerminalPanels";
+import { workbenchPanelMeta } from "../../apps/desktop/src/renderer/thread-workbench/models";
 
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
@@ -51,6 +52,20 @@ it("opens the exact changed path from the inspector without altering staged stat
   expect(file?.title).toContain("Staged and unstaged");
   act(() => file?.click());
   expect(onSelect).toHaveBeenCalledExactlyOnceWith(path);
+});
+
+it("leaves the changed-file count to the file list header", () => {
+  expect(
+    workbenchPanelMeta("changes", {
+      approvals: 0,
+      commands: 0,
+      files: 0,
+      plans: 0,
+      preview: "",
+      settings: 0,
+      tasks: 0,
+    }),
+  ).toBe("");
 });
 
 it("copies the exact recorded terminal output and does not replay the command", async () => {

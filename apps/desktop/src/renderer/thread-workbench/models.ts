@@ -24,7 +24,6 @@ export interface NavigationCard {
 
 export interface WorkbenchPanelMetrics {
   approvals: number;
-  changes: number;
   commands: number;
   files: number;
   plans: number;
@@ -62,7 +61,9 @@ export function workbenchPanelMeta(
     case "files":
       return `${metrics.files} entries`;
     case "changes":
-      return `${metrics.changes} changed`;
+      // The changed-file count stays in the file list header; repeating it
+      // here would render the same number twice in one panel.
+      return "";
     case "terminal":
       return `${metrics.commands} commands`;
     case "plans":

@@ -583,7 +583,6 @@ export function WorkbenchPanels({
   const selectedFullView = FULL_VIEW[model.selectedTab];
   const panelMeta = workbenchPanelMeta(model.selectedTab, {
     approvals: controller.approvalEntries.length,
-    changes: controller.changeEntries.length,
     commands: controller.commandEntries.length,
     files: controller.fileEntries.length,
     plans: controller.planEntries.length,
@@ -596,7 +595,7 @@ export function WorkbenchPanels({
     <section className={WORKBENCH_PANEL_CLASS} data-thread-workbench="panel">
       <header className="workspace-inspector-evidence-heading thread-workbench-panel-heading">
         <strong>{TAB_LABELS[model.selectedTab]}</strong>
-        <small title={panelMeta}>{panelMeta}</small>
+        {panelMeta ? <small title={panelMeta}>{panelMeta}</small> : null}
         <button
           aria-label="Refresh panel"
           className="workspace-inspector-icon"
