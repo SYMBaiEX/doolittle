@@ -240,7 +240,7 @@ export function KeysPage({ active }: { active: boolean }) {
                 <div className="keys-inventory-list">
                   {keys.map((key) => (
                     <button
-                      aria-pressed={selectedKey === key}
+                      aria-current={selectedKey === key ? "true" : undefined}
                       className="keys-inventory-row"
                       disabled={Boolean(busy)}
                       key={key}

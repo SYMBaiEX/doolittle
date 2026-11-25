@@ -108,11 +108,17 @@ it("opens a fresh key editor without carrying forward a revealed value", async (
     expect(value?.value).toBe("");
     expect(value?.type).toBe("password");
     expect(button("Save key")?.disabled).toBe(true);
-    expect(container.querySelector('[aria-pressed="true"]')).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')).toBeNull();
 
     act(() => button("OTHER_FIXTURE_KEY")?.click());
     expect(name?.value).toBe("OTHER_FIXTURE_KEY");
     expect(value?.value).toBe("");
+    expect(button("OTHER_FIXTURE_KEY")?.getAttribute("aria-current")).toBe(
+      "true",
+    );
+    expect(button("OTHER_FIXTURE_KEY")?.hasAttribute("aria-pressed")).toBe(
+      false,
+    );
     expect(
       vi
         .mocked(desktopRequest)
@@ -192,7 +198,7 @@ it("keeps a failed save inline with its draft and retries without retyping", asy
     await vi.waitFor(() => expect(container.textContent).toContain("1 key"));
     expect(container.textContent).not.toContain("1 stored");
     expect(
-      container.querySelector('button[aria-pressed="true"]')?.textContent,
+      container.querySelector('button[aria-current="true"]')?.textContent,
     ).toContain("Save failed");
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       guidance,
@@ -202,7 +208,7 @@ it("keeps a failed save inline with its draft and retries without retyping", asy
     expect(saveAttempts).toBe(2);
     await vi.waitFor(() =>
       expect(
-        container.querySelector('button[aria-pressed="true"]')?.textContent,
+        container.querySelector('button[aria-current="true"]')?.textContent,
       ).toBe("FIXTURE_KEY"),
     );
     expect(container.querySelector('[role="alert"]')).toBeNull();

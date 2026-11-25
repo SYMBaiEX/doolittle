@@ -347,11 +347,11 @@
   background: var(--surface-soft);
 }
 
-.keys-inventory-row[aria-pressed="true"] {
+.keys-inventory-row[aria-current="true"] {
   background: var(--surface-selected, var(--surface-hover));
 }
 
-.keys-inventory-row[aria-pressed="true"] > strong {
+.keys-inventory-row[aria-current="true"] > strong {
   font-weight: 650;
 }
 
@@ -445,7 +445,7 @@
 }
 
 @media (forced-colors: active) {
-  .keys-inventory-row[aria-pressed="true"] {
+  .keys-inventory-row[aria-current="true"] {
     outline: 1px solid Highlight;
   }
 
