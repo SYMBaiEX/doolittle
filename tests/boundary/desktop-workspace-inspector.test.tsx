@@ -58,7 +58,19 @@ it("leaves the changed-file count to the file list header", () => {
   expect(
     workbenchPanelMeta("changes", {
       approvals: 0,
-      commands: 0,
+      files: 0,
+      plans: 0,
+      preview: "",
+      settings: 0,
+      tasks: 0,
+    }),
+  ).toBe("");
+});
+
+it("leaves the command count to the command history header", () => {
+  expect(
+    workbenchPanelMeta("terminal", {
+      approvals: 0,
       files: 0,
       plans: 0,
       preview: "",
