@@ -162,14 +162,18 @@ export function AccountPoolDirectory({
                         void onTest(account);
                       },
                     },
-                    {
-                      id: "refresh-usage",
-                      label: "Refresh usage",
-                      disabled: Boolean(busy),
-                      onSelect: () => {
-                        void onRefreshUsage(account);
-                      },
-                    },
+                    ...(account.source === "api-key"
+                      ? []
+                      : [
+                          {
+                            id: "refresh-usage",
+                            label: "Refresh usage",
+                            disabled: Boolean(busy),
+                            onSelect: () => {
+                              void onRefreshUsage(account);
+                            },
+                          },
+                        ]),
                     {
                       id: "move-up",
                       label: "Move account up",
