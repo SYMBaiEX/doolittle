@@ -302,7 +302,9 @@ test.describe("fresh native desktop", () => {
         name: "Workbench view",
       });
       await viewSwitcher.getByRole("button", { name: "Agent View" }).click();
-      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", {
+        name: "Message Doolittle",
+      });
       await expect(composer).toBeEnabled({ timeout: 15_000 });
       await composer.fill("Keep this draft through panel changes");
       await viewSwitcher.getByRole("button", { name: "IDE View" }).click();
@@ -577,7 +579,9 @@ test.describe("fresh native desktop", () => {
       await expect(transcript.getByText("Fixture turn 121.")).toBeVisible();
       await expect(rows).toHaveCount(50);
 
-      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", {
+        name: "Message Doolittle",
+      });
       await composer.fill("Keep this draft while reading older messages.");
       const earlier = transcript.getByRole("button", {
         name: "Load earlier messages",
@@ -1419,7 +1423,9 @@ test.describe("fresh native desktop", () => {
       });
       expect(readFileSync(join(projectRoot, file), "utf8")).toBe(after);
 
-      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", {
+        name: "Message Doolittle",
+      });
       const encodedRoot = Buffer.from(projectRoot).toString("base64");
       await composer.fill(
         `!node -e "const cwd = process.cwd(); if (cwd !== Buffer.from('${encodedRoot}', 'base64').toString()) process.exit(1); require('node:fs').writeFileSync('command-root.txt', cwd); console.log(cwd);"`,
@@ -1543,7 +1549,9 @@ test.describe("fresh native desktop", () => {
       const composerWorkspace = page.getByRole("button", {
         name: /^Choose workspace\. Current workspace/u,
       });
-      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", {
+        name: "Message Doolittle",
+      });
       const composerSession = () =>
         composer.evaluate((node) =>
           node
@@ -1682,7 +1690,9 @@ test.describe("fresh native desktop", () => {
       const viewSwitcher = page.getByRole("group", { name: "Workbench view" });
       const chat = viewSwitcher.getByRole("button", { name: "Agent View" });
       const ideView = viewSwitcher.getByRole("button", { name: "IDE View" });
-      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", {
+        name: "Message Doolittle",
+      });
       const ide = page.locator('[data-view="code"]');
       const tree = ide.getByRole("tree", { name: "Workspace files" });
       const sourceFolder = tree.getByRole("treeitem", {
@@ -2050,7 +2060,9 @@ test.describe("fresh native desktop", () => {
       await expect(page.locator("[data-session-workbench]")).toBeVisible();
       await installProjectDialog(desktop.app, desktop.workspace);
       const sessionId = await openProjectChat(page, projectId);
-      const composer = page.getByRole("combobox", { name: "Message Doolittle" });
+      const composer = page.getByRole("combobox", {
+        name: "Message Doolittle",
+      });
       await composer.fill("Stable sidebar marker");
       await composer.press("Enter");
       await expect(
