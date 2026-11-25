@@ -94,8 +94,8 @@ export function DashboardPage({
     [tasks.data?.tasks],
   );
   const repo = useMemo(
-    () => summarizeRepoStatus(asString(repoStatus.data?.status)),
-    [repoStatus.data?.status],
+    () => summarizeRepoStatus(asString(repoStatus.data?.status), workspacePath),
+    [repoStatus.data?.status, workspacePath],
   );
   const setupEntries = useMemo(
     () => summarizeSetupEntries(setup.data?.summary),
