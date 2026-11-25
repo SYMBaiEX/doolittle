@@ -13,6 +13,7 @@ import {
   REGISTRY_INSTALL_CAVEAT,
   type RegistryEntry,
   registryInstallKey,
+  registryRepositoryLink,
 } from "./registry-model";
 
 const REGISTRY_CATALOG_PAGE_SIZE = 12;
@@ -83,6 +84,7 @@ export function RegistryCatalogWorkspace({
     >
       {({ entry }) => {
         const reviewing = pendingInstall === registryInstallKey(entry);
+        const repository = registryRepositoryLink(entry.repository);
         return (
           <>
             <CatalogDetail
@@ -123,7 +125,22 @@ export function RegistryCatalogWorkspace({
                     : "Registry metadata only",
                 },
                 ...(entry.repository
-                  ? [{ label: "Repository", value: entry.repository }]
+                  ? [
+                      {
+                        label: "Repository",
+                        value: repository ? (
+                          <a
+                            href={repository.href}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {repository.label}
+                          </a>
+                        ) : (
+                          entry.repository
+                        ),
+                      },
+                    ]
                   : []),
               ]}
             />

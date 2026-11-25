@@ -35,6 +35,24 @@ export function registryResultLabel({
   return `${count} results`;
 }
 
+export function registryRepositoryLink(
+  repository: string,
+): { href: string; label: string } | null {
+  let url: URL;
+  try {
+    url = new URL(repository);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  const segments = url.pathname.split("/").filter(Boolean);
+  const label =
+    segments.length >= 2
+      ? `${segments[0]}/${segments[1].replace(/\.git$/, "")}`
+      : url.host;
+  return { href: url.href, label };
+}
+
 export function normalizeRegistryEntries(value: unknown): RegistryEntry[] {
   const response = asRecord(value);
   const rows = asArray(

@@ -7,6 +7,7 @@ import { RegistryCatalogWorkspace } from "../../apps/desktop/src/renderer/regist
 import {
   type RegistryEntry,
   registryInstallKey,
+  registryRepositoryLink,
 } from "../../apps/desktop/src/renderer/registry/registry-model";
 import { ToolCatalogWorkspace } from "../../apps/desktop/src/renderer/tools/ToolCatalogWorkspace";
 
@@ -185,4 +186,45 @@ it("requires fresh approval when a selected registry package changes version", (
   act(() => button("Review install")?.click());
   act(() => button("Approve 1.1.0")?.click());
   expect(approve).toHaveBeenCalledExactlyOnceWith(updated);
+});
+
+it("renders the registry repository as a short owner/repo link", async () => {
+  const entry: RegistryEntry = {
+    description: "Installs a fixture integration.",
+    installed: false,
+    installable: true,
+    integrityVerified: true,
+    name: "Fixture",
+    packageName: "@fixture/example",
+    reasons: [],
+    repository: "https://github.com/elizaos/eliza",
+    support: "community",
+    trust: "verified",
+    version: "1.0.0",
+  };
+  act(() =>
+    root.render(
+      <RegistryReviewFixture entries={[entry]} onApproveInstall={() => {}} />,
+    ),
+  );
+  const link = container.querySelector<HTMLAnchorElement>(
+    '.catalog-facts a[href="https://github.com/elizaos/eliza"]',
+  );
+  expect(link?.textContent).toBe("elizaos/eliza");
+  expect(link?.getAttribute("target")).toBe("_blank");
+  expect(link?.getAttribute("rel")).toBe("noreferrer");
+});
+
+it("labels repository links conservatively and rejects non-http URLs", () => {
+  expect(
+    registryRepositoryLink("https://github.com/elizaos/eliza.git"),
+  ).toEqual({
+    href: "https://github.com/elizaos/eliza.git",
+    label: "elizaos/eliza",
+  });
+  expect(registryRepositoryLink("https://example.com")?.label).toBe(
+    "example.com",
+  );
+  expect(registryRepositoryLink("javascript:alert(1)")).toBeNull();
+  expect(registryRepositoryLink("not a url")).toBeNull();
 });
