@@ -31,6 +31,10 @@ export function CatalogFilterBar({
   resultLabel: string;
   searchLabel: string;
 }) {
+  // A picker over zero or one real category cannot narrow anything, so it
+  // only takes width from the search field.
+  const categories = category?.options.filter((value) => value !== "all") ?? [];
+  const showCategory = Boolean(category) && categories.length >= 2;
   return (
     <div className="catalog-filter-bar">
       <div className="catalog-filter-bar__search">
@@ -43,7 +47,7 @@ export function CatalogFilterBar({
           value={query}
         />
       </div>
-      {category ? (
+      {category && showCategory ? (
         <Select value={category.value} onValueChange={category.onChange}>
           <SelectTrigger
             aria-label={category.label}
