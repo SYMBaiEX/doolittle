@@ -33,8 +33,9 @@ export function ProjectEditor({
   const [draft, setDraft] = useState(() => defaultDraft(project));
   const titleId = useId();
   const dialogRef = useRef<HTMLFormElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
-  useDialogFocus(true, dialogRef, firstInput, onClose);
+  useDialogFocus(true, dialogRef, firstInput, onClose, false, backdropRef);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.name.trim()) return;
@@ -46,7 +47,11 @@ export function ProjectEditor({
     });
   };
   return (
-    <div className={PROJECT_EDITOR_BACKDROP_CLASS} role="presentation">
+    <div
+      className={PROJECT_EDITOR_BACKDROP_CLASS}
+      ref={backdropRef}
+      role="presentation"
+    >
       <form
         className={PROJECT_EDITOR_CLASS}
         ref={dialogRef}
