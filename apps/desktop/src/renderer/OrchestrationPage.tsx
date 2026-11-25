@@ -21,6 +21,7 @@ import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
 import { resolveTaskNavigationIntent } from "./orchestration/task-navigation";
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
 import {
+  orchestrationScopeLabel,
   orchestrationStatusTier,
   projectScopedOrchestrationOverview,
   shouldShowOrchestrationSummary,
@@ -537,34 +538,30 @@ export function OrchestrationPage({
     onSectionChange(tab);
   };
   const activeTabLabel = WORK_TABS.find((tab) => tab.id === activeTab)?.label;
+  const scopeLabel = orchestrationScopeLabel({ projectScope, workspaceLabel });
 
   return (
     <div className={oc("orchestration-page")}>
       <WorkMasthead
         kicker="Operations"
-        title="Work"
+        title={scopeLabel}
         meta={
-          <>
-            <span>
-              {projectScope === "all" ? "All projects" : workspaceLabel}
-            </span>
-            {showHeaderSummary ? (
-              <>
-                <span>
-                  <strong>{queuedCount}</strong> queued
-                </span>
-                <span data-tone="warn">
-                  <strong>{runningCount}</strong> running
-                </span>
-                <span data-tone="warn">
-                  <strong>{approvalCount}</strong> awaiting approval
-                </span>
-                <span data-tone="good">
-                  <strong>{completedCount}</strong> completed
-                </span>
-              </>
-            ) : null}
-          </>
+          showHeaderSummary ? (
+            <>
+              <span>
+                <strong>{queuedCount}</strong> queued
+              </span>
+              <span data-tone="warn">
+                <strong>{runningCount}</strong> running
+              </span>
+              <span data-tone="warn">
+                <strong>{approvalCount}</strong> awaiting approval
+              </span>
+              <span data-tone="good">
+                <strong>{completedCount}</strong> completed
+              </span>
+            </>
+          ) : undefined
         }
         actions={
           <button
