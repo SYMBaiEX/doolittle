@@ -7,6 +7,7 @@ import {
   type ActivityEventGroup,
   activityState,
   activitySummaryIsDistinct,
+  activityTargetIsDistinct,
   activityTone,
 } from "./activity-model";
 
@@ -95,7 +96,10 @@ export function ActivityTimeline({
                         {ACTIVITY_SOURCE_LABELS[event.kind]}
                       </span>
                       <span className="inline-flex min-h-[18px] items-center font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--muted)]">
-                        {event.status} · {event.target}
+                        {event.status}
+                        {activityTargetIsDistinct(event.kind, event.target)
+                          ? ` · ${event.target}`
+                          : ""}
                         {count > 1 ? ` · ${count} events` : ""}
                       </span>
                     </div>
