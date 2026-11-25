@@ -93,3 +93,16 @@
   margin: 2px 0 0;
   color: var(--muted);
 }
+
+@container dl-settings-content (max-width: 600px) {
+  .settings-workbench-section--execution {
+    gap: 8px;
+    padding-block: 10px;
+  }
+
+  .settings-workbench-section--execution
+    .settings-rows
+    > .dl-settings-field-row:first-child {
+    padding-block-start: 4px;
+  }
+}

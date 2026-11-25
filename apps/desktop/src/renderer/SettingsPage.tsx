@@ -589,7 +589,11 @@ export function SettingsPage({
         {resourcePolicy.settings && !settings.loading && !settings.error ? (
           <WorkbenchSection
             actions={<Badge>{visibleFields.length} fields</Badge>}
-            className="settings-workbench-section"
+            className={
+              category === "execution"
+                ? "settings-workbench-section settings-workbench-section--execution"
+                : "settings-workbench-section"
+            }
             icon={Settings2}
             title={category === "advanced" ? "All settings" : "Configuration"}
           >
