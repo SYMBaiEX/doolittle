@@ -67,6 +67,7 @@ it("opens the active conversation from a described dashboard action", () => {
   act(() => {
     root.render(
       <DashboardPriorityPanel
+        accountPoolLoading={false}
         agentAccounts={0}
         conversations="1"
         nextActions={[

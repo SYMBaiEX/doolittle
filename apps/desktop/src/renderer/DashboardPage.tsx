@@ -192,6 +192,7 @@ export function DashboardPage({
         ) : null}
 
         <DashboardPriorityPanel
+          accountPoolLoading={accountPool.loading}
           agentAccounts={accountPoolSummary.enabled}
           conversations={compactNumber(sessionSummary.total)}
           nextActions={nextActions}

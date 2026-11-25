@@ -33,6 +33,7 @@ const actionIcons = {
 };
 
 export function DashboardPriorityPanel({
+  accountPoolLoading,
   agentAccounts,
   conversations,
   nextActions,
@@ -53,6 +54,7 @@ export function DashboardPriorityPanel({
   setupLoading,
   setupWarnings,
 }: {
+  accountPoolLoading: boolean;
   agentAccounts: number;
   conversations: string;
   nextActions: DashboardNextAction[];
@@ -80,7 +82,11 @@ export function DashboardPriorityPanel({
         <CompactStatStrip
           label="Workspace summary"
           stats={[
-            { label: "Agent accounts", value: agentAccounts },
+            {
+              label: "Agent accounts",
+              pending: accountPoolLoading,
+              value: agentAccounts,
+            },
             { label: "Conversations", value: conversations },
             { label: "Runtime plugins", value: runtimePlugins },
             {
@@ -91,17 +97,14 @@ export function DashboardPriorityPanel({
                     ? `${repo.changedFiles} changed`
                     : "Clean",
               label: "Workspace branch",
+              pending: repoLoading,
               tone:
                 repoLoading || repoError
                   ? "neutral"
                   : repo.dirty
                     ? "warn"
                     : "good",
-              value: repoLoading
-                ? "Loading…"
-                : repoError
-                  ? "Unavailable"
-                  : repo.branch,
+              value: repoError ? "Unavailable" : repo.branch,
             },
           ]}
         />
