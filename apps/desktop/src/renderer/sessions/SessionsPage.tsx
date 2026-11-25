@@ -6,6 +6,7 @@ import { EmptyBlock, PageHeader } from "../lib";
 import { SessionDetail } from "./SessionDetail";
 import { SessionListPanel } from "./SessionListPanel";
 import {
+  SESSIONS_EMPTY_WORKSPACE_CLASS,
   SESSIONS_PAGE_CLASS,
   SESSIONS_WORKSPACE_CLASS,
 } from "./sessions-layout";
@@ -163,8 +164,8 @@ export function SessionsPage({
           <div
             className={
               showEmptyLanding
-                ? "split-workspace is-empty min-h-0 flex-none"
-                : `split-workspace ${SESSIONS_WORKSPACE_CLASS}`
+                ? SESSIONS_EMPTY_WORKSPACE_CLASS
+                : SESSIONS_WORKSPACE_CLASS
             }
           >
             {showEmptyLanding ? (
