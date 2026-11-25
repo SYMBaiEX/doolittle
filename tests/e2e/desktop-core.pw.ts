@@ -151,6 +151,7 @@ test.describe("fresh native desktop", () => {
       });
       const title = page.locator(".window-context strong");
       await expect(title).toHaveText("Doolittle");
+      await expect(title).toHaveAttribute("title", "Doolittle");
       await expect
         .poll(() =>
           title.evaluate((node) => node.clientWidth >= node.scrollWidth),

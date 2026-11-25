@@ -2688,6 +2688,14 @@ export function App() {
         : compactSessionPreview(selectedSessionSummary?.title ?? "") ||
           "New conversation"
       : (activeItem?.label ?? "Desktop");
+  const windowTitle =
+    renderedView === "chat"
+      ? botCreationOpen
+        ? "Create a new bot"
+        : viewingGroups
+          ? "Groups"
+          : (selectedBot?.name ?? "Doolittle")
+      : (activeItem?.label ?? "Doolittle");
   const sidebarSessions = useMemo(() => {
     const items = [...scopedSessions]
       .sort((left, right) =>
@@ -3119,17 +3127,17 @@ export function App() {
                 </button>
               ) : null}
               <div className="flex min-w-0 items-baseline gap-2">
-                <strong className="min-w-0 truncate text-sm font-semibold text-[var(--text)]">
-                  {renderedView === "chat"
-                    ? botCreationOpen
-                      ? "Create a new bot"
-                      : viewingGroups
-                        ? "Groups"
-                        : (selectedBot?.name ?? "Doolittle")
-                    : (activeItem?.label ?? "Doolittle")}
+                <strong
+                  className="min-w-0 truncate text-sm font-semibold text-[var(--text)]"
+                  title={windowTitle}
+                >
+                  {windowTitle}
                 </strong>
                 {chatRouteActive ? (
-                  <span className="truncate text-sm text-[var(--muted)] max-[560px]:hidden">
+                  <span
+                    className="truncate text-sm text-[var(--muted)] max-[560px]:hidden"
+                    title={currentRouteLabel}
+                  >
                     {currentRouteLabel}
                   </span>
                 ) : null}
