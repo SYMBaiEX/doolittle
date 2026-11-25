@@ -180,11 +180,13 @@ export function KeysPage({ active }: { active: boolean }) {
     <WorkbenchSection
       actions={
         <WorkbenchAction
+          aria-label="Refresh secret inventory"
+          className="keys-refresh-action"
           disabled={!active}
           icon={RefreshCw}
           onClick={secrets.reload}
         >
-          Refresh
+          <span className="keys-refresh-action__label">Refresh</span>
         </WorkbenchAction>
       }
       className="settings-workbench-section settings-keys-section provider-settings provider-settings--keys provider-settings--unframed"

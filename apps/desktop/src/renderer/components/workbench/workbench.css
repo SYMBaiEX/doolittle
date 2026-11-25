@@ -39,6 +39,7 @@
 
 .workbench-section__heading {
   display: flex;
+  flex: 1 1 10rem;
   min-inline-size: 0;
   align-items: center;
   gap: 10px;
