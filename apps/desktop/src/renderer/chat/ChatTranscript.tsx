@@ -358,8 +358,8 @@ export function ChatTranscript({
   return (
     <div
       aria-busy={loading || undefined}
-      aria-relevant="additions"
       aria-label={projectName ? `${projectName} conversation` : "Conversation"}
+      aria-live="off"
       className="chat-messages"
       ref={transcriptRef}
       role="log"
