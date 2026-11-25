@@ -45,6 +45,7 @@ test("automation schedules can be edited, paused, run, and deleted", async () =>
     await page
       .getByRole("group", { name: "Choose an action" })
       .getByRole("radio", { name: "Webhook", exact: true })
+      .locator("..")
       .click();
     await page
       .getByRole("textbox", { name: "Destination URL" })
@@ -269,6 +270,7 @@ test("named automation creation and edits require fresh native approval", async 
     await page
       .getByRole("group", { name: "Choose a trigger" })
       .getByRole("radio", { name: "Manual", exact: true })
+      .locator("..")
       .click();
     await page
       .getByRole("textbox", { name: "Prompt" })
