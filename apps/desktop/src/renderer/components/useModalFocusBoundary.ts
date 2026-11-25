@@ -62,6 +62,7 @@ export function useModalFocusBoundary({
   restoreFocus,
   restoreFocusRef,
   restoreFocusTarget,
+  trapFocus = true,
 }: {
   active: boolean;
   initialFocusSelector?: string;
@@ -71,6 +72,7 @@ export function useModalFocusBoundary({
   restoreFocus: boolean;
   restoreFocusRef?: RefObject<HTMLElement | null>;
   restoreFocusTarget?: HTMLElement | null;
+  trapFocus?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -118,7 +120,7 @@ export function useModalFocusBoundary({
         close();
         return;
       }
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || !trapFocus) return;
 
       const focusable = Array.from(
         dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ??
@@ -150,7 +152,13 @@ export function useModalFocusBoundary({
       window.removeEventListener("keydown", handleKeyDown);
       restoreBackground();
     };
-  }, [active, initialFocusSelector, isolateBackground, isolationBoundaryRef]);
+  }, [
+    active,
+    initialFocusSelector,
+    isolateBackground,
+    isolationBoundaryRef,
+    trapFocus,
+  ]);
 
   useEffect(() => {
     if (active || !wasActive.current) return;
