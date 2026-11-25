@@ -987,7 +987,12 @@
 /*
  * Theme and color picks rewrite the root tokens in one pass; desktop-theme.ts
  * marks that window on the root so paint properties ease to the new values
- * instead of every surface snapping at once.
+ * instead of every surface snapping at once. `color` is deliberately absent:
+ * easing it re-rasterizes every text run in the window on every frame of the
+ * sweep, which collapses frame production to a slideshow for exactly the
+ * transition's duration — the "animation" reads as a snap. Text flips with
+ * the tokens (staying legible against its final surfaces) while the surfaces
+ * themselves crossfade smoothly.
  */
 @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
   :root[data-theme-transition],
@@ -997,7 +1002,6 @@
     transition:
       background-color var(--motion-surface, 240ms) var(--ease-liquid, ease),
       border-color var(--motion-surface, 240ms) var(--ease-liquid, ease),
-      color var(--motion-surface, 240ms) var(--ease-liquid, ease),
       fill var(--motion-surface, 240ms) var(--ease-liquid, ease),
       stroke var(--motion-surface, 240ms) var(--ease-liquid, ease),
       box-shadow var(--motion-surface, 240ms) var(--ease-liquid, ease),
