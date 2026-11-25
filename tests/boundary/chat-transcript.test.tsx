@@ -313,6 +313,9 @@ it("updates the streaming row while settled rows retain current actions", async 
   try {
     const messages = [settled, pending];
     render(messages, firstCopy);
+    const transcript = container.querySelector<HTMLElement>('[role="log"]');
+    expect(transcript?.getAttribute("aria-live")).toBe("off");
+    expect(transcript?.hasAttribute("aria-relevant")).toBe(false);
     messageRender.mockClear();
     render(messages, currentCopy);
     expect(messageRender).not.toHaveBeenCalled();
