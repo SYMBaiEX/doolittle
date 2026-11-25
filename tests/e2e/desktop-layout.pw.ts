@@ -63,7 +63,7 @@ test("desktop pages fill their workbench while Chat keeps its gutter", async () 
         window.location.hash = hash;
       }, desktopHashForView("chat"));
       const chat = page.locator('[data-view="chat"]');
-      const composer = chat.getByRole("textbox", { name: /^Message /u });
+      const composer = chat.getByRole("combobox", { name: /^Message /u });
       await expect(composer).toBeVisible();
       const container = await chat.boundingBox();
       const input = await composer.boundingBox();
