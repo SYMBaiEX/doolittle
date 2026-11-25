@@ -140,8 +140,8 @@ export function NativeAutonomyPanel({
                 {busy
                   ? "Updating…"
                   : enabled
-                    ? "Disable native autonomy"
-                    : "Enable native autonomy"}
+                    ? "Disable autonomy"
+                    : "Enable autonomy"}
               </WorkbenchAction>
             </div>
             {readOnly ? (
