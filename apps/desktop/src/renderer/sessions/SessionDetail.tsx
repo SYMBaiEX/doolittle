@@ -253,6 +253,17 @@ export function SessionDetail({
             </h2>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1.5 max-[860px]:justify-start">
+            {/* The primary action comes first in DOM order so it keeps the
+                first row when the group wraps at narrow widths; the secondary
+                actions wrap below instead of clipping it. */}
+            <Button
+              disabled={!active}
+              onClick={() => onOpenChat(selected.sessionId)}
+              size="sm"
+              type="button"
+            >
+              Open in workspace
+            </Button>
             <Button
               disabled={!active || renaming}
               ref={renameButtonRef}
@@ -271,14 +282,6 @@ export function SessionDetail({
               variant="secondary"
             >
               {transferring ? "Working…" : "Export"}
-            </Button>
-            <Button
-              disabled={!active}
-              onClick={() => onOpenChat(selected.sessionId)}
-              size="sm"
-              type="button"
-            >
-              Open in workspace
             </Button>
           </div>
         </div>
