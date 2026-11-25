@@ -92,3 +92,88 @@ it("pauses and resumes a toast when focus enters and leaves its controls", async
   await act(async () => dismiss?.blur());
   expect(onResume).toHaveBeenCalledWith("toast-info");
 });
+
+class MockResizeObserver {
+  static callbacks: ResizeObserverCallback[] = [];
+  constructor(callback: ResizeObserverCallback) {
+    MockResizeObserver.callbacks.push(callback);
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+async function renderOverflowingToast() {
+  MockResizeObserver.callbacks = [];
+  vi.stubGlobal("ResizeObserver", MockResizeObserver);
+  const longMessage = "Backend failure detail. ".repeat(60);
+  await renderViewport({
+    toasts: [
+      {
+        id: "toast-long",
+        tone: "error",
+        title: "Failed",
+        message: longMessage,
+      },
+    ],
+  });
+  const message = container.querySelector<HTMLDivElement>(".line-clamp-4");
+  expect(message).toBeTruthy();
+  Object.defineProperty(message, "scrollHeight", {
+    configurable: true,
+    value: 200,
+  });
+  Object.defineProperty(message, "clientHeight", {
+    configurable: true,
+    value: 60,
+  });
+  await act(async () => {
+    for (const callback of MockResizeObserver.callbacks) {
+      callback([], {} as ResizeObserver);
+    }
+  });
+  return { message: message as HTMLDivElement, longMessage };
+}
+
+it("clamps long messages and expands them on demand", async () => {
+  const { longMessage } = await renderOverflowingToast();
+
+  const toggle = container.querySelector<HTMLButtonElement>(
+    'button[aria-expanded="false"]',
+  );
+  expect(toggle?.textContent).toBe("Show more");
+  expect(toggle?.getAttribute("aria-controls")).toBeTruthy();
+
+  // The full text stays in the DOM for assistive technology while clamped.
+  const clamped = container.querySelector(".line-clamp-4");
+  expect(clamped?.textContent).toContain(longMessage.slice(0, 40));
+
+  await act(async () => toggle?.click());
+  expect(container.querySelector(".line-clamp-4")).toBeNull();
+
+  const collapse = container.querySelector<HTMLButtonElement>(
+    'button[aria-expanded="true"]',
+  );
+  expect(collapse?.textContent).toBe("Show less");
+
+  await act(async () => collapse?.click());
+  expect(container.querySelector(".line-clamp-4")).toBeTruthy();
+});
+
+it("hides the expansion toggle when a short message fits", async () => {
+  MockResizeObserver.callbacks = [];
+  vi.stubGlobal("ResizeObserver", MockResizeObserver);
+  await renderViewport({
+    toasts: [
+      {
+        id: "toast-short",
+        tone: "info",
+        message: "The workspace is ready.",
+      },
+    ],
+  });
+
+  expect(container.querySelector("button[aria-controls]")).toBeNull();
+  // Short messages are still clamped in the collapsed state, bounding height.
+  expect(container.querySelector(".line-clamp-4")).toBeTruthy();
+});

@@ -1,5 +1,6 @@
 import { useMediaQuery } from "@doolittle/ui/environment";
 import { X } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Toast } from "./ToastRegion";
 import { UiIcon } from "./UiIcon";
 
@@ -9,6 +10,58 @@ export interface ToastViewportProps {
   readonly onPause: (id: string) => void;
   readonly onResume: (id: string) => void;
   readonly className?: string;
+}
+
+/**
+ * Long backend error strings must not let one toast cover the window. The
+ * full message stays in the DOM for assistive technology; sighted users get
+ * a quiet disclosure toggle only when the clamped text actually overflows.
+ */
+function ToastMessage({ children }: { readonly children: Toast["message"] }) {
+  const messageId = useId();
+  const messageRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  // Toast content is immutable per id, so re-measuring on expansion
+  // collapse and on resize covers the overflow lifecycle.
+  useEffect(() => {
+    if (expanded) return;
+    const element = messageRef.current;
+    if (!element) return;
+    const measure = () => {
+      setOverflowing(element.scrollHeight > element.clientHeight + 1);
+    };
+    measure();
+    const Observer = element.ownerDocument.defaultView?.ResizeObserver;
+    if (!Observer) return;
+    const observer = new Observer(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [expanded]);
+
+  return (
+    <>
+      <div
+        className={`text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)] [overflow-wrap:anywhere] ${expanded ? "" : "line-clamp-4"}`}
+        id={messageId}
+        ref={messageRef}
+      >
+        {children}
+      </div>
+      {overflowing ? (
+        <button
+          aria-controls={messageId}
+          aria-expanded={expanded}
+          className="w-fit border-0 bg-transparent p-0 font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)]"
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      ) : null}
+    </>
+  );
 }
 
 export function ToastViewport({
@@ -58,9 +111,7 @@ export function ToastViewport({
                   <div className="text-xs font-bold">{toast.title}</div>
                 ) : null}
                 {toast.message ? (
-                  <div className="text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
-                    {toast.message}
-                  </div>
+                  <ToastMessage>{toast.message}</ToastMessage>
                 ) : null}
               </div>
               <button
