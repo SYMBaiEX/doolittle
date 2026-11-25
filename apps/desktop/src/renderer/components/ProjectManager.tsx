@@ -251,7 +251,12 @@ export function ProjectManager(props: ProjectManagerProps) {
             showArchived={showArchived}
             unscopedChatCount={props.unscopedChatCount}
           />
-          <section className={PROJECT_MANAGER_DETAIL_CLASS} aria-live="polite">
+          <section className={PROJECT_MANAGER_DETAIL_CLASS}>
+            <p className="sr-only" role="status">
+              {selected
+                ? `Showing details for ${selected.name}.`
+                : "No project selected."}
+            </p>
             {selected ? (
               <ProjectDetail
                 project={selected}
