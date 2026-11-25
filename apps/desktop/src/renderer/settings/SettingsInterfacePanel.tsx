@@ -162,7 +162,7 @@ export function SettingsInterfacePanel() {
       aria-label="Application interfaces"
       aria-busy={busy}
     >
-      <header className="grid gap-2">
+      <header className="grid gap-2 max-[760px]:gap-1">
         <h2
           className="m-0 text-base font-semibold"
           ref={interfaceHeadingRef}
@@ -440,8 +440,9 @@ export function SettingsInterfacePanel() {
       ) : null}
       <p className="m-0 text-sm leading-relaxed text-[var(--muted)]">
         Recovery is always host-owned: Interface → Restore default interface
-        (⌘⇧R), or launch with <code>--safe-ui</code>. Revoking access preserves
-        conversations and running work.
+        (⌘⇧R), or launch with{" "}
+        <code className="whitespace-nowrap">--safe-ui</code>. Revoking access
+        preserves conversations and running work.
       </p>
     </section>
   );
