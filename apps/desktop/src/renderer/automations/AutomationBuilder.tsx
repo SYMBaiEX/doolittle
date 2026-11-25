@@ -1,7 +1,13 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { Input, NativeSelect, Textarea } from "@doolittle/ui";
 import { Bot, ListFilter, Play, Plus, Save, Zap } from "lucide-react";
-import { type FormEvent, useEffect, useRef } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 import type {
   AutomationActionChoice,
   AutomationConditionChoice,
@@ -23,6 +29,12 @@ import {
 } from "./layout";
 import "../orchestration/work-surfaces.css";
 
+function preventRadioGroupEnter(event: KeyboardEvent<HTMLInputElement>) {
+  // Choices live inside the automation form; native radio Enter can implicitly
+  // submit it.
+  if (event.key === "Enter") event.preventDefault();
+}
+
 function ChoiceButtons({
   choices,
   selected,
@@ -36,24 +48,42 @@ function ChoiceButtons({
   label: string;
   disabled?: readonly string[];
 }) {
+  const groupName = useId();
   return (
-    <fieldset className="automation-choice-fieldset m-0 border-0 p-0">
-      <legend className="sr-only">{label}</legend>
+    <div
+      aria-label={label}
+      className="automation-choice-fieldset m-0 border-0 p-0"
+      role="radiogroup"
+    >
       <div className={AUTOMATION_CHOICE_GRID_CLASS}>
-        {choices.map(([value, label]) => (
-          <button
-            disabled={disabled.includes(value)}
-            aria-pressed={selected === value}
-            className={`${AUTOMATION_CHOICE_BUTTON_CLASS} ${selected === value ? AUTOMATION_CHOICE_SELECTED_CLASS : ""}`}
-            key={value}
-            onClick={() => onSelect(value)}
-            type="button"
-          >
-            {label}
-          </button>
-        ))}
+        {choices.map(([value, choiceLabel]) => {
+          const checked = selected === value;
+          const choiceDisabled = disabled.includes(value);
+          return (
+            <label
+              className={`${AUTOMATION_CHOICE_BUTTON_CLASS} ${checked ? AUTOMATION_CHOICE_SELECTED_CLASS : ""} ${
+                choiceDisabled
+                  ? "cursor-not-allowed opacity-50"
+                  : "cursor-pointer"
+              }`}
+              key={value}
+            >
+              <input
+                checked={checked}
+                className="sr-only"
+                disabled={choiceDisabled}
+                name={groupName}
+                onChange={() => onSelect(value)}
+                onKeyDown={preventRadioGroupEnter}
+                type="radio"
+                value={value}
+              />
+              <span>{choiceLabel}</span>
+            </label>
+          );
+        })}
       </div>
-    </fieldset>
+    </div>
   );
 }
 
