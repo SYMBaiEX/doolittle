@@ -108,7 +108,7 @@ export function ActivityTimeline({
                   </header>
 
                   <p className="mt-1 text-[13px] leading-[1.35] text-[var(--text)] [overflow-wrap:anywhere]">
-                    <strong className="font-bold text-[var(--accent)]">
+                    <strong className="font-bold text-[var(--accent-text)]">
                       {event.title}
                     </strong>
                   </p>
