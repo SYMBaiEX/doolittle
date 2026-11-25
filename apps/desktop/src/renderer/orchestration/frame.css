@@ -35,11 +35,17 @@
 /* Linked shell views that still size to content scroll inside the frame
    rather than pushing the page column. */
 .work-embedded > .automation-page,
-.work-embedded > .gateway-page,
-.work-embedded > .agents-workbench {
+.work-embedded > .gateway-page {
   block-size: 100%;
   overflow: auto;
   overscroll-behavior: contain;
+}
+
+/* The agents workbench splits height between its monitor and team panes, so
+   each pane owns its scroll region instead of the wrapper scrolling too. */
+.work-embedded > .agents-workbench {
+  block-size: 100%;
+  overflow: hidden;
 }
 
 /* Masthead metrics stay quiet text; tone lives in the number only. */

@@ -19,7 +19,7 @@ const ORCHESTRATION_CLASS = {
     "quick-create-actions flex items-center gap-1.75 pb-px max-[680px]:[&>button]:flex-1",
   "orchestration-task-routing-note":
     "orchestration-task-routing-note col-span-full m-0 text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]",
-  "agents-workbench": "agents-workbench grid gap-6",
+  "agents-workbench": "agents-workbench flex flex-col gap-6",
   "orchestration-loading":
     "grid h-full min-h-48 place-items-center p-6 text-xs text-[var(--muted)]",
   "orchestration-pane-heading":

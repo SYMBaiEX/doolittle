@@ -1,13 +1,48 @@
-/* Team management surface: masthead keeps its own inset; remaining content
-   aligns to the same document inset as the monitor rail. */
+/* Team management surface: the section bar keeps its own inset; remaining
+   content aligns to the same document inset as the monitor rail. */
 
 .team-management {
   border-block-start: 1px solid var(--border);
   padding-block-end: var(--document-inset, 12px);
 }
 
-.team-management > :not(.ws-masthead, .dl-dialog-backdrop) {
+.team-management > :not(.team-management__bar, .dl-dialog-backdrop) {
   margin-inline: var(--document-inset, 12px);
+}
+
+.team-management__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 10px var(--document-inset, 12px);
+  border-block-end: 1px solid var(--border);
+}
+
+.team-management__bar-copy {
+  display: grid;
+  min-inline-size: 0;
+  gap: 2px;
+}
+
+.team-management__bar-copy strong {
+  font-size: var(--text-control);
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.team-management__bar-copy span {
+  font-size: var(--text-meta);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.team-management__bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .team-management__note {
@@ -50,15 +85,26 @@
   gap: 6px;
 }
 
-/* Agents workbench IA: the worker roster is the operational monitor and leads
-   the tab; persistent team management follows as its own surface.
-   OrchestrationPage owns DOM order (management renders first); visual order
-   places the monitor first so the live view leads. */
+/* Agents workbench: the worker roster leads as the bounded monitor pane and
+   team management follows as a secondary section that scrolls only when its
+   content exceeds the space left for it. */
+
+.agents-workbench > .ws-surface {
+  block-size: auto;
+}
+
+.agents-workbench > .workbench-section {
+  flex: 1 1 0%;
+  min-block-size: 0;
+}
 
 .agents-workbench > .agents-monitor {
-  order: 1;
+  flex: 1 1 0%;
 }
 
 .agents-workbench > .team-management {
-  order: 2;
+  flex: none;
+  max-block-size: 45%;
+  overflow: auto;
+  overscroll-behavior: contain;
 }

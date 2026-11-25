@@ -1,3 +1,4 @@
+import type { BotTeamCatalogResponse } from "@doolittle/contracts/bots";
 import { RefreshCw } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { OrchestrationFocusState } from "./app-shell/route-focus-state";
@@ -8,7 +9,7 @@ import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { UiIcon } from "./components/UiIcon";
 import type { ComputerOrigin } from "./computer-origin";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
-import { asNumber, asRecord, asString, Notice } from "./lib";
+import { asNumber, asRecord, asString, Notice, useApiResource } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
 import "./orchestration/frame.css";
 import { orchestrationClass as oc } from "./orchestration/layout";
@@ -193,6 +194,22 @@ export function OrchestrationPage({
     computerOrigin,
     platform: window.doolittle.platform,
   });
+
+  // Shares the panel's query cache slot so the Agents tab can tell a fully
+  // empty roster+teams state apart from loading and failure.
+  const agentTeamsResource = useApiResource<BotTeamCatalogResponse>(
+    active && activeTab === "agents" ? "/bots/teams" : null,
+    [active],
+  );
+  const agentsEmpty =
+    active &&
+    activeTab === "agents" &&
+    !agentTeamsResource.loading &&
+    !agentTeamsResource.error &&
+    (agentTeamsResource.data?.teams.length ?? 0) === 0 &&
+    !workersResource.loading &&
+    !workersResource.error &&
+    workers.length === 0;
 
   const statusResources = useMemo<ReadonlyArray<ResourceStatusItem>>(() => {
     const entries = [
@@ -773,16 +790,18 @@ export function OrchestrationPage({
           ) : null}
           {activeTab === "agents" ? (
             <div className={oc("agents-workbench")}>
+              {agentsEmpty ? null : (
+                <AgentRosterPanel
+                  workersResource={workersResource}
+                  workers={workers}
+                  workerOverview={workerOverview}
+                  selectedWorker={selectedWorker}
+                  onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
+                />
+              )}
               <Suspense fallback={<p role="status">Loading bot teams…</p>}>
-                <TeamManagementPanel active={active} />
+                <TeamManagementPanel active={active} empty={agentsEmpty} />
               </Suspense>
-              <AgentRosterPanel
-                workersResource={workersResource}
-                workers={workers}
-                workerOverview={workerOverview}
-                selectedWorker={selectedWorker}
-                onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
-              />
             </div>
           ) : null}
           {activeTab === "plans" ? (
