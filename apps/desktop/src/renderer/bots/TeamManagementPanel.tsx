@@ -11,16 +11,16 @@ import {
   Input,
   StateSurface,
 } from "@doolittle/ui";
+import { Bot, Inbox } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
+import {
+  WorkbenchEmpty,
+  WorkbenchSection,
+} from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
-import {
-  WorkCard,
-  WorkCards,
-  WorkEmpty,
-  WorkMasthead,
-} from "../work-surface/WorkSurface";
+import { WorkCard, WorkCards, WorkEmpty } from "../work-surface/WorkSurface";
 import "./team.css";
 
 function TeamEditor({
@@ -172,7 +172,13 @@ function TeamEditor({
   );
 }
 
-export function TeamManagementPanel({ active }: { active: boolean }) {
+export function TeamManagementPanel({
+  active,
+  empty = false,
+}: {
+  active: boolean;
+  empty?: boolean;
+}) {
   const teams = useApiResource<BotTeamCatalogResponse>(
     active ? "/bots/teams" : null,
     [active],
@@ -223,46 +229,85 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
     }
   };
   const bots = catalog.data?.bots ?? [];
+  const editorDialog = editor ? (
+    <TeamEditor
+      {...editor}
+      bots={bots}
+      onClose={() => setEditor(undefined)}
+      onSaved={refresh}
+    />
+  ) : null;
+  if (empty) {
+    return (
+      <>
+        <WorkbenchSection title="Agents" icon={Bot}>
+          {catalog.error ? (
+            <StateSurface kind="error" title="Bots are unavailable">
+              {catalog.error}
+            </StateSurface>
+          ) : null}
+          <WorkbenchEmpty
+            actions={
+              <Button
+                disabled={
+                  !active || !teams.data || !catalog.data || Boolean(busy)
+                }
+                onClick={() =>
+                  setEditor({
+                    revision: teams.data?.revision ?? 0,
+                    returnFocusTarget:
+                      document.activeElement as HTMLElement | null,
+                  })
+                }
+              >
+                Create team
+              </Button>
+            }
+            icon={Inbox}
+            title="No agents yet"
+          >
+            Workers appear as delegated tasks execute. Create a team to share
+            selected findings across persistent bots.
+          </WorkbenchEmpty>
+        </WorkbenchSection>
+        {editorDialog}
+      </>
+    );
+  }
   return (
     <section
       className="ws-surface team-management"
       aria-label="Persistent bot teams"
     >
-      <WorkMasthead
-        kicker="Management"
-        meta={
+      <div className="team-management__bar">
+        <div className="team-management__bar-copy">
+          <strong>Bot teams</strong>
           <span>
             Explicit membership for sharing selected findings. Persistent bots
             remain independent.
           </span>
-        }
-        title="Bot teams"
-        actions={
-          <>
-            <Button
-              variant="ghost"
-              disabled={!active || Boolean(busy)}
-              onClick={refresh}
-            >
-              Refresh teams
-            </Button>
-            <Button
-              disabled={
-                !active || !teams.data || !catalog.data || Boolean(busy)
-              }
-              onClick={() =>
-                setEditor({
-                  revision: teams.data?.revision ?? 0,
-                  returnFocusTarget:
-                    document.activeElement as HTMLElement | null,
-                })
-              }
-            >
-              Create team
-            </Button>
-          </>
-        }
-      />
+        </div>
+        <div className="team-management__bar-actions">
+          <Button
+            variant="ghost"
+            disabled={!active || Boolean(busy)}
+            onClick={refresh}
+          >
+            Refresh teams
+          </Button>
+          <Button
+            disabled={!active || !teams.data || !catalog.data || Boolean(busy)}
+            onClick={() =>
+              setEditor({
+                revision: teams.data?.revision ?? 0,
+                returnFocusTarget: document.activeElement as HTMLElement | null,
+              })
+            }
+          >
+            Create team
+          </Button>
+        </div>
+      </div>
       {teams.error || catalog.error ? (
         <StateSurface kind="error" title="Teams are unavailable">
           {teams.error || catalog.error}
@@ -383,14 +428,7 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
           </WorkCard>
         ))}
       </WorkCards>
-      {editor ? (
-        <TeamEditor
-          {...editor}
-          bots={bots}
-          onClose={() => setEditor(undefined)}
-          onSaved={refresh}
-        />
-      ) : null}
+      {editorDialog}
     </section>
   );
 }
