@@ -130,21 +130,21 @@ export function MemoryPage({ active }: { active: boolean }) {
             sections={MEMORY_SECTIONS}
           />
 
-          <TabsContent aria-live="polite" value="shared">
+          <TabsContent value="shared">
             <MemorySnapshotPanel
               active={active}
               resource={sharedMemory}
               target="memory"
             />
           </TabsContent>
-          <TabsContent aria-live="polite" value="user">
+          <TabsContent value="user">
             <MemorySnapshotPanel
               active={active}
               resource={userMemory}
               target="user"
             />
           </TabsContent>
-          <TabsContent aria-live="polite" value="profiles">
+          <TabsContent value="profiles">
             <MemoryProfilesPanel
               active={policy.profiles}
               agentProfile={agentProfile}
