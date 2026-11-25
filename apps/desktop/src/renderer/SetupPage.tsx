@@ -130,7 +130,7 @@ export function SetupPage({
               <strong className="font-[var(--font-display)] text-sm text-[var(--text)]">
                 Subscription account pools
               </strong>
-              <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]">
+              <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 Route delegated coding work across linked accounts.
               </small>
             </div>

@@ -1,5 +1,6 @@
 .diagnostic-workspace {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-inline-size: 0;
   align-content: start;
   padding-inline: var(--document-inset, 16px);
@@ -74,6 +75,7 @@
 .diagnostic-workspace__content,
 .diagnostic-disclosure__content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-inline-size: 0;
   align-content: start;
   gap: 16px;
