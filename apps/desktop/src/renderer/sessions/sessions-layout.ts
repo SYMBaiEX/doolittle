@@ -4,6 +4,9 @@ export const SESSIONS_PAGE_CLASS =
 export const SESSIONS_WORKSPACE_CLASS =
   "grid min-h-0 flex-1 grid-cols-[clamp(250px,24vw,320px)_minmax(0,1fr)] overflow-hidden max-[760px]:grid-cols-1";
 
+export const SESSIONS_EMPTY_WORKSPACE_CLASS =
+  "grid min-h-0 flex-none grid-cols-1 overflow-hidden";
+
 export const SESSION_LIST_PANEL_CLASS =
   "flex min-h-0 flex-col gap-2 overflow-hidden border-r border-[var(--border)] p-2.5 max-[760px]:max-h-[42vh] max-[760px]:border-r-0 max-[760px]:border-b";
 
