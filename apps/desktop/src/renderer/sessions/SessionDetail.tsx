@@ -162,15 +162,19 @@ export function SessionDetail({
   );
   const transcriptMessages = transcript.data?.messages ?? [];
   const transcriptCount = transcriptMessages.length;
-  const messageCount = transcript.data
-    ? transcriptCount
-    : (selected.messageCount ?? 0);
+  // Count what the session list counts: total persisted messages for the
+  // session, not just the loaded transcript window. Both read the same
+  // server-side total, so the list row and this detail stay consistent even
+  // when the transcript is paginated.
+  const messageCount =
+    transcript.data?.totalMessages ??
+    (transcript.data ? transcriptCount : (selected.messageCount ?? 0));
   const transcriptStatusLabel = transcript.loading
     ? "Loading…"
     : transcript.error
       ? "Unavailable"
-      : `${compactNumber(transcriptCount)} message${
-          transcriptCount === 1 ? "" : "s"
+      : `${compactNumber(messageCount)} message${
+          messageCount === 1 ? "" : "s"
         }`;
 
   const rename = async (event: FormEvent) => {

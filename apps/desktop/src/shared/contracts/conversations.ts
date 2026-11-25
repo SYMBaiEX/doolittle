@@ -61,6 +61,9 @@ export interface StoredMessage {
 
 export interface SessionMessagesResponse {
   messages: StoredMessage[];
+  hasEarlier?: boolean;
+  nextOffset?: number;
+  totalMessages?: number;
 }
 
 export interface SessionForkRequest {
