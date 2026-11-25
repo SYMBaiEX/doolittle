@@ -51,6 +51,17 @@ function toUsage(row: SessionAnalyticsRow): SessionUsageSummary {
   };
 }
 
+function localActivityDate(value: string): string | undefined {
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    return value.slice(0, 10) || undefined;
+  }
+  const year = timestamp.getFullYear();
+  const month = `${timestamp.getMonth() + 1}`.padStart(2, "0");
+  const day = `${timestamp.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function resolveSessionAnalytics(
   db: SessionDatabase,
   limit = DEFAULT_ANALYTICS_LIMIT,
@@ -114,7 +125,8 @@ export function resolveSessionAnalytics(
   );
   const activityByDate = new Map<string, SessionAnalyticsDay>();
   for (const session of sessions) {
-    const date = (session.endedAt ?? session.startedAt)?.slice(0, 10);
+    const timestamp = session.endedAt ?? session.startedAt;
+    const date = timestamp ? localActivityDate(timestamp) : undefined;
     if (!date) continue;
     const activity = activityByDate.get(date) ?? {
       date,
