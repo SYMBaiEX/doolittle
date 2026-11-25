@@ -1,5 +1,8 @@
+import { themeContrast } from "@doolittle/ui/themes";
 import type { editor } from "monaco-editor";
 import type { DesktopThemeProfile } from "../desktop-theme";
+
+const MINIMUM_SYNTAX_CONTRAST = 4.5;
 
 const NAMED_EDITOR_COLORS: Readonly<Record<string, string>> = {
   black: "000000",
@@ -76,6 +79,116 @@ function mixEditorColors(
     .toUpperCase();
 }
 
+type EditorRgb = { red: number; green: number; blue: number };
+type EditorHsl = { hue: number; saturation: number; lightness: number };
+
+function editorRgb(color: string): EditorRgb {
+  return {
+    red: Number.parseInt(color.slice(0, 2), 16),
+    green: Number.parseInt(color.slice(2, 4), 16),
+    blue: Number.parseInt(color.slice(4, 6), 16),
+  };
+}
+
+function editorHex({ red, green, blue }: EditorRgb): string {
+  return [red, green, blue]
+    .map((channel) =>
+      Math.max(0, Math.min(255, Math.round(channel)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")
+    .toUpperCase();
+}
+
+function editorHsl(color: string): EditorHsl {
+  const { red, green, blue } = editorRgb(color);
+  const redUnit = red / 255;
+  const greenUnit = green / 255;
+  const blueUnit = blue / 255;
+  const maximum = Math.max(redUnit, greenUnit, blueUnit);
+  const minimum = Math.min(redUnit, greenUnit, blueUnit);
+  const delta = maximum - minimum;
+  const lightness = (maximum + minimum) / 2;
+  let hue = 0;
+  if (delta !== 0) {
+    if (maximum === redUnit) {
+      hue = 60 * (((greenUnit - blueUnit) / delta) % 6);
+    } else if (maximum === greenUnit) {
+      hue = 60 * ((blueUnit - redUnit) / delta + 2);
+    } else {
+      hue = 60 * ((redUnit - greenUnit) / delta + 4);
+    }
+  }
+  return {
+    hue: hue < 0 ? hue + 360 : hue,
+    saturation: delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1)),
+    lightness,
+  };
+}
+
+function editorColorFromHsl({ hue, saturation, lightness }: EditorHsl): string {
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const hueSegment = (((hue % 360) + 360) % 360) / 60;
+  const intermediate = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  if (hueSegment < 1) {
+    red = chroma;
+    green = intermediate;
+  } else if (hueSegment < 2) {
+    red = intermediate;
+    green = chroma;
+  } else if (hueSegment < 3) {
+    green = chroma;
+    blue = intermediate;
+  } else if (hueSegment < 4) {
+    green = intermediate;
+    blue = chroma;
+  } else if (hueSegment < 5) {
+    red = intermediate;
+    blue = chroma;
+  } else {
+    red = chroma;
+    blue = intermediate;
+  }
+  const match = lightness - chroma / 2;
+  return editorHex({
+    red: (red + match) * 255,
+    green: (green + match) * 255,
+    blue: (blue + match) * 255,
+  });
+}
+
+function editorContrast(foreground: string, background: string): number {
+  return themeContrast(`#${foreground}`, `#${background}`);
+}
+
+/**
+ * Runtime palettes are authored for dark terminal canvas colors. Keep their
+ * hue in light editors, but lower lightness until syntax text is readable on
+ * both the editor paper and its slightly darker active-line wash.
+ */
+function lightSyntaxEditorColor(
+  color: string,
+  background: string,
+  activeLine: string,
+): string {
+  const readable = (candidate: string) =>
+    editorContrast(candidate, background) >= MINIMUM_SYNTAX_CONTRAST &&
+    editorContrast(candidate, activeLine) >= MINIMUM_SYNTAX_CONTRAST;
+  if (readable(color)) return color;
+  const hsl = editorHsl(color);
+  for (let step = 1; step <= 200; step += 1) {
+    const lightness = Math.max(0, hsl.lightness - step * 0.005);
+    const candidate = editorColorFromHsl({ ...hsl, lightness });
+    if (readable(candidate)) return candidate;
+    if (lightness === 0) break;
+  }
+  return "000000";
+}
+
 export function doolittleEditorTheme(
   profile: DesktopThemeProfile | null,
   appearance: "dark" | "light" = "dark",
@@ -102,24 +215,36 @@ export function doolittleEditorTheme(
   const surface = mixEditorColors(foreground, background, 0.05);
   const border = mixEditorColors(foreground, background, 0.18);
   const lineNumber = mixEditorColors(foreground, background, 0.48);
+  const syntaxColor = (color: string) =>
+    appearance === "light" && light
+      ? lightSyntaxEditorColor(color, background, surface)
+      : color;
+  const syntaxAccent = syntaxColor(accent);
+  const syntaxSecondary = syntaxColor(secondary);
+  const syntaxAmber = syntaxColor(amber);
+  const syntaxGreen = syntaxColor(green);
+  const syntaxCyan = syntaxColor(cyan);
+  const syntaxMagenta = syntaxColor(magenta);
+  const syntaxMuted = syntaxColor(muted);
+  const syntaxForeground = syntaxColor(foreground);
 
   return {
     base: light ? "vs" : "vs-dark",
     inherit: true,
     rules: [
-      { token: "comment", foreground: muted, fontStyle: "italic" },
-      { token: "keyword", foreground: accent },
-      { token: "keyword.control", foreground: accent },
-      { token: "type", foreground: secondary },
-      { token: "type.identifier", foreground: cyan },
-      { token: "identifier", foreground },
-      { token: "string", foreground: green },
-      { token: "number", foreground: amber },
-      { token: "regexp", foreground: magenta },
-      { token: "delimiter", foreground: muted },
-      { token: "tag", foreground: accent },
-      { token: "attribute.name", foreground: cyan },
-      { token: "attribute.value", foreground: green },
+      { token: "comment", foreground: syntaxMuted, fontStyle: "italic" },
+      { token: "keyword", foreground: syntaxAccent },
+      { token: "keyword.control", foreground: syntaxAccent },
+      { token: "type", foreground: syntaxSecondary },
+      { token: "type.identifier", foreground: syntaxCyan },
+      { token: "identifier", foreground: syntaxForeground },
+      { token: "string", foreground: syntaxGreen },
+      { token: "number", foreground: syntaxAmber },
+      { token: "regexp", foreground: syntaxMagenta },
+      { token: "delimiter", foreground: syntaxMuted },
+      { token: "tag", foreground: syntaxAccent },
+      { token: "attribute.name", foreground: syntaxCyan },
+      { token: "attribute.value", foreground: syntaxGreen },
     ],
     colors: {
       "editor.background": `#${background}`,

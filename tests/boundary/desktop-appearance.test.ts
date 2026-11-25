@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { doolittleEditorTheme } from "../../apps/desktop/src/renderer/components/code-editor-theme";
 import {
   APPEARANCE_STORAGE_KEY,
   announceAppearance,
@@ -25,6 +26,7 @@ import {
   CANVAS_THEME,
   COMPANION_THEME,
   GOLDEN_GATE_GLASS_THEME,
+  themeContrast,
 } from "../../packages/ui/src/themes";
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
@@ -130,6 +132,71 @@ const EMBER_PROFILE: DesktopThemeProfile = {
   baseFg: "white",
   panelBg: "black",
 };
+
+const SYNTHWAVE_PROFILE: DesktopThemeProfile = {
+  name: "synthwave",
+  label: "Midnight Grid",
+  tagline: "Soft neon geometry for long operator nights.",
+  primary: "#FF4FD8",
+  secondary: "#8A63FF",
+  amberGlow: "#FFB347",
+  cyanGlow: "#30D5FF",
+  greenGlow: "#8BFF9F",
+  magentaGlow: "#FF4FD8",
+};
+
+function editorRuleForeground(
+  theme: ReturnType<typeof doolittleEditorTheme>,
+  token: string,
+): string {
+  const foreground = theme.rules.find(
+    (rule) => rule.token === token,
+  )?.foreground;
+  if (typeof foreground !== "string") {
+    throw new Error(`Missing editor color for ${token}.`);
+  }
+  return foreground;
+}
+
+function editorContrast(foreground: string, background: string): number {
+  return themeContrast(
+    foreground.startsWith("#") ? foreground : `#${foreground}`,
+    background,
+  );
+}
+
+it("darkens light editor syntax colors without rewriting dark theme colors", () => {
+  const lightTheme = doolittleEditorTheme(SYNTHWAVE_PROFILE, "light");
+  const background = lightTheme.colors?.["editor.background"];
+  const activeLine = lightTheme.colors?.["editor.lineHighlightBackground"];
+  if (!background || !activeLine) {
+    throw new Error("Missing editor background colors.");
+  }
+  for (const token of [
+    "comment",
+    "keyword",
+    "type",
+    "type.identifier",
+    "identifier",
+    "string",
+    "number",
+    "regexp",
+    "delimiter",
+    "tag",
+    "attribute.name",
+    "attribute.value",
+  ]) {
+    const foreground = editorRuleForeground(lightTheme, token);
+    expect(editorContrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+    expect(editorContrast(foreground, activeLine)).toBeGreaterThanOrEqual(4.5);
+  }
+  expect(editorRuleForeground(lightTheme, "attribute.name")).not.toBe("30D5FF");
+
+  const darkTheme = doolittleEditorTheme(SYNTHWAVE_PROFILE, "dark");
+  expect(editorRuleForeground(darkTheme, "tag")).toBe("FF4FD8");
+  expect(editorRuleForeground(darkTheme, "attribute.name")).toBe("30D5FF");
+  expect(editorRuleForeground(darkTheme, "attribute.value")).toBe("8BFF9F");
+});
 
 it("composes a runtime color onto the active layout theme", () => {
   act(() => root.render(createElement(Probe)));
