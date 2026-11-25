@@ -2884,7 +2884,6 @@ export function App() {
     <WorkspaceShell
       hostSlots
       layout={canvasLayout ? "canvas" : "companion"}
-      role="main"
       className={`${DESKTOP_SHELL_CLASS} platform-${window.doolittle.platform}${canvasLayout ? " layout-canvas" : ""}${
         effectiveNavCollapsed ? " nav-collapsed" : ""
       }`}
@@ -3092,7 +3091,7 @@ export function App() {
           }}
         />
       </Suspense>
-      <section
+      <main
         className={`${APP_MAIN_CLASS}${renderedView === "chat" ? " app-main--chat" : ""}`}
         ref={appMainRef}
       >
@@ -3289,7 +3288,7 @@ export function App() {
             />
           </Suspense>
         ) : null}
-      </section>
+      </main>
       {utilityOpen ? (
         <Suspense fallback={null}>
           <DesktopUtilityLayer
