@@ -4,12 +4,7 @@ import type { TuiWidgetSet } from "./types";
 
 type TuiPanelWidgets = Pick<
   TuiWidgetSet,
-  | "activity"
-  | "response"
-  | "sidebar"
-  | "transportBox"
-  | "executionBox"
-  | "assistBox"
+  "activity" | "response" | "sidebar" | "assistBox"
 >;
 
 type PanelAccentToken = "magentaGlow" | "greenGlow" | "cyanGlow" | "amberGlow";
@@ -21,7 +16,6 @@ interface BoxPanelLayout {
   height: string | number;
   label: string;
   accent: PanelAccentToken;
-  hidden?: boolean;
   content?: string;
 }
 
@@ -46,24 +40,6 @@ const BOX_PANEL_LAYOUTS: Record<
     height: "30%",
     label: " Status ",
     accent: "greenGlow",
-  },
-  transportBox: {
-    top: 0,
-    left: "82%",
-    width: "18%",
-    height: "0%",
-    label: " Transports ",
-    accent: "cyanGlow",
-    hidden: true,
-  },
-  executionBox: {
-    top: 0,
-    left: "82%",
-    width: "18%",
-    height: "0%",
-    label: " Execution ",
-    accent: "greenGlow",
-    hidden: true,
   },
   assistBox: {
     top: "52%+3",
@@ -99,10 +75,12 @@ function createScrollableBox(
       right: 1,
     },
     scrollbar: {
-      ch: " ",
+      // Blessed draws exactly one thumb cell in overflow; a blank glyph makes
+      // it invisible. A single-column block in the panel accent stays quiet
+      // while remaining visible against the panel background.
+      ch: "█",
     },
     style: panelStyle(theme, theme[layout.accent]),
-    hidden: layout.hidden,
     content: layout.content,
   });
 }
@@ -127,7 +105,7 @@ function createActivityPanel({
     mouse: false,
     vi: true,
     scrollbar: {
-      ch: " ",
+      ch: "█",
     },
     style: panelStyle(theme, theme.cyanGlow),
   });
@@ -147,8 +125,6 @@ export function createPanelWidgets(
     activity: createActivityPanel(context),
     response: createBoxPanel(context, BOX_PANEL_LAYOUTS.response),
     sidebar: createBoxPanel(context, BOX_PANEL_LAYOUTS.sidebar),
-    transportBox: createBoxPanel(context, BOX_PANEL_LAYOUTS.transportBox),
-    executionBox: createBoxPanel(context, BOX_PANEL_LAYOUTS.executionBox),
     assistBox: createBoxPanel(context, BOX_PANEL_LAYOUTS.assistBox),
   };
 }

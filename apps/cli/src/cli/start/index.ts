@@ -15,6 +15,22 @@ interface StartCliDeps {
   warn?: (message?: unknown, ...optionalParams: unknown[]) => void;
 }
 
+const TOO_SMALL_FALLBACK_NOTICE =
+  "Terminal too small for the cockpit (minimum 80x24).\n" +
+  "Using the plain CLI; resize and restart for the fullscreen cockpit.";
+
+function withTooSmallFallbackNotice(
+  options?: StartCliOptions,
+): StartCliOptions {
+  return {
+    ...options,
+    onReady: () => {
+      output.write(`${TOO_SMALL_FALLBACK_NOTICE}\n`);
+      options?.onReady?.();
+    },
+  };
+}
+
 export async function startCli(
   context: AppContext,
   options?: StartCliOptions,
@@ -53,6 +69,9 @@ export async function startCli(
   }
 
   if (typeof tuiResult === "number") return tuiResult;
+  if (tuiResult === "too-small") {
+    return startPlain(context, withTooSmallFallbackNotice(options));
+  }
   if (tuiResult === "unexpected") {
     cliLogger.warn("tui closed unexpectedly; falling back to plain cli");
     warn(
