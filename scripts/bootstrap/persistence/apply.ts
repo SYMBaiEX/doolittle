@@ -23,7 +23,7 @@ export async function applyBootstrapAnswers(
     answers.allowAllUsers,
     answers.pairingMode,
   );
-  const nativeConnection = summarizeAutonomousConnection({
+  const summarizedConnection = summarizeAutonomousConnection({
     ...loadConfig(),
     elizaCloudApiKey: answers.elizaCloudApiKey || undefined,
     elizaCloudEnabled:
@@ -31,10 +31,14 @@ export async function applyBootstrapAnswers(
     elizaCloudSmallModel: answers.elizaCloudSmallModel,
     elizaCloudLargeModel: answers.elizaCloudModel,
     elizaCloudEmbeddingModel: answers.elizaCloudEmbeddingModel,
-    ollamaApiEndpoint: answers.ollamaApiEndpoint,
-    ollamaSmallModel: answers.ollamaSmallModel,
-    ollamaLargeModel: answers.ollamaLargeModel,
-    ollamaEmbeddingModel: answers.ollamaEmbeddingModel,
+    ollamaApiEndpoint:
+      answers.provider === "ollama" ? answers.ollamaApiEndpoint : "",
+    ollamaSmallModel:
+      answers.provider === "ollama" ? answers.ollamaSmallModel : "",
+    ollamaLargeModel:
+      answers.provider === "ollama" ? answers.ollamaLargeModel : "",
+    ollamaEmbeddingModel:
+      answers.provider === "ollama" ? answers.ollamaEmbeddingModel : "",
     openAiApiKey:
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiApiKey || undefined
@@ -68,6 +72,14 @@ export async function applyBootstrapAnswers(
     telegramBotToken: answers.telegramBotToken || undefined,
     discordBotToken: answers.discordBotToken || undefined,
   });
+  const nativeConnection =
+    answers.provider === "offline" && summarizedConnection.kind === "missing"
+      ? {
+          ...summarizedConnection,
+          detail:
+            "Offline provider selected during onboarding; no native model connection was configured.",
+        }
+      : summarizedConnection;
 
   const plan = buildBootstrapPersistencePlan({
     answers,
