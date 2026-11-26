@@ -76,4 +76,44 @@ describe("sessions workspace layout", () => {
     expect(workspace.className).toBe(SESSIONS_EMPTY_WORKSPACE_CLASS);
     expect(host.querySelector(".split-workspace")).toBeNull();
   });
+
+  it("starts with the list pane active for narrow single-pane navigation", () => {
+    renderPage([session("chat-1")]);
+    const workspace = host.querySelector<HTMLElement>(".sessions-workspace");
+    expect(workspace?.dataset.sessionsDetail).toBe("closed");
+  });
+
+  it("opens the transcript pane when a conversation is picked", () => {
+    renderPage([session("chat-1")]);
+    const row = host.querySelector<HTMLButtonElement>(
+      '[data-session-row="true"]',
+    );
+    if (!row) throw new Error("Missing session row.");
+    act(() => row.click());
+    const workspace = host.querySelector<HTMLElement>(".sessions-workspace");
+    expect(workspace?.dataset.sessionsDetail).toBe("open");
+  });
+
+  it("returns to the list pane through the back control", () => {
+    renderPage([session("chat-1")]);
+    const row = host.querySelector<HTMLButtonElement>(
+      '[data-session-row="true"]',
+    );
+    if (!row) throw new Error("Missing session row.");
+    act(() => row.click());
+    const back = host.querySelector<HTMLButtonElement>(
+      ".sessions-back-control button",
+    );
+    if (!back) throw new Error("Missing back control.");
+    expect(back.textContent).toContain("Back to conversations");
+    act(() => back.click());
+    const workspace = host.querySelector<HTMLElement>(".sessions-workspace");
+    expect(workspace?.dataset.sessionsDetail).toBe("closed");
+  });
+
+  it("keeps the transcript pane available to keyboard focus", () => {
+    renderPage([session("chat-1")]);
+    const pane = host.querySelector<HTMLElement>(".sessions-detail-pane");
+    expect(pane?.tabIndex).toBe(-1);
+  });
 });
