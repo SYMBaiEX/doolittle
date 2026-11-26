@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionsPage } from "../../apps/desktop/src/renderer/sessions/SessionsPage";
 import {
+  SESSION_DETAIL_TOOLBAR_CLASS,
   SESSIONS_EMPTY_WORKSPACE_CLASS,
   SESSIONS_WORKSPACE_CLASS,
 } from "../../apps/desktop/src/renderer/sessions/sessions-layout";
@@ -115,5 +116,17 @@ describe("sessions workspace layout", () => {
     renderPage([session("chat-1")]);
     const pane = host.querySelector<HTMLElement>(".sessions-detail-pane");
     expect(pane?.tabIndex).toBe(-1);
+  });
+
+  it("measures the transcript toolbar against the detail pane, not the viewport", () => {
+    renderPage([session("chat-1")]);
+    const pane = host.querySelector<HTMLElement>(
+      ".detail-panel[class*='@container/sessiondetail']",
+    );
+    expect(pane).not.toBeNull();
+    expect(SESSION_DETAIL_TOOLBAR_CLASS).toContain(
+      "@max-[700px]/sessiondetail:grid-cols-1",
+    );
+    expect(SESSION_DETAIL_TOOLBAR_CLASS).not.toContain("max-[860px]");
   });
 });

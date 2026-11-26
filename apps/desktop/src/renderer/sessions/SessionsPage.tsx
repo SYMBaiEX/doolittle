@@ -240,7 +240,7 @@ export function SessionsPage({
                 />
                 <section
                   aria-label="Saved transcript"
-                  className="detail-panel sessions-detail-pane [scrollbar-gutter:stable]"
+                  className="detail-panel sessions-detail-pane @container/sessiondetail [scrollbar-gutter:stable]"
                   ref={detailRef}
                   tabIndex={-1}
                 >
