@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, it, vi } from "vitest";
@@ -8,6 +9,9 @@ import { runStreamingLocalShellCommand } from "../../packages/agent/src/runtime/
 const executionUrl = pathToFileURL(
   resolve("packages/agent/src/runtime/commands/command-execution/execution.ts"),
 ).href;
+const nubLauncher = createRequire(import.meta.url).resolve(
+  "@nubjs/nub/bin/nub",
+);
 
 for (const stream of ["onStdout", "onStderr"]) {
   it.each(["throw", "reject", "late-reject"])(
@@ -49,8 +53,8 @@ for (const stream of ["onStdout", "onStderr"]) {
         console.log(JSON.stringify({ actual, unhandled, warnings, calls }));
       `;
       const child = spawnSync(
-        "nub",
-        ["--no-env-file", "--input-type=module", "-e", script],
+        process.execPath,
+        [nubLauncher, "--no-env-file", "--input-type=module", "-e", script],
         { encoding: "utf8", timeout: 10_000 },
       );
       expect(child.error).toBeUndefined();

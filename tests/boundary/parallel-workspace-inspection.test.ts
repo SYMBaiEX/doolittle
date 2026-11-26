@@ -79,7 +79,14 @@ it("runs at most two concurrent inspections and returns evidence in task order",
   const first = new Promise<void>((resolve) => {
     finishFirst = resolve;
   });
+  let markPairStarted = () => {};
+  const pairStarted = new Promise<void>((resolve) => {
+    markPairStarted = resolve;
+  });
+  let started = 0;
   const find = vi.fn(async (query: string) => {
+    started += 1;
+    if (started === 2) markPairStarted();
     if (query === "first") await first;
     return [{ path: "app.ts", matches: [`result ${query}`] }];
   });
@@ -90,8 +97,8 @@ it("runs at most two concurrent inspections and returns evidence in task order",
     search("third"),
   ]);
   try {
-    await vi.waitFor(() => expect(find).toHaveBeenCalledTimes(2));
-    expect(find.mock.calls.map(([query]) => query)).toEqual([
+    await pairStarted;
+    expect(find.mock.calls.map(([query]) => query).sort()).toEqual([
       "first",
       "second",
     ]);
