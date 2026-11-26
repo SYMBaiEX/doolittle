@@ -23,6 +23,12 @@ export interface TuiControlDeckOptions {
   };
   footer: {
     setContent(content: string): void;
+    /**
+     * Present on the real blessed box widget; used by the busy spinner to
+     * repaint only the footer rows instead of re-rendering the whole screen.
+     */
+    render?(): void;
+    lpos?: blessed.Widgets.PositionCoords | null;
   };
   inputBox: blessed.Widgets.TextboxElement;
   paletteList: blessed.Widgets.ListElement;
@@ -53,5 +59,12 @@ export interface TuiControlDeckState {
   footerHint: string;
   busyFrameIndex: number;
   busySpinnerTimer: ReturnType<typeof setInterval> | null;
+  /** Per-busy-window paint diagnostics, recreated by each spinner start. */
+  busySpinnerStats?: {
+    ticks: number;
+    skippedUnchanged: number;
+    partialPaints: number;
+    fullRenders: number;
+  };
   renderToken: number;
 }
