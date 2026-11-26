@@ -29,6 +29,7 @@ export function SessionsPage({
   refresh,
   openChat,
   onNewConversation,
+  onSessionMessageCountObserved,
   projectId,
   embedded = false,
 }: {
@@ -37,6 +38,10 @@ export function SessionsPage({
   refresh: () => void;
   openChat: (sessionId: string) => void;
   onNewConversation: () => void;
+  onSessionMessageCountObserved?: (
+    sessionId: string,
+    messageCount: number,
+  ) => void;
   projectId?: string | null;
   embedded?: boolean;
 }) {
@@ -268,6 +273,9 @@ export function SessionsPage({
                         onExport={() => void transfer.exportArchive()}
                         onOpenChat={openChat}
                         onRefresh={refresh}
+                        onSessionMessageCountObserved={
+                          onSessionMessageCountObserved
+                        }
                         onSelectSession={(sessionId) => {
                           setSelectedId(sessionId);
                           if (sessionId !== selectedSearchSession?.sessionId) {

@@ -152,6 +152,10 @@ export interface ChatPageProps {
   scopeForSession?: (sessionId: string) => SessionConversationScope;
   onConfirmConversationScope?: (scope: BotConversationScope) => void;
   onSessionSummary?: (summary: SessionSummary) => void;
+  onSessionMessageCountObserved?: (
+    sessionId: string,
+    messageCount: number,
+  ) => void;
   onBindSessionBot?: (sessionId: string, botId: string) => void;
   onCaptureSessionProject?: (
     sessionId: string,
@@ -210,6 +214,7 @@ export function ChatSessionPanel({
   scopeForSession,
   onConfirmConversationScope,
   onSessionSummary,
+  onSessionMessageCountObserved,
   onBindSessionBot,
   onCaptureSessionProject,
   onActivateBot,
@@ -1960,6 +1965,7 @@ export function ChatSessionPanel({
                 onSurfaceChange?.("conversation");
                 requestAnimationFrame(() => composerRef.current?.focus());
               }}
+              onSessionMessageCountObserved={onSessionMessageCountObserved}
               projectId={activeProject?.id}
               refresh={refreshRuntime}
               sessions={sessions}

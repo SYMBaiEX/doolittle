@@ -127,6 +127,30 @@ export function useRuntimeWorkspaceData(
     });
   }, []);
 
+  // The inventory is a snapshot: background session activity (automation
+  // runs, gateway traffic) appends messages without invalidating it, so a
+  // row's count can go stale while the open transcript reads the live
+  // server-side total. When a surface observes that fresh total, reconcile
+  // the row so both read the same count. Identity-only otherwise.
+  const reconcileSessionMessageCount = useCallback(
+    (sessionId: string, messageCount: number) => {
+      if (!mountedRef.current) return;
+      const row = sessionsRef.current.find(
+        (entry) => entry.sessionId === sessionId,
+      );
+      if (!row || row.messageCount === messageCount) return;
+      sessionInventoryRevision.current++;
+      setSessions((current) => {
+        const next = current.map((entry) =>
+          entry.sessionId === sessionId ? { ...entry, messageCount } : entry,
+        );
+        sessionsRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
   const refreshRuntimeData = useCallback(
     async (reuseFreshCatalog: boolean) => {
       if (backendPhaseRef.current !== "ready") return false;
@@ -307,6 +331,7 @@ export function useRuntimeWorkspaceData(
     projects,
     publishConfirmedConversation,
     publishSessionSummary,
+    reconcileSessionMessageCount,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,
