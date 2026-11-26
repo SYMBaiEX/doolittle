@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GatewayTimelinePanel } from "../../apps/desktop/src/renderer/gateway/GatewayTimelinePanel";
 import type { GatewayTimelineItem } from "../../apps/desktop/src/renderer/gateway-page-model";
+import { TaskQueueDetail } from "../../apps/desktop/src/renderer/orchestration/TaskQueueDetail";
 import type { ReviewItem } from "../../apps/desktop/src/renderer/review/models";
 import { ReviewQueue } from "../../apps/desktop/src/renderer/review/ReviewQueue";
 import { reviewWorkState } from "../../apps/desktop/src/renderer/review-work-state";
@@ -176,6 +177,65 @@ it("waits for replay confirmation and returns focus after cancellation", () => {
   act(() => opener?.click());
   act(() => button("Confirm replay")?.click());
   expect(replay).toHaveBeenCalledExactlyOnceWith(entry.id);
+});
+
+it("opens destructive task overflow actions in the shared portaled menu", async () => {
+  const onRequestDestructiveAction = vi.fn();
+  const task = {
+    id: "task-1",
+    title: "Inspect the workspace",
+    objective: "Report what changed.",
+    status: "pending",
+  };
+  act(() =>
+    root.render(
+      <TaskQueueDetail
+        active
+        busyKeys={{}}
+        childObjective=""
+        childTitle=""
+        childWorkspaceRoot=""
+        confirmedAction={null}
+        onChildObjectiveChange={noop}
+        onChildTitleChange={noop}
+        onChildWorkspaceRootChange={noop}
+        onCloseConfirmation={noop}
+        onRequestDestructiveAction={onRequestDestructiveAction}
+        onRunTaskAction={noop}
+        onSubmitNote={(event) => event.preventDefault()}
+        onSubmitSpawn={(event) => event.preventDefault()}
+        onTaskNoteChange={noop}
+        onToggleChildCreate={noop}
+        selectedTask={task}
+        selectedTaskNote=""
+        showChildCreate={false}
+        taskDetailReady
+        worktrees={[]}
+      />,
+    ),
+  );
+
+  const more = button("More task actions");
+  expect(more).toBeDefined();
+  expect(host.querySelector("details.ws-overflow")).toBeNull();
+  expect(more?.getAttribute("aria-haspopup")).toBe("menu");
+
+  await act(async () => more?.click());
+  expect(more?.getAttribute("aria-expanded")).toBe("true");
+  const menu = document.body.querySelector('[role="menu"]');
+  expect(menu).not.toBeNull();
+  expect(host.contains(menu)).toBe(false);
+  const markFailed = [
+    ...(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
+  ].find((item) => item.textContent === "Mark failed");
+  expect(markFailed).toBeDefined();
+
+  await act(async () => markFailed?.click());
+  expect(onRequestDestructiveAction).toHaveBeenCalledExactlyOnceWith(
+    task,
+    "fail",
+    more,
+  );
 });
 
 it("reports workspace changes and recorded agent runs independently", () => {

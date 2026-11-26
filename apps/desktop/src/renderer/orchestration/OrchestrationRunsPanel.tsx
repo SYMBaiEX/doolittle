@@ -393,7 +393,7 @@ function WorkflowDetail({
   const status = asString(selectedWorkflow.status, "pending");
   const tier = statusTier(status);
   const bundling = bundleLoading && bundleWorkflowId === selectedWorkflow.id;
-  const cancelRunButtonRef = useRef<HTMLButtonElement>(null);
+  const overflowActionsRef = useRef<HTMLButtonElement>(null);
   return (
     <>
       <DetailHeader
@@ -437,31 +437,40 @@ function WorkflowDetail({
           </button>
         }
         secondary={
-          <details className="ws-overflow">
-            <summary>More</summary>
-            <div className="ws-overflow__menu">
+          <ContextActionMenu
+            label="More workflow actions"
+            scopeKey={`workflow-overflow:${selectedWorkflow.id}:${selectedRun?.id ?? "none"}`}
+            items={[
+              {
+                id: "copy-workflow-id",
+                label: "Copy workflow ID",
+                onSelect: () => void copyContextText(selectedWorkflow.id),
+              },
+              ...(selectedRun && runCancellable(selectedRun)
+                ? [
+                    {
+                      id: "cancel-run",
+                      label: "Cancel run…",
+                      destructive: true,
+                      disabled:
+                        !active || busyKeys[`codegen:${selectedRun.id}:cancel`],
+                      onSelect: () => onRequestRunCancellation(selectedRun.id),
+                    },
+                  ]
+                : []),
+            ]}
+            trigger={
               <button
-                className="text-button"
+                className="ws-overflow-trigger"
+                ref={overflowActionsRef}
                 type="button"
-                onClick={() => void copyContextText(selectedWorkflow.id)}
               >
-                Copy workflow ID
+                More
               </button>
-              {selectedRun && runCancellable(selectedRun) ? (
-                <button
-                  className="text-button danger-text-button"
-                  type="button"
-                  onClick={() => onRequestRunCancellation(selectedRun.id)}
-                  disabled={
-                    !active || busyKeys[`codegen:${selectedRun.id}:cancel`]
-                  }
-                  ref={cancelRunButtonRef}
-                >
-                  Cancel run…
-                </button>
-              ) : null}
-            </div>
-          </details>
+            }
+          >
+            {null}
+          </ContextActionMenu>
         }
       />
       {selectedRun && confirmedRunCancellation === selectedRun.id ? (
@@ -478,7 +487,7 @@ function WorkflowDetail({
           detail="This records a cancelled lifecycle state. The current pipeline cannot guarantee that in-flight model work stops immediately."
           onCancel={onDismissRunCancellation}
           onConfirm={() => void onCancelRun(selectedRun)}
-          returnFocusRef={cancelRunButtonRef}
+          returnFocusRef={overflowActionsRef}
           title="Cancel this run?"
         />
       ) : null}
