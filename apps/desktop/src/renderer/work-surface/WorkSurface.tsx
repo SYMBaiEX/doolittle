@@ -47,8 +47,20 @@ export function WorkToolbar({ children }: { children: ReactNode }) {
   return <div className="ws-toolbar">{children}</div>;
 }
 
-export function WorkSplit({ children }: { children: ReactNode }) {
-  return <div className="ws-split">{children}</div>;
+export function WorkSplit({
+  className = "",
+  ref,
+  children,
+}: {
+  className?: string;
+  ref?: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`ws-split${className ? ` ${className}` : ""}`} ref={ref}>
+      {children}
+    </div>
+  );
 }
 
 export function WorkRail({

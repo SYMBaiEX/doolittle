@@ -1,0 +1,41 @@
+/* Narrow single-pane navigation for the automations split. The class is only
+   applied after the workspace measures a narrow split container, so these
+   rules need no container query of their own: below the readable two-pane
+   width the list and the detail trade the whole surface instead of squeezing
+   the row list to nothing. */
+
+.ws-split.automation-split--single {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ws-split.automation-split--single > .ws-rail,
+.ws-split.automation-split--single > .automation-detail-column {
+  flex: 1 1 0%;
+  min-block-size: 0;
+  max-block-size: none;
+}
+
+.ws-split.automation-split--single > .ws-rail {
+  border-inline-end: 0;
+}
+
+.ws-split.automation-split--single > .ws-rail > .ws-list {
+  flex: 1 1 0%;
+  min-block-size: 0;
+}
+
+/* Back navigation for the detail pane in single-pane mode: quiet text button
+   in the detail column's own scrollport, aligned with the document inset. */
+.automation-detail-back {
+  display: flex;
+  align-items: center;
+  padding: 8px var(--document-inset, 12px) 0;
+}
+
+.automation-detail-back > .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
