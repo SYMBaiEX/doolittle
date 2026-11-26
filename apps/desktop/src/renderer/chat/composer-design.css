@@ -125,7 +125,13 @@
   align-items: center;
   gap: 5px;
   min-width: 0;
-  max-width: min(196px, 100%);
+  /* Size to the content up to a pill cap, then truncate. The fixed workspace
+     status "Workspace not confirmed" needs ~200px with the glyph, chevron, and
+     padding, so a cap below that truncates even when the footer has free space.
+     Flex shrinking (min-width: 0 up the chain) already narrows the pill when
+     the footer is actually crowded, so the cap only guards long project and
+     model names. */
+  max-width: min(300px, 100%);
   min-height: var(--composer-control);
   padding-inline: 9px 8px;
   overflow: hidden;
