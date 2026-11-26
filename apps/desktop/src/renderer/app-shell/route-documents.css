@@ -96,6 +96,55 @@
   margin-inline: var(--document-inset);
 }
 
+/* Compact activity screens need the first event's substance inside the short
+   viewport, not a stack of repeated headings and spacious row chrome. */
+@media (max-width: 480px) {
+  [data-route-document="activity"] {
+    --document-gap: 8px;
+  }
+
+  [data-route-document="activity"] .page-header__toolbar {
+    gap: 4px 8px;
+    padding-block: 7px;
+  }
+
+  [data-route-document="activity"] .compact-stat-strip {
+    gap: 5px 8px;
+  }
+
+  [data-route-document="activity"] .compact-stat-strip__item {
+    gap: 1px;
+    padding-block: 2px;
+  }
+
+  [data-route-document="activity"] .activity-timeline__header {
+    align-items: center;
+    padding: 6px 8px;
+  }
+
+  [data-route-document="activity"] .activity-timeline__title {
+    display: flex;
+    min-inline-size: 0;
+    align-items: baseline;
+    gap: 7px;
+  }
+
+  [data-route-document="activity"] .activity-timeline__title h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--text-control);
+    font-weight: 600;
+  }
+
+  [data-route-document="activity"] [data-activity-entry] > div:last-child {
+    padding-block: 6px;
+  }
+
+  [data-route-document="activity"] [data-activity-entry] p {
+    margin-block-start: 2px;
+  }
+}
+
 [data-route-document="orchestration"] .orchestration-page {
   container: work / inline-size;
 }

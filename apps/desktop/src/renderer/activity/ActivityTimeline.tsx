@@ -48,9 +48,9 @@ export function ActivityTimeline({
   remainingGroups: number;
 }) {
   return (
-    <section className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-3 py-2.5">
-        <div>
+    <section className="activity-timeline overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
+      <div className="activity-timeline__header flex items-start justify-between gap-3 border-b border-[var(--border)] px-3 py-2.5">
+        <div className="activity-timeline__title">
           <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
             Operator stream
           </span>
