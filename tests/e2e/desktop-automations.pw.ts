@@ -43,7 +43,7 @@ test("automation schedules can be edited, paused, run, and deleted", async () =>
       .getByRole("textbox", { name: "Schedule", exact: true })
       .fill("every 2h");
     await page
-      .getByRole("group", { name: "Choose an action" })
+      .getByRole("radiogroup", { name: "Choose an action" })
       .getByText("Webhook", { exact: true })
       .click();
     await page
@@ -267,7 +267,7 @@ test("named automation creation and edits require fresh native approval", async 
       .fill("Named fixture");
     await page.getByRole("combobox", { name: "Run as" }).selectOption(bot.id);
     await page
-      .getByRole("group", { name: "Choose a trigger" })
+      .getByRole("radiogroup", { name: "Choose a trigger" })
       .getByText("Manual", { exact: true })
       .click();
     await page
