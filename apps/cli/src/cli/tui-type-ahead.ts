@@ -11,15 +11,17 @@
  * screen dispatch (registered with prependListener so the consume check is
  * predictive, not retrospective). When a keystroke will not be consumed by
  * any live text entry, it is captured into a pending buffer, focus is pulled
- * back to the input, and the buffered keys are replayed through blessed's own
- * textbox listener — one key per event-loop turn, so read lifecycle
- * transitions (including Enter completing a read) happen exactly as they
- * would for real typing.
+ * to the appropriate text entry, and buffered keys are replayed through
+ * blessed's own textbox listener. Contiguous non-submitting keys drain in one
+ * synchronous pump so a newly live read cannot overtake older buffered
+ * keystrokes; Enter still yields a turn because it completes the active read
+ * lifecycle.
  *
  * Non-goals, deliberately:
  * - Enter/Backspace are captured only while the input is focused. On pane
  *   surfaces Enter remains a control-deck action key and Backspace inert.
- * - Overlay surfaces (palette, composer) own their keys while open.
+ * - Overlay surfaces own control keys while open; printable overlay typing is
+ *   still captured through the same half-open-read handshake.
  * - Scroll and cockpit command keys are non-printing and unaffected.
  */
 
@@ -54,6 +56,8 @@ interface TypeAheadScreen {
 interface TuiTypeAheadOptions {
   screen: TypeAheadScreen;
   inputBox: TypeAheadEntry;
+  paletteInput: TypeAheadEntry;
+  composer: TypeAheadEntry;
   /** Every text entry that legitimately consumes keystrokes when live. */
   textEntries: TypeAheadEntry[];
   activateTextEntry: (entry: TypeAheadEntry) => void;
@@ -101,13 +105,19 @@ export function installTuiTypeAhead(
   const {
     screen,
     inputBox,
+    paletteInput,
+    composer,
     textEntries,
     activateTextEntry,
     isPaletteOpen,
     isComposerOpen,
   } = options;
 
-  const pending: Array<{ ch: string | undefined; key: TypeAheadKey }> = [];
+  const pending: Array<{
+    entry: TypeAheadEntry;
+    ch: string | undefined;
+    key: TypeAheadKey;
+  }> = [];
   let pumpScheduled = false;
   let stalledPumps = 0;
 
@@ -116,34 +126,54 @@ export function installTuiTypeAhead(
     entry._reading === true &&
     Boolean(entry.__listener);
 
-  const inputReady = (): boolean => entryConsumesKeys(inputBox);
+  const entryAcceptsBufferedKeys = (entry: TypeAheadEntry): boolean => {
+    if (entry === inputBox) return true;
+    if (entry === paletteInput) return isPaletteOpen();
+    if (entry === composer) return isComposerOpen();
+    return false;
+  };
 
   const pump = (): void => {
     pumpScheduled = false;
-    const item = pending[0];
-    if (!item) {
-      stalledPumps = 0;
-      return;
-    }
-    if (!inputReady()) {
-      stalledPumps += 1;
-      if (stalledPumps > MAX_STALLED_PUMPS) {
-        pending.length = 0;
+    for (;;) {
+      const item = pending[0];
+      if (!item) {
         stalledPumps = 0;
         return;
       }
-      // blessed registers the read listener one tick after readInput; until
-      // it is live, re-assert activation and wait another turn. Replaying
-      // into a half-open read is what loses keystrokes in the first place.
-      activateTextEntry(inputBox as never);
-      schedulePump();
-      return;
-    }
-    pending.shift();
-    stalledPumps = 0;
-    inputBox.emit("keypress", item.ch, item.key);
-    if (pending.length > 0) {
-      schedulePump();
+      if (!entryAcceptsBufferedKeys(item.entry)) {
+        // A close control can win the race before a half-open overlay read is
+        // replayed. Never focus a hidden overlay just to deliver stale text.
+        pending.shift();
+        continue;
+      }
+      if (!entryConsumesKeys(item.entry)) {
+        stalledPumps += 1;
+        if (stalledPumps > MAX_STALLED_PUMPS) {
+          pending.length = 0;
+          stalledPumps = 0;
+          return;
+        }
+        // blessed registers the read listener one tick after readInput; until
+        // it is live, re-assert activation and wait another turn. Replaying
+        // into a half-open read is what loses keystrokes in the first place.
+        activateTextEntry(item.entry as never);
+        schedulePump();
+        return;
+      }
+      pending.shift();
+      stalledPumps = 0;
+      item.entry.emit("keypress", item.ch, item.key);
+      // Enter completes the read and synchronously hands the line to the
+      // command queue, which moves focus back to the processing surface. Any
+      // keys after it belong to a fresh read and must wait for that lifecycle
+      // instead of being emitted into the just-completed one.
+      if (item.key.name === "enter") {
+        if (pending.length > 0) {
+          schedulePump();
+        }
+        return;
+      }
     }
   };
 
@@ -157,17 +187,34 @@ export function installTuiTypeAhead(
     if (!key) return;
     // Any live text entry owns its keystrokes; never double-feed them.
     if (textEntries.some(entryConsumesKeys)) return;
-    // Overlay surfaces route their own keys while open.
-    if (isPaletteOpen() || isComposerOpen()) return;
 
     const printable = isPrintableInput(ch, key);
+    const overlayEntry = isPaletteOpen()
+      ? paletteInput
+      : isComposerOpen()
+        ? composer
+        : undefined;
+    if (overlayEntry) {
+      // Overlay control keys (especially Enter/Escape) have program-level
+      // owners and are not safe to replay. Printable text and Backspace are
+      // editing input, though, so they use the same no-loss handshake as the
+      // primary input while blessed's read listener is still half-open.
+      const editingKey =
+        screen.focused === overlayEntry && key.name === "backspace";
+      if (!printable && !editingKey) return;
+      pending.push({ entry: overlayEntry, ch, key });
+      activateTextEntry(overlayEntry as never);
+      schedulePump();
+      return;
+    }
+
     const editingKey =
       screen.focused === inputBox &&
       typeof key.name === "string" &&
       EDITING_KEYS.has(key.name);
     if (!printable && !editingKey) return;
 
-    pending.push({ ch, key });
+    pending.push({ entry: inputBox, ch, key });
     activateTextEntry(inputBox as never);
     schedulePump();
   };
