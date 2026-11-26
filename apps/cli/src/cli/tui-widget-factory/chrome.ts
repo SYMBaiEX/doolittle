@@ -43,7 +43,10 @@ function createInputBox({
     inputOnFocus: false,
     border: "line",
     mouse: false,
-    keys: true,
+    // Do not enable blessed's built-in textarea key commands here: its Ctrl-E
+    // hook shells out to $EDITOR before cockpit key bindings run. Text entry is
+    // already explicit through readInput(), and the cockpit owns Ctrl-E.
+    keys: false,
     tags: false,
     style: {
       fg: theme.baseFg,
