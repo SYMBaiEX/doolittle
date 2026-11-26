@@ -11,6 +11,6 @@ export default defineConfig({
     // tests were timing-fragile under contention; rounds 16-18 hardened those
     // (condition-based waits, behavioral focus probes, type-ahead ordering).
     // Override with INTEGRATION_MAX_WORKERS for local tuning.
-    maxWorkers: Number(process.env.INTEGRATION_MAX_WORKERS ?? 4),
+    maxWorkers: Number(process.env.INTEGRATION_MAX_WORKERS ?? 2),
   },
 });
