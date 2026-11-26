@@ -1,5 +1,5 @@
 export const COMMAND_PALETTE_LOADING_BACKDROP_CLASS =
-  "command-palette-loading-backdrop fixed inset-0 z-160 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_80%,transparent)] p-4";
+  "command-palette-loading-backdrop fixed inset-0 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_80%,transparent)] p-4";
 
 export const COMMAND_PALETTE_LOADING_DISMISS_CLASS =
   "command-palette-loading-dismiss absolute inset-0 cursor-default border-0 bg-transparent";

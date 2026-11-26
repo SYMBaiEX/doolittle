@@ -182,7 +182,6 @@
 }
 
 .chat-history-tooltip {
-  z-index: 55;
   display: grid;
   width: max-content;
   max-width: min(240px, calc(100vw - 24px));

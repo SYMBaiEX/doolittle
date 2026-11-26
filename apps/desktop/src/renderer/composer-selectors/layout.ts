@@ -7,12 +7,12 @@ export const COMPOSER_PROJECT_GLYPH_CLASS =
   "grid size-5 shrink-0 place-items-center rounded-md bg-[color-mix(in_srgb,var(--composer-project-color,var(--accent))_10%,var(--surface-soft))] font-mono text-[length:var(--text-control)] font-bold text-[var(--composer-project-color,var(--accent))]";
 
 export const COMPOSER_POPOVER_CLASS =
-  "composer-selector-popover z-70 flex w-[min(420px,calc(100vw-24px))] max-h-[min(620px,var(--radix-popover-content-available-height))] flex-col overflow-hidden rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] !p-0 text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)] [&>header]:shrink-0 [&>label]:shrink-0 [&>p]:shrink-0 [&>footer]:shrink-0 [&>div:not(.composer-model-groups)]:shrink-0 [&_.composer-model-groups]:min-h-0 motion-reduce:animate-none";
+  "composer-selector-popover dl-popover-content flex w-[min(420px,calc(100vw-24px))] max-h-[min(620px,var(--radix-popover-content-available-height))] flex-col overflow-hidden rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] !p-0 text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)] [&>header]:shrink-0 [&>label]:shrink-0 [&>p]:shrink-0 [&>footer]:shrink-0 [&>div:not(.composer-model-groups)]:shrink-0 [&_.composer-model-groups]:min-h-0 motion-reduce:animate-none";
 
 // SDK portal placement avoids pane/dock clipping and uses the actual free side.
 // Keep the workspace heading and project-management action outside the scrolling choices.
 export const COMPOSER_PROJECT_POPOVER_CLASS =
-  "composer-project-popover z-70 grid w-[min(340px,calc(100vw-24px))] max-h-[min(460px,var(--radix-popover-content-available-height))] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] !p-0 text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)] motion-reduce:animate-none";
+  "composer-project-popover dl-popover-content grid w-[min(340px,calc(100vw-24px))] max-h-[min(460px,var(--radix-popover-content-available-height))] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] !p-0 text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)] motion-reduce:animate-none";
 
 export const COMPOSER_POPOVER_HEADER_CLASS =
   "flex items-start px-3.5 pt-3.25 pb-1.5 [&>span]:grid [&>span]:gap-0.5 [&_small]:text-[length:var(--text-control)] [&_small]:text-[var(--faint)] [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text)]";

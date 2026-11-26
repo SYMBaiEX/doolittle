@@ -75,7 +75,7 @@ export function ToastViewport({
 
   return (
     <section
-      className={`pointer-events-none fixed top-14.5 right-4.5 z-1400 w-[min(360px,calc(100vw-36px))] ${isReducedMotion ? "motion-reduce:transition-none" : ""} ${className}`.trim()}
+      className={`toast-viewport pointer-events-none fixed top-14.5 right-4.5 w-[min(360px,calc(100vw-36px))] ${isReducedMotion ? "motion-reduce:transition-none" : ""} ${className}`.trim()}
     >
       <ul className="m-0 grid list-none gap-2 p-0">
         {toasts.map((toast) => {

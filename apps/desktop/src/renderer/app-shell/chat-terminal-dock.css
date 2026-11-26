@@ -14,10 +14,6 @@
   border-color: transparent;
 }
 
-.chat-terminal-dock[data-expanded="true"] {
-  z-index: 110;
-}
-
 .chat-terminal-workbench,
 .chat-terminal-shell {
   display: flex;

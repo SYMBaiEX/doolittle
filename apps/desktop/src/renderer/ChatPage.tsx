@@ -1994,7 +1994,7 @@ export function ChatSessionPanel({
           aria-hidden={!inspectorVisible || undefined}
           inert={!inspectorVisible}
           data-state={inspectorPresence.state}
-          className="chat-workbench-pane max-[720px]:fixed max-[720px]:inset-0 max-[720px]:z-120 max-[720px]:w-full"
+          className="chat-workbench-pane max-[720px]:fixed max-[720px]:inset-0 max-[720px]:w-full"
           id={`thread-workbench-${selectedId}`}
           ref={workbenchDialogRef}
         >

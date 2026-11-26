@@ -48,7 +48,7 @@ export function DesktopUtilityLayer({
       {mobileModal ? (
         <button
           aria-label="Close Activity"
-          className="fixed inset-0 z-119 block h-svh w-screen border-0 bg-[color-mix(in_srgb,var(--shadow)_24%,transparent)] p-0"
+          className="utility-drawer-backdrop fixed inset-0 block h-svh w-screen border-0 bg-[color-mix(in_srgb,var(--shadow)_24%,transparent)] p-0"
           data-utility-backdrop=""
           onClick={onClose}
           tabIndex={-1}
@@ -58,7 +58,7 @@ export function DesktopUtilityLayer({
       <div
         className={
           mobileModal
-            ? "fixed inset-y-0 right-0 z-120 min-h-0 w-[min(var(--utility-drawer-width),calc(100vw-24px))] min-w-0 overflow-hidden"
+            ? "utility-drawer-layer--modal fixed inset-y-0 right-0 min-h-0 w-[min(var(--utility-drawer-width),calc(100vw-24px))] min-w-0 overflow-hidden"
             : "relative z-15 min-h-0 min-w-0 overflow-hidden border-[var(--line-subtle)] border-l bg-[var(--surface)]"
         }
         data-utility-layer=""

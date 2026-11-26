@@ -1,0 +1,100 @@
+/*
+ * Floating-layer contract for document-rooted desktop overlays.
+ *
+ * Surveyed owners and ordering (lowest to highest):
+ * - 95: workspace management dialogs (project manager)
+ * - 110: full-window workspace surfaces (expanded terminal)
+ * - 119/120: modal utility-drawer scrim/surface and standard dialogs
+ * - 150: nested destructive confirmations
+ * - 160/170: blocking loading scrims and SDK dialog overlay/content
+ * - 1000: route-control dialogs
+ * - 1400: toast/status viewport
+ * - 1700: command palette
+ * - 1800+: portaled floating controls
+ *
+ * Values are intentionally sparse so a future layer can be inserted without
+ * renumbering. Portaled controls sit above every app-owned modal surface
+ * because they can be opened from those surfaces. Menus outrank popovers
+ * (a context menu may belong to popover content), and selects outrank both
+ * (a select may be nested inside either). Tooltips are highest because they
+ * explain controls in every other floating layer. Shell chrome and pane-internal
+ * stacking stay at or below 80; those values are local implementation details
+ * and must not be reused for modal or floating overlays.
+ */
+:root {
+  --dl-z-layer-workspace-dialog: 95;
+  --dl-z-layer-workspace-fullscreen: 110;
+  --dl-z-layer-modal-scrim: 119;
+  --dl-z-layer-modal: 120;
+  --dl-z-layer-nested-modal: 150;
+  --dl-z-layer-blocking-scrim: 160;
+  --dl-z-layer-blocking-dialog: 170;
+  --dl-z-layer-route-dialog: 1000;
+  --dl-z-layer-toast: 1400;
+  --dl-z-layer-command-palette: 1700;
+  --dl-z-layer-popover: 1800;
+  --dl-z-layer-action-menu: 1810;
+  --dl-z-layer-select: 1820;
+  --dl-z-layer-tooltip: 1830;
+}
+
+.project-manager-backdrop {
+  z-index: var(--dl-z-layer-workspace-dialog);
+}
+
+.chat-terminal-dock[data-expanded="true"] {
+  z-index: var(--dl-z-layer-workspace-fullscreen);
+}
+
+.utility-drawer-backdrop {
+  z-index: var(--dl-z-layer-modal-scrim);
+}
+
+.utility-drawer-layer--modal,
+.dl-dialog-backdrop,
+.bot-creation-dialog-backdrop,
+.new-chat-backdrop {
+  z-index: var(--dl-z-layer-modal);
+}
+
+@media (max-width: 720px) {
+  .chat-workbench-pane {
+    z-index: var(--dl-z-layer-modal);
+  }
+}
+
+.review-delete-backdrop {
+  z-index: var(--dl-z-layer-nested-modal);
+}
+
+.command-palette-loading-backdrop {
+  z-index: var(--dl-z-layer-blocking-scrim);
+}
+
+.dialog-backdrop {
+  z-index: var(--dl-z-layer-route-dialog);
+}
+
+.toast-viewport {
+  z-index: var(--dl-z-layer-toast);
+}
+
+.command-palette {
+  z-index: var(--dl-z-layer-command-palette);
+}
+
+.dl-popover-content {
+  z-index: var(--dl-z-layer-popover);
+}
+
+.dl-action-menu {
+  z-index: var(--dl-z-layer-action-menu);
+}
+
+.dl-select-content {
+  z-index: var(--dl-z-layer-select);
+}
+
+.dl-tooltip-content {
+  z-index: var(--dl-z-layer-tooltip);
+}
