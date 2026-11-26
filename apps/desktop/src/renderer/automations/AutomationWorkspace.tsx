@@ -1,10 +1,17 @@
 import { ContextActionMenu } from "@doolittle/ui";
-import { CalendarClock } from "lucide-react";
-import { type ReactNode, type RefObject, useRef, useState } from "react";
+import { ArrowLeft, CalendarClock } from "lucide-react";
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type AutomationStarterChoice,
   summarizeAutomation,
 } from "../automation-model";
+import "./automation-workspace.css";
 import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
 import {
@@ -37,6 +44,34 @@ import {
 import { AutomationRunHistory } from "./AutomationRunHistory";
 
 export type AutomationAction = "pause" | "resume" | "trigger" | "delete";
+
+/** Width below which the split can no longer keep list rows and the detail
+   pane readable side by side; matches the work-surface narrow breakpoint. */
+const AUTOMATION_NARROW_SPLIT_PX = 680;
+
+/** Tracks whether the split container is narrow enough to need single-pane
+   navigation. A zero measurement means the element is not laid out yet (or
+   the host has no layout engine), which is treated as wide so both panes
+   render until a real measurement arrives. */
+function useNarrowAutomationSplit(
+  ref: RefObject<HTMLDivElement | null>,
+): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => {
+      const width = element.clientWidth;
+      if (width > 0) setNarrow(width < AUTOMATION_NARROW_SPLIT_PX);
+    };
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return narrow;
+}
 
 export function AutomationDeleteConfirmation({
   automationName,
@@ -368,121 +403,177 @@ export function AutomationWorkspace({
   botNames?: Readonly<Record<string, string>>;
 }) {
   const [selection, setSelection] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const focusTarget = useRef<"back" | "row" | null>(null);
+  const narrow = useNarrowAutomationSplit(splitRef);
   const selectedJob =
     jobs.find((entry) => asString(entry.id) === selection) ?? jobs[0];
   const selectedJobId = selectedJob ? asString(selectedJob.id) : "";
+  // Narrow containers cannot fit both panes: the list and the detail trade
+  // the whole width, and opening the builder is itself a detail navigation.
+  const singlePane = narrow;
+  const showDetail = !singlePane || detailOpen || builderOpen;
+  const showList = !singlePane || !showDetail;
+  // Single-pane navigation unmounts the pane focus was on; move focus with
+  // the transition instead of dropping it to the document body.
+  useEffect(() => {
+    if (!singlePane || !focusTarget.current) return;
+    const target = focusTarget.current;
+    focusTarget.current = null;
+    if (target === "back") {
+      backButtonRef.current?.focus();
+    } else {
+      splitRef.current
+        ?.querySelector<HTMLButtonElement>('.ws-row[aria-current="true"]')
+        ?.focus();
+    }
+  });
 
   return (
-    <WorkSplit>
-      <WorkRail
-        controls={
-          <button
-            aria-controls="automation-builder"
-            aria-expanded={builderOpen}
-            className="secondary-button"
-            disabled={Boolean(busy)}
-            onClick={onToggleBuilder}
-            type="button"
-          >
-            {builderOpen ? "Close builder" : "New automation"}
-          </button>
-        }
-        heading="Automations"
-        meta={jobs.length ? `${jobs.length}` : undefined}
-      >
-        {jobsLoading ? (
-          <LoadingBlock label="Loading automations…" />
-        ) : jobsError ? (
-          <ErrorBlock error={jobsError} retry={onReloadJobs} />
-        ) : jobs.length ? (
-          <WorkList>
-            {jobs.map((entry, index) => {
-              const id = asString(entry.id, String(index));
-              const status = asString(entry.status, "active");
-              const summary = summarizeAutomation(entry);
-              const name = asString(entry.name, `Automation ${index + 1}`);
-              return (
-                <WorkRow
-                  key={id}
-                  label={name}
-                  meta={[
-                    summary.triggerLabel,
-                    `Runs as ${automationTargetLabel(entry, botNames)}`,
-                  ]}
-                  onSelect={() => setSelection(id)}
-                  selected={id === selectedJobId}
-                  status={titleCase(status)}
-                  time={automationTimingLabel(entry, status)}
-                  title={name}
-                  tone={statusTier(status)}
-                />
-              );
-            })}
-          </WorkList>
-        ) : (
-          <WorkbenchEmpty icon={CalendarClock} title="No automations">
-            Schedules and webhook runs appear here.
-          </WorkbenchEmpty>
-        )}
-      </WorkRail>
-
-      <div className="automation-detail-column min-h-0 min-w-0 overflow-auto">
-        {builder ? (
-          <div className="mx-[var(--document-inset,12px)] mt-3.5">
-            {builder}
-          </div>
-        ) : null}
-        <WorkDetail>
-          {selectedJob ? (
-            <AutomationDetail
-              botNames={botNames}
-              builderOpen={builderOpen}
-              busy={busy}
-              entry={selectedJob}
-              key={selectedJobId}
-              onAction={onAction}
-              onEdit={onEdit}
-              onFeedback={onFeedback}
-            />
-          ) : jobsLoading || jobsError || builderOpen ? null : (
-            <WorkbenchEmpty
-              actions={
-                <>
-                  <button
-                    className="secondary-button"
-                    onClick={() => onCreate("weekday-brief")}
-                    type="button"
-                  >
-                    Weekday brief
-                  </button>
-                  <button
-                    className="secondary-button"
-                    onClick={() => onCreate("webhook-triage")}
-                    type="button"
-                  >
-                    Webhook triage
-                  </button>
-                </>
-              }
-              icon={CalendarClock}
-              title="No automations yet"
+    <WorkSplit
+      className={singlePane ? "automation-split--single" : ""}
+      ref={splitRef}
+    >
+      {showList ? (
+        <WorkRail
+          controls={
+            <button
+              aria-controls="automation-builder"
+              aria-expanded={builderOpen}
+              className="secondary-button"
+              disabled={Boolean(busy)}
+              onClick={onToggleBuilder}
+              type="button"
             >
-              Starter automations prefill a name, trigger, and prompt.
+              {builderOpen ? "Close builder" : "New automation"}
+            </button>
+          }
+          heading="Automations"
+          meta={jobs.length ? `${jobs.length}` : undefined}
+        >
+          {jobsLoading ? (
+            <LoadingBlock label="Loading automations…" />
+          ) : jobsError ? (
+            <ErrorBlock error={jobsError} retry={onReloadJobs} />
+          ) : jobs.length ? (
+            <WorkList>
+              {jobs.map((entry, index) => {
+                const id = asString(entry.id, String(index));
+                const status = asString(entry.status, "active");
+                const summary = summarizeAutomation(entry);
+                const name = asString(entry.name, `Automation ${index + 1}`);
+                return (
+                  <WorkRow
+                    key={id}
+                    label={name}
+                    meta={[
+                      summary.triggerLabel,
+                      `Runs as ${automationTargetLabel(entry, botNames)}`,
+                    ]}
+                    onSelect={() => {
+                      setSelection(id);
+                      if (singlePane) {
+                        focusTarget.current = "back";
+                        setDetailOpen(true);
+                      }
+                    }}
+                    selected={id === selectedJobId}
+                    status={titleCase(status)}
+                    time={automationTimingLabel(entry, status)}
+                    title={name}
+                    tone={statusTier(status)}
+                  />
+                );
+              })}
+            </WorkList>
+          ) : (
+            <WorkbenchEmpty icon={CalendarClock} title="No automations">
+              Schedules and webhook runs appear here.
             </WorkbenchEmpty>
           )}
-        </WorkDetail>
-        <AutomationRunHistory
-          onOpenChange={onRunsOpenChange}
-          onReload={onReloadRuns}
-          onSelectRun={onSelectRun}
-          open={runsOpen}
-          quiet={jobs.length === 0}
-          runs={runs}
-          runsError={runsError}
-          runsLoading={runsLoading}
-          selectedRun={selectedRun}
-        />
-      </div>
+        </WorkRail>
+      ) : null}
+
+      {showDetail ? (
+        <div className="automation-detail-column min-h-0 min-w-0 overflow-auto">
+          {singlePane ? (
+            <div className="automation-detail-back">
+              <button
+                className="text-button"
+                onClick={() => {
+                  // The rail's Close builder control is hidden in single-pane
+                  // mode, so the back control doubles as the builder's exit.
+                  if (builderOpen) onToggleBuilder();
+                  focusTarget.current = "row";
+                  setDetailOpen(false);
+                }}
+                ref={backButtonRef}
+                type="button"
+              >
+                <ArrowLeft aria-hidden size={14} />
+                Automations
+              </button>
+            </div>
+          ) : null}
+          {builder ? (
+            <div className="mx-[var(--document-inset,12px)] mt-3.5">
+              {builder}
+            </div>
+          ) : null}
+          <WorkDetail>
+            {selectedJob ? (
+              <AutomationDetail
+                botNames={botNames}
+                builderOpen={builderOpen}
+                busy={busy}
+                entry={selectedJob}
+                key={selectedJobId}
+                onAction={onAction}
+                onEdit={onEdit}
+                onFeedback={onFeedback}
+              />
+            ) : jobsLoading || jobsError || builderOpen ? null : (
+              <WorkbenchEmpty
+                actions={
+                  <>
+                    <button
+                      className="secondary-button"
+                      onClick={() => onCreate("weekday-brief")}
+                      type="button"
+                    >
+                      Weekday brief
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={() => onCreate("webhook-triage")}
+                      type="button"
+                    >
+                      Webhook triage
+                    </button>
+                  </>
+                }
+                icon={CalendarClock}
+                title="No automations yet"
+              >
+                Starter automations prefill a name, trigger, and prompt.
+              </WorkbenchEmpty>
+            )}
+          </WorkDetail>
+          <AutomationRunHistory
+            onOpenChange={onRunsOpenChange}
+            onReload={onReloadRuns}
+            onSelectRun={onSelectRun}
+            open={runsOpen}
+            quiet={jobs.length === 0}
+            runs={runs}
+            runsError={runsError}
+            runsLoading={runsLoading}
+            selectedRun={selectedRun}
+          />
+        </div>
+      ) : null}
     </WorkSplit>
   );
 }
