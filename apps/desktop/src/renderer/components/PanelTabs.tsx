@@ -3,6 +3,63 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { UiIcon } from "./UiIcon";
 
+const SCROLL_EDGE_TOLERANCE = 1;
+
+function tabStart(list: HTMLElement, tab: Element): number {
+  if (!(tab instanceof HTMLElement)) return 0;
+  return Math.max(0, tab.offsetLeft - list.offsetLeft);
+}
+
+function scrollPositions(list: HTMLElement): number[] {
+  const max = Math.max(0, list.scrollWidth - list.clientWidth);
+  const positions = new Set<number>([0, max]);
+  for (const tab of list.children) {
+    positions.add(Math.min(max, tabStart(list, tab)));
+  }
+  return [...positions].sort((left, right) => left - right);
+}
+
+function snappedScrollLeft(list: HTMLElement, direction: number): number {
+  const current = list.scrollLeft;
+  const positions = scrollPositions(list);
+  const desired = current + direction * list.clientWidth * 0.75;
+  if (direction > 0) {
+    const forward = positions.filter(
+      (position) => position > current + SCROLL_EDGE_TOLERANCE,
+    );
+    const withinPage = forward.filter(
+      (position) => position <= desired + SCROLL_EDGE_TOLERANCE,
+    );
+    return withinPage.at(-1) ?? forward[0] ?? current;
+  }
+  const backward = positions.filter(
+    (position) => position < current - SCROLL_EDGE_TOLERANCE,
+  );
+  const withinPage = backward.filter(
+    (position) => position >= desired - SCROLL_EDGE_TOLERANCE,
+  );
+  return withinPage[0] ?? backward.at(-1) ?? current;
+}
+
+function tabIsVisible(list: HTMLElement, tab: HTMLElement): boolean {
+  const start = tabStart(list, tab);
+  const end = start + tab.offsetWidth;
+  const visibleStart = list.scrollLeft;
+  const visibleEnd = visibleStart + list.clientWidth;
+  return (
+    start >= visibleStart - SCROLL_EDGE_TOLERANCE &&
+    end <= visibleEnd + SCROLL_EDGE_TOLERANCE
+  );
+}
+
+function revealTab(list: HTMLElement, tab: HTMLElement) {
+  if (tabIsVisible(list, tab)) return;
+  const max = Math.max(0, list.scrollWidth - list.clientWidth);
+  const left = Math.min(max, tabStart(list, tab));
+  if (Math.abs(left - list.scrollLeft) <= SCROLL_EDGE_TOLERANCE) return;
+  list.scrollTo({ left });
+}
+
 export function PanelTabs<T extends string>({
   id,
   label,
@@ -69,8 +126,10 @@ export function PanelTabs<T extends string>({
   useLayoutEffect(() => {
     if (!overflowControls || !overflow) return;
     const tab = document.getElementById(panelTabId(id, selected));
-    if (hostRef.current?.contains(tab)) {
-      tab?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const list =
+      hostRef.current?.querySelector<HTMLElement>('[role="tablist"]');
+    if (list && tab instanceof HTMLElement && list.contains(tab)) {
+      revealTab(list, tab);
     }
   }, [id, overflowControls, selected, overflow]);
 
@@ -78,11 +137,12 @@ export function PanelTabs<T extends string>({
     if ((direction < 0 && edges.start) || (direction > 0 && edges.end)) return;
     const list =
       hostRef.current?.querySelector<HTMLElement>('[role="tablist"]');
-    list?.scrollBy({ left: direction * list.clientWidth * 0.75 });
+    if (!list) return;
+    list.scrollTo({ left: snappedScrollLeft(list, direction) });
   };
   const tabs = (
     <PanelTabList
-      className={`flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto overscroll-x-contain p-1 ${overflowControls ? "flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "[scrollbar-width:thin]"} ${pane ? "coding-tabs border-[var(--border)] border-b" : ""}`}
+      className={`flex min-w-0 shrink-0 snap-x snap-proximity items-center gap-1 overflow-x-auto overscroll-x-contain p-1 ${overflowControls ? "flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "[scrollbar-width:thin]"} ${pane ? "coding-tabs border-[var(--border)] border-b" : ""}`}
       items={items.map((item) => ({
         ...item,
         buttonId: panelTabId(id, item.id),
@@ -91,7 +151,7 @@ export function PanelTabs<T extends string>({
       label={label}
       onSelect={onSelect}
       selected={selected}
-      tabClassName={`shrink-0 gap-1.75 rounded-[var(--radius-sm)] border border-transparent px-2.5 text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-selected:border-[var(--border)] aria-selected:font-semibold data-[state=active]:bg-[var(--surface-raised)] data-[state=active]:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] forced-colors:aria-selected:border-[Highlight] ${pane ? "min-h-8 text-[length:var(--text-control)] max-[760px]:min-h-10" : "min-h-9 text-sm"}`}
+      tabClassName={`shrink-0 snap-start gap-1.75 rounded-[var(--radius-sm)] border border-transparent px-2.5 text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-selected:border-[var(--border)] aria-selected:font-semibold data-[state=active]:bg-[var(--surface-raised)] data-[state=active]:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] forced-colors:aria-selected:border-[Highlight] ${pane ? "min-h-8 text-[length:var(--text-control)] max-[760px]:min-h-10" : "min-h-9 text-sm"}`}
     />
   );
   if (!overflowControls) return tabs;
@@ -109,8 +169,13 @@ export function PanelTabs<T extends string>({
           target
             .querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
             ?.focus();
-        } else if (target.getAttribute("role") === "tab") {
-          target.scrollIntoView({ block: "nearest", inline: "nearest" });
+        } else if (
+          target.getAttribute("role") === "tab" &&
+          target instanceof HTMLElement
+        ) {
+          const list =
+            hostRef.current?.querySelector<HTMLElement>('[role="tablist"]');
+          if (list?.contains(target)) revealTab(list, target);
         }
       }}
       ref={hostRef}

@@ -109,7 +109,7 @@ it("moves workspace tab focus without replacing the selected panel", async () =>
   }
 });
 
-it("exposes overflow controls only when needed and preserves manual tab selection", async () => {
+it("exposes overflow controls only when needed and snaps to tab boundaries", async () => {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -125,9 +125,6 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
       disconnect = disconnect;
     },
   );
-  const reveal = vi.fn();
-  const originalReveal = HTMLElement.prototype.scrollIntoView;
-  HTMLElement.prototype.scrollIntoView = reveal;
   const onSelect = vi.fn();
 
   try {
@@ -142,12 +139,23 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
       clientWidth: { get: () => width - 64 },
       scrollWidth: { get: () => 500 },
     });
-    list.scrollBy = vi.fn((options?: ScrollToOptions | number) => {
+    const geometry = [
+      { left: 0, width: 90 },
+      { left: 100, width: 100 },
+      { left: 210, width: 100 },
+      { left: 320, width: 140 },
+    ];
+    [...list.children].forEach((tab, index) => {
+      const box = geometry[index];
+      if (!box) return;
+      Object.defineProperties(tab, {
+        offsetLeft: { configurable: true, get: () => box.left },
+        offsetWidth: { configurable: true, get: () => box.width },
+      });
+    });
+    list.scrollTo = vi.fn((options?: ScrollToOptions | number) => {
       const left = typeof options === "number" ? options : (options?.left ?? 0);
-      list.scrollLeft = Math.max(
-        0,
-        Math.min(500 - list.clientWidth, list.scrollLeft + left),
-      );
+      list.scrollLeft = Math.max(0, Math.min(500 - list.clientWidth, left));
       list.dispatchEvent(new Event("scroll"));
     });
     const arrow = (direction: string) =>
@@ -162,26 +170,28 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
 
     act(() => arrow("right")?.focus());
     act(() => arrow("right")?.click());
+    expect(list.scrollLeft).toBe(100);
+    expect(arrow("right")?.getAttribute("aria-disabled")).toBe("false");
     act(() => arrow("right")?.click());
     expect(list.scrollLeft).toBe(264);
     expect(arrow("right")?.getAttribute("aria-disabled")).toBe("true");
     expect(arrow("left")?.getAttribute("aria-disabled")).toBe("false");
     expect(document.activeElement).toBe(arrow("right"));
-    vi.mocked(list.scrollBy).mockClear();
+    vi.mocked(list.scrollTo).mockClear();
     act(() => arrow("right")?.click());
-    expect(list.scrollBy).not.toHaveBeenCalled();
+    expect(list.scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(arrow("right"));
     expect(onSelect).not.toHaveBeenCalled();
     act(() => arrow("left")?.focus());
     act(() => arrow("left")?.click());
-    expect(list.scrollLeft).toBeLessThan(264);
+    expect(list.scrollLeft).toBe(100);
     act(() => arrow("left")?.click());
     expect(list.scrollLeft).toBe(0);
     expect(arrow("left")?.getAttribute("aria-disabled")).toBe("true");
     expect(document.activeElement).toBe(arrow("left"));
-    vi.mocked(list.scrollBy).mockClear();
+    vi.mocked(list.scrollTo).mockClear();
     act(() => arrow("left")?.click());
-    expect(list.scrollBy).not.toHaveBeenCalled();
+    expect(list.scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(arrow("left"));
 
     const queue = host.querySelector<HTMLButtonElement>(
@@ -209,11 +219,11 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
     expect(document.activeElement).toBe(inbox);
     expect(queue?.getAttribute("aria-selected")).toBe("true");
     expect(onSelect).not.toHaveBeenCalled();
-    reveal.mockClear();
+    vi.mocked(list.scrollTo).mockClear();
     act(() => inbox?.click());
     expect(onSelect).toHaveBeenCalledExactlyOnceWith("inbox");
-    expect(reveal.mock.instances).toContain(inbox);
     expect(inbox?.getAttribute("aria-selected")).toBe("true");
+    expect(list.scrollLeft).toBe(264);
 
     // Enough space for all labels removes the arrows, including their width.
     act(() => arrow("left")?.focus());
@@ -225,7 +235,6 @@ it("exposes overflow controls only when needed and preserves manual tab selectio
   } finally {
     act(() => root.unmount());
     host.remove();
-    HTMLElement.prototype.scrollIntoView = originalReveal;
     vi.unstubAllGlobals();
   }
   expect(disconnect).toHaveBeenCalledOnce();
