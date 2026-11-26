@@ -75,6 +75,12 @@
 .review-rail .review-list {
   display: grid;
   align-content: start;
+  /* Rows must size to their content instead of stretching to the grid row:
+     the stretch circularity sized every row to its min-height, and the
+     three-line copy overflowed so the timestamp straddled the row's bottom
+     edge. Start alignment lets each row grow to contain its title, summary,
+     and timestamp with its bottom padding intact. */
+  align-items: start;
   gap: 3px;
   padding: 4px 8px 10px;
 }
