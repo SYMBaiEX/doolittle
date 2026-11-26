@@ -15,6 +15,7 @@ export const WIZARD_SECTION_ORDER = [
   "Channels",
   "Hands",
   "First Pulse",
+  "Review",
 ] as const;
 
 export const WIZARD_MIN_COLS = 88;
