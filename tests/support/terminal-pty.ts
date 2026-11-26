@@ -126,6 +126,8 @@ export interface TerminalSession {
   waitForRaw(text: string, timeoutMs?: number): Promise<void>;
   /** Wait until the rendered grid (ANSI-decoded viewport) contains `text`. */
   waitForGridText(text: string, timeoutMs?: number): Promise<void>;
+  /** Wait until the rendered grid no longer contains `text`. */
+  waitForGridTextAbsent(text: string, timeoutMs?: number): Promise<void>;
   /**
    * Rendered viewport rows, top to bottom, right-trimmed. Awaits the xterm
    * write queue first, so the grid reflects every chunk received so far.
@@ -301,6 +303,27 @@ export function spawnTerminalSession(
     }
   };
 
+  const waitForGridTextAbsent = async (
+    text: string,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  ): Promise<void> => {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      await flushGrid();
+      if (!viewportLines().some((line) => line.includes(text))) return;
+      if (Date.now() >= deadline) {
+        const grid = viewportLines()
+          .map((line, index) => `${String(index).padStart(2)}|${line}`)
+          .join("\n");
+        throw new Error(
+          `Terminal still showed ${JSON.stringify(text)} in rendered grid after ${timeoutMs}ms.\n` +
+            `--- rendered grid ---\n${grid}\n--- raw tail ---\n${output.slice(-4_000)}`,
+        );
+      }
+      await new Promise((done) => setTimeout(done, GRID_POLL_MS));
+    }
+  };
+
   const session: TerminalSession = {
     get rawOutput() {
       return output;
@@ -311,6 +334,7 @@ export function spawnTerminalSession(
     closed,
     waitForRaw,
     waitForGridText,
+    waitForGridTextAbsent,
     async gridLines() {
       await flushGrid();
       return viewportLines();
