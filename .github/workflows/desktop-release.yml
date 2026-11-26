@@ -53,22 +53,12 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-  windows:
-    needs: preflight
-    uses: ./.github/workflows/desktop-windows.yml
-    with:
-      release_tag: ${{ github.ref_name }}
-      windows_publisher_name: ${{ vars.WIN_PUBLISHER_NAME }}
-    secrets:
-      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-
   linux:
     needs: preflight
     uses: ./.github/workflows/desktop-linux.yml
 
   assemble:
-    needs: [macos, windows, linux]
+    needs: [macos, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -105,7 +95,8 @@ jobs:
             --directory release \
             --version "$version" \
             --tag "$GITHUB_REF_NAME" \
-            --commit "$GITHUB_SHA"
+            --commit "$GITHUB_SHA" \
+            --platforms linux,macos
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Attest validated binary and SBOM assets
@@ -114,11 +105,9 @@ jobs:
           subject-path: |
             release/Doolittle-*-mac-arm64.dmg
             release/Doolittle-*-mac-arm64.zip
-            release/Doolittle-*-win-x64.exe
             release/Doolittle-*-linux-x64.AppImage
             release/Doolittle-*-linux-x64.deb
             release/doolittle-desktop-macos.spdx.json
-            release/doolittle-desktop-windows.spdx.json
             release/doolittle-desktop-linux.spdx.json
 
       - name: Upload validated release bundle
