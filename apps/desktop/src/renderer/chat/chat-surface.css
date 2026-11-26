@@ -293,6 +293,33 @@
   opacity: 0.5;
 }
 
+/* In compact sessions the flex layout either squeezes the copy into a narrow
+   column beside the action or wraps the action onto its own row, so a single
+   confirmation banner can cost four lines and most of a short viewport. Flow
+   the icon, copy, and action as one inline stream instead: the copy uses the
+   full width and the action follows it inline, halving the banner height. */
+@container session (max-width: 450px) {
+  .chat-notice {
+    display: block;
+    padding: 5px 8px;
+  }
+
+  .chat-notice > svg {
+    display: inline-block;
+    margin-inline-end: 5px;
+    vertical-align: -0.15em;
+  }
+
+  .chat-notice > span {
+    display: inline;
+    min-width: 0;
+  }
+
+  .chat-notice button {
+    margin-inline-start: 6px;
+  }
+}
+
 .chat-read-only {
   grid-row: 2;
   display: flex;
