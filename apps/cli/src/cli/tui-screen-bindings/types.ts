@@ -8,6 +8,7 @@ export interface FocusableTarget {
 
 export interface ScreenBindingTarget {
   focused?: unknown;
+  ignoreLocked?: unknown;
   key(keys: string[], handler: () => void): void;
   render(): void;
 }
