@@ -1,0 +1,22 @@
+/*
+ * Narrow conversation-history navigation. Below 760px the workspace cannot
+ * fit the list beside a readable transcript, so it becomes a single pane:
+ * the list shows first, picking a conversation opens the transcript, and a
+ * Back control returns to the list. The data attribute is always set so
+ * wider layouts keep both panes visible regardless of the toggle state.
+ */
+@media (max-width: 760px) {
+  .sessions-workspace[data-sessions-detail="open"] .list-panel {
+    display: none;
+  }
+
+  .sessions-workspace[data-sessions-detail="closed"] .sessions-detail-pane {
+    display: none;
+  }
+}
+
+@media (min-width: 761px) {
+  .sessions-back-control {
+    display: none;
+  }
+}

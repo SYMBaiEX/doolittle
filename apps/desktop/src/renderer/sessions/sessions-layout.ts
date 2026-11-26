@@ -2,13 +2,15 @@ export const SESSIONS_PAGE_CLASS =
   "page flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden";
 
 export const SESSIONS_WORKSPACE_CLASS =
-  "grid min-h-0 flex-1 grid-cols-[clamp(250px,24vw,320px)_minmax(0,1fr)] overflow-hidden max-[760px]:grid-cols-1";
+  "sessions-workspace grid min-h-0 flex-1 grid-cols-[clamp(250px,24vw,320px)_minmax(0,1fr)] overflow-hidden max-[760px]:grid-cols-1";
 
 export const SESSIONS_EMPTY_WORKSPACE_CLASS =
   "grid min-h-0 flex-none grid-cols-1 overflow-hidden";
 
+// In the narrow single-pane layout the list owns the whole workspace, so it
+// keeps its full height instead of the stacked layout's 42vh cap.
 export const SESSION_LIST_PANEL_CLASS =
-  "@container/sessions flex min-h-0 flex-col gap-2 overflow-hidden border-r border-[var(--border)] p-2.5 max-[760px]:max-h-[42vh] max-[760px]:border-r-0 max-[760px]:border-b";
+  "@container/sessions flex min-h-0 flex-col gap-2 overflow-hidden border-r border-[var(--border)] p-2.5 max-[760px]:border-r-0 max-[760px]:border-b";
 
 export const SESSION_LIST_HEADER_CLASS =
   "flex min-h-6 items-center justify-between gap-2 px-0.25 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text-strong)] [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
@@ -24,6 +26,12 @@ export const SESSION_ROW_SELECTED_CLASS =
   "font-semibold [&_strong]:font-semibold text-[var(--text)]";
 
 export const SESSION_DETAIL_CLASS = "mx-auto w-[min(100%,1080px)] pb-[18px]";
+
+// Compact list-to-transcript navigation control. Always rendered so keyboard
+// focus can move into the transcript when it opens; the stylesheet hides it
+// above the narrow breakpoint where both panes stay visible.
+export const SESSION_BACK_ROW_CLASS =
+  "sessions-back-control -mx-1 flex items-center pb-2";
 
 export const SESSION_DETAIL_TOOLBAR_CLASS =
   "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3.5 pb-[9px] max-[860px]:grid-cols-1 [&_h2]:m-0";
