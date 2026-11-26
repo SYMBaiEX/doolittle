@@ -10,6 +10,7 @@ import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
 } from "../../../runtime/workspace-scope";
+import { automationRunSessionTitle } from "../../../services/automation/session-title";
 import {
   ManagedAttachmentError,
   resolveManagedChatAttachments,
@@ -238,10 +239,19 @@ async function prepareChatRun(
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
     return json({ error: "stream must be a boolean" }, 400);
   }
-  for (const field of ["userId", "roomId", "source", "workspaceDir"] as const) {
+  for (const field of [
+    "userId",
+    "roomId",
+    "source",
+    "workspaceDir",
+    "automationName",
+  ] as const) {
     if (body[field] !== undefined && typeof body[field] !== "string") {
       return json({ error: `${field} must be a string` }, 400);
     }
+  }
+  if (body.automationName !== undefined && body.automationName.length > 300) {
+    return json({ error: "automationName is invalid" }, 400);
   }
   if (
     body.attachmentIds !== undefined &&
@@ -322,6 +332,16 @@ async function prepareChatRun(
     } else if (!assignProjectForNewSession(context, roomId, body.projectId)) {
       return json({ error: "project not found or archived" }, 404);
     }
+  }
+  if (body.automationName?.trim()) {
+    // Automation turns are non-interactive, so no first-message title is ever
+    // initialized for their conversation and session lists would fall back to
+    // the raw execution prompt. Claim the recognizable run title once; user
+    // renames and previously claimed titles are never overwritten.
+    context.services.sessions.claimSessionTitle(
+      roomId,
+      automationRunSessionTitle(body.automationName, new Date()),
+    );
   }
   return {
     body,

@@ -50,6 +50,7 @@ export class SessionService {
   declare usage: SessionServiceApi["usage"];
   declare analytics: SessionServiceApi["analytics"];
   declare rename: SessionServiceApi["rename"];
+  declare claimSessionTitle: SessionServiceApi["claimSessionTitle"];
   declare metadata: SessionServiceApi["metadata"];
   declare continuity: SessionServiceApi["continuity"];
   declare continuityKey: SessionServiceApi["continuityKey"];

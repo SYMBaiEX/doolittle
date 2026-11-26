@@ -204,6 +204,10 @@ export class SessionWriteOperations {
     return this.metadataStore.rename(sessionId, title);
   }
 
+  claimSessionTitle(sessionId: string, title: string): boolean {
+    return this.metadataStore.claimTitle(sessionId, title);
+  }
+
   private createSessionId(): string {
     for (let attempt = 0; attempt < MAX_SESSION_ID_ATTEMPTS; attempt += 1) {
       const sessionId = `fork:${randomUUID()}`;

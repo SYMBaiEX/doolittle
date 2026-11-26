@@ -362,6 +362,11 @@ export class BotAutomationBroker {
             roomId: record.sessionId,
             message: `${current.action?.type === "prompt" || current.action?.type === "run-agent" ? current.action.prompt : current.prompt}${input.payload ? `\n\nTrigger payload:\n${JSON.stringify(input.payload)}` : ""}`,
             source: "desktop-automation",
+            // Automation turns are non-interactive, so no first-message title
+            // is ever initialized for a fire's conversation. The backend
+            // claims a recognizable run title generation-time; without it
+            // session lists fall back to the raw execution prompt.
+            automationName: current.name,
             workspaceDir: approval.workspacePath,
           }),
           signal: AbortSignal.timeout(10_000),

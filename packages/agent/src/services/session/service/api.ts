@@ -98,6 +98,8 @@ export interface SessionServiceApi {
   usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary;
   analytics(limit?: number, recentLimit?: number): SessionAnalyticsSnapshot;
   rename(sessionId: string, title: string): SessionSummary;
+  /** Initialize a generated title once; never overwrites an existing title. */
+  claimSessionTitle(sessionId: string, title: string): boolean;
   metadata(sessionId: string): SessionMetadataValue | undefined;
   continuity(sessionId: string, limit?: number): SessionSummary[];
   continuityKey(sessionId: string): string;
