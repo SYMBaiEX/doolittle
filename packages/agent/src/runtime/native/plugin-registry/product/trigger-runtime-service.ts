@@ -206,15 +206,20 @@ function jobFromTask(task: Task): AutomationJobRecord | undefined {
   const job = readJob(task);
   const trigger = readTriggerConfig(task);
   if (!job || !trigger) return job;
+  // Event triggers (manual and webhook automations) carry the SDK's
+  // DISABLED_TRIGGER_INTERVAL_MS sentinel as nextRunAtMs — roughly a year out —
+  // purely to pace the scheduler's re-arm loop. It is not a scheduled run, so
+  // it must not reach the API projection as one.
+  const nextRunAt =
+    trigger.triggerType !== "event" && typeof trigger.nextRunAtMs === "number"
+      ? new Date(trigger.nextRunAtMs).toISOString()
+      : undefined;
   return {
     ...job,
     status: trigger.enabled ? "active" : "paused",
     oneShot: trigger.triggerType === "once",
     lastRunAt: trigger.lastRunAtIso,
-    nextRunAt:
-      typeof trigger.nextRunAtMs === "number"
-        ? new Date(trigger.nextRunAtMs).toISOString()
-        : undefined,
+    nextRunAt,
   };
 }
 
