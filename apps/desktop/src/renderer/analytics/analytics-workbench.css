@@ -95,12 +95,17 @@
 }
 
 .analytics-session-scroll table {
-  min-inline-size: 26rem;
+  table-layout: fixed;
 }
 
 .analytics-session-scroll :is(th, td):is(:nth-child(2), :nth-child(3)) {
   text-align: end;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.analytics-session-scroll :is(th, td):nth-child(4) {
+  white-space: nowrap;
 }
 
 @container observability (max-width: 960px) {

@@ -225,6 +225,12 @@ export function AnalyticsPage({
                 tabIndex={0}
               >
                 <table className="w-full border-collapse">
+                  <colgroup>
+                    <col />
+                    <col className="w-[4.25rem]" />
+                    <col className="w-[4.75rem]" />
+                    <col className="w-[8rem]" />
+                  </colgroup>
                   <thead>
                     <tr>
                       {[
@@ -260,7 +266,7 @@ export function AnalyticsPage({
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
                           <td
-                            className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-[length:var(--text-meta)] text-[var(--text)]"
+                            className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-[length:var(--text-meta)] text-[var(--text)]"
                             title={label}
                           >
                             {label}
@@ -276,7 +282,7 @@ export function AnalyticsPage({
                               ),
                             )}
                           </td>
-                          <td className="px-2 py-2 text-[length:var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {displayTimestamp(
                               asString(entry.endedAt) || undefined,
                             )}
