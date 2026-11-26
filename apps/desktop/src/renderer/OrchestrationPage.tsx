@@ -21,6 +21,7 @@ import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
 import { resolveTaskNavigationIntent } from "./orchestration/task-navigation";
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
 import {
+  delegationRequirementCopy,
   orchestrationScopeLabel,
   orchestrationStatusTier,
   projectScopedOrchestrationOverview,
@@ -120,6 +121,8 @@ export function OrchestrationPage({
   });
   const activeTab = requestedTab ?? localTab;
   const canDelegate = active && delegationReady;
+  const showDelegationRequirement =
+    active && activeTab === "tasks" && !canDelegate;
   const [selectedTaskId, setSelectedTaskId] = useState(
     () => focusState?.selectedTaskId ?? "",
   );
@@ -590,7 +593,7 @@ export function OrchestrationPage({
           onSelect={selectTab}
         />
         <div className={oc("orchestration-command-bar")}>
-          {activeTab === "tasks" ? (
+          {activeTab === "tasks" && !showDelegationRequirement ? (
             <button
               className={canDelegate ? "primary-button" : "secondary-button"}
               type="button"
@@ -632,19 +635,34 @@ export function OrchestrationPage({
         </Notice>
       ) : null}
 
-      {active && activeTab === "tasks" && !canDelegate ? (
-        <Notice tone="neutral">
-          <span>{delegationBlockReason}</span>
-          {onOpenLeadChat ? (
+      {showDelegationRequirement ? (
+        <div className="orchestration-required-action">
+          <Notice tone="neutral">
+            <span>
+              {delegationRequirementCopy({
+                blockReason: delegationBlockReason,
+                canOpenLeadChat: Boolean(onOpenLeadChat),
+              })}
+            </span>
             <button
-              className="primary-button"
-              onClick={onOpenLeadChat}
+              className="secondary-button"
+              disabled
+              title={delegationBlockReason}
               type="button"
             >
-              Open a Lead chat
+              New task
             </button>
-          ) : null}
-        </Notice>
+            {onOpenLeadChat ? (
+              <button
+                className="primary-button"
+                onClick={onOpenLeadChat}
+                type="button"
+              >
+                Open a Lead chat
+              </button>
+            ) : null}
+          </Notice>
+        </div>
       ) : null}
 
       {activeTab === "tasks" && showTaskCreate && canDelegate ? (

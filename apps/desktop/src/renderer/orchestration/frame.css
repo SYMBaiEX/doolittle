@@ -50,6 +50,26 @@
   overflow: hidden;
 }
 
+/* Keep the blocked-task prerequisite and its resolution in one compact action
+   area instead of spending a separate toolbar row on an unavailable button. */
+@container work (max-width: 680px) {
+  .orchestration-required-action .notice {
+    min-block-size: 0;
+    align-items: flex-start;
+    padding-block: 7px;
+  }
+
+  .orchestration-required-action .notice > span {
+    flex: 1 1 100%;
+    font-size: var(--text-control);
+    line-height: 1.4;
+  }
+
+  .orchestration-required-action .notice button {
+    flex: none;
+  }
+}
+
 /* Masthead metrics stay quiet text; tone lives in the number only. */
 .ws-masthead__meta [data-tone="warn"] strong {
   color: var(--warn);
