@@ -6,8 +6,6 @@ export interface TuiWidgetSet {
   activity: blessed.Widgets.Log;
   response: blessed.Widgets.BoxElement;
   sidebar: blessed.Widgets.BoxElement;
-  transportBox: blessed.Widgets.BoxElement;
-  executionBox: blessed.Widgets.BoxElement;
   assistBox: blessed.Widgets.BoxElement;
   paletteOverlay: blessed.Widgets.BoxElement;
   paletteInput: blessed.Widgets.TextboxElement;

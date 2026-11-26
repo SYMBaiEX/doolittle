@@ -1,10 +1,6 @@
 import type { AppLogger } from "@doolittle/agent/logging/logger";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import type blessed from "blessed";
-import {
-  renderExecutionContent,
-  renderTransportContent,
-} from "../../control-deck/index";
 import type { CliExecutionResult, CliState } from "../../execution/index";
 import type { TuiControlDeckController } from "../../tui-control-deck/types";
 import { installTuiPanels } from "../../tui-panels";
@@ -36,19 +32,15 @@ export function createTuiStartPanels({
   appendActivity,
   truncate,
 }: CreateTuiStartPanelsOptions) {
-  const { sidebar, transportBox, executionBox, assistBox, footer } = widgets;
+  const { sidebar, assistBox, footer } = widgets;
 
   return installTuiPanels({
     logger: logger.child("panels"),
     screen,
     sidebar,
-    transportBox,
-    executionBox,
     assistBox,
     footer,
     renderStatusRail: () => renderStatusContent(context, state),
-    renderTransportPanel: async () => renderTransportContent(context),
-    renderExecutionPanel: async () => renderExecutionContent(context),
     renderControlDeck: () => controlDeck.renderCurrentControlDeck(),
     renderFooterContent: () => controlDeck.renderFooterContent(),
     appendActivity: (kind, message, tone) => {

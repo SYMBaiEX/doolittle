@@ -15,8 +15,6 @@ export function applyTuiTheme(
     activity,
     response,
     sidebar,
-    transportBox,
-    executionBox,
     assistBox,
     paletteOverlay,
     paletteInput,
@@ -34,8 +32,6 @@ export function applyTuiTheme(
   activity.style = panelStyle(theme, theme.cyanGlow);
   response.style = panelStyle(theme, theme.magentaGlow);
   sidebar.style = panelStyle(theme, theme.greenGlow);
-  transportBox.style = panelStyle(theme, theme.cyanGlow);
-  executionBox.style = panelStyle(theme, theme.greenGlow);
   assistBox.style = panelStyle(theme, theme.amberGlow);
 
   paletteOverlay.style.fg = theme.baseFg;
