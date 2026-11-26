@@ -49,6 +49,15 @@ function entry(index: number): ResponseTranscriptEntry {
   };
 }
 
+function systemEntry(index: number): ResponseTranscriptEntry {
+  return {
+    label: "Helm Ready",
+    body: `welcome ${index}`,
+    at: "12:00:00",
+    kind: "system",
+  };
+}
+
 const dirs: string[] = [];
 
 function transcriptPath(): string {
@@ -137,6 +146,60 @@ it("follows the tail when scroll metrics are not measurable", () => {
     responseHistory: [entry(1)],
     liveResponse: undefined,
     transcriptExportPath: transcriptPath(),
+  });
+  expect(calls.setScrollPerc).toEqual([100]);
+});
+
+it("does not tail-pin a system-only welcome, then follows once dialogue begins", () => {
+  const { pane, calls } = fakeBlessedPane({
+    scrollHeight: 10,
+    visible: 16,
+    childBase: 0,
+  });
+  const transcriptExportPath = transcriptPath();
+  renderTranscriptPane({
+    responsePane: pane,
+    responseHistory: [systemEntry(1)],
+    liveResponse: undefined,
+    transcriptExportPath,
+  });
+  expect(calls.setScrollPerc).toEqual([]);
+
+  renderTranscriptPane({
+    responsePane: pane,
+    responseHistory: [systemEntry(1), entry(1)],
+    liveResponse: undefined,
+    transcriptExportPath,
+  });
+  expect(calls.setScrollPerc).toEqual([100]);
+});
+
+it("resets scroll pinning when the transcript is cleared", () => {
+  const { pane, calls } = fakeBlessedPane({
+    scrollHeight: 500,
+    visible: 16,
+    childBase: 483,
+  });
+  const transcriptExportPath = transcriptPath();
+  renderTranscriptPane({
+    responsePane: pane,
+    responseHistory: [entry(1)],
+    liveResponse: undefined,
+    transcriptExportPath,
+  });
+  expect(calls.setScrollPerc).toEqual([]);
+
+  renderTranscriptPane({
+    responsePane: pane,
+    responseHistory: [],
+    liveResponse: undefined,
+    transcriptExportPath,
+  });
+  renderTranscriptPane({
+    responsePane: pane,
+    responseHistory: [entry(2)],
+    liveResponse: undefined,
+    transcriptExportPath,
   });
   expect(calls.setScrollPerc).toEqual([100]);
 });
