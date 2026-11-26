@@ -118,6 +118,18 @@ jobs:
           test -x "$executable"
           DOOLITTLE_DESKTOP_EXECUTABLE="$executable" xvfb-run -a nub run test:e2e:desktop-packaged
 
+      - name: Install the AppImage FUSE runtime
+        run: |
+          # ubuntu-latest does not ship libfuse.so.2, which the AppImage
+          # runtime dlopens before mounting and launching the packaged app.
+          sudo apt-get update
+          if apt-cache show libfuse2t64 >/dev/null 2>&1; then
+            fuse_package=libfuse2t64
+          else
+            fuse_package=libfuse2
+          fi
+          sudo apt-get install -y "$fuse_package"
+
       - name: Exercise the AppImage and installed DEB
         run: |
           appimage="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.AppImage' -print -quit)"
@@ -134,7 +146,6 @@ jobs:
           cmp "$source_asar" "$extract_root/squashfs-root/resources/app.asar"
           nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform linux --runtime-directory "$extract_root/squashfs-root/resources/runtime"
 
-          sudo apt-get update
           sudo apt-get install -y "$PWD/$deb"
           installed="$(find /opt -maxdepth 4 -type f -name Doolittle -perm -111 -print -quit)"
           test -n "$installed"
