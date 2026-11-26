@@ -74,6 +74,7 @@ import {
 } from "./app-shell/shell-layout";
 import {
   applyShellOverlayState,
+  openExclusiveProjectManager,
   utilityReturnFocusTarget,
 } from "./app-shell/shell-overlay-state";
 import {
@@ -825,10 +826,23 @@ export function App() {
     [],
   );
 
+  const closeChatTerminal = useCallback((restoreFocus = true) => {
+    terminalOpenIntent.current.cancel();
+    setChatTerminalOpen(false);
+    const restoreTarget = chatTerminalReturnFocusRef.current;
+    chatTerminalReturnFocusRef.current = null;
+    if (restoreFocus && restoreTarget?.isConnected) {
+      requestAnimationFrame(() => restoreTarget.focus());
+    }
+  }, []);
+
   const openProjectManager = useCallback(() => {
-    setMobileSidebarOpen(false);
-    setProjectManagerOpen(true);
-  }, [setMobileSidebarOpen]);
+    openExclusiveProjectManager({
+      closeTerminal: closeChatTerminal,
+      setMobileSidebarOpen,
+      setProjectManagerOpen,
+    });
+  }, [closeChatTerminal, setMobileSidebarOpen]);
 
   const openCommandPalette = useCallback(() => {
     if (utilityOpen && utilityModalMode) {
@@ -857,8 +871,7 @@ export function App() {
     if (utilityModalMode) {
       setPaletteOpen(false);
       setPaletteQuery("");
-      terminalOpenIntent.current.cancel();
-      setChatTerminalOpen(false);
+      closeChatTerminal(false);
     }
     utilityReturnFocusRef.current = utilityReturnFocusTarget({
       activeElement:
@@ -870,7 +883,12 @@ export function App() {
     });
     setMobileSidebarOpen(false, !mobileSidebarOpen);
     setUtilityOpen(true);
-  }, [mobileSidebarOpen, setMobileSidebarOpen, utilityModalMode]);
+  }, [
+    closeChatTerminal,
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
+    utilityModalMode,
+  ]);
 
   const toggleUtilities = useCallback(() => {
     if (utilityOpen) closeUtilities();
@@ -907,16 +925,6 @@ export function App() {
     intent.setContext(terminalContextKey);
     return () => intent.cancel();
   }, [terminalContextKey]);
-
-  const closeChatTerminal = useCallback((restoreFocus = true) => {
-    terminalOpenIntent.current.cancel();
-    setChatTerminalOpen(false);
-    const restoreTarget = chatTerminalReturnFocusRef.current;
-    chatTerminalReturnFocusRef.current = null;
-    if (restoreFocus && restoreTarget?.isConnected) {
-      requestAnimationFrame(() => restoreTarget.focus());
-    }
-  }, []);
 
   const openChatTerminal = useCallback(() => {
     if (terminalVisible) {
@@ -2182,7 +2190,7 @@ export function App() {
     selectedSession,
     selectProjectScope,
     sessions,
-    setProjectManagerOpen,
+    openProjectManager,
     selectSession: setSelectedSession,
     setView,
     switchToRecentWorkspace,

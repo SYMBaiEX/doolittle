@@ -238,7 +238,7 @@ interface UseDesktopContentNavigationOptions {
   readonly selectedSession: string;
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly sessions: readonly SessionSummary[];
-  readonly setProjectManagerOpen: (open: boolean) => void;
+  readonly openProjectManager: () => void;
   readonly selectSession: (sessionId: string) => void;
   readonly setView: SetView;
   readonly switchToRecentWorkspace: (
@@ -270,7 +270,7 @@ export function useDesktopContentNavigation({
   selectedSession,
   selectProjectScope,
   sessions,
-  setProjectManagerOpen,
+  openProjectManager,
   selectSession,
   setView,
   switchToRecentWorkspace,
@@ -422,7 +422,7 @@ export function useDesktopContentNavigation({
   const selectGlobalSearchResult = useCallback(
     (target: GlobalSearchTarget) => {
       void navigateGlobalSearchTarget(target, navigationCoordinator, {
-        openProjectManager: () => setProjectManagerOpen(true),
+        openProjectManager,
         openSession,
         openWorkspaceFile: (path, expectedWorkspacePath) =>
           openWorkspaceFile(path, undefined, expectedWorkspacePath),
@@ -440,7 +440,7 @@ export function useDesktopContentNavigation({
       openWorkspaceFile,
       pathsEqual,
       selectProjectScope,
-      setProjectManagerOpen,
+      openProjectManager,
       setView,
       switchToRecentWorkspace,
       workspacePath,
