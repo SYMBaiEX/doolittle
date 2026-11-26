@@ -13,11 +13,7 @@ export interface ReviewApprovalPanelProps {
   onDecision: (decision: "approve" | "deny") => void;
 }
 
-export function ReviewApprovalPanel({
-  selected,
-  busy,
-  onDecision,
-}: ReviewApprovalPanelProps) {
+export function ReviewApprovalPanel({ selected }: ReviewApprovalPanelProps) {
   return (
     <div className={`${REVIEW_DETAIL_BODY_CLASS} review-decision`}>
       <div className={REVIEW_COMMAND_CLASS}>
@@ -45,29 +41,38 @@ export function ReviewApprovalPanel({
           <dd>{displayTimestamp(asString(selected.raw.expiresAt))}</dd>
         </div>
       </dl>
-      {selected.status === "pending" ? (
-        <div className={REVIEW_ACTIONS_CLASS}>
-          <WorkbenchAction
-            emphasis="primary"
-            icon={Check}
-            disabled={Boolean(busy)}
-            onClick={() => onDecision("approve")}
-            type="button"
-          >
-            {busy === "approve" ? "Approving…" : "Approve"}
-          </WorkbenchAction>
-          <WorkbenchAction
-            emphasis="danger"
-            icon={X}
-            disabled={Boolean(busy)}
-            onClick={() => onDecision("deny")}
-            type="button"
-          >
-            {busy === "deny" ? "Denying…" : "Deny"}
-          </WorkbenchAction>
-          <small>Approval permits the agent to run the matching command.</small>
-        </div>
-      ) : null}
+    </div>
+  );
+}
+
+// Pending decision controls render outside the scrolling detail content, in
+// the docked footer ReviewDetail owns, so they stay visible while the command
+// and metadata scroll above them.
+export function ReviewApprovalActions({
+  busy,
+  onDecision,
+}: Pick<ReviewApprovalPanelProps, "busy" | "onDecision">) {
+  return (
+    <div className={REVIEW_ACTIONS_CLASS}>
+      <WorkbenchAction
+        emphasis="primary"
+        icon={Check}
+        disabled={Boolean(busy)}
+        onClick={() => onDecision("approve")}
+        type="button"
+      >
+        {busy === "approve" ? "Approving…" : "Approve"}
+      </WorkbenchAction>
+      <WorkbenchAction
+        emphasis="danger"
+        icon={X}
+        disabled={Boolean(busy)}
+        onClick={() => onDecision("deny")}
+        type="button"
+      >
+        {busy === "deny" ? "Denying…" : "Deny"}
+      </WorkbenchAction>
+      <small>Approval permits the agent to run the matching command.</small>
     </div>
   );
 }
