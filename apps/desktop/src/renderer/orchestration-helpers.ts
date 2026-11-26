@@ -26,6 +26,18 @@ export function taskExecutionLabel(executionMode?: string): string {
     : "local runtime";
 }
 
+export function delegationRequirementCopy({
+  blockReason,
+  canOpenLeadChat,
+}: {
+  blockReason: string;
+  canOpenLeadChat: boolean;
+}): string {
+  return canOpenLeadChat
+    ? "Delegated tasks need a Lead workspace chat."
+    : blockReason;
+}
+
 export function orchestrationScopeLabel({
   projectScope,
   workspaceLabel,
