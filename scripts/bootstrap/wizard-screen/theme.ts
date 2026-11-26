@@ -4,13 +4,12 @@ import {
   getTuiTheme,
   type TuiThemeName,
 } from "@doolittle/agent/runtime/theme-catalog";
-import { buildWizardThemeFooter, getThemeByName } from "./render";
+import { getThemeByName } from "./render";
 import type { WizardScreenWidgets } from "./widgets";
 
 export function applyWizardTheme(
   widgets: WizardScreenWidgets,
   themeName: TuiThemeName,
-  formatKeyLabel: (label: string) => string,
 ): void {
   const theme = getTuiTheme(themeName);
   const primaryFg = getReadableTextColor(theme.primary, theme.baseFg, "black");
@@ -31,15 +30,13 @@ export function applyWizardTheme(
   };
   widgets.footer.style.fg = theme.cyanGlow;
   widgets.footer.style.bg = theme.baseBg;
-  widgets.footer.setContent(buildWizardThemeFooter(theme, formatKeyLabel));
 }
 
 export function createThemePreviewRenderer(
   widgets: WizardScreenWidgets,
-  formatKeyLabel: (label: string) => string,
 ): (themeName: TuiThemeName) => void {
   return (themeName) => {
-    applyWizardTheme(widgets, themeName, formatKeyLabel);
+    applyWizardTheme(widgets, themeName);
   };
 }
 

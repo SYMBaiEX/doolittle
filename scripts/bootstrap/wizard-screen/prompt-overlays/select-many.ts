@@ -35,7 +35,11 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
           width: "100%-2",
           height: "100%-8",
           border: "line",
-          keys: true,
+          // keys stays off: blessed's internal up/down handlers would move
+          // the selection in addition to this overlay's own cursor handling,
+          // double-stepping the cursor. The overlay binds every key itself
+          // (which is also what makes the element keyable).
+          keys: false,
           vi: true,
           mouse: true,
           style: {
@@ -56,14 +60,24 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
           settled = true;
           resolve(value);
         };
+        // setItems()/select() emit "select item" synchronously. Without a
+        // guard the listener below re-enters refresh() while an outer refresh
+        // is still mutating the list — unbounded recursion that crashes the
+        // wizard with a blessed RangeError on ordinary cursor movement.
+        let syncing = false;
         const refresh = () => {
           cursorIndex = clampIndex(cursorIndex, optionsList.length);
-          list.setItems(
-            optionsList.map(
-              (item) => `${active.has(item.value) ? "●" : "○"} ${item.label}`,
-            ),
-          );
-          list.select(cursorIndex);
+          syncing = true;
+          try {
+            list.setItems(
+              optionsList.map(
+                (item) => `${active.has(item.value) ? "●" : "○"} ${item.label}`,
+              ),
+            );
+            list.select(cursorIndex);
+          } finally {
+            syncing = false;
+          }
           deps.render();
         };
         const moveCursor = (delta: number) => {
@@ -74,11 +88,17 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
         refresh();
         deps.setFooter(buildSelectManyFooter());
         list.on("select item", (_item, index) => {
+          // Programmatic repaints are noise; genuine mouse/wheel selection
+          // is the one place blessed owns the highlight, so the cursor must
+          // follow it before the next toggle/confirm.
+          if (syncing) {
+            return;
+          }
           cursorIndex = clampIndex(index, optionsList.length);
           refresh();
         });
-        list.key(["up", "left"], () => moveCursor(-1));
-        list.key(["down", "right"], () => moveCursor(1));
+        list.key(["up", "left", "k"], () => moveCursor(-1));
+        list.key(["down", "right", "j"], () => moveCursor(1));
         list.key(
           buildSelectNumericKeyLabels(optionsList.length),
           (_ch, key) => {

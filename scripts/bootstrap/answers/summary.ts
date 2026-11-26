@@ -2,13 +2,15 @@ import type { WizardAnswers } from "../types";
 
 export function summarizeAnswers(answers: WizardAnswers): string[] {
   const model =
-    answers.provider === "anthropic" || answers.provider === "claude-code"
-      ? answers.anthropicModel
-      : answers.provider === "ollama"
-        ? answers.ollamaLargeModel
-        : answers.provider === "elizacloud"
-          ? answers.elizaCloudModel
-          : answers.openaiModel;
+    answers.provider === "offline"
+      ? "offline"
+      : answers.provider === "anthropic" || answers.provider === "claude-code"
+        ? answers.anthropicModel
+        : answers.provider === "ollama"
+          ? answers.ollamaLargeModel
+          : answers.provider === "elizacloud"
+            ? answers.elizaCloudModel
+            : answers.openaiModel;
   const embeddingDetail =
     answers.provider === "elizacloud"
       ? ` embed=${answers.elizaCloudEmbeddingModel}`

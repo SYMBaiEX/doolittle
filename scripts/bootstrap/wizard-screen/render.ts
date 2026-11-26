@@ -67,17 +67,10 @@ export function buildWizardRenderModel(
   };
 }
 
-export function buildWizardThemeFooter(
-  theme: WizardChromeTheme,
-  formatKeyLabel: (label: string) => string,
-): string {
-  return ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Theme preview ${theme.label}  Highlight ${getReadableTextColor(theme.secondary, theme.baseFg, "black") === "black" ? "dark" : "light"} text  ${formatKeyLabel("Ctrl-T/Y")} cycle `;
-}
-
 export function buildWizardBaseFooter(
   formatKeyLabel: (label: string) => string,
 ): string {
-  return ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  ${formatKeyLabel("Ctrl-T")} next theme  ${formatKeyLabel("Ctrl-Y")} previous theme  ${formatKeyLabel("Ctrl-C")} exit `;
+  return ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  ${formatKeyLabel("Ctrl-C")} exit `;
 }
 
 export function buildWizardFooterHint(

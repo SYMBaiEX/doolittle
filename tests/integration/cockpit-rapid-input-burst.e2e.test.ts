@@ -44,7 +44,7 @@ async function bootedCockpit(): Promise<TerminalSession> {
   session.type("zzfocusprobe");
   await session.waitForGridText("zzfocusprobe", BOOT_TIMEOUT_MS);
   for (let i = 0; i < "zzfocusprobe".length; i += 1) session.key("backspace");
-  await sleep(200);
+  await session.waitForGridTextAbsent("zzfocusprobe", BOOT_TIMEOUT_MS);
   return session;
 }
 

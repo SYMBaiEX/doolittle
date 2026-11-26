@@ -59,7 +59,7 @@ jobs:
             packages/plugins/provider-transport scripts/vitest-scope.ts tests/boundary/provider-command.test.ts
 
   validate:
-    runs-on: ubuntu-latest
+    runs-on: boat
     timeout-minutes: 20
 
     steps:
@@ -93,13 +93,48 @@ jobs:
       - name: Acceptance gates
         run: nub run check:acceptance
 
-  native_acceptance:
+  cli_acceptance:
     needs: acceptance_changes
     if: >-
       ${{ !cancelled() && (needs.acceptance_changes.result != 'success' ||
           needs.acceptance_changes.outputs.native != 'false') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: boat
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.11.1
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+
+      - name: Set up Bun for native runtime tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: nub run deps:install -- --frozen-lockfile --ignore-scripts
+
+      - name: Install isolated browser fixture
+        run: nubx playwright install --with-deps chromium
+
+      - name: Exercise CLI chat and shared-engine workers
+        run: nub run test:e2e:release:source
+
+  desktop_acceptance:
+    needs: acceptance_changes
+    if: >-
+      ${{ !cancelled() && (needs.acceptance_changes.result != 'success' ||
+          needs.acceptance_changes.outputs.native != 'false') }}
+    runs-on: boat
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -127,9 +162,6 @@ jobs:
 
       - name: Install isolated browser fixture
         run: nubx playwright install --with-deps chromium
-
-      - name: Exercise CLI chat and shared-engine workers
-        run: nub run test:e2e:release:source
 
       - name: Exercise native new-chat and run lifecycle
         run: xvfb-run -a nub run test:e2e:release:workbench-core

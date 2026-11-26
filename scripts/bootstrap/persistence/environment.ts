@@ -1,8 +1,26 @@
 import type { WizardAnswers } from "../types";
 
+export function isValidIanaTimezone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export function buildBootstrapEnvUpdates(
   answers: WizardAnswers,
 ): Record<string, string | undefined> {
+  if (!isValidIanaTimezone(answers.timezone)) {
+    throw new Error(
+      `Invalid DOOLITTLE_TIMEZONE "${answers.timezone}"; expected a valid IANA timezone such as America/Chicago, Europe/Berlin, or UTC.`,
+    );
+  }
+
   return {
     DOOLITTLE_NAME: answers.agentName,
     DOOLITTLE_MODE: "cli",

@@ -14,6 +14,8 @@ export function installTuiStartInputBindings(
   installTuiTypeAhead({
     screen: screen as never,
     inputBox: widgets.inputBox as never,
+    paletteInput: widgets.paletteInput as never,
+    composer: widgets.composer as never,
     textEntries: [
       widgets.inputBox,
       widgets.composer,
