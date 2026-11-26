@@ -215,4 +215,45 @@ describe("cockpit layout geometry", () => {
       expect(await cellChars(rightEdge, expectation.sidebar[0])).toBe("┐");
     }, 120_000);
   }
+
+  it("renders a visible scrollbar thumb in overflowing panels at 80x24", async () => {
+    // At the minimum geometry every panel's content overflows its few inner
+    // rows at boot, so blessed draws its single-cell scrollbar thumb. The
+    // round-16 regression rendered that thumb as an invisible space.
+    terminal = spawnTerminalSession({
+      command: resolveNubExecutable(),
+      argv: [sourceCliEntry, "--cli"],
+      cols: 80,
+      rows: 24,
+      cwd: fixture.profile,
+      env: fixture.environment,
+    });
+    await terminal.waitForGridText("queue:0", BOOT_TIMEOUT_MS);
+
+    // Conversation rows 3-8: the thumb must sit inside the right border
+    // (column 79) on one of the inner rows 4-7, right of the text gutter.
+    const thumbColumns = [75, 76, 77, 78];
+    const innerRows = [4, 5, 6, 7];
+    const thumbCells: Array<[number, number]> = [];
+    for (const row of innerRows) {
+      for (const column of thumbColumns) {
+        if ((await cellChars(column, row)) === "█") {
+          thumbCells.push([column, row]);
+        }
+      }
+    }
+    expect(
+      thumbCells.length,
+      `expected a visible scrollbar thumb in the Conversation inner rows, grid:\n${(
+        await terminal.gridLines()
+      )
+        .map((line, index) => `${String(index).padStart(2)}|${line}`)
+        .join("\n")}`,
+    ).toBeGreaterThanOrEqual(1);
+
+    // Ops Stream rows 9-11 overflows with boot entries at boot time; its
+    // single inner row 10 must carry a thumb inside the right border too.
+    const opsThumb = await cellChars(78, 10);
+    expect(opsThumb).toBe("█");
+  }, 120_000);
 });
