@@ -444,6 +444,14 @@ export function ChatComposer({
 
   const commandMenuOpen = commandSuggestions.length > 0;
   const reusableMenuOpen = reusableSuggestions.length > 0;
+  const commandCompletionsId = controlId("chat-command-completions");
+  const reusableCompletionsId = controlId("chat-reusable-completions");
+  const activeCompletionsId = commandMenuOpen
+    ? commandCompletionsId
+    : reusableMenuOpen
+      ? reusableCompletionsId
+      : undefined;
+  const completionPopupOpen = activeCompletionsId !== undefined;
   const hasMemoryMatches =
     memoryMatches.status === "ready" && memoryMatches.matches.length > 0;
   const contextSummary = selectedUsageError
@@ -765,7 +773,6 @@ export function ChatComposer({
       ) : null}
       {composerValidationError ? (
         <div
-          aria-live="polite"
           className="chat-composer-validation"
           id={controlId("chat-composer-validation")}
           role="alert"
@@ -777,7 +784,7 @@ export function ChatComposer({
         <div
           aria-label="Chat commands"
           className="chat-completion-list chat-command-completions"
-          id={controlId("chat-command-completions")}
+          id={commandCompletionsId}
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
@@ -826,7 +833,7 @@ export function ChatComposer({
         <div
           aria-label="Reusable prompts and skills"
           className="chat-completion-list chat-reusable-completions"
-          id={controlId("chat-reusable-completions")}
+          id={reusableCompletionsId}
           role="listbox"
         >
           <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -884,13 +891,8 @@ export function ChatComposer({
               ? `${controlId("chat-composer-hint")} ${controlId("chat-composer-validation")}`
               : controlId("chat-composer-hint")
           }
-          aria-controls={
-            commandMenuOpen
-              ? controlId("chat-command-completions")
-              : reusableMenuOpen
-                ? controlId("chat-reusable-completions")
-                : undefined
-          }
+          aria-controls={activeCompletionsId}
+          aria-expanded={completionPopupOpen}
           aria-errormessage={
             composerValidationError
               ? controlId("chat-composer-validation")
@@ -982,6 +984,7 @@ export function ChatComposer({
               : "Waiting for the local runtime…"
           }
           ref={composerRef}
+          role="combobox"
           rows={1}
           variant="default"
           density="compact"

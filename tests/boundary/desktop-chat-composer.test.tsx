@@ -142,6 +142,54 @@ it("keeps queue submission separate from stopping the active run", () => {
   }
 });
 
+it("exposes command completions through combobox semantics", () => {
+  const view = composer();
+  try {
+    const input = () => view.query<HTMLTextAreaElement>("textarea");
+    view.render();
+    expect(input()?.getAttribute("role")).toBe("combobox");
+    expect(input()?.getAttribute("aria-expanded")).toBe("false");
+    expect(input()?.hasAttribute("aria-controls")).toBe(false);
+
+    view.render({
+      commandSuggestions: [
+        {
+          command: "/review",
+          category: "Review",
+          description: "Inspect the current work",
+        },
+      ],
+    });
+    expect(input()?.getAttribute("aria-expanded")).toBe("true");
+    expect(input()?.getAttribute("aria-controls")).toBe(
+      "chat-command-completions-chat-1",
+    );
+    expect(input()?.getAttribute("aria-activedescendant")).toBe(
+      "chat-command-option-0-chat-1",
+    );
+    expect(view.query<HTMLElement>('[role="listbox"]')?.id).toBe(
+      "chat-command-completions-chat-1",
+    );
+    expect(
+      view.query<HTMLElement>('[role="option"]')?.getAttribute("aria-selected"),
+    ).toBe("true");
+  } finally {
+    view.dispose();
+  }
+});
+
+it("uses validation alert semantics without a conflicting live region", () => {
+  const view = composer();
+  try {
+    view.render({ composerValidationError: "Message cannot be empty" });
+    const alert = view.query<HTMLElement>(".chat-composer-validation");
+    expect(alert?.getAttribute("role")).toBe("alert");
+    expect(alert?.hasAttribute("aria-live")).toBe(false);
+  } finally {
+    view.dispose();
+  }
+});
+
 it("hides the workspace picker once a chat is bound", () => {
   const view = composer();
   try {
