@@ -56,6 +56,18 @@ async function bootedCockpit(): Promise<TerminalSession> {
   return session;
 }
 
+async function probeInputFocus(session: TerminalSession): Promise<void> {
+  // The footer hint is focus-dependent, so it is not a reliable readiness
+  // gate: on slower boots the assertion races focus settling. Probe focus
+  // behaviorally instead — type a distinctive string, wait until it lands
+  // in the input, then remove it before the test proceeds.
+  session.type("zzfocusprobe");
+  await session.waitForGridText("zzfocusprobe", BOOT_TIMEOUT_MS);
+  for (let i = 0; i < "zzfocusprobe".length; i += 1) {
+    session.key("backspace");
+  }
+}
+
 function enableForeignWrites(): void {
   writeFileSync(triggerPath(), "go\n");
 }
@@ -91,7 +103,7 @@ describe("cockpit foreign output routing", () => {
   it("reassembles split writes into complete Ops Stream lines once focus leaves the input", async () => {
     const session = await bootedCockpit();
     await session.waitForGridText("Doolittle is ready.", BOOT_TIMEOUT_MS);
-    await session.waitForGridText("Enter send", BOOT_TIMEOUT_MS);
+    await probeInputFocus(session);
 
     // Writes begin only once the cockpit is fully booted and the input
     // holds focus, so every marker exercises live TUI routing.
