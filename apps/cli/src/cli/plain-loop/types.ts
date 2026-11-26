@@ -48,4 +48,5 @@ export interface PlainPromptLoopOptions {
   interactiveShell: boolean;
   lifecycleState: PlainPromptLifecycleState;
   resetLastRenderedRunEventKey: () => void;
+  drainForeignOutput?: () => void;
 }

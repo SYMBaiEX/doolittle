@@ -4,18 +4,14 @@ import {
 } from "../cli/execution/types";
 import type { CliTurnEvent } from "../cli/turn-events";
 import { encodeCliTurnEvent } from "../cli/turn-events";
+import { writeOwnedStdout } from "./machine-stdout-firewall";
 
 export function writeStderrLine(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
 export function writeStdout(message: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    process.stdout.write(message, (error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
+  return writeOwnedStdout(message);
 }
 
 export async function printOneShotResult(
