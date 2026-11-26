@@ -624,6 +624,7 @@ export function App() {
     projects,
     publishConfirmedConversation,
     publishSessionSummary,
+    reconcileSessionMessageCount,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,
@@ -2809,6 +2810,7 @@ export function App() {
       }}
       onConsumeContextHandoff={consumeChatContext}
       onSessionSummary={publishSessionSummary}
+      onSessionMessageCountObserved={reconcileSessionMessageCount}
       onCodeWorkspaceDirtyChange={setCodeWorkspaceDirty}
       pendingApprovals={pendingApprovals}
       pendingContextHandoff={pendingChatContext}

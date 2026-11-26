@@ -115,6 +115,7 @@ export function SessionDetail({
   onOpenChat,
   onRefresh,
   onSelectSession,
+  onSessionMessageCountObserved,
   selected,
   transferring,
 }: {
@@ -123,6 +124,10 @@ export function SessionDetail({
   onOpenChat(sessionId: string): void;
   onRefresh(): void;
   onSelectSession(sessionId: string): void;
+  onSessionMessageCountObserved?: (
+    sessionId: string,
+    messageCount: number,
+  ) => void;
   selected: SessionSummary;
   transferring: boolean;
 }) {
@@ -169,6 +174,26 @@ export function SessionDetail({
   const messageCount =
     transcript.data?.totalMessages ??
     (transcript.data ? transcriptCount : (selected.messageCount ?? 0));
+  // The sessions inventory is a snapshot: background activity (automation
+  // runs, gateway traffic) appends messages without invalidating it, so the
+  // row count can be stale while this transcript just read the live
+  // server-side total. Reconcile the row so both surfaces agree.
+  useEffect(() => {
+    const fresh = transcript.data?.totalMessages;
+    if (
+      typeof fresh === "number" &&
+      fresh !== selected.messageCount &&
+      onSessionMessageCountObserved
+    ) {
+      onSessionMessageCountObserved(selected.sessionId, fresh);
+    }
+  }, [
+    transcript.data?.totalMessages,
+    selected.messageCount,
+    selected.sessionId,
+    onSessionMessageCountObserved,
+  ]);
+
   const transcriptStatusLabel = transcript.loading
     ? "Loading…"
     : transcript.error
