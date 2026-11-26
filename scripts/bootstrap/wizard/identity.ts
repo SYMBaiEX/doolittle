@@ -5,6 +5,7 @@ import {
 } from "@doolittle/agent/runtime/theme-catalog";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { ask, chooseOne } from "../core/prompt-ops";
+import { isValidIanaTimezone } from "../persistence/environment";
 import type { PromptHandle } from "../prompting/types";
 import type { WizardMode } from "../types";
 
@@ -13,6 +14,27 @@ export interface WizardIdentitySelection {
   agentName: string;
   timezone: string;
   theme: TuiThemeName;
+}
+
+async function askForValidTimezone(
+  context: BootstrapWizardContext,
+  rl: PromptHandle,
+  defaultValue: string,
+): Promise<string> {
+  while (true) {
+    const timezone = await ask(
+      context,
+      rl,
+      "What timezone should shape my days",
+      defaultValue,
+    );
+    if (isValidIanaTimezone(timezone)) {
+      return timezone;
+    }
+    context.warn(
+      `"${timezone}" is not a valid IANA timezone. Use a zone like America/Chicago, Europe/Berlin, or UTC.`,
+    );
+  }
 }
 
 export async function runWizardIdentitySelection(
@@ -51,12 +73,17 @@ export async function runWizardIdentitySelection(
     "What should I answer to",
     existingEnv.get("DOOLITTLE_NAME") || "Doolittle",
   );
-  const timezone = await ask(
-    context,
-    rl,
-    "What timezone should shape my days",
-    existingEnv.get("DOOLITTLE_TIMEZONE") || "America/Chicago",
-  );
+  const configuredTimezone =
+    existingEnv.get("DOOLITTLE_TIMEZONE") || "America/Chicago";
+  const timezoneDefault = isValidIanaTimezone(configuredTimezone)
+    ? configuredTimezone
+    : "America/Chicago";
+  if (configuredTimezone !== timezoneDefault) {
+    context.warn(
+      `"${configuredTimezone}" is not a valid IANA timezone; using ${timezoneDefault} as the prompt default.`,
+    );
+  }
+  const timezone = await askForValidTimezone(context, rl, timezoneDefault);
   const themeChoices = listTuiThemes().map((theme) => ({
     value: theme.name,
     label: `${theme.label} (${theme.name})`,

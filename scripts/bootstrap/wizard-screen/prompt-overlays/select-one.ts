@@ -44,7 +44,11 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           width: "60%",
           height: "100%-8",
           border: "line",
-          keys: true,
+          // keys stays off: blessed's internal up/down handlers would move
+          // the selection in addition to this overlay's own index handling,
+          // double-stepping the highlight. The overlay binds every key
+          // itself (which is also what makes the element keyable).
+          keys: false,
           vi: true,
           mouse: true,
           style: {
@@ -69,6 +73,11 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           settled = true;
           resolve(optionsList[index]?.value ?? defaultValue);
         };
+        // list.select() emits "select item" synchronously; the guard keeps
+        // programmatic repaints from re-entering the highlight update while
+        // genuine mouse/wheel selection still converges on one source of
+        // truth.
+        let syncing = false;
         const updateDetail = () => {
           selectedIndex = clampIndex(selectedIndex, optionsList.length);
           const current = optionsList[selectedIndex];
@@ -78,18 +87,33 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           detailBox.setContent(
             `${current?.label || ""}\n\n${current?.detail || "No extra detail."}`,
           );
-          list.select(selectedIndex);
+          syncing = true;
+          try {
+            list.select(selectedIndex);
+          } finally {
+            syncing = false;
+          }
           deps.render();
         };
         list.focus();
         deps.render();
         updateDetail();
         deps.setFooter(buildSelectOneFooter());
-        list.key(["up", "left"], () => {
+        list.on("select item", (_item, index) => {
+          // Mouse and wheel selection move blessed's highlight directly; the
+          // semantic index (and the detail pane) must follow or Enter would
+          // confirm a different value than the one visibly selected.
+          if (syncing) {
+            return;
+          }
+          selectedIndex = clampIndex(index, optionsList.length);
+          updateDetail();
+        });
+        list.key(["up", "left", "k"], () => {
           selectedIndex = clampIndex(selectedIndex - 1, optionsList.length);
           updateDetail();
         });
-        list.key(["down", "right"], () => {
+        list.key(["down", "right", "j"], () => {
           selectedIndex = clampIndex(selectedIndex + 1, optionsList.length);
           updateDetail();
         });
@@ -108,9 +132,17 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           },
         );
         list.key(["enter", "space"], () => finish(selectedIndex));
-        list.key("escape", () =>
-          finish(clampIndex(selectedIndex, optionsList.length)),
-        );
+        list.key("escape", () => {
+          if (settled) {
+            return;
+          }
+          // Esc keeps the current value: resolve the original default, not
+          // the highlight. Live preview side effects (theme chrome) roll
+          // back through the same highlight callback that applied them.
+          options?.onHighlight?.(defaultValue);
+          settled = true;
+          resolve(defaultValue);
+        });
         list.key("C-c", () =>
           finish(clampIndex(selectedIndex, optionsList.length)),
         );
