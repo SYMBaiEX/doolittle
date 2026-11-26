@@ -242,7 +242,11 @@ export function expectedDesktopReleaseArtifacts(
   }
   if (platforms.includes("linux")) {
     artifacts.push(
-      { path: desktopSbomName("linux"), platform: "linux", architecture: "x64" },
+      {
+        path: desktopSbomName("linux"),
+        platform: "linux",
+        architecture: "x64",
+      },
       { path: `${linux}.AppImage`, platform: "linux", architecture: "x64" },
       { path: `${linux}.deb`, platform: "linux", architecture: "x64" },
       { path: "latest-linux.yml", platform: "linux", architecture: "x64" },
@@ -458,7 +462,12 @@ export async function createDesktopRelease(
       `Doolittle-${options.version}-linux-x64.AppImage`,
     );
   }
-  await verifyNativePackageReceipts(directory, expected, options.commit, platforms);
+  await verifyNativePackageReceipts(
+    directory,
+    expected,
+    options.commit,
+    platforms,
+  );
 
   const artifacts: DesktopReleaseArtifact[] = [];
   for (const expectedArtifact of expected) {
