@@ -22,7 +22,7 @@ export function cliBuildOptions(): BuildOptions {
     // This build also serves the desktop's Electron-embedded Node worker.
     target: "node24",
     outdir: CLI_OUTPUT_DIRECTORY,
-    external: ["sharp", "term.js", "pty.js", "@elizaos/*"],
+    external: ["sharp", "term.js", "pty.js", "blessed", "@elizaos/*"],
     banner: {
       js: 'import { createRequire as __doolittleCreateRequire } from "node:module";const require = __doolittleCreateRequire(import.meta.url);',
     },
