@@ -10,6 +10,23 @@ import { reviewWorkState } from "../../apps/desktop/src/renderer/review-work-sta
 
 const reactEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 const noop = () => {};
+
+// jsdom does not yet map the standard <search> element to HTMLElement. Its
+// unknown-element implementation is an empty HTMLElement subclass, so use the
+// generic wrapper for this tag and avoid a false React unknown-tag warning.
+if (document.createElement("search") instanceof HTMLUnknownElement) {
+  const createElement = document.createElement.bind(document);
+  document.createElement = ((
+    tagName: string,
+    options?: ElementCreationOptions,
+  ) => {
+    const element = createElement(tagName, options);
+    if (tagName.toLowerCase() === "search") {
+      Object.setPrototypeOf(element, HTMLElement.prototype);
+    }
+    return element;
+  }) as typeof document.createElement;
+}
 let previousAct: boolean | undefined;
 let host: HTMLDivElement;
 let root: Root;
