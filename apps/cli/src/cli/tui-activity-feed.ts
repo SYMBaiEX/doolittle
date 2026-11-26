@@ -22,6 +22,12 @@ interface CreateTuiActivityFeedOptions {
   scheduleRefreshPanels(delayMs?: number): void;
 }
 
+/**
+ * Bound on queued foreign output while a text-entry surface holds focus. The
+ * backlog is a deferral bridge, not a log store; oldest entries drop first.
+ */
+const MAX_DEFERRED_FOREIGN_ACTIVITY = 400;
+
 export function createTuiActivityFeed(options: CreateTuiActivityFeedOptions) {
   const deferredForeignActivity: DeferredForeignActivity[] = [];
   let deferredForeignRefreshTimer: NodeJS.Timeout | null = null;
@@ -81,6 +87,13 @@ export function createTuiActivityFeed(options: CreateTuiActivityFeedOptions) {
       deferredForeignRefreshTimer = null;
       flushDeferredForeignActivity();
       options.scheduleRefreshPanels(0);
+      if (deferredForeignActivity.length > 0) {
+        // The backlog is still deferred (text entry focused or an overlay
+        // open). Keep polling on a quiet cadence so entries surface as soon
+        // as focus genuinely leaves instead of stalling until the next
+        // foreign write or focus-change callback happens to flush them.
+        scheduleDeferredForeignRefresh(250);
+      }
     }, delayMs);
     deferredForeignRefreshTimer.unref?.();
   }
@@ -96,13 +109,24 @@ export function createTuiActivityFeed(options: CreateTuiActivityFeedOptions) {
       tone: source === "stdout" ? ("info" as const) : ("warning" as const),
     };
 
-    if (options.shouldDeferForeignActivity()) {
-      deferredForeignActivity.push(nextEntry);
+    // Every entry flows through the backlog in arrival order, then the flush
+    // drains it FIFO. Appending directly when not deferring would invert
+    // ordering whenever older entries were still queued behind a focus
+    // transition.
+    deferredForeignActivity.push(nextEntry);
+    if (deferredForeignActivity.length > MAX_DEFERRED_FOREIGN_ACTIVITY) {
+      deferredForeignActivity.splice(
+        0,
+        deferredForeignActivity.length - MAX_DEFERRED_FOREIGN_ACTIVITY,
+      );
+    }
+
+    flushDeferredForeignActivity();
+    if (deferredForeignActivity.length > 0) {
       scheduleDeferredForeignRefresh();
       return;
     }
 
-    appendActivity(nextEntry.kind, nextEntry.message, nextEntry.tone);
     options.scheduleRefreshPanels(0);
   }
 
