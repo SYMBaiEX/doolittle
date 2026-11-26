@@ -1,4 +1,3 @@
-import { suggestCommands } from "@doolittle/agent/runtime/command-catalog";
 import type { ControlDeckMode } from "./tui-control-deck/index";
 
 interface InputBindingTarget {
@@ -6,6 +5,9 @@ interface InputBindingTarget {
   key(key: string, handler: () => void): void;
   getValue(): string;
   setValue(value: string): void;
+  screen?: {
+    focused?: unknown;
+  };
 }
 
 interface TuiInputBindingsOptions {
@@ -31,8 +33,6 @@ export function installTuiInputBindings(
 ): void {
   const {
     inputBox,
-    workspaceDir,
-    hasLiveTextEntryCompletion,
     queueCommand,
     hasHistory,
     historyBack,
@@ -51,52 +51,40 @@ export function installTuiInputBindings(
     screenRender();
   };
 
+  // Enter has exactly one owner: blessed emits submit only while this textbox
+  // owns an active read. A key-level fallback runs after that submit and can
+  // queue a second empty line after the input is cleared.
   inputBox.on("submit", (value) => {
     queueCommand(value ?? inputBox.getValue());
   });
 
-  inputBox.key("enter", () => {
-    if (hasLiveTextEntryCompletion(inputBox)) {
+  const inputOwnsKey = () => inputBox.screen?.focused === inputBox;
+  const whenInputFocused = (handler: () => void) => () => {
+    if (!inputOwnsKey()) {
       return;
     }
-    queueCommand(inputBox.getValue());
-  });
+    handler();
+  };
 
-  inputBox.key("up", () => {
-    if (!hasHistory()) {
-      return;
-    }
-    setInputValue(historyBack() ?? "");
-  });
+  inputBox.key(
+    "up",
+    whenInputFocused(() => {
+      if (!hasHistory()) {
+        return;
+      }
+      setInputValue(historyBack() ?? "");
+    }),
+  );
 
-  inputBox.key("down", () => {
-    if (!hasHistory()) {
-      return;
-    }
-    setInputValue(historyForward() ?? "");
-  });
-
-  inputBox.key("C-p", () => {
-    if (!hasHistory()) {
-      return;
-    }
-    setInputValue(historyBack() ?? "");
-  });
-
-  inputBox.key("C-n", () => {
-    if (!hasHistory()) {
-      return;
-    }
-    setInputValue(historyForward() ?? "");
-  });
-
-  inputBox.key("tab", () => {
-    const suggestion = suggestCommands(inputBox.getValue(), 1, workspaceDir)[0];
-    if (!suggestion) {
-      return;
-    }
-    setInputValue(suggestion.command);
-  });
+  inputBox.key(
+    "down",
+    whenInputFocused(() => {
+      if (!hasHistory()) {
+        return;
+      }
+      setInputValue(historyForward() ?? "");
+    }),
+  );
 
   inputBox.on("keypress", () => {
     noteTextEntryActivity();

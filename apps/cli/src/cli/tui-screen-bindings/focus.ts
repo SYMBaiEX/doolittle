@@ -1,4 +1,3 @@
-import { blockedByTextEntry } from "./guards";
 import type { FocusableTarget, TuiScreenBindingsOptions } from "./types";
 
 export function installFocusBindings(opts: TuiScreenBindingsOptions): void {
@@ -28,38 +27,48 @@ export function installFocusBindings(opts: TuiScreenBindingsOptions): void {
     }
   };
 
-  const focusAt = (index: number): void => {
+  const focusBy = (delta: number): void => {
     syncFocusIndexFromCurrentFocus();
-    const nextIndex = (index + focusables.length) % focusables.length;
+    const nextIndex =
+      (getFocusIndex() + delta + focusables.length) % focusables.length;
     setFocusIndex(nextIndex);
     const nextTarget = focusables[nextIndex];
     if (nextTarget === inputBox) {
       activateTextEntry(inputBox);
     } else {
+      if (screen.focused === inputBox) {
+        deactivateTextEntry(inputBox);
+      }
       nextTarget?.focus?.();
     }
+    updateFooterHint();
     screen.render();
   };
 
+  const blockedByOverlay = () => isPaletteOpen() || isComposerOpen();
+
   screen.key(["C-s"], () => {
-    if (blockedByTextEntry(opts)) return;
+    if (blockedByOverlay()) return;
+    if (screen.focused === inputBox) {
+      deactivateTextEntry(inputBox);
+    }
     response.focus?.();
+    updateFooterHint();
     screen.render();
   });
 
   screen.key(["C-p"], () => {
-    if (blockedByTextEntry(opts)) return;
+    if (blockedByOverlay()) return;
     overlays.openPalette(inputBox.getValue());
   });
 
   screen.key(["C-e"], () => {
-    if (blockedByTextEntry(opts)) return;
+    if (blockedByOverlay()) return;
     overlays.openComposer(inputBox.getValue());
   });
 
   screen.key(["tab"], () => {
     if (isComposerOpen()) return;
-    if (screen.focused === inputBox) return;
     if (isPaletteOpen()) {
       deactivateTextEntry(paletteInput);
       paletteList.focus?.();
@@ -67,19 +76,18 @@ export function installFocusBindings(opts: TuiScreenBindingsOptions): void {
       screen.render();
       return;
     }
-    focusAt(getFocusIndex() + 1);
+    focusBy(1);
   });
 
   screen.key(["S-tab"], () => {
     if (isComposerOpen()) return;
-    if (screen.focused === inputBox) return;
     if (isPaletteOpen()) {
       activateTextEntry(paletteInput);
       updateFooterHint();
       screen.render();
       return;
     }
-    focusAt(getFocusIndex() - 1);
+    focusBy(-1);
   });
 
   screen.key(["escape"], () => {

@@ -6,13 +6,13 @@ export function installScrollBindings(opts: TuiScreenBindingsOptions): void {
 
   const scrollFocusedPane = (delta: number): void => {
     const target =
-      screen.focused === response
-        ? response
+      screen.focused === activity
+        ? activity
         : screen.focused === sidebar
           ? sidebar
           : screen.focused === assistBox
             ? assistBox
-            : activity;
+            : response;
     target.scroll?.(delta);
     screen.render();
   };

@@ -116,15 +116,19 @@ describe("cockpit boot acceptance", () => {
     expect(footer).toContain("offline");
 
     // Interaction smoke: real keystrokes reach the input box and Enter
-    // submits — the command echo lands in the Conversation panel. This is
+    // submits — the response lands in the Conversation panel. This is
     // the round-2 template for driving the cockpit through the harness.
     terminal.type("/help");
     terminal.key("enter");
-    // "// Command" is the conversation echo header; the sidebar's "Commands"
-    // panel label must not satisfy this wait, so match the exact echo prefix.
-    await terminal.waitForGridText("// Command", 15_000);
+    // The /help body is far taller than the viewport. Because the transcript
+    // pins to the bottom while the operator has never scrolled, correctness
+    // is the END of the response being visible — not the echo header, which
+    // scrolls above the fold exactly like in any chat client. "doolittle
+    // jobs list" is the final line of the help Examples section.
+    await terminal.waitForGridText("doolittle jobs list", 15_000);
     const afterSubmit = await terminal.gridText();
-    expect(afterSubmit).toContain("/help");
+    expect(afterSubmit).toContain("/accounts connect codex");
+    expect(afterSubmit).toContain("!git status");
 
     // NOTE: no clean operator exit path is asserted here. C-c keystrokes do
     // not terminate the cockpit (the screen-level binding never fires once

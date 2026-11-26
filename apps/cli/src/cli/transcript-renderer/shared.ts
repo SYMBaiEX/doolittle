@@ -1,8 +1,6 @@
 import { escapeBlessed, sanitizeTerminalText } from "../render-utils";
 import type { ResponseTranscriptEntry } from "./types";
 
-export const TRANSCRIPT_LIMIT = 24;
-
 const RESERVED_LABELS = new Set([
   "You",
   "Shell",
@@ -60,6 +58,10 @@ export function renderPlainRoleLabel(
   }
 }
 
+// The transcript is the session's durable record: every section ever pushed
+// stays renderable so viewport scrollback and the disk export both cover the
+// full history. Windowing used to happen here (last 24 entries) which silently
+// dropped older turns from the export as well — retention must never truncate.
 export function normalizeTranscriptSections(
   history: ResponseTranscriptEntry[],
   live?: ResponseTranscriptEntry,
@@ -68,7 +70,7 @@ export function normalizeTranscriptSections(
   if (live) {
     sections.push(live);
   }
-  return sections.slice(-TRANSCRIPT_LIMIT);
+  return sections;
 }
 
 export function renderPlainBody(entry: ResponseTranscriptEntry): string {

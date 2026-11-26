@@ -1,5 +1,6 @@
 interface InputLifecycleNode {
   clearValue: () => void;
+  getValue?: () => string;
 }
 
 interface TuiInputLifecycleScreen {
@@ -41,8 +42,11 @@ export function installTuiInputLifecycle(
     },
     restoreInputAfterRun: async () => {
       await refreshPanels();
-      inputBox.clearValue();
-      renderAssistSuggestions("");
+      // The submitted line was already cleared when it entered the queue. Any
+      // text present here is a user draft written during the busy turn, so the
+      // lifecycle must not treat it as disposable input chrome state.
+      const draft = inputBox.getValue?.() ?? "";
+      renderAssistSuggestions(draft);
       activateTextEntry();
       updateFooterHint();
       screen.render();
