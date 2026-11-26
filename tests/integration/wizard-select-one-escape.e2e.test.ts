@@ -58,19 +58,18 @@ describe("setup wizard select-one escape semantics", () => {
     );
     // Orange / Neon Dune is the default face. Arrow down once: the live
     // preview shifts the chrome to Blue Static.
-    expect(await session.gridText()).toContain("Theme: Neon Dune");
+    await session.waitForGridText("Theme: Neon Dune", STEP_TIMEOUT_MS);
     session.key("down");
-    await sleep(400);
-    expect(await session.gridText()).toContain("Theme: Blue Static");
+    await session.waitForGridText("Theme: Blue Static", STEP_TIMEOUT_MS);
 
     // The footer advertises "Esc keep current": current is the original
     // default, not the previewed highlight.
     session.key("escape");
-    await sleep(400);
+    await session.waitForGridText("Theme: Neon Dune", STEP_TIMEOUT_MS);
 
     // The preview must roll back too: the chrome may not stay committed to
     // the theme the user just discarded.
-    expect(await session.gridText()).toContain("Theme: Neon Dune");
+    // (waited above — the header must already show the rolled-back preview)
 
     // Complete the offline quick setup and inspect what was written.
     await session.waitForGridText(
