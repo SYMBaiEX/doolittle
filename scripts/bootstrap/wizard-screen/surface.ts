@@ -3,7 +3,7 @@ import {
   type TuiThemeName,
 } from "@doolittle/agent/runtime/theme-catalog";
 import blessed from "blessed";
-import { installWizardScreenEvents } from "./events";
+import { createWizardInputLock, installWizardScreenEvents } from "./events";
 import { createWizardOverlay } from "./overlay";
 import { createWizardPromptHandlers } from "./prompt-overlays";
 import {
@@ -41,6 +41,22 @@ export function createWizardScreen({
     chromeTop,
     buildWizardBaseFooter(formatKeyLabel),
   );
+  const tooSmallSurface = blessed.box({
+    parent: screen,
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    hidden: true,
+    align: "center",
+    valign: "middle",
+    style: {
+      fg: "yellow",
+      bg: "black",
+      bold: true,
+    },
+  });
+  const inputLock = createWizardInputLock(screen);
   let activeThemeName = DEFAULT_TUI_THEME;
 
   const render = () => {
@@ -65,6 +81,22 @@ export function createWizardScreen({
     if (!model.tooSmall) {
       widgets.logBox.setScrollPerc(100);
     }
+    if (model.tooSmall) {
+      inputLock.setLocked(true);
+      tooSmallSurface.setContent(model.detailContent);
+      tooSmallSurface.show();
+      tooSmallSurface.setFront();
+      screen.program.hideCursor();
+    } else {
+      inputLock.setLocked(false);
+      tooSmallSurface.hide();
+      const focused = screen.focused as unknown as
+        | { _reading?: boolean }
+        | undefined;
+      if (focused?._reading === true) {
+        screen.program.showCursor();
+      }
+    }
     screen.render();
   };
 
@@ -73,8 +105,8 @@ export function createWizardScreen({
     screen.render();
   };
 
-  const applyPreviewTheme = createThemePreviewRenderer(widgets, formatKeyLabel);
-  applyWizardTheme(widgets, DEFAULT_TUI_THEME, formatKeyLabel);
+  const applyPreviewTheme = createThemePreviewRenderer(widgets);
+  applyWizardTheme(widgets, DEFAULT_TUI_THEME);
 
   const appendLine = (message: string) => {
     appendWizardLogLine(snapshot, message);
@@ -96,7 +128,8 @@ export function createWizardScreen({
     ) => void,
   ): Promise<T> =>
     createWizardOverlay(screen, title, body, mount, () => {
-      applyWizardTheme(widgets, activeThemeName, formatKeyLabel);
+      widgets.footer.setContent(buildWizardBaseFooter(formatKeyLabel));
+      applyWizardTheme(widgets, activeThemeName);
       render();
     });
 
