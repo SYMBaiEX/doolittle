@@ -3,6 +3,7 @@ import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GatewayTimelinePanel } from "../../apps/desktop/src/renderer/gateway/GatewayTimelinePanel";
+import { GATEWAY_PAGE_CLASS } from "../../apps/desktop/src/renderer/gateway/gateway-layout";
 import type { GatewayTimelineItem } from "../../apps/desktop/src/renderer/gateway-page-model";
 import { TaskQueueDetail } from "../../apps/desktop/src/renderer/orchestration/TaskQueueDetail";
 import type { ReviewItem } from "../../apps/desktop/src/renderer/review/models";
@@ -96,6 +97,10 @@ it("keeps a review item selected and returns focus after clearing a search", () 
   expect(
     host.querySelector('button[aria-current="true"]')?.textContent,
   ).toContain("summary.ts");
+});
+
+it("scopes gateway split layout queries to the gateway work surface", () => {
+  expect(GATEWAY_PAGE_CLASS).toContain("@container/work");
 });
 
 it("lets an empty gateway history rail size to its content", () => {
