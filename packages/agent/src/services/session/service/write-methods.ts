@@ -11,6 +11,7 @@ export const sessionServiceWriteMethods: Pick<
   | "forkSession"
   | "onActivity"
   | "rename"
+  | "claimSessionTitle"
 > &
   ThisType<SessionService> = {
   storeMessage(message, options) {
@@ -49,5 +50,12 @@ export const sessionServiceWriteMethods: Pick<
 
   rename(sessionId, title) {
     return getSessionServiceState(this).writes.rename(sessionId, title);
+  },
+
+  claimSessionTitle(sessionId, title) {
+    return getSessionServiceState(this).writes.claimSessionTitle(
+      sessionId,
+      title,
+    );
   },
 };

@@ -1,16 +1,20 @@
 import { Button, ContextActionMenu } from "@doolittle/ui";
-import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useRef, useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import { OfflineRouteState } from "../components/OfflineRouteState";
+import { UiIcon } from "../components/UiIcon";
 import { EmptyBlock, PageHeader } from "../lib";
 import { SessionDetail } from "./SessionDetail";
 import { SessionListPanel } from "./SessionListPanel";
 import {
+  SESSION_BACK_ROW_CLASS,
   SESSIONS_EMPTY_WORKSPACE_CLASS,
   SESSIONS_PAGE_CLASS,
   SESSIONS_WORKSPACE_CLASS,
 } from "./sessions-layout";
 import { useSessionArchiveTransfer } from "./useSessionArchiveTransfer";
+import "./sessions.css";
 
 export function shouldShowSessionEmptyLanding(
   sessionCount: number,
@@ -45,6 +49,30 @@ export function SessionsPage({
   const [selectedId, setSelectedId] = useState(sessions[0]?.sessionId ?? "");
   const [selectedSearchSession, setSelectedSearchSession] =
     useState<SessionSummary | null>(null);
+  // Narrow layouts show one pane at a time. The toggle is always recorded,
+  // but sessions.css only turns it into list/detail navigation below 760px;
+  // wider layouts keep both panes visible no matter which was last active.
+  const [detailOpen, setDetailOpen] = useState(false);
+  const detailRef = useRef<HTMLElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const openDetail = () => {
+    setDetailOpen(true);
+    requestAnimationFrame(() => {
+      // Move focus only when the compact single-pane presentation is active,
+      // which is exactly when the back control is rendered visible.
+      if (backRef.current?.getClientRects().length) detailRef.current?.focus();
+    });
+  };
+  const returnToList = () => {
+    setDetailOpen(false);
+    requestAnimationFrame(() => {
+      detailRef.current?.ownerDocument
+        .querySelector<HTMLButtonElement>(
+          '[data-session-row][aria-current="true"]',
+        )
+        ?.focus();
+    });
+  };
   const selected =
     sessions.find((session) => session.sessionId === selectedId) ??
     (selectedSearchSession?.sessionId === selectedId
@@ -172,6 +200,7 @@ export function SessionsPage({
                 ? SESSIONS_EMPTY_WORKSPACE_CLASS
                 : SESSIONS_WORKSPACE_CLASS
             }
+            data-sessions-detail={detailOpen ? "open" : "closed"}
           >
             {showEmptyLanding ? (
               <section
@@ -211,32 +240,53 @@ export function SessionsPage({
                   onSelect={(session) => {
                     setSelectedId(session.sessionId);
                     setSelectedSearchSession(session);
+                    openDetail();
                   }}
                 />
-                <section className="detail-panel [scrollbar-gutter:stable]">
+                <section
+                  aria-label="Saved transcript"
+                  className="detail-panel sessions-detail-pane [scrollbar-gutter:stable]"
+                  ref={detailRef}
+                  tabIndex={-1}
+                >
                   {!selected ? (
                     <EmptyBlock title="No sessions yet">
                       Your saved conversations will appear here.
                     </EmptyBlock>
                   ) : (
-                    <SessionDetail
-                      key={selected.sessionId}
-                      active={active}
-                      onExport={() => void transfer.exportArchive()}
-                      onOpenChat={openChat}
-                      onRefresh={refresh}
-                      onSessionMessageCountObserved={
-                        onSessionMessageCountObserved
-                      }
-                      onSelectSession={(sessionId) => {
-                        setSelectedId(sessionId);
-                        if (sessionId !== selectedSearchSession?.sessionId) {
-                          setSelectedSearchSession(null);
+                    <>
+                      <div className={SESSION_BACK_ROW_CLASS}>
+                        <Button
+                          onClick={returnToList}
+                          ref={backRef}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <UiIcon icon={ArrowLeft} size="sm" />
+                          Back to conversations
+                        </Button>
+                      </div>
+                      <SessionDetail
+                        key={selected.sessionId}
+                        active={active}
+                        onExport={() => void transfer.exportArchive()}
+                        onOpenChat={openChat}
+                        onRefresh={refresh}
+                        onSessionMessageCountObserved={
+                          onSessionMessageCountObserved
                         }
-                      }}
-                      selected={selected}
-                      transferring={transfer.transferring}
-                    />
+                        onSelectSession={(sessionId) => {
+                          setSelectedId(sessionId);
+                          if (sessionId !== selectedSearchSession?.sessionId) {
+                            setSelectedSearchSession(null);
+                          }
+                          openDetail();
+                        }}
+                        selected={selected}
+                        transferring={transfer.transferring}
+                      />
+                    </>
                   )}
                 </section>
               </>

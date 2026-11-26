@@ -65,13 +65,16 @@ function assertDataDirectory(path: string): void {
   )
     throw new Error("Unsafe job data directory.");
 }
+function assertJobEntryPaths(dataDir: string, id: string): void {
+  const paths = jobPaths(dataDir, id);
+  assertPrivateDirectory(paths.root);
+  assertPrivateDirectory(paths.stateDir);
+}
 export function assertJobPaths(dataDir: string, id?: string): void {
   assertDataDirectory(dataDir);
   assertPrivateDirectory(jobsRoot(dataDir));
   if (id) {
-    const paths = jobPaths(dataDir, id);
-    assertPrivateDirectory(paths.root);
-    assertPrivateDirectory(paths.stateDir);
+    assertJobEntryPaths(dataDir, id);
   }
 }
 function indexPath(dataDir: string): string {
@@ -112,14 +115,24 @@ function validateRecord(dataDir: string, value: unknown): CliJobRecord {
   )
     throw new Error("Invalid job record.");
   const expected = jobPaths(dataDir, job.id);
+  // Records written by this store already carry the canonical paths, where
+  // resolving both sides would compare identical inputs; existence and
+  // symlink safety are enforced by the lstat checks below. Only divergent
+  // spellings need the filesystem resolution pass.
+  const canonical =
+    job.stateDir === expected.stateDir && job.logPath === expected.logPath;
   const compatiblePath =
     typeof job.stateDir === "string" &&
     typeof job.logPath === "string" &&
     basename(job.logPath) === "events.jsonl" &&
-    realpathSync(job.stateDir) === realpathSync(expected.stateDir) &&
-    realpathSync(dirname(job.logPath)) === realpathSync(expected.root);
+    (canonical ||
+      (realpathSync(job.stateDir) === realpathSync(expected.stateDir) &&
+        realpathSync(dirname(job.logPath)) === realpathSync(expected.root)));
   if (!compatiblePath) throw new Error("Job record path mismatch.");
-  assertJobPaths(dataDir, job.id);
+  // The shared data-directory and jobs-root assertions run once per locked
+  // operation through ensureStore/writeIndex; repeating them for every record
+  // is a quadratic syscall cost with no additional isolation.
+  assertJobEntryPaths(dataDir, job.id);
   return {
     ...job,
     stateDir: expected.stateDir,

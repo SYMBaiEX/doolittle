@@ -1,5 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "../../../gateway/runner/index";
+import { automationRunSessionTitle } from "../../../services/automation/session-title";
 import type { AutomationExecutionContext } from "../../../services/automation/types";
 import type { AppServices } from "../../../services/index";
 import type { AutomationJobRecord } from "../../../types/index";
@@ -276,6 +277,15 @@ export function createAutomationExecutor(params: {
     const { handleAgentTurn } = await import("../../chat");
     const identity = automationIdentity(job);
     const executionId = executionContext.executionId ?? crypto.randomUUID();
+    // Automation turns are not interactive, so no first-user-message title is
+    // ever initialized for their conversation. Without an explicit title the
+    // session lists fall back to the raw execution envelope, which is identical
+    // across automations up to truncation. Claim the recognizable run title
+    // once; user renames and previously claimed titles are never overwritten.
+    services.sessions.claimSessionTitle(
+      identity.roomId,
+      automationRunSessionTitle(job.name, new Date()),
+    );
     await notifyProgress(
       executionContext,
       "action",

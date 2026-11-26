@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { orchestrationScopeLabel } from "../../apps/desktop/src/renderer/orchestration-helpers";
+import {
+  delegationRequirementCopy,
+  orchestrationScopeLabel,
+} from "../../apps/desktop/src/renderer/orchestration-helpers";
 
 it("uses the current scope as the inner orchestration title", () => {
   expect(
@@ -14,4 +17,15 @@ it("uses the current scope as the inner orchestration title", () => {
   expect(
     orchestrationScopeLabel({ projectScope: "project-1", workspaceLabel: " " }),
   ).toBe("Selected project");
+});
+
+it("keeps the recoverable delegation prerequisite compact", () => {
+  const blockReason =
+    "Open a workspace chat with Doolittle (Lead) before starting or changing delegated tasks.";
+  expect(
+    delegationRequirementCopy({ blockReason, canOpenLeadChat: true }),
+  ).toBe("Delegated tasks need a Lead workspace chat.");
+  expect(
+    delegationRequirementCopy({ blockReason, canOpenLeadChat: false }),
+  ).toBe(blockReason);
 });

@@ -54,6 +54,7 @@ export interface CreateDesktopReleaseOptions {
   tag: string;
   commit: string;
   generatedAt?: string;
+  platforms?: readonly NativePackageReceipt["platform"][];
 }
 
 const RECEIPT_PLATFORMS = ["linux", "macos", "windows"] as const;
@@ -91,8 +92,9 @@ async function verifyNativePackageReceipts(
   directory: string,
   expected: ExpectedArtifact[],
   commit: string,
+  platforms: readonly NativePackageReceipt["platform"][] = RECEIPT_PLATFORMS,
 ): Promise<void> {
-  for (const platform of RECEIPT_PLATFORMS) {
+  for (const platform of platforms) {
     const receiptPath = resolve(directory, nativeReceiptName(platform));
     let unverifiedReceipt: UnverifiedNativePackageReceipt;
     try {
@@ -185,62 +187,68 @@ async function verifyNativePackageReceipts(
 
 export function expectedDesktopReleaseArtifacts(
   version: string,
+  platforms: readonly NativePackageReceipt["platform"][] = RECEIPT_PLATFORMS,
 ): ExpectedArtifact[] {
   const mac = `Doolittle-${version}-mac-arm64`;
   const windows = `Doolittle-${version}-win-x64.exe`;
   const linux = `Doolittle-${version}-linux-x64`;
-  return [
+  const artifacts: ExpectedArtifact[] = [
     { path: "LICENSE", platform: "release", architecture: "all" },
-    {
-      path: nativeReceiptName("macos"),
-      platform: "release",
-      architecture: "all",
-    },
-    {
-      path: nativeReceiptName("windows"),
-      platform: "release",
-      architecture: "all",
-    },
-    {
-      path: nativeReceiptName("linux"),
-      platform: "release",
-      architecture: "all",
-    },
-    {
-      path: desktopSbomName("macos"),
-      platform: "macos",
-      architecture: "arm64",
-    },
-    {
-      path: desktopSbomName("windows"),
-      platform: "windows",
-      architecture: "x64",
-    },
-    { path: desktopSbomName("linux"), platform: "linux", architecture: "x64" },
-    { path: `${mac}.dmg`, platform: "macos", architecture: "arm64" },
-    {
-      path: `${mac}.dmg.blockmap`,
-      platform: "macos",
-      architecture: "arm64",
-    },
-    { path: `${mac}.zip`, platform: "macos", architecture: "arm64" },
-    {
-      path: `${mac}.zip.blockmap`,
-      platform: "macos",
-      architecture: "arm64",
-    },
-    { path: "latest-mac.yml", platform: "macos", architecture: "arm64" },
-    { path: windows, platform: "windows", architecture: "x64" },
-    {
-      path: `${windows}.blockmap`,
-      platform: "windows",
-      architecture: "x64",
-    },
-    { path: "latest.yml", platform: "windows", architecture: "x64" },
-    { path: `${linux}.AppImage`, platform: "linux", architecture: "x64" },
-    { path: `${linux}.deb`, platform: "linux", architecture: "x64" },
-    { path: "latest-linux.yml", platform: "linux", architecture: "x64" },
   ];
+  for (const platform of platforms) {
+    artifacts.push({
+      path: nativeReceiptName(platform),
+      platform: "release",
+      architecture: "all",
+    });
+  }
+  if (platforms.includes("macos")) {
+    artifacts.push(
+      {
+        path: desktopSbomName("macos"),
+        platform: "macos",
+        architecture: "arm64",
+      },
+      { path: `${mac}.dmg`, platform: "macos", architecture: "arm64" },
+      {
+        path: `${mac}.dmg.blockmap`,
+        platform: "macos",
+        architecture: "arm64",
+      },
+      { path: `${mac}.zip`, platform: "macos", architecture: "arm64" },
+      {
+        path: `${mac}.zip.blockmap`,
+        platform: "macos",
+        architecture: "arm64",
+      },
+      { path: "latest-mac.yml", platform: "macos", architecture: "arm64" },
+    );
+  }
+  if (platforms.includes("windows")) {
+    artifacts.push(
+      {
+        path: desktopSbomName("windows"),
+        platform: "windows",
+        architecture: "x64",
+      },
+      { path: windows, platform: "windows", architecture: "x64" },
+      {
+        path: `${windows}.blockmap`,
+        platform: "windows",
+        architecture: "x64",
+      },
+      { path: "latest.yml", platform: "windows", architecture: "x64" },
+    );
+  }
+  if (platforms.includes("linux")) {
+    artifacts.push(
+      { path: desktopSbomName("linux"), platform: "linux", architecture: "x64" },
+      { path: `${linux}.AppImage`, platform: "linux", architecture: "x64" },
+      { path: `${linux}.deb`, platform: "linux", architecture: "x64" },
+      { path: "latest-linux.yml", platform: "linux", architecture: "x64" },
+    );
+  }
+  return artifacts;
 }
 
 async function sha256(path: string): Promise<string> {
@@ -393,8 +401,9 @@ export async function createDesktopRelease(
     throw new Error(`Invalid release commit: ${options.commit}`);
   }
 
+  const platforms = options.platforms ?? RECEIPT_PLATFORMS;
   const directory = resolve(options.directory);
-  const expected = expectedDesktopReleaseArtifacts(options.version);
+  const expected = expectedDesktopReleaseArtifacts(options.version, platforms);
   const expectedNames = new Set(expected.map((artifact) => artifact.path));
   const actualEntries = readdirSync(directory, { withFileTypes: true }).filter(
     (entry) => entry.name !== SHA256_SUMS && entry.name !== RELEASE_MANIFEST,
@@ -425,25 +434,31 @@ export async function createDesktopRelease(
     throw new Error("Release LICENSE must contain Doolittle's MIT notice.");
   }
 
-  await verifyUpdateManifest(
-    directory,
-    "latest-mac.yml",
-    options.version,
-    `Doolittle-${options.version}-mac-arm64.zip`,
-  );
-  await verifyUpdateManifest(
-    directory,
-    "latest.yml",
-    options.version,
-    `Doolittle-${options.version}-win-x64.exe`,
-  );
-  await verifyUpdateManifest(
-    directory,
-    "latest-linux.yml",
-    options.version,
-    `Doolittle-${options.version}-linux-x64.AppImage`,
-  );
-  await verifyNativePackageReceipts(directory, expected, options.commit);
+  if (platforms.includes("macos")) {
+    await verifyUpdateManifest(
+      directory,
+      "latest-mac.yml",
+      options.version,
+      `Doolittle-${options.version}-mac-arm64.zip`,
+    );
+  }
+  if (platforms.includes("windows")) {
+    await verifyUpdateManifest(
+      directory,
+      "latest.yml",
+      options.version,
+      `Doolittle-${options.version}-win-x64.exe`,
+    );
+  }
+  if (platforms.includes("linux")) {
+    await verifyUpdateManifest(
+      directory,
+      "latest-linux.yml",
+      options.version,
+      `Doolittle-${options.version}-linux-x64.AppImage`,
+    );
+  }
+  await verifyNativePackageReceipts(directory, expected, options.commit, platforms);
 
   const artifacts: DesktopReleaseArtifact[] = [];
   for (const expectedArtifact of expected) {
@@ -487,6 +502,21 @@ function requiredArgument(name: string): string {
   return value;
 }
 
+function optionalPlatformsArgument():
+  | readonly NativePackageReceipt["platform"][]
+  | undefined {
+  const index = process.argv.indexOf("--platforms");
+  const value = index >= 0 ? process.argv[index + 1] : undefined;
+  if (!value || value.startsWith("--")) return undefined;
+  const platforms = value.split(",").map((entry) => entry.trim());
+  for (const platform of platforms) {
+    if (!(RECEIPT_PLATFORMS as readonly string[]).includes(platform)) {
+      throw new Error(`Invalid --platforms entry: ${platform}`);
+    }
+  }
+  return platforms as readonly NativePackageReceipt["platform"][];
+}
+
 export async function main(): Promise<void> {
   const directory = requiredArgument("--directory");
   const manifest = await createDesktopRelease({
@@ -494,6 +524,7 @@ export async function main(): Promise<void> {
     version: requiredArgument("--version"),
     tag: requiredArgument("--tag"),
     commit: requiredArgument("--commit"),
+    platforms: optionalPlatformsArgument(),
   });
   console.log(
     `Validated ${manifest.artifacts.length} ${manifest.product} ${manifest.version} release artifacts in ${basename(resolve(directory))}.`,

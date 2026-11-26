@@ -16,9 +16,16 @@ import type { ApiResource } from "../lib";
 import { Badge } from "../lib";
 import type { RepositoryPatchResponse } from "../repository-resource-models";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
-import { REVIEW_DETAIL_CLASS } from "./layout";
+import {
+  REVIEW_DETAIL_CLASS,
+  REVIEW_DETAIL_DOCK_CLASS,
+  REVIEW_DETAIL_SCROLL_CLASS,
+} from "./layout";
 import { type ReviewItem, statusTone } from "./models";
-import { ReviewApprovalPanel } from "./ReviewApprovalPanel";
+import {
+  ReviewApprovalActions,
+  ReviewApprovalPanel,
+} from "./ReviewApprovalPanel";
 import { ReviewChangesPanel } from "./ReviewChangesPanel";
 import { ReviewCiPanel } from "./ReviewCiPanel";
 import type { ReviewCommentTarget } from "./ReviewCommentsPanel";
@@ -134,63 +141,73 @@ export function ReviewDetail({
       scopeKey={JSON.stringify([contextScope ?? "", selected?.id ?? ""])}
     >
       <section className={REVIEW_DETAIL_CLASS} data-review="detail">
-        {!selected ? (
-          <WorkbenchEmpty title="Select an item to review" icon={Inbox}>
-            Choose a decision, file, or check from the review queue.
-          </WorkbenchEmpty>
-        ) : (
-          <WorkbenchSection
-            title={selected.title}
-            description={selected.description}
-            icon={
-              selected.kind === "approvals"
-                ? ShieldCheck
-                : selected.kind === "changes"
-                  ? GitCompareArrows
-                  : CircleCheck
-            }
-            actions={
-              <Badge tone={statusTone(selected.status)}>
-                {selected.status}
-              </Badge>
-            }
-            className="review-selection"
+        <div className={REVIEW_DETAIL_SCROLL_CLASS}>
+          {!selected ? (
+            <WorkbenchEmpty title="Select an item to review" icon={Inbox}>
+              Choose a decision, file, or check from the review queue.
+            </WorkbenchEmpty>
+          ) : (
+            <WorkbenchSection
+              title={selected.title}
+              description={selected.description}
+              icon={
+                selected.kind === "approvals"
+                  ? ShieldCheck
+                  : selected.kind === "changes"
+                    ? GitCompareArrows
+                    : CircleCheck
+              }
+              actions={
+                <Badge tone={statusTone(selected.status)}>
+                  {selected.status}
+                </Badge>
+              }
+              className="review-selection"
+            >
+              {selected.kind === "approvals" ? (
+                <ReviewApprovalPanel
+                  busy={busy}
+                  onDecision={onDecision}
+                  selected={selected}
+                />
+              ) : null}
+              {selected.kind === "changes" ? (
+                <ReviewChangesPanel
+                  contextScope={contextScope}
+                  activeCommentTarget={activeCommentTarget}
+                  commentDraft={commentDraft}
+                  commentEditorRef={commentEditorRef}
+                  editingCommentId={editingCommentId}
+                  onAskDoolittle={onAskDoolittle}
+                  onCancel={onCancelComment}
+                  onDelete={onDelete}
+                  onDraftChange={onDraftChange}
+                  onOpenWorkspace={onOpenWorkspace}
+                  onSave={onSaveComment}
+                  onSendFeedback={onSendFeedback}
+                  onStartComment={onStartComment}
+                  onToggleResolved={onToggleResolved}
+                  openCommentCount={openCommentCount}
+                  patch={patch}
+                  platform={platform}
+                  selected={selected}
+                  selectedPathComments={selectedPathComments}
+                />
+              ) : null}
+              {selected.kind === "ci" ? (
+                <ReviewCiPanel review={review} selected={selected} />
+              ) : null}
+            </WorkbenchSection>
+          )}
+        </div>
+        {selected?.kind === "approvals" && selected.status === "pending" ? (
+          <div
+            className={REVIEW_DETAIL_DOCK_CLASS}
+            data-review-actions-dock="true"
           >
-            {selected.kind === "approvals" ? (
-              <ReviewApprovalPanel
-                busy={busy}
-                onDecision={onDecision}
-                selected={selected}
-              />
-            ) : null}
-            {selected.kind === "changes" ? (
-              <ReviewChangesPanel
-                contextScope={contextScope}
-                activeCommentTarget={activeCommentTarget}
-                commentDraft={commentDraft}
-                commentEditorRef={commentEditorRef}
-                editingCommentId={editingCommentId}
-                onAskDoolittle={onAskDoolittle}
-                onCancel={onCancelComment}
-                onDelete={onDelete}
-                onDraftChange={onDraftChange}
-                onOpenWorkspace={onOpenWorkspace}
-                onSave={onSaveComment}
-                onSendFeedback={onSendFeedback}
-                onStartComment={onStartComment}
-                onToggleResolved={onToggleResolved}
-                openCommentCount={openCommentCount}
-                patch={patch}
-                platform={platform}
-                selected={selected}
-                selectedPathComments={selectedPathComments}
-              />
-            ) : null}
-            {selected.kind === "ci" ? (
-              <ReviewCiPanel review={review} selected={selected} />
-            ) : null}
-          </WorkbenchSection>
-        )}
+            <ReviewApprovalActions busy={busy} onDecision={onDecision} />
+          </div>
+        ) : null}
       </section>
     </ContextActionMenu>
   );

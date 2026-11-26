@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync } from "node:fs";
 import { readRegularFileSync } from "@doolittle/storage";
 import type { CliTurnEvent } from "../../turn-events";
 import { parseCliTurnEvent } from "../../turn-events";
@@ -23,6 +23,12 @@ export function reconcileJobRecords(index: CliJobIndex): boolean {
     }
     let terminalEvent: CliTurnEvent | undefined;
     try {
+      // An empty regular log cannot hold a terminal event. Queued and
+      // running jobs usually have empty logs, and scanning every one of
+      // them on each index access makes bulk operations quadratic in
+      // filesystem syscalls.
+      const info = lstatSync(job.logPath, { throwIfNoEntry: false });
+      if (info?.isFile() && info.size === 0) continue;
       terminalEvent = readCliJobEventsFromPath(job.logPath).find(
         (event) => event.type === "completed",
       );

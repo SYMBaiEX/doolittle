@@ -24,10 +24,10 @@ vi.mock("../../apps/desktop/src/renderer/lib", async (original) => ({
       id: "asset-video",
       kind: "video",
       mimeType: "video/mp4",
-      model: "video-model",
+      model: "offline",
       name: "launch teaser",
       prompt: "Show the launch sequence",
-      provider: "openai",
+      provider: "offline",
       sizeBytes: 4096,
     };
     const payloadAsset =
@@ -72,6 +72,9 @@ it("names audio and video previews with the asset identity", () => {
   expect(container.querySelector("audio")?.getAttribute("aria-label")).toBe(
     "Generated audio asset morning narration",
   );
+  expect(container.querySelector("article")?.textContent).toContain(
+    "openai · tts-model · 2.0 KB",
+  );
 
   const videoChoice = Array.from(
     container.querySelectorAll<HTMLButtonElement>("button"),
@@ -81,5 +84,11 @@ it("names audio and video previews with the asset identity", () => {
 
   expect(container.querySelector("video")?.getAttribute("aria-label")).toBe(
     "Generated video asset launch teaser",
+  );
+  expect(container.querySelector("article")?.textContent).toContain(
+    "offline · 4.0 KB",
+  );
+  expect(container.querySelector("article")?.textContent).not.toContain(
+    "offline · offline",
   );
 });
