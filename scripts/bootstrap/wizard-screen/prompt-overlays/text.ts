@@ -64,10 +64,20 @@ export function createPromptTextHandler(deps: WizardPromptOverlayDependencies) {
         });
         inputBox.once("cancel", () => finish(defaultValue));
         inputBox.key(["enter", "return"], () => inputBox.submit());
-        inputBox.key(["escape", "C-c"], () => inputBox.cancel());
+        // Escape stays the cancel/keep-current path. Ctrl-C is deliberately
+        // not captured here: the footer advertises "Control-C exits" and the
+        // screen-level abort handler must win, exactly like in every other
+        // overlay.
+        inputBox.key(["escape"], () => inputBox.cancel());
         inputBox.focus();
         deps.render();
         inputBox.readInput();
+        // blessed's readInput() sets screen.grabKeys = true while editing,
+        // which suppresses every screen-level key dispatch — including the
+        // global Ctrl-C abort — for as long as the input is active. The only
+        // screen-level key in the wizard is that abort, so releasing the grab
+        // restores the advertised exit without disturbing text entry.
+        inputBox.screen.grabKeys = false;
       },
     );
 }
