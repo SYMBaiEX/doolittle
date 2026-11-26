@@ -3,6 +3,7 @@ import { isMainThread } from "node:worker_threads";
 import type { AppLogger } from "@doolittle/agent/logging/logger";
 import type { AgentRuntime } from "@elizaos/core";
 import type { EntrypointInvocation } from "./invocation";
+import { installMachineStdoutFirewall } from "./machine-stdout-firewall";
 import { prepareEntrypointRuntimeBoot } from "./runtime-boot";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
 
@@ -33,6 +34,13 @@ export async function runEntrypointRuntime(
     );
   }
   const { command, oneShot, jobControlDir } = invocation;
+  if (invocation.immediatePrompt?.trim()) {
+    // Once a one-shot prompt reaches this point it is runtime-backed (static
+    // prompts returned earlier). stdout now belongs exclusively to the result
+    // or event encoder; SDK boot, hydration, and shutdown logs must never
+    // share that byte stream.
+    installMachineStdoutFirewall();
+  }
   const {
     context,
     bootLogs,

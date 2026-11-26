@@ -8,6 +8,17 @@ import {
   renderPlainShellHints,
 } from "./shell-chrome";
 
+const MAX_ACTIONABLE_BOOT_LOGS = 4;
+const ACTIONABLE_BOOT_LOG_PATTERN =
+  /\b(?:warn(?:ing)?|error|fatal|failed|failure|unavailable|missing|cannot|unable|not set)\b/iu;
+
+function isActionableBootLog(entry: {
+  source: "stdout" | "stderr";
+  text: string;
+}): boolean {
+  return ACTIONABLE_BOOT_LOG_PATTERN.test(entry.text);
+}
+
 interface PlainStartupOptions {
   context: AppContext;
   state: CliState;
@@ -32,12 +43,15 @@ export function renderPlainStartup(options: PlainStartupOptions): void {
   if (interactiveShell) {
     output.write(`${renderPlainBanner(context, state)}\n`);
     output.write(`${renderPlainShellHints(context, state)}\n\n`);
-    for (const entry of bootLogs ?? []) {
+    const actionableBootLogs = (bootLogs ?? [])
+      .filter(isActionableBootLog)
+      .slice(0, MAX_ACTIONABLE_BOOT_LOGS);
+    for (const entry of actionableBootLogs) {
       output.write(
         `${renderPlainRunLine(`boot ${entry.source === "stderr" ? "warn" : "info"} · ${entry.text}`, "[boot]")}\n`,
       );
     }
-    if ((bootLogs?.length ?? 0) > 0) {
+    if (actionableBootLogs.length > 0) {
       output.write("\n");
     }
     onReady?.();

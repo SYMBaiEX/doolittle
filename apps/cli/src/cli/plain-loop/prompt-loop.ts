@@ -15,6 +15,7 @@ export async function runPlainPromptLoop(
     interactiveShell,
     lifecycleState,
     resetLastRenderedRunEventKey,
+    drainForeignOutput,
   } = options;
   const responseHistory: ResponseTranscriptEntry[] = [];
   const { pushPlainEntry, persistTranscript } = createPlainEntryWriter({
@@ -25,6 +26,7 @@ export async function runPlainPromptLoop(
   });
 
   while (true) {
+    drainForeignOutput?.();
     const line = await readPlainLoopLine({
       rl,
       interactiveShell,

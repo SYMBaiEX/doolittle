@@ -3,8 +3,9 @@ import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import type { AgentRuntime } from "@elizaos/core";
 import type { startCli } from "../cli/start/index";
-import type { captureBootLogs } from "./boot-logs";
+import { captureBootLogs } from "./boot-logs";
 import { acquireCliTerminalEndpoint } from "./cli-terminal-endpoint";
+import { writeStdout } from "./output";
 import type { EntrypointRuntimePlan } from "./runtime-control";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
@@ -33,6 +34,11 @@ export async function handleEntrypointRuntimeSurface(input: {
     (input.shutdownRuntime ?? shutdownApplicationRuntime)(runtime, reason, {
       fast: true,
     });
+  const shutdownWithoutTerminalNoise = async (
+    reason: string,
+  ): Promise<void> => {
+    await captureBootLogs(true, () => shutdown(reason));
+  };
 
   if (command === "gateway") {
     await context.gateway.start();
@@ -99,7 +105,7 @@ export async function handleEntrypointRuntimeSurface(input: {
     });
     const apiOwnsRuntime = await input.apiOwnsRuntimeAfterCli();
     if (!apiOwnsRuntime) {
-      await shutdown("Doolittle CLI completion");
+      await shutdownWithoutTerminalNoise("Doolittle CLI completion");
       exit(exitCode);
     }
     return { exitCode, apiOwnsRuntime };
@@ -107,10 +113,18 @@ export async function handleEntrypointRuntimeSurface(input: {
 
   if (!runtimePlan.shouldStartApi) {
     runtimeLogger.info("runtime-initialized-no-surface", { mode });
-    printLine(
-      `${agentName} initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.`,
-    );
-    await shutdown("Doolittle CLI completion");
+    const message = `${agentName} initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.`;
+    if (input.printLine) {
+      printLine(message);
+    } else {
+      await writeStdout(`${message}\n`);
+    }
+    await shutdownWithoutTerminalNoise("Doolittle CLI completion");
+    // Runtime services can keep sockets/timers alive after their shutdown
+    // promise resolves. Once final operator output has been written, the CLI
+    // must use the same explicit process-exit discipline as the other
+    // noninteractive surfaces instead of relying on natural event-loop drain.
+    exit(0);
   }
 
   return { exitCode: 0 };
