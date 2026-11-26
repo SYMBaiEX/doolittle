@@ -65,6 +65,17 @@ describe("responsive cockpit footer", () => {
       await terminal.waitForGridText("Doolittle is ready.", BOOT_TIMEOUT_MS);
       await terminal.waitForGridText("queue:0", BOOT_TIMEOUT_MS);
 
+      // The footer hint is focus-dependent: "Enter send" only renders once
+      // the input box actually owns focus, and boot-time focus activation
+      // races rendering on slow hosts (CI). Probe focus behaviorally — a
+      // distinctive string must land in the input box — then remove it.
+      terminal.type("zzfocusprobe");
+      await terminal.waitForGridText("zzfocusprobe", BOOT_TIMEOUT_MS);
+      for (let i = 0; i < "zzfocusprobe".length; i += 1) {
+        terminal.key("backspace");
+      }
+      await terminal.waitForGridText("queue:0", BOOT_TIMEOUT_MS);
+
       const lines = await terminal.gridLines();
       const footer = lines[rows - 1];
 
