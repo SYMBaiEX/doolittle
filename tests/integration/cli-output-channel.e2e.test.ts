@@ -137,7 +137,12 @@ describe("built CLI output channel ownership", () => {
     });
 
     expect(result.timedOut).toBe(false);
-    expect(result.code).toBe(0);
+    // Failure diagnostics travel with the assertion: piped-shell behavior
+    // diverges across platforms and CI evidence is otherwise invisible.
+    expect(
+      result.code,
+      `exit code (stderr: ${JSON.stringify(result.stderr.slice(0, 800))})`,
+    ).toBe(0);
     expect(result.stdout).toContain("model provider is unavailable");
     expect(result.stdout).not.toContain("[codex-cli] initialized");
     expect(result.stdout).not.toMatch(/(?:^|\n)\s*(?:Info|Warn)\s/u);
