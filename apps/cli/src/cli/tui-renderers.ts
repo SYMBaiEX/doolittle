@@ -1,3 +1,4 @@
+import { stdout } from "node:process";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { getNativePackageAudit } from "@doolittle/agent/runtime/native/package-audit";
 import { getAutonomousControlPlane } from "@doolittle/agent/runtime/native/service-bridge/autonomous";
@@ -5,7 +6,11 @@ import {
   formatElapsedMs,
   getRunElapsedMs,
 } from "@doolittle/agent/runtime/run-progress";
-import { getTuiTheme } from "@doolittle/agent/runtime/theme-catalog";
+import {
+  getTuiTheme,
+  type TuiThemeProfile,
+} from "@doolittle/agent/runtime/theme-catalog";
+import blessed from "blessed";
 import { runStatusFace } from "./activity-chrome";
 import type { CliState } from "./execution/index";
 import { buildCliOperatorSnapshot } from "./operator-snapshot";
@@ -96,24 +101,263 @@ export function renderStatusContent(
   ].join("\n");
 }
 
+const FOOTER_WIDE_SEPARATOR = "  |  ";
+const FOOTER_COMPACT_SEPARATOR = " | ";
+
+const blessedUnicode = (
+  blessed as unknown as {
+    unicode?: { strWidth?: (text: string) => number };
+  }
+).unicode;
+
+function footerTextWidth(text: string): number {
+  return blessedUnicode?.strWidth?.(text) ?? Array.from(text).length;
+}
+
+function takeFooterTextPrefix(text: string, width: number): string {
+  let output = "";
+  let used = 0;
+  for (const char of Array.from(text)) {
+    const charWidth = footerTextWidth(char);
+    if (used + charWidth > width) break;
+    output += char;
+    used += charWidth;
+  }
+  return output;
+}
+
+function truncateFooterText(text: string, width: number): string {
+  if (footerTextWidth(text) <= width) return text;
+  if (width <= 0) return "";
+  if (width <= 3) return takeFooterTextPrefix(text, width);
+  return `${takeFooterTextPrefix(text, width - 3)}...`;
+}
+
+function compactFooterHint(hint: string): string {
+  return hint
+    .replace(/\s+/gu, " ")
+    .replace(/ (↑\/↓) history$/u, " $1")
+    .trim();
+}
+
+type FooterOptionalVariant = "full" | "compact" | "dropped";
+
+interface FooterPlan {
+  separator: string;
+  commands: FooterOptionalVariant;
+  hint: FooterOptionalVariant;
+  quit: "full" | "compact";
+  compactStatus: boolean;
+  compactQueue: boolean;
+  includeAgentSigil: boolean;
+  agentName: string;
+  model: string;
+}
+
+interface FooterSegment {
+  plain: string;
+  rendered: string;
+}
+
+function buildFooterSegments(
+  theme: TuiThemeProfile,
+  busy: boolean,
+  queueDepth: number,
+  hint: string,
+  busyFrame: string,
+  plan: FooterPlan,
+): FooterSegment[] {
+  const agent = plan.includeAgentSigil
+    ? `${theme.sigil} ${plan.agentName}`
+    : plan.agentName;
+  const status = plan.compactStatus
+    ? busy
+      ? "busy"
+      : "ready"
+    : busy
+      ? `${busyFrame} processing`
+      : `${theme.idleFace} ready`;
+  const queue = plan.compactQueue ? `q:${queueDepth}` : `queue:${queueDepth}`;
+  const segments: FooterSegment[] = [
+    { plain: agent, rendered: escapeBlessed(agent) },
+    {
+      plain: status,
+      rendered: busy
+        ? `{yellow-fg}${escapeBlessed(status)}{/}`
+        : `{green-fg}${escapeBlessed(status)}{/}`,
+    },
+    {
+      plain: queue,
+      rendered:
+        queueDepth > 0
+          ? `{cyan-fg}${escapeBlessed(queue)}{/}`
+          : `{gray-fg}${escapeBlessed(queue)}{/}`,
+    },
+    {
+      plain: plan.model,
+      rendered: `{cyan-fg}${escapeBlessed(plan.model)}{/}`,
+    },
+  ];
+
+  if (plan.commands !== "dropped") {
+    const key = plan.commands === "compact" ? "^P" : macAwareKeyLabel("Ctrl-P");
+    segments.push({
+      plain: `${key} commands`,
+      rendered: `{cyan-fg}${escapeBlessed(key)}{/} commands`,
+    });
+  }
+
+  if (plan.hint !== "dropped") {
+    const text = plan.hint === "compact" ? compactFooterHint(hint) : hint;
+    if (text) {
+      segments.push({ plain: text, rendered: escapeBlessed(text) });
+    }
+  }
+
+  const quitKey = plan.quit === "compact" ? "^Q" : macAwareKeyLabel("Ctrl-Q");
+  segments.push({
+    plain: `${quitKey} quit`,
+    rendered: `{cyan-fg}${escapeBlessed(quitKey)}{/} quit`,
+  });
+  return segments;
+}
+
+function buildFooterLine(
+  theme: TuiThemeProfile,
+  busy: boolean,
+  queueDepth: number,
+  hint: string,
+  busyFrame: string,
+  plan: FooterPlan,
+): { content: string; width: number } {
+  const segments = buildFooterSegments(
+    theme,
+    busy,
+    queueDepth,
+    hint,
+    busyFrame,
+    plan,
+  );
+  const separatorWidth = footerTextWidth(plan.separator);
+  const width =
+    segments.reduce(
+      (total, segment) => total + footerTextWidth(segment.plain),
+      0,
+    ) +
+    separatorWidth * Math.max(0, segments.length - 1);
+  return {
+    content: segments.map((segment) => segment.rendered).join(plan.separator),
+    width,
+  };
+}
+
+function resolveFooterWidth(width: number | undefined): number {
+  const columns = width ?? stdout.columns ?? 80;
+  return Number.isFinite(columns) ? Math.max(1, Math.floor(columns)) : 80;
+}
+
+/**
+ * Width-aware footer copy. State segments are never dropped; affordances first
+ * compact, then yield in priority order (context hint, palette, essentials).
+ * The quit binding is the final affordance and remains visible at every
+ * supported cockpit width (80 columns and above), compacting to caret notation
+ * rather than hard-clipping.
+ */
 export function renderFooter(
   context: AppContext,
   busy: boolean,
   queueDepth: number,
   hint = "Esc input",
   busyFrame = "•",
+  width?: number,
 ): string {
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
-  return [
-    `${theme.sigil} ${context.config.agentName}`,
-    busy
-      ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
-      : `{green-fg}${escapeBlessed(theme.idleFace)} ready{/}`,
-    queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
-    `{cyan-fg}${escapeBlessed(shortModelId(settings.model.model))}{/}`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} commands`,
-    hint,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-Q"))}{/} quit`,
-  ].join("  |  ");
+  const availableWidth = resolveFooterWidth(width);
+  const plan: FooterPlan = {
+    separator: FOOTER_WIDE_SEPARATOR,
+    commands: "full",
+    hint: "full",
+    quit: "full",
+    compactStatus: false,
+    compactQueue: false,
+    includeAgentSigil: true,
+    agentName: context.config.agentName,
+    model: shortModelId(settings.model.model),
+  };
+
+  const build = () =>
+    buildFooterLine(theme, busy, queueDepth, hint, busyFrame, plan);
+  let line = build();
+  if (line.width <= availableWidth) return line.content;
+
+  plan.separator = FOOTER_COMPACT_SEPARATOR;
+  line = build();
+  if (line.width <= availableWidth) return line.content;
+
+  const compactionSteps: Array<() => void> = [
+    () => {
+      plan.hint = "compact";
+    },
+    () => {
+      plan.commands = "compact";
+    },
+    () => {
+      plan.quit = "compact";
+    },
+    () => {
+      plan.hint = "dropped";
+    },
+    () => {
+      plan.commands = "dropped";
+    },
+    () => {
+      plan.compactStatus = true;
+    },
+    () => {
+      plan.includeAgentSigil = false;
+    },
+    () => {
+      plan.compactQueue = true;
+    },
+  ];
+
+  for (const compact of compactionSteps) {
+    compact();
+    line = build();
+    if (line.width <= availableWidth) return line.content;
+  }
+
+  // Extremely long agent or model names yield pressure only after every
+  // affordance has compacted or dropped. Shrink the longer identity field with
+  // an explicit ellipsis; blessed therefore never has to hard-clip a token.
+  while (line.width > availableWidth) {
+    const overflow = line.width - availableWidth;
+    const agentWidth = footerTextWidth(plan.agentName);
+    const modelWidth = footerTextWidth(plan.model);
+    const canShrinkAgent = agentWidth > 1;
+    const canShrinkModel = modelWidth > 1;
+    if (!canShrinkAgent && !canShrinkModel) break;
+
+    if (canShrinkModel && (!canShrinkAgent || modelWidth >= agentWidth)) {
+      plan.model = truncateFooterText(
+        plan.model,
+        Math.max(1, modelWidth - overflow),
+      );
+    } else {
+      plan.agentName = truncateFooterText(
+        plan.agentName,
+        Math.max(1, agentWidth - overflow),
+      );
+    }
+
+    const next = build();
+    if (next.width >= line.width) {
+      line = next;
+      break;
+    }
+    line = next;
+  }
+
+  return line.content;
 }
