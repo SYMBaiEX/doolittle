@@ -99,7 +99,10 @@ function createScrollableBox(
       right: 1,
     },
     scrollbar: {
-      ch: " ",
+      // Blessed draws exactly one thumb cell in overflow; a blank glyph makes
+      // it invisible. A single-column block in the panel accent stays quiet
+      // while remaining visible against the panel background.
+      ch: "█",
     },
     style: panelStyle(theme, theme[layout.accent]),
     hidden: layout.hidden,
@@ -127,7 +130,7 @@ function createActivityPanel({
     mouse: false,
     vi: true,
     scrollbar: {
-      ch: " ",
+      ch: "█",
     },
     style: panelStyle(theme, theme.cyanGlow),
   });
