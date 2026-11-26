@@ -47,6 +47,25 @@ export function applyShellOverlayState(
   setHidden(elements.appMain, false);
 }
 
+/**
+ * Releases competing terminal and mobile-navigation focus ownership before
+ * opening the project manager. Focus restoration is deliberately suppressed
+ * because the manager's initial focus is the next focused element.
+ */
+export function openExclusiveProjectManager({
+  closeTerminal,
+  setMobileSidebarOpen,
+  setProjectManagerOpen,
+}: {
+  closeTerminal: (restoreFocus?: boolean) => void;
+  setMobileSidebarOpen: (open: boolean, restoreFocus?: boolean) => void;
+  setProjectManagerOpen: (open: boolean) => void;
+}): void {
+  closeTerminal(false);
+  setMobileSidebarOpen(false, false);
+  setProjectManagerOpen(true);
+}
+
 export function utilityReturnFocusTarget({
   activeElement,
   mobileSidebarOpen,
