@@ -33,7 +33,7 @@ ElizaOS 2.0 beta line.
 - Desktop Retry coalesces repeated requests. Quit confirms named worker
   shutdown before stopping their engine.
 
-## [0.1.0 release candidate]
+## [0.1.0] — 2025-11-25
 
 ### Desktop release
 
