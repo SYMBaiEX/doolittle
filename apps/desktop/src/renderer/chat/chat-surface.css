@@ -170,11 +170,17 @@
   }
 }
 
+.chat-transcript-bottom {
+  position: relative;
+  flex: none;
+  min-width: 0;
+}
+
 .chat-jump-to-latest {
   position: absolute;
   z-index: 10;
   inset-inline-end: var(--chat-gutter);
-  inset-block-end: 12px;
+  inset-block-end: calc(100% + 12px);
   display: inline-flex;
   align-items: center;
   gap: 7px;
