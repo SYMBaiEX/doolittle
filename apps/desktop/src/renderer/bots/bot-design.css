@@ -24,22 +24,33 @@
 }
 .new-chat-chooser header {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   padding-left: 10px;
 }
+.new-chat-chooser__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .new-chat-chooser h2 {
+  min-width: 0;
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .new-chat-status {
   margin: 12px 10px;
   font-size: 14px;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 .new-chat-choice {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 12px;
   width: 100%;

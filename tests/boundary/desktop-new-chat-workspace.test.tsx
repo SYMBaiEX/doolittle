@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { NewChatChooser } from "../../apps/desktop/src/renderer/bots/NewChatChooser";
 
-it("chooses a local workspace before starting a chat with the pinned bot", () => {
+it("chooses a workspace while long status content stays inside the scrolling region", () => {
   const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
   environment.IS_REACT_ACT_ENVIRONMENT = true;
@@ -35,7 +35,7 @@ it("chooses a local workspace before starting a chat with the pinned bot", () =>
     createdAt: "",
     updatedAt: "",
   };
-  const render = (scope: string) =>
+  const render = (scope: string, transitionError = "") =>
     act(() =>
       root.render(
         <NewChatChooser
@@ -44,6 +44,7 @@ it("chooses a local workspace before starting a chat with the pinned bot", () =>
           onClose={vi.fn()}
           onConfirm={onConfirm}
           onScopeChange={onScopeChange}
+          transitionError={transitionError}
           projects={[
             { id: "project", name: "Project", primaryPath: "/fixture/project" },
             { id: "missing", name: "No folder" },
@@ -93,6 +94,18 @@ it("chooses a local workspace before starting a chat with the pinned bot", () =>
     expect(host.textContent).toContain("This computer · /fixture/project");
     act(() => botButton.click());
     expect(onConfirm).toHaveBeenCalledTimes(1);
+
+    const transitionError = `Workspace transition failed: ${"detail ".repeat(80)}`;
+    render("project", transitionError);
+    const scrollableBody = host.querySelector(".new-chat-chooser__body");
+    const errorAlert = host.querySelector(".new-chat-status[role='alert']");
+    const fixedStartAction = host.querySelector(
+      'button[aria-label="Start chat with Fixture"]',
+    );
+    expect(errorAlert?.textContent).toBe(transitionError);
+    expect(scrollableBody?.contains(errorAlert ?? null)).toBe(true);
+    expect(scrollableBody?.contains(fixedStartAction ?? null)).toBe(false);
+    expect(fixedStartAction).not.toBeNull();
 
     render("old");
     expect(selector.selectedOptions[0].text).toBe("Project unavailable");
