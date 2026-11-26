@@ -9,6 +9,7 @@ import type { CliState } from "../../execution/index";
 import { applyTuiLayout } from "../../tui-layout";
 import type { TuiStateStore } from "../../tui-state";
 import { applyTuiTheme } from "../../tui-theme";
+import { reconcileTranscriptScrollAfterLayout } from "../../tui-transcript/scroll-pin";
 import type { TuiWidgetSet } from "../../tui-widget-factory";
 import type { TuiStartAssemblyHintOptions } from "../assembly-state";
 import { createTuiStartControlDeck } from "./presentation-control-deck";
@@ -111,6 +112,11 @@ export function createTuiStartPresentation(
     activity.setLabel(
       tuiState.opsCollapsed ? " Ops Stream " : " Ops Stream · Expanded ",
     );
+    // Blessed's scrolling fast path uses the panel's last rendered position.
+    // Paint the new geometry once before reconciling so the pin correction is
+    // computed against real coordinates, then paint the corrected frame.
+    screen.render();
+    reconcileTranscriptScrollAfterLayout(widgets.response);
     screen.render();
   };
 
