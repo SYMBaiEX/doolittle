@@ -77,7 +77,17 @@ export function installTuiOverlays(
     updateFooterHint();
   };
 
-  const closeComposer = () => {
+  let composerDraft: string | undefined;
+
+  // Escape hides the composer without discarding work. Close paths that hand
+  // the text to another owner explicitly clear the remembered draft.
+  const closeComposer = (closeOptions: { preserveDraft?: boolean } = {}) => {
+    if (closeOptions.preserveDraft ?? true) {
+      const value = composer.getValue();
+      composerDraft = value.length > 0 ? value : undefined;
+    } else {
+      composerDraft = undefined;
+    }
     deactivateTextEntry(composer as InteractiveTextEntry);
     overlayState.composerOpen = false;
     composerOverlay.hide();
@@ -91,7 +101,7 @@ export function installTuiOverlays(
       ? composer.getValue()
       : initialValue;
     if (overlayState.composerOpen) {
-      closeComposer();
+      closeComposer({ preserveDraft: false });
     }
     deactivateTextEntry(inputBox as InteractiveTextEntry);
     overlayState.paletteOpen = true;
@@ -109,10 +119,14 @@ export function installTuiOverlays(
   };
 
   const openComposer = (initialValue = "") => {
-    const preservedValue = overlayState.paletteOpen
+    const openingFromPalette = overlayState.paletteOpen;
+    const preservedValue = openingFromPalette
       ? paletteInput.getValue()
-      : initialValue;
-    if (overlayState.paletteOpen) {
+      : (composerDraft ?? initialValue);
+    if (!openingFromPalette) {
+      composerDraft = undefined;
+    }
+    if (openingFromPalette) {
       closePalette();
     }
     deactivateTextEntry(inputBox as InteractiveTextEntry);
