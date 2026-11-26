@@ -206,7 +206,16 @@ export function spawnTerminalSession(
       cols,
       rows,
       cwd: options.cwd,
-      env: options.env as Record<string, string>,
+      env: {
+        ...(options.env as Record<string, string>),
+        // Terminal behavior is locale-sensitive: blessed and unicode width
+        // measurement degrade in POSIX/C locales, so pin a UTF-8 locale for
+        // deterministic rendering across hosts (CI runners default to POSIX).
+        // These pins intentionally WIN over the passed environment — host
+        // locale must never leak into spawned terminal sessions.
+        LC_ALL: "C.UTF-8",
+        LANG: "C.UTF-8",
+      },
     },
   );
   const xterm = new Terminal({
