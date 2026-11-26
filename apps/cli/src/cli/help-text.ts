@@ -3,6 +3,8 @@ import { macAwareKeyLabel } from "./terminal-labels";
 
 export function buildHelpText(agentName: string): string {
   const command = (value: string) => value.trim();
+  const commandRow = (value: string, description: string) =>
+    `  ${command(value).padEnd(20)}  ${description}`;
   const hotkeys = getCliHotkeyBindings();
   const examples = getCliHelpExamples();
   return [
@@ -24,23 +26,23 @@ export function buildHelpText(agentName: string): string {
     "  Enter            Send message or command",
     `  ${macAwareKeyLabel("Ctrl-C")}           Cancel the active turn or leave when idle`,
     "  exit / quit      Leave the shell",
-    "  /commands        Browse slash commands and bundled workflows",
-    `  ${command("/status")}        Runtime, provider, and startup readiness`,
-    `  ${command("/progress")}      Current run depth, tool activity, and turn state`,
-    `  ${command("/accounts doctor")} Startup and linked-account diagnostics`,
-    `  ${command("/gateway readiness")} Transport readiness and channel state`,
-    `  ${command("/jobs")}          Background runs and detached work`,
+    commandRow("/commands", "Browse slash commands and bundled workflows"),
+    commandRow("/status", "Runtime, provider, and startup readiness"),
+    commandRow("/progress", "Current run depth, tool activity, and turn state"),
+    commandRow("/accounts doctor", "Startup and linked-account diagnostics"),
+    commandRow("/gateway readiness", "Transport readiness and channel state"),
+    commandRow("/jobs", "Background runs and detached work"),
     "",
     "Sessions:",
-    `  ${command("/resume <title>")} Resume a named session`,
-    `  ${command("/title <name>")}   Name the current session`,
-    `  ${command("/sessions list")} Review recent sessions`,
+    commandRow("/resume <title>", "Resume a named session"),
+    commandRow("/title <name>", "Name the current session"),
+    commandRow("/sessions list", "Review recent sessions"),
     "",
     "Background jobs:",
-    `  ${command("/jobs start <prompt>")} Start a detached background run`,
-    `  ${command("/jobs show <id>")} Replay a job log`,
-    `  ${command("/jobs attach <id>")} Follow a job live`,
-    `  ${command("/jobs cancel <id>")} Cancel a background run`,
+    commandRow("/jobs start <prompt>", "Start a detached background run"),
+    commandRow("/jobs show <id>", "Replay a job log"),
+    commandRow("/jobs attach <id>", "Follow a job live"),
+    commandRow("/jobs cancel <id>", "Cancel a background run"),
     "",
     "Cockpit hotkeys:",
     `  ${macAwareKeyLabel("Ctrl-Q")}           Quit`,

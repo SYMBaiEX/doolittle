@@ -53,15 +53,26 @@ export function renderCliJobReplay(dataDir: string, id: string): string {
     : replay;
 }
 
+function jobsListContentWidth(): number {
+  const columns =
+    process.stdout.isTTY && Number.isFinite(process.stdout.columns)
+      ? Math.floor(process.stdout.columns)
+      : 160;
+  // The list renderer adds "- "; keep the complete logical row inside the
+  // selected width, bounded even when a very wide terminal is in use.
+  return Math.max(48, Math.min(160, columns) - 2);
+}
+
 export function cliJobStatusSummary(dataDir: string): string {
   const jobs = listCliJobs(dataDir).slice(0, 10);
   if (!jobs.length) {
     return "No background jobs recorded.";
   }
+  const width = jobsListContentWidth();
   return jobs
     .map(
       (job) =>
-        `- ${summarizeCliJob(job)}${isUnconfirmed(dataDir, job) ? " (unconfirmed or stale)" : ""}`,
+        `- ${summarizeCliJob(job, { maxWidth: width })}${isUnconfirmed(dataDir, job) ? " (unconfirmed or stale)" : ""}`,
     )
     .join("\n");
 }

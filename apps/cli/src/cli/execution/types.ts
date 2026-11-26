@@ -13,7 +13,7 @@ export interface CliExecutionResult {
   text: string;
   tone?: "info" | "success" | "warning" | "error" | "agent";
   shouldExit?: boolean;
-  /** Authoritative terminal receipt, when an agent turn created a run. */
+  /** Terminal execution classification, including local degradation facts not represented in SDK run receipts. */
   status?: "completed" | "failed" | "cancelled";
 }
 

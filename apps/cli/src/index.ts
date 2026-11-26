@@ -1,4 +1,8 @@
 #!/usr/bin/env nub
+import { randomUUID } from "node:crypto";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import type { AppLogger } from "@doolittle/agent/logging/logger";
 import { DOOLITTLE_VERSION } from "@doolittle/agent/version";
 import { renderHelp } from "./entrypoint/help";
 import {
@@ -6,6 +10,49 @@ import {
   resolveHelpTopic,
   resolveSubcommand,
 } from "./entrypoint/subcommand";
+
+function appendTextFile(path: string, text: string): void {
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(path, text, "utf8");
+  } catch {
+    // Fatal reporting must never replace the original process failure.
+  }
+}
+
+/**
+ * Fatal telemetry belongs in the local operations logs. The user stderr channel
+ * gets exactly one concise error line below, not a structured record and stack.
+ */
+function recordFatalTelemetry(
+  logger: AppLogger,
+  label: string,
+  detail: string,
+): void {
+  const at = new Date().toISOString();
+  const eventLogPath = logger.getEventLogPath();
+  if (eventLogPath) {
+    appendTextFile(
+      eventLogPath,
+      `${JSON.stringify({
+        id: randomUUID(),
+        at,
+        level: "error",
+        scope: logger.scope,
+        message: label,
+        detail,
+        fields: { crash: true, entrypoint: true },
+      })}\n`,
+    );
+  }
+  const crashLogPath = logger.getCrashLogPath();
+  if (crashLogPath) {
+    appendTextFile(
+      crashLogPath,
+      `[${at}] ${label} (${logger.scope})\n${detail}\n\n`,
+    );
+  }
+}
 
 async function main(): Promise<number> {
   const selection = resolveSubcommand();
@@ -84,13 +131,15 @@ main()
     }
     const [
       { getEntrypointLogger },
+      { formatLoggerError },
       { getCliErrorMessage },
-      { restoreTerminalState },
+      { restoreTerminalState, sanitizeTerminalText },
       { writeStderrLine },
       { isCliStartupExitError },
       { isRecoverableTopLevelRuntimeError },
     ] = await Promise.all([
       import("@doolittle/agent/logging/entrypoint-logger"),
+      import("@doolittle/agent/logging/logger"),
       import("./cli/execution/types"),
       import("./cli/render-utils"),
       import("./entrypoint/output"),
@@ -102,12 +151,21 @@ main()
       process.exitCode = error.exitCode;
       return;
     }
-    getEntrypointLogger("index").captureError("entrypoint-main-failed", error);
-    if (isRecoverableTopLevelRuntimeError(error)) {
-      writeStderrLine(getCliErrorMessage(error));
-    } else {
-      writeStderrLine(String(error));
-    }
+    recordFatalTelemetry(
+      getEntrypointLogger("index"),
+      "entrypoint-main-failed",
+      formatLoggerError(error),
+    );
+    const userMessage = isRecoverableTopLevelRuntimeError(error)
+      ? getCliErrorMessage(error)
+      : String(error);
+    writeStderrLine(
+      sanitizeTerminalText(userMessage, {
+        preserveNewlines: false,
+        collapseWhitespace: true,
+        maxTokenLength: 4_000,
+      }) || "Doolittle failed unexpectedly.",
+    );
     process.exit(1);
   })
   .finally(() => {
