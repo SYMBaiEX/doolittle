@@ -6,6 +6,7 @@ interface PaletteSuggestionOptions {
   query: string;
   paletteList: blessed.Widgets.ListElement;
   overlayState: {
+    paletteOpen: boolean;
     paletteSelectionIndex: number;
   };
 }
@@ -22,9 +23,13 @@ interface PaletteBindingOptions extends PaletteSuggestionOptions {
   screenRender: () => void;
 }
 
+interface ComposerCloseOptions {
+  preserveDraft?: boolean;
+}
+
 interface ComposerBindingOptions {
   composer: blessed.Widgets.TextareaElement;
-  closeComposer: () => void;
+  closeComposer: (options?: ComposerCloseOptions) => void;
   queueCommand: (line: string) => void;
 }
 
@@ -57,6 +62,20 @@ function getNextPaletteSelectionIndex(
   return Math.min(suggestionCount - 1, currentIndex + 1);
 }
 
+function isPrintableInputChunk(chunk: string): boolean {
+  if (chunk.length !== 1) {
+    return true;
+  }
+  const code = chunk.charCodeAt(0);
+  return !(
+    code <= 8 ||
+    code === 11 ||
+    code === 12 ||
+    (code >= 14 && code <= 31) ||
+    code === 127
+  );
+}
+
 export function syncPaletteSuggestions({
   workspaceDir,
   query,
@@ -75,7 +94,7 @@ export function bindComposerOverlay({
 }: ComposerBindingOptions): void {
   composer.key("C-s", () => {
     const value = composer.getValue();
-    closeComposer();
+    closeComposer({ preserveDraft: false });
     queueCommand(value);
   });
 
@@ -95,32 +114,7 @@ export function bindPaletteOverlay({
   closePalette,
   screenRender,
 }: PaletteBindingOptions): void {
-  paletteInput.on("keypress", () => {
-    noteTextEntryActivity();
-    syncPaletteSuggestions({
-      workspaceDir,
-      query: paletteInput.getValue(),
-      paletteList,
-      overlayState,
-    });
-    updateFooterHint({ flushForeign: false });
-    screenRender();
-  });
-
-  paletteInput.key("enter", () => {
-    const selected = readSelectedPaletteCommand(
-      paletteInput.getValue(),
-      workspaceDir,
-      0,
-    );
-    if (!selected) {
-      return;
-    }
-    closePalette();
-    queueCommand(selected);
-  });
-
-  paletteList.key("enter", () => {
+  const runSelectedPaletteCommand = () => {
     const selected = readSelectedPaletteCommand(
       paletteInput.getValue(),
       workspaceDir,
@@ -131,36 +125,76 @@ export function bindPaletteOverlay({
     }
     closePalette();
     queueCommand(selected);
+  };
+
+  const movePaletteSelection = (key: string) => {
+    const suggestions = readPaletteSuggestions(
+      paletteInput.getValue(),
+      workspaceDir,
+    );
+    const current = suggestions[overlayState.paletteSelectionIndex];
+    if (!current) {
+      overlayState.paletteSelectionIndex = 0;
+      paletteList.select(0);
+      updateFooterHint();
+      screenRender();
+      return;
+    }
+    const nextIndex = getNextPaletteSelectionIndex(
+      key,
+      overlayState.paletteSelectionIndex,
+      suggestions.length,
+    );
+    overlayState.paletteSelectionIndex = nextIndex;
+    paletteList.select(nextIndex);
+    updateFooterHint();
+    screenRender();
+  };
+
+  paletteInput.on("keypress", (ch, key) => {
+    noteTextEntryActivity();
+    const editsValue =
+      key.name === "backspace" ||
+      (typeof ch === "string" && ch.length > 0 && isPrintableInputChunk(ch));
+    if (!editsValue) {
+      return;
+    }
+    process.nextTick(() => {
+      if (!overlayState.paletteOpen) {
+        return;
+      }
+      syncPaletteSuggestions({
+        workspaceDir,
+        query: paletteInput.getValue(),
+        paletteList,
+        overlayState,
+      });
+      updateFooterHint({ flushForeign: false });
+      screenRender();
+    });
   });
+
+  paletteInput.key("enter", runSelectedPaletteCommand);
+  paletteList.key("enter", runSelectedPaletteCommand);
 
   // "select item" fires for navigation and mouse hover, so only track focus here.
   paletteList.on("select item", (_, index) => {
     overlayState.paletteSelectionIndex = index;
   });
 
-  for (const key of ["up", "down", "j", "k", "C-p", "C-n"]) {
+  // Keep typing focus in the input while arrows move the match selection.
+  for (const key of ["up", "down", "C-p", "C-n"]) {
+    paletteInput.key(key, () => {
+      movePaletteSelection(key);
+    });
+  }
+
+  // Blessed lists already own arrows and vi j/k while the list is focused;
+  // duplicating those keys here advances the selection twice. Keep only the
+  // Emacs-style pair the native list does not handle.
+  for (const key of ["C-p", "C-n"]) {
     paletteList.key(key, () => {
-      const suggestions = readPaletteSuggestions(
-        paletteInput.getValue(),
-        workspaceDir,
-      );
-      const current = suggestions[overlayState.paletteSelectionIndex];
-      if (!current) {
-        overlayState.paletteSelectionIndex = 0;
-        paletteList.select(0);
-        updateFooterHint();
-        screenRender();
-        return;
-      }
-      const nextIndex = getNextPaletteSelectionIndex(
-        key,
-        overlayState.paletteSelectionIndex,
-        suggestions.length,
-      );
-      overlayState.paletteSelectionIndex = nextIndex;
-      paletteList.select(nextIndex);
-      updateFooterHint();
-      screenRender();
+      movePaletteSelection(key);
     });
   }
 }
