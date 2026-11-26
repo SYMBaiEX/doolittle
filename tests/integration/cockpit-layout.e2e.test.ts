@@ -210,6 +210,13 @@ describe("cockpit layout geometry", () => {
       expect(grid).toContain("Status");
       expect(grid).toContain("Commands");
 
+      // The dead hidden Transports/Execution panels are removed entirely —
+      // their labels never render, and no phantom band is reserved for them
+      // (the exact adjacency assertions above prove the rail is fully
+      // partitioned between Status and Commands).
+      expect(grid).not.toContain("Transports");
+      expect(grid).not.toContain("Execution");
+
       // Right edge: the rail border occupies the terminal's last column —
       // no dead strip (cellAt reads exact cells, so a blank would fail).
       expect(await cellChars(rightEdge, expectation.sidebar[0])).toBe("┐");

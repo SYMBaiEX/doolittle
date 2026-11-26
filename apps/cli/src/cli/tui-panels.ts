@@ -10,13 +10,9 @@ interface TuiPanelsOptions {
   logger: AppLogger;
   screen: blessed.Widgets.Screen;
   sidebar: { setContent(content: string): void };
-  transportBox: { hidden: boolean; setContent(content: string): void };
-  executionBox: { hidden: boolean; setContent(content: string): void };
   assistBox: { setContent(content: string): void };
   footer: { setContent(content: string): void };
   renderStatusRail: () => string;
-  renderTransportPanel: () => Promise<string>;
-  renderExecutionPanel: () => Promise<string>;
   renderControlDeck: () => Promise<void>;
   renderFooterContent: () => string;
   appendActivity: (
@@ -38,13 +34,9 @@ export function installTuiPanels(
     logger,
     screen,
     sidebar,
-    transportBox,
-    executionBox,
     assistBox,
     footer,
     renderStatusRail,
-    renderTransportPanel,
-    renderExecutionPanel,
     renderControlDeck,
     renderFooterContent,
     appendActivity,
@@ -73,26 +65,6 @@ export function installTuiPanels(
       sidebar.setContent(
         `{bold}Status{/}\n{yellow-fg}Status unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
       );
-    }
-    if (!transportBox.hidden) {
-      try {
-        transportBox.setContent(await renderTransportPanel());
-      } catch (error) {
-        notePanelFailure("channels", error);
-        transportBox.setContent(
-          `{bold}Channels{/}\n{yellow-fg}Transport state unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
-        );
-      }
-    }
-    if (!executionBox.hidden) {
-      try {
-        executionBox.setContent(await renderExecutionPanel());
-      } catch (error) {
-        notePanelFailure("workbench", error);
-        executionBox.setContent(
-          `{bold}Workbench{/}\n{yellow-fg}Execution state unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
-        );
-      }
     }
     try {
       await renderControlDeck();
