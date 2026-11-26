@@ -1,4 +1,10 @@
 import { Button, ContextActionMenu, Input } from "@doolittle/ui";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@elizaos/ui/components/ui/tooltip";
 import { MoreHorizontal } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type {
@@ -101,176 +107,198 @@ export function SessionListPanel({
     selectedIndex,
   });
   return (
-    <section className={`list-panel ${SESSION_LIST_PANEL_CLASS}`}>
-      <div className={SESSION_LIST_HEADER_CLASS}>
-        <strong>Conversations</strong>
-        <small data-history-count="true">
-          {filtered.length} conversation{filtered.length === 1 ? "" : "s"}
-        </small>
-      </div>
-      <label htmlFor="session-search-input">
-        <span className="sr-only">Search sessions</span>
-        <Input
-          ref={searchInputRef}
-          id="session-search-input"
-          aria-label="Search conversations"
-          placeholder="Search conversations"
-          value={query}
-          onChange={(event) => {
-            const next = event.target.value;
-            setQuery(next);
-            onQueryChange?.(next);
-          }}
-        />
-      </label>
-      {active && searchMatchesQuery ? (
-        <div className="mb-1.5">
-          {search.loading ? (
-            <LoadingBlock label="Searching persisted sessions…" />
-          ) : search.error ? (
-            <ErrorBlock error={search.error} retry={search.reload} />
-          ) : search.data?.hits?.length ? (
-            <div className={SESSION_STATUS_ROW_CLASS}>
-              <div>
-                <strong>Full-text search</strong>
-                <small>{search.data.hits.length} persisted hit(s)</small>
-              </div>
-            </div>
-          ) : null}
+    <TooltipProvider delayDuration={420} skipDelayDuration={160}>
+      <section className={`list-panel ${SESSION_LIST_PANEL_CLASS}`}>
+        <div className={SESSION_LIST_HEADER_CLASS}>
+          <strong>Conversations</strong>
+          <small data-history-count="true">
+            {filtered.length} conversation{filtered.length === 1 ? "" : "s"}
+          </small>
         </div>
-      ) : null}
-      <section
-        aria-label="Conversations"
-        className="overflow-auto overscroll-contain [scrollbar-gutter:stable]"
-      >
-        {sessionWindow.visible.map((session) => (
-          <ContextActionMenu
-            className="group relative flex min-w-0 items-center"
-            items={[
-              {
-                id: "preview",
-                label: "Preview conversation",
-                onSelect: () => onSelect(session),
-              },
-              ...(onOpenSession
-                ? [
-                    {
-                      id: "open",
-                      label: "Open in workspace",
-                      disabled: !active,
-                      onSelect: () => onOpenSession(session.sessionId),
-                    },
-                  ]
-                : []),
-              {
-                id: "copy-title",
-                label: "Copy conversation title",
-                disabled: !session.title,
-                separatorBefore: true,
-                onSelect: () => void copyContextText(session.title || ""),
-              },
-              {
-                id: "copy-id",
-                label: "Copy conversation ID",
-                onSelect: () => void copyContextText(session.sessionId),
-              },
-            ]}
-            key={session.sessionId}
-            label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
-            scopeKey={`conversation:${session.sessionId}`}
-            trigger={
-              <button
-                aria-label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
-                className="absolute top-1/2 right-1 z-10 grid size-10 shrink-0 -translate-y-1/2 place-items-center rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
-                type="button"
-              >
-                <UiIcon icon={MoreHorizontal} size="sm" />
-              </button>
-            }
-          >
-            <button
-              className={`${SESSION_ROW_CLASS} min-w-0 flex-1 ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
-              aria-current={
-                selectedId === session.sessionId ? "true" : undefined
-              }
-              data-session-row="true"
-              onClick={() => onSelect(session)}
-              type="button"
-            >
-              <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
-                <strong>
-                  {compactSessionPreview(session.title || "") ||
-                    compactSessionPreview(session.preview?.[0] || "") ||
-                    "Untitled conversation"}
-                </strong>
-                <small>
-                  {compactSessionPreview(session.preview?.[0] || "") ||
-                    session.sessionId}
-                </small>
-              </span>
-              <span className="grid shrink-0 justify-items-end gap-0.5 @max-[300px]/sessions:grid-flow-col @max-[300px]/sessions:justify-start @max-[300px]/sessions:justify-items-start @max-[300px]/sessions:gap-x-2 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
-                <small>{session.messageCount} messages</small>
-                <small>{displayTimestamp(session.endedAt)}</small>
-              </span>
-            </button>
-          </ContextActionMenu>
-        ))}
-        {!filtered.length &&
-        (!searchPath ||
-          (searchMatchesQuery && !search.loading && !search.error)) ? (
-          <EmptyBlock
-            title={
-              query.trim()
-                ? "No matching conversations"
-                : "No saved conversations"
-            }
-            actions={
-              query.trim() ? (
-                <Button
-                  onClick={() => {
-                    setQuery("");
-                    onQueryChange?.("");
-                    searchInputRef.current?.focus();
-                  }}
+        <label htmlFor="session-search-input">
+          <span className="sr-only">Search sessions</span>
+          <Input
+            ref={searchInputRef}
+            id="session-search-input"
+            aria-label="Search conversations"
+            placeholder="Search conversations"
+            value={query}
+            onChange={(event) => {
+              const next = event.target.value;
+              setQuery(next);
+              onQueryChange?.(next);
+            }}
+          />
+        </label>
+        {active && searchMatchesQuery ? (
+          <div className="mb-1.5">
+            {search.loading ? (
+              <LoadingBlock label="Searching persisted sessions…" />
+            ) : search.error ? (
+              <ErrorBlock error={search.error} retry={search.reload} />
+            ) : search.data?.hits?.length ? (
+              <div className={SESSION_STATUS_ROW_CLASS}>
+                <div>
+                  <strong>Full-text search</strong>
+                  <small>{search.data.hits.length} persisted hit(s)</small>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <section
+          aria-label="Conversations"
+          className="overflow-auto overscroll-contain [scrollbar-gutter:stable]"
+        >
+          {sessionWindow.visible.map((session) => (
+            <ContextActionMenu
+              className="group relative flex min-w-0 items-center"
+              items={[
+                {
+                  id: "preview",
+                  label: "Preview conversation",
+                  onSelect: () => onSelect(session),
+                },
+                ...(onOpenSession
+                  ? [
+                      {
+                        id: "open",
+                        label: "Open in workspace",
+                        disabled: !active,
+                        onSelect: () => onOpenSession(session.sessionId),
+                      },
+                    ]
+                  : []),
+                {
+                  id: "copy-title",
+                  label: "Copy conversation title",
+                  disabled: !session.title,
+                  separatorBefore: true,
+                  onSelect: () => void copyContextText(session.title || ""),
+                },
+                {
+                  id: "copy-id",
+                  label: "Copy conversation ID",
+                  onSelect: () => void copyContextText(session.sessionId),
+                },
+              ]}
+              key={session.sessionId}
+              label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
+              scopeKey={`conversation:${session.sessionId}`}
+              trigger={
+                <button
+                  aria-label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
+                  className="absolute top-1/2 right-1 z-10 grid size-10 shrink-0 -translate-y-1/2 place-items-center rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
                   type="button"
-                  variant="secondary"
                 >
-                  Clear search
-                </Button>
-              ) : undefined
-            }
-          >
-            {query.trim()
-              ? "Try another phrase, or clear the search to see your history."
-              : "Your saved conversations will appear here."}
-          </EmptyBlock>
-        ) : null}
-        {sessionWindow.remaining ? (
-          <footer
-            className="mt-1 flex min-h-[38px] items-center justify-between gap-2 border-t border-[var(--border-subtle)] px-1 pt-[5px]"
-            data-session-list-footer="true"
-          >
-            <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--muted)] uppercase">
-              Showing {sessionWindow.visible.length} of {filtered.length}
-            </span>
-            <Button
-              className="min-h-10 px-3"
-              onClick={() =>
-                setPage({
-                  key: filterKey,
-                  limit: sessionWindow.limit + SESSION_LIST_PAGE_SIZE,
-                })
+                  <UiIcon icon={MoreHorizontal} size="sm" />
+                </button>
               }
-              size="sm"
-              type="button"
-              variant="secondary"
             >
-              Show {Math.min(SESSION_LIST_PAGE_SIZE, sessionWindow.remaining)}
-              {" more"}
-            </Button>
-          </footer>
-        ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`${SESSION_ROW_CLASS} min-w-0 flex-1 ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
+                    aria-current={
+                      selectedId === session.sessionId ? "true" : undefined
+                    }
+                    data-session-row="true"
+                    onClick={() => onSelect(session)}
+                    type="button"
+                  >
+                    <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
+                      <strong>
+                        {compactSessionPreview(session.title || "") ||
+                          compactSessionPreview(session.preview?.[0] || "") ||
+                          "Untitled conversation"}
+                      </strong>
+                      <small>
+                        {compactSessionPreview(session.preview?.[0] || "") ||
+                          session.sessionId}
+                      </small>
+                    </span>
+                    <span className="grid shrink-0 justify-items-end gap-0.5 @max-[300px]/sessions:grid-flow-col @max-[300px]/sessions:justify-start @max-[300px]/sessions:justify-items-start @max-[300px]/sessions:gap-x-2 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
+                      <small>{session.messageCount} messages</small>
+                      <small>{displayTimestamp(session.endedAt)}</small>
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  className="dl-tooltip-content chat-history-tooltip"
+                  collisionPadding={12}
+                  side="right"
+                  sideOffset={12}
+                >
+                  <span className="chat-history-tooltip-title">
+                    {compactSessionPreview(session.title || "") ||
+                      compactSessionPreview(session.preview?.[0] || "") ||
+                      "Untitled conversation"}
+                  </span>
+                  <span className="chat-history-tooltip-meta">
+                    {session.messageCount}{" "}
+                    {session.messageCount === 1 ? "message" : "messages"}
+                  </span>
+                </TooltipContent>
+              </Tooltip>
+            </ContextActionMenu>
+          ))}
+          {!filtered.length &&
+          (!searchPath ||
+            (searchMatchesQuery && !search.loading && !search.error)) ? (
+            <EmptyBlock
+              title={
+                query.trim()
+                  ? "No matching conversations"
+                  : "No saved conversations"
+              }
+              actions={
+                query.trim() ? (
+                  <Button
+                    onClick={() => {
+                      setQuery("");
+                      onQueryChange?.("");
+                      searchInputRef.current?.focus();
+                    }}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Clear search
+                  </Button>
+                ) : undefined
+              }
+            >
+              {query.trim()
+                ? "Try another phrase, or clear the search to see your history."
+                : "Your saved conversations will appear here."}
+            </EmptyBlock>
+          ) : null}
+          {sessionWindow.remaining ? (
+            <footer
+              className="mt-1 flex min-h-[38px] items-center justify-between gap-2 border-t border-[var(--border-subtle)] px-1 pt-[5px]"
+              data-session-list-footer="true"
+            >
+              <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--muted)] uppercase">
+                Showing {sessionWindow.visible.length} of {filtered.length}
+              </span>
+              <Button
+                className="min-h-10 px-3"
+                onClick={() =>
+                  setPage({
+                    key: filterKey,
+                    limit: sessionWindow.limit + SESSION_LIST_PAGE_SIZE,
+                  })
+                }
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                Show {Math.min(SESSION_LIST_PAGE_SIZE, sessionWindow.remaining)}
+                {" more"}
+              </Button>
+            </footer>
+          ) : null}
+        </section>
       </section>
-    </section>
+    </TooltipProvider>
   );
 }
