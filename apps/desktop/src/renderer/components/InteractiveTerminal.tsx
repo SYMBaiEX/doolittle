@@ -540,6 +540,10 @@ export function InteractiveTerminal({
       macOptionClickForcesSelection: true,
       minimumContrastRatio: 4.5,
       rightClickSelectsWord: true,
+      // Expose the buffer to NVDA/VoiceOver. xterm mirrors only the viewport
+      // rows (never the full scrollback) and caps live-region announcements at
+      // 20 lines per batch, so build-log volume stays bounded.
+      screenReaderMode: true,
       scrollSensitivity: 2,
       scrollback: 5_000,
       smoothScrollDuration: 0,
