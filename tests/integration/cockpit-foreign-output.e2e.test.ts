@@ -40,7 +40,7 @@ function triggerPath(): string {
   return resolve(fixture.profile, "foreign-writes-enabled");
 }
 
-function bootedCockpit(): Promise<TerminalSession> {
+async function bootedCockpit(): Promise<TerminalSession> {
   const session = spawnTerminalSession({
     command: resolveNubExecutable(),
     argv: [fixtureEntry, "--cli"],
