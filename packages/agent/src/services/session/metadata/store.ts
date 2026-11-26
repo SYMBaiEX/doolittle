@@ -80,6 +80,36 @@ export class SessionMetadataStore {
     );
   }
 
+  /**
+   * Initialize a generated title exactly once. Unlike rename, an existing
+   * non-empty title (user-named or previously claimed) is never overwritten;
+   * unlike initializeTitle, no first-user-message ordering is required, so
+   * non-interactive sources can claim a title before any message persists.
+   */
+  claimTitle(sessionId: string, title: string): boolean {
+    const normalized = title.trim();
+    if (!normalized) return false;
+    const result = this.db
+      .query(
+        `
+          INSERT INTO session_metadata (session_id, title, continuity_key, updated_at)
+          VALUES (?1, ?2, ?3, ?4)
+          ON CONFLICT(session_id) DO UPDATE SET
+            title = excluded.title,
+            updated_at = excluded.updated_at
+          WHERE session_metadata.title IS NULL
+            OR TRIM(session_metadata.title) = ''
+        `,
+      )
+      .run(
+        sessionId,
+        normalized,
+        this.continuityKey(sessionId),
+        new Date().toISOString(),
+      );
+    return result.changes > 0;
+  }
+
   metadata(sessionId: string): SessionMetadataValue | undefined {
     const row = this.db
       .query(

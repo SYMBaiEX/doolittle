@@ -16,6 +16,8 @@ export interface ChatRequestBody {
   source?: string;
   stream?: boolean;
   attachmentIds?: string[];
+  /** Display name of the automation this run executes, when any. */
+  automationName?: string;
 }
 
 export interface ResponsesRequestBody {
