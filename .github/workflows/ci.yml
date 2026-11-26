@@ -59,7 +59,7 @@ jobs:
             packages/plugins/provider-transport scripts/vitest-scope.ts tests/boundary/provider-command.test.ts
 
   validate:
-    runs-on: boat-large
+    runs-on: boat
     timeout-minutes: 20
 
     steps:
@@ -98,7 +98,7 @@ jobs:
     if: >-
       ${{ !cancelled() && (needs.acceptance_changes.result != 'success' ||
           needs.acceptance_changes.outputs.native != 'false') }}
-    runs-on: boat-xlarge
+    runs-on: boat
     timeout-minutes: 25
 
     steps:
@@ -133,7 +133,7 @@ jobs:
     if: >-
       ${{ !cancelled() && (needs.acceptance_changes.result != 'success' ||
           needs.acceptance_changes.outputs.native != 'false') }}
-    runs-on: boat-xlarge
+    runs-on: boat
     timeout-minutes: 25
 
     steps:
