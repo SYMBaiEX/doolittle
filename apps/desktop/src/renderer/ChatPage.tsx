@@ -1697,39 +1697,45 @@ export function ChatSessionPanel({
             speakingMessageId={speakingMessageId}
             speechSupported={speechSupported}
           />
-          {unreadMessageCount > 0 ? (
-            <button
-              aria-label={`Jump to latest messages (${unreadMessageCount} new)`}
-              className="chat-jump-to-latest"
-              onClick={jumpToLatestMessages}
-              type="button"
-            >
-              <UiIcon icon={ArrowDown} />
-              <span>Jump to latest</span>
-              <span className="chat-jump-count">{unreadMessageCount} new</span>
-            </button>
-          ) : null}
-          {promotionNotice ||
-          storageWarning ||
-          visibleRunHydrationWarnings.length ? (
-            <div className="chat-panel-notices">
-              {promotionNotice ? (
-                <ChatNotice tone={promotionNotice.error ? "error" : "neutral"}>
-                  {promotionNotice.error ?? promotionNotice.message}
-                </ChatNotice>
-              ) : null}
-              {storageWarning ? (
-                <ChatNotice tone="warning">{storageWarning}</ChatNotice>
-              ) : null}
-              {visibleRunHydrationWarnings.length ? (
-                <ChatNotice tone="warning">
-                  Some agent history could not be loaded.
-                </ChatNotice>
-              ) : null}
+          <div className="chat-transcript-bottom">
+            {unreadMessageCount > 0 ? (
+              <button
+                aria-label={`Jump to latest messages (${unreadMessageCount} new)`}
+                className="chat-jump-to-latest"
+                onClick={jumpToLatestMessages}
+                type="button"
+              >
+                <UiIcon icon={ArrowDown} />
+                <span>Jump to latest</span>
+                <span className="chat-jump-count">
+                  {unreadMessageCount} new
+                </span>
+              </button>
+            ) : null}
+            {promotionNotice ||
+            storageWarning ||
+            visibleRunHydrationWarnings.length ? (
+              <div className="chat-panel-notices">
+                {promotionNotice ? (
+                  <ChatNotice
+                    tone={promotionNotice.error ? "error" : "neutral"}
+                  >
+                    {promotionNotice.error ?? promotionNotice.message}
+                  </ChatNotice>
+                ) : null}
+                {storageWarning ? (
+                  <ChatNotice tone="warning">{storageWarning}</ChatNotice>
+                ) : null}
+                {visibleRunHydrationWarnings.length ? (
+                  <ChatNotice tone="warning">
+                    Some agent history could not be loaded.
+                  </ChatNotice>
+                ) : null}
+              </div>
+            ) : null}
+            <div aria-live="polite" className="sr-only" role="status">
+              {accessibilityStatus}
             </div>
-          ) : null}
-          <div aria-live="polite" className="sr-only" role="status">
-            {accessibilityStatus}
           </div>
         </div>
         {readOnlyChat ? (
