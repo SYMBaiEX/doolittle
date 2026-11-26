@@ -141,7 +141,7 @@ describe("built CLI output channel ownership", () => {
     // diverges across platforms and CI evidence is otherwise invisible.
     expect(
       result.code,
-      `exit code (stderr: ${JSON.stringify(result.stderr.slice(0, 800))})`,
+      `exit code (stderr tail: ${JSON.stringify(result.stderr.slice(-2000))}; stdout tail: ${JSON.stringify(result.stdout.slice(-400))})`,
     ).toBe(0);
     expect(result.stdout).toContain("model provider is unavailable");
     expect(result.stdout).not.toContain("[codex-cli] initialized");
