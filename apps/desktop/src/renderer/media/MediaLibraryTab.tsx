@@ -5,7 +5,14 @@ import {
   Input,
 } from "@doolittle/ui";
 import { Film, Image, Music2, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import { ErrorBlock, LoadingBlock, useApiResource } from "../lib";
@@ -49,6 +56,19 @@ function assetUrl(payload: AssetPayload): string {
   return `data:${payload.asset.mimeType};base64,${payload.content}`;
 }
 
+function preventRadioGroupEnter(event: KeyboardEvent<HTMLInputElement>) {
+  // Filter choices can be mounted inside larger workspace forms.
+  if (event.key === "Enter") event.preventDefault();
+}
+
+function choiceClass(checked: boolean, className = ""): string {
+  return `inline-flex h-[var(--control-height)] min-h-[var(--control-height)] cursor-pointer items-center justify-center rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-within:outline focus-within:outline-1 focus-within:outline-offset-[-2px] focus-within:outline-[var(--focus-ring)] max-[760px]:h-11 max-[760px]:min-h-11 motion-reduce:transition-none ${className} ${
+    checked
+      ? "font-semibold text-[var(--text)]"
+      : "font-medium text-[var(--muted)]"
+  }`;
+}
+
 export function MediaLibraryTab({
   active,
   botId,
@@ -75,6 +95,8 @@ export function MediaLibraryTab({
   const [selectedId, setSelectedId] = useState("");
   const [filter, setFilter] = useState<"all" | AssetKind>("all");
   const [query, setQuery] = useState("");
+  const scopeGroupName = useId();
+  const typeGroupName = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const visibleAssets = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -172,37 +194,36 @@ export function MediaLibraryTab({
             </Button>
           </div>
           {sessionId ? (
-            <fieldset
-              className="flex gap-1 border-0 p-0"
+            <div
               aria-label="Asset scope"
+              className="flex gap-1"
+              role="radiogroup"
             >
-              <Button
-                aria-pressed={!allAssets}
-                className={`rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] ${
-                  !allAssets
-                    ? "font-semibold text-[var(--text)]"
-                    : "font-medium text-[var(--muted)]"
-                }`}
-                onClick={() => setAllAssets(false)}
-                type="button"
-                variant="ghost"
-              >
+              <label className={choiceClass(!allAssets)}>
+                <input
+                  checked={!allAssets}
+                  className="sr-only"
+                  name={scopeGroupName}
+                  onChange={() => setAllAssets(false)}
+                  onKeyDown={preventRadioGroupEnter}
+                  type="radio"
+                  value="chat"
+                />
                 This chat
-              </Button>
-              <Button
-                aria-pressed={allAssets}
-                className={`rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] ${
-                  allAssets
-                    ? "font-semibold text-[var(--text)]"
-                    : "font-medium text-[var(--muted)]"
-                }`}
-                onClick={() => setAllAssets(true)}
-                type="button"
-                variant="ghost"
-              >
+              </label>
+              <label className={choiceClass(allAssets)}>
+                <input
+                  checked={allAssets}
+                  className="sr-only"
+                  name={scopeGroupName}
+                  onChange={() => setAllAssets(true)}
+                  onKeyDown={preventRadioGroupEnter}
+                  type="radio"
+                  value="all"
+                />
                 All agent assets
-              </Button>
-            </fieldset>
+              </label>
+            </div>
           ) : null}
           <Input
             ref={searchInputRef}
@@ -212,24 +233,28 @@ export function MediaLibraryTab({
             type="search"
             value={query}
           />
-          <fieldset className="flex gap-1 border-0 p-0" aria-label="Asset type">
-            {(["all", "image", "audio", "video"] as const).map((kind) => (
-              <Button
-                aria-pressed={filter === kind}
-                variant="ghost"
-                className={`rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] capitalize ${
-                  filter === kind
-                    ? "font-semibold text-[var(--text)]"
-                    : "font-medium text-[var(--muted)]"
-                }`}
-                key={kind}
-                onClick={() => setFilter(kind)}
-                type="button"
-              >
-                {kind === "all" ? "All" : `${kind}s`}
-              </Button>
-            ))}
-          </fieldset>
+          <div aria-label="Asset type" className="flex gap-1" role="radiogroup">
+            {(["all", "image", "audio", "video"] as const).map((kind) => {
+              const checked = filter === kind;
+              return (
+                <label
+                  className={choiceClass(checked, "capitalize")}
+                  key={kind}
+                >
+                  <input
+                    checked={checked}
+                    className="sr-only"
+                    name={typeGroupName}
+                    onChange={() => setFilter(kind)}
+                    onKeyDown={preventRadioGroupEnter}
+                    type="radio"
+                    value={kind}
+                  />
+                  {kind === "all" ? "All" : `${kind}s`}
+                </label>
+              );
+            })}
+          </div>
         </div>
         <div
           className={`min-h-0 flex-1 overflow-auto p-1.5 ${

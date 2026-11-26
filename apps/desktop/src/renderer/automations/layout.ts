@@ -26,7 +26,7 @@ export const AUTOMATION_CHOICE_GRID_CLASS =
   "automation-choice-grid grid grid-cols-3 gap-1 border-b border-[var(--border)] bg-transparent";
 
 export const AUTOMATION_CHOICE_BUTTON_CLASS =
-  "min-h-[var(--control-height)] rounded-[var(--radius-sm)] border border-transparent px-2 py-1.5 text-[length:var(--text-control)] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] max-[760px]:min-h-11 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50";
+  "flex min-h-[var(--control-height)] items-center justify-center rounded-[var(--radius-sm)] border border-transparent px-2 py-1.5 text-[length:var(--text-control)] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] max-[760px]:min-h-11 focus-within:outline focus-within:outline-1 focus-within:outline-offset-[-2px] focus-within:outline-[var(--focus-ring)] motion-reduce:transition-none";
 
 export const AUTOMATION_CHOICE_SELECTED_CLASS =
   "selected border-[var(--border)] bg-[var(--surface-raised)] font-semibold text-[var(--text)]";

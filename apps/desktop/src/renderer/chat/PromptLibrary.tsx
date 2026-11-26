@@ -8,9 +8,11 @@ import { BookOpen, Search, Settings2, X } from "lucide-react";
 import {
   type Dispatch,
   Fragment,
+  type KeyboardEvent,
   type RefObject,
   type SetStateAction,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -41,6 +43,12 @@ function browserStorage(): StorageLike | null {
   return typeof window === "undefined" ? null : window.localStorage;
 }
 
+function preventRadioGroupEnter(event: KeyboardEvent<HTMLInputElement>) {
+  // The library is mounted inside the composer form; native radio Enter can
+  // implicitly send it.
+  if (event.key === "Enter") event.preventDefault();
+}
+
 export function PromptLibrary({
   namespace,
   activeProject,
@@ -66,6 +74,13 @@ export function PromptLibrary({
   const [scope, setScope] = useState<"general" | "project">(
     activeProject ? "project" : "general",
   );
+  const scopeGroupName = useId();
+  const scopeChoiceClass = (checked: boolean) =>
+    `min-h-10 min-w-0 flex-1 cursor-pointer truncate border-0 bg-transparent px-2 py-1.5 text-center text-[length:var(--text-control)] focus-within:outline focus-within:outline-1 focus-within:outline-offset-[-2px] focus-within:outline-[var(--focus-ring)] ${
+      checked
+        ? "font-semibold text-[var(--text)]"
+        : "font-medium text-[var(--muted)]"
+    }`;
   const [editingId, setEditingId] = useState("");
   const [editingTitle, setEditingTitle] = useState("");
   const [restoreComposerOnClose, setRestoreComposerOnClose] = useState(false);
@@ -336,28 +351,36 @@ export function PromptLibrary({
             </div>
           </header>
           {activeProject ? (
-            <fieldset
+            <div
               aria-label="Prompt library scope"
               className="flex gap-1 border-b border-[var(--border)] py-1"
+              role="radiogroup"
             >
-              <legend className="sr-only">Prompt library scope</legend>
-              <button
-                aria-pressed={scope === "project"}
-                className="min-h-10 min-w-0 flex-1 truncate border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-control)] text-[var(--muted)] aria-pressed:font-semibold aria-pressed:text-[var(--text)]"
-                onClick={() => setScope("project")}
-                type="button"
-              >
+              <label className={scopeChoiceClass(scope === "project")}>
+                <input
+                  checked={scope === "project"}
+                  className="sr-only"
+                  name={scopeGroupName}
+                  onChange={() => setScope("project")}
+                  onKeyDown={preventRadioGroupEnter}
+                  type="radio"
+                  value="project"
+                />
                 {activeProject.name}
-              </button>
-              <button
-                aria-pressed={scope === "general"}
-                className="min-h-10 min-w-0 flex-1 truncate border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-control)] text-[var(--muted)] aria-pressed:font-semibold aria-pressed:text-[var(--text)]"
-                onClick={() => setScope("general")}
-                type="button"
-              >
+              </label>
+              <label className={scopeChoiceClass(scope === "general")}>
+                <input
+                  checked={scope === "general"}
+                  className="sr-only"
+                  name={scopeGroupName}
+                  onChange={() => setScope("general")}
+                  onKeyDown={preventRadioGroupEnter}
+                  type="radio"
+                  value="general"
+                />
                 General
-              </button>
-            </fieldset>
+              </label>
+            </div>
           ) : null}
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
             <ElizaInput

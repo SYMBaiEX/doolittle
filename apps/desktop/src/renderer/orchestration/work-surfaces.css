@@ -150,7 +150,7 @@
   gap: 12px;
 }
 
-.work-flow-stage .automation-choice-fieldset button[aria-pressed="true"] {
+.work-flow-stage .automation-choice-fieldset label:has(input:checked) {
   border-color: var(--border-strong);
   background: var(--surface-hover);
   color: var(--text);
