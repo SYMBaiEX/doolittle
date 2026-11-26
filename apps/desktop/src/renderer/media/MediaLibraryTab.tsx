@@ -48,6 +48,20 @@ function compactBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+export function mediaProviderModelLabel(
+  provider: string,
+  model: string,
+): string {
+  const providerLabel = provider.trim();
+  const modelLabel = model.trim();
+  if (!providerLabel && !modelLabel) return "Unknown source";
+  if (!providerLabel) return modelLabel;
+  if (!modelLabel || providerLabel.toLowerCase() === modelLabel.toLowerCase()) {
+    return providerLabel;
+  }
+  return `${providerLabel} · ${modelLabel}`;
+}
+
 function assetIcon(kind: AssetKind) {
   return kind === "image" ? Image : kind === "audio" ? Music2 : Film;
 }
@@ -378,8 +392,11 @@ export function MediaLibraryTab({
                 <span className="eyebrow">{selectedAsset.kind} asset</span>
                 <h2 className="m-0 text-base">{selectedAsset.name}</h2>
                 <p className="m-0 text-[length:var(--text-control)] text-[var(--muted)]">
-                  {selectedAsset.provider} · {selectedAsset.model} ·{" "}
-                  {compactBytes(selectedAsset.sizeBytes)}
+                  {mediaProviderModelLabel(
+                    selectedAsset.provider,
+                    selectedAsset.model,
+                  )}{" "}
+                  · {compactBytes(selectedAsset.sizeBytes)}
                 </p>
                 {selectedAsset.origin?.botId === botId &&
                 selectedAsset.origin?.sessionId &&
