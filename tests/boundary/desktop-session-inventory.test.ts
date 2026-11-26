@@ -255,6 +255,58 @@ it("omits conflicting conversation owners throughout paginated history", async (
   ]);
 });
 
+it("skips archived bots without warnings or retaining their dead rows", async () => {
+  const withArchived = {
+    defaultBotId: "lead",
+    bots: [
+      ...catalog.bots,
+      {
+        id: "archived",
+        name: "Archived",
+        isDefault: false,
+        state: "archived",
+        archivedAt: "2026-11-22T00:00:00Z",
+      },
+    ],
+  };
+  request.mockImplementation(async (path: string) => {
+    switch (path) {
+      case "/bots":
+        return withArchived;
+      case "/bots/archived/conversations":
+        throw new Error("Archived bots must not be queried.");
+      case "/bots/lead/conversations":
+        return { conversations: [owner("lead", "lead-chat")] };
+      case "/bots/active/conversations":
+        return { conversations: [owner("active", "active-chat")] };
+      case "/sessions?limit=200":
+        return { sessions: [summary("active", "active-chat")] };
+      case "/bots/stopped/conversations":
+        return { conversations: [] };
+      default:
+        throw new Error(`Unexpected request: ${path}`);
+    }
+  });
+  const previous = [
+    summary("archived", "archived-chat"),
+    summary("active", "active-chat"),
+  ];
+  const result = await loadBotSessionCatalog(
+    Promise.resolve({ sessions: [summary("lead", "lead-chat")] }),
+    previous,
+  );
+  expect(
+    request.mock.calls.some(
+      ([path]) => path === "/bots/archived/conversations",
+    ),
+  ).toBe(false);
+  expect(result.warnings).toBeUndefined();
+  expect(result.sessions.map(({ sessionId }) => sessionId)).toEqual([
+    "lead-chat",
+    "active-chat",
+  ]);
+});
+
 it("does not fan out inventory calls after cancellation during a shared catalog request", async () => {
   const response = pending<typeof catalog>();
   request.mockReturnValue(response.promise);

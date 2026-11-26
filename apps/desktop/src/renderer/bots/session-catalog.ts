@@ -64,29 +64,36 @@ export async function loadBotSessionCatalog(
     })
     .then(async (catalog) => {
       signal?.throwIfAborted();
+      // Archived bots are terminal: the host refuses every ownership read, so
+      // their ledgers can never refresh and their rows can never be opened.
+      // Fanning out to them only manufactures warnings and retains dead rows.
       const inventories = await Promise.all(
-        catalog.bots.map(async (bot) => {
-          const [ledger, history] = await Promise.all([
-            safelyLoadInventory(async () => {
-              const { conversations } = await desktopRequest<{
-                conversations: BotConversationScope[];
-              }>(
-                `/bots/${encodeURIComponent(bot.id)}/conversations`,
-                "GET",
-                undefined,
-                signal,
-              );
-              if (
-                !Array.isArray(conversations) ||
-                conversations.some((owner) => !owner || owner.botId !== bot.id)
-              )
-                throw new Error("Conversation ownership is inconsistent.");
-              return conversations;
-            }, signal),
-            loadReadyBotHistory(bot, signal),
-          ]);
-          return { bot, ledger, history };
-        }),
+        catalog.bots
+          .filter((bot) => !bot.archivedAt)
+          .map(async (bot) => {
+            const [ledger, history] = await Promise.all([
+              safelyLoadInventory(async () => {
+                const { conversations } = await desktopRequest<{
+                  conversations: BotConversationScope[];
+                }>(
+                  `/bots/${encodeURIComponent(bot.id)}/conversations`,
+                  "GET",
+                  undefined,
+                  signal,
+                );
+                if (
+                  !Array.isArray(conversations) ||
+                  conversations.some(
+                    (owner) => !owner || owner.botId !== bot.id,
+                  )
+                )
+                  throw new Error("Conversation ownership is inconsistent.");
+                return conversations;
+              }, signal),
+              loadReadyBotHistory(bot, signal),
+            ]);
+            return { bot, ledger, history };
+          }),
       );
       return { catalog, inventories };
     });
