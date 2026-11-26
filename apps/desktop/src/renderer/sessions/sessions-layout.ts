@@ -33,8 +33,12 @@ export const SESSION_DETAIL_CLASS = "mx-auto w-[min(100%,1080px)] pb-[18px]";
 export const SESSION_BACK_ROW_CLASS =
   "sessions-back-control -mx-1 flex items-center pb-2";
 
+// The action group stacks below the title when the detail pane itself is too
+// narrow for both, measured on the pane (not the viewport): in the split
+// layout a 900px window leaves the pane under 700px, where side-by-side
+// actions squeezed long titles into many lines.
 export const SESSION_DETAIL_TOOLBAR_CLASS =
-  "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3.5 pb-[9px] max-[860px]:grid-cols-1 [&_h2]:m-0";
+  "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3.5 pb-[9px] @max-[700px]/sessiondetail:grid-cols-1 [&_h2]:m-0";
 
 export const SESSION_DISCLOSURE_CLASS =
   "group min-w-0 overflow-hidden border-y border-[var(--border-subtle)] bg-transparent";

@@ -256,7 +256,7 @@ export function SessionDetail({
                 "Untitled conversation"}
             </h2>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-1.5 max-[860px]:justify-start">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 @max-[700px]/sessiondetail:justify-start">
             {/* The primary action comes first in DOM order so it keeps the
                 first row when the group wraps at narrow widths; the secondary
                 actions wrap below instead of clipping it. */}
