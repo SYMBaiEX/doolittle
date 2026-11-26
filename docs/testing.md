@@ -95,6 +95,26 @@ The dev journey temporarily edits uniquely tagged fixture content in the
 checkout and starts real Electron. Inspect its prerequisites and cleanup behavior
 in [`desktop-dev.pw.ts`](../tests/e2e/desktop-dev.pw.ts) before running it.
 
+## Populated dev profile for visual audits
+
+The offline dev profile starts empty, which leaves automations, review,
+activity, sessions, and media surfaces unaudited. To populate the dev profile
+with rich fixture content (long scrollbacks, markdown edge cases, mixed
+automation states, review comments, execution approvals, and log lines):
+
+```sh
+DOOLITTLE_OFFLINE_BOOTSTRAP=true nub run desktop:dev -- --remote-debugging-port=9223
+node scripts/seed-visual-audit.mjs            # in a second shell
+```
+
+The seeder discovers the backend URL over CDP (or accepts `--api URL`), seeds
+through the HTTP API and the runtime filesystem, and prints a verification pass
+at the end. It is dev-only — it refuses profiles outside `desktop-dev` unless
+`--force` is passed. Reruns skip existing entities where the API allows;
+`--clean` best-effort deletes seeded automations first. See the header of
+[`seed-visual-audit.mjs`](../scripts/seed-visual-audit.mjs) for exactly what is
+and is not idempotent.
+
 ## Packaged desktop
 
 Commit the verified source before building and testing an automatic repository
