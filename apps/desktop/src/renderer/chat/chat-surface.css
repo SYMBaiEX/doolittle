@@ -154,6 +154,23 @@
   max-height: 100%;
 }
 
+.chat-composer .chat-prompt-library {
+  inset-block-end: calc(100% + 10px);
+  inset-inline-start: 0;
+  width: min(380px, calc(100vw - 32px));
+}
+
+/* In compact sessions the tools trigger begins far enough into the composer
+   that even the viewport-capped popover can cross the trailing edge. Re-anchor
+   those popovers to the composer width while wider sessions keep the trigger
+   alignment. */
+@container session (max-width: 480px) {
+  .chat-composer .chat-prompt-library {
+    inset-inline-start: calc(0px - var(--composer-prompt-library-offset, 50px));
+    width: min(380px, calc(100cqw - var(--chat-gutter) - var(--chat-gutter)));
+  }
+}
+
 @container session (max-height: 640px) {
   .chat-composer-dock {
     max-height: max(96px, calc(100cqh - 128px));

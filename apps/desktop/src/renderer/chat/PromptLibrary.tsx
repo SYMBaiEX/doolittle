@@ -288,7 +288,7 @@ export function PromptLibrary({
         <section
           aria-labelledby={controlId("chat-prompt-library-title")}
           aria-modal="false"
-          className="chat-prompt-library absolute bottom-[calc(100%+10px)] left-0 z-60 grid max-h-[min(440px,62vh)] w-[min(380px,calc(100vw-32px))] gap-2 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-3 text-[var(--text-soft)] shadow-[var(--shell-shadow-lg)]"
+          className="chat-prompt-library absolute z-60 grid max-h-[min(440px,62vh)] gap-2 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-3 text-[var(--text-soft)] shadow-[var(--shell-shadow-lg)]"
           id={controlId("chat-prompt-library")}
           ref={panelRef}
           role="dialog"
