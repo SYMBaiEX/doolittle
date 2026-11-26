@@ -98,6 +98,12 @@ jobs:
           }
 
       - name: Check application and acceptance contracts
+        # The Windows default shell (pwsh) does not stop at a failing native
+        # command and reports only the last command's exit code, which masked
+        # a failing `nub run check` behind a passing check:acceptance in the
+        # first release run. Bash matches the fail-fast semantics of the
+        # macOS and Linux workflows.
+        shell: bash
         run: |
           nub run check
           nub run check:acceptance
@@ -220,6 +226,11 @@ jobs:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_PUBLISHER_NAME: ${{ inputs.windows_publisher_name }}
         run: |
+          # pwsh reports only the last command's exit code; make any failing
+          # native command fatal so mid-step verification gates cannot be
+          # masked by a later succeeding command.
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           if (-not $installer) {
             throw "Doolittle Windows installer was not produced."
@@ -258,6 +269,11 @@ jobs:
       - name: Record Windows package provenance
         shell: pwsh
         run: |
+          # pwsh reports only the last command's exit code; make any failing
+          # native command fatal so a failed receipt write cannot be masked
+          # by a later succeeding command.
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           if (-not $installer) { throw "Doolittle Windows installer was not produced." }
           $createdAt = git show -s --format=%cI "$env:GITHUB_SHA"
@@ -269,6 +285,11 @@ jobs:
         env:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
         run: |
+          # pwsh reports only the last command's exit code; make any failing
+          # native command fatal so the mid-step provenance verification and
+          # packaged e2e run cannot be masked by a later succeeding command.
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           $installDirectory = Join-Path $env:RUNNER_TEMP "Doolittle-installed"
           $install = Start-Process `
