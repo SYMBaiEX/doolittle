@@ -1,20 +1,13 @@
 import { randomUUID } from "node:crypto";
-import {
-  closeSync,
-  constants,
-  fchmodSync,
-  fstatSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
-import { type CliTurnEvent, encodeCliTurnEvent } from "../../turn-events";
+import type { CliTurnEvent } from "../../turn-events";
 import type { CliJobRecord } from "../types";
-import { readCliJobEventsFromPath } from "./events";
+import {
+  appendCliJobEventToPath,
+  hasExitedWorker,
+  readCliJobEventsFromPath,
+} from "./events";
 import {
   assertJobPaths,
   isJobId,
@@ -26,15 +19,7 @@ import {
   updateJobsIndex,
 } from "./index-store";
 
-function hasExitedWorker(pid: number | undefined): boolean {
-  if (pid === undefined || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return false;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "ESRCH";
-  }
-}
+export { openCliJobLog } from "./events";
 
 export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
   if (Buffer.byteLength(prompt, "utf8") > 1024 * 1024)
@@ -157,52 +142,7 @@ export function appendCliJobEvent(
     return;
   }
   assertJobPaths(dataDir, id);
-  const encoded = encodeCliTurnEvent(event);
-  const descriptor = openCliJobLog(job.logPath);
-  try {
-    const limit = 16 * 1024 * 1024;
-    const reserve = event.type === "completed" ? 0 : 4096;
-    if (
-      fstatSync(descriptor).size + Buffer.byteLength(encoded, "utf8") >
-      limit - reserve
-    ) {
-      if (event.type === "completed")
-        throw new Error("Job log is full; terminal event cannot be stored.");
-      return;
-    }
-    writeFileSync(descriptor, encoded, "utf8");
-  } finally {
-    closeSync(descriptor);
-  }
-}
-
-export function openCliJobLog(path: string): number {
-  const before = lstatSync(path);
-  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1)
-    throw new Error("Job log is not a private regular file.");
-  const descriptor = openSync(
-    path,
-    constants.O_WRONLY |
-      constants.O_APPEND |
-      (constants.O_NOFOLLOW ?? 0) |
-      constants.O_NONBLOCK,
-  );
-  try {
-    const opened = fstatSync(descriptor);
-    if (
-      !opened.isFile() ||
-      opened.nlink !== 1 ||
-      opened.dev !== before.dev ||
-      opened.ino !== before.ino ||
-      opened.size > 16 * 1024 * 1024
-    )
-      throw new Error("Job log is not a regular file.");
-    fchmodSync(descriptor, 0o600);
-    return descriptor;
-  } catch (error) {
-    closeSync(descriptor);
-    throw error;
-  }
+  appendCliJobEventToPath(job.logPath, event);
 }
 
 export function readCliJobEvents(dataDir: string, id: string): CliTurnEvent[] {
