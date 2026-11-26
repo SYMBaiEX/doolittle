@@ -8,6 +8,7 @@ import {
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -18,6 +19,8 @@ async function upstream() {
       response.end('{"ok":true}');
     } else if (request.url === "/empty") {
       response.writeHead(204).end();
+    } else if (request.url === "/withhold-headers") {
+      return;
     } else {
       pending = response;
       response.writeHead(200, { "content-type": "application/json" });
@@ -59,16 +62,32 @@ async function bounded<T>(read: Promise<T>): Promise<T> {
   }
 }
 
+it("starts the deadline before response headers arrive", async () => {
+  const { url } = await upstream();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const request = expect(
+    bounded(fetchPlatform(`${url}/withhold-headers`, { timeoutMs: 100 })),
+  ).rejects.toMatchObject({ name: "TimeoutError" });
+  await vi.advanceTimersByTimeAsync(1000);
+  await request;
+});
+
 it.each(["json", "diagnostic"])(
   "times out a stalled %s body after headers arrive",
   async (read) => {
     const { url } = await upstream();
+    // The deadline is part of the behavior under test. Keep it independent
+    // from connection setup latency, which varies widely on saturated CI
+    // runners before response headers can even arrive.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const response = await fetchPlatform(url, { timeoutMs: 100 });
-    await expect(
+    const body = expect(
       bounded(
         read === "json" ? response.json() : readPlatformResponseText(response),
       ),
     ).rejects.toMatchObject({ name: "TimeoutError" });
+    await vi.advanceTimersByTimeAsync(1000);
+    await body;
   },
 );
 
@@ -110,9 +129,10 @@ it.each(["ok", "empty", "cancel"])(
 
 it("releases caller listeners at the deadline even if the body is ignored", async () => {
   const { url } = await upstream();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const caller = new AbortController();
   const remove = vi.spyOn(caller.signal, "removeEventListener");
   await fetchPlatform(url, { timeoutMs: 100, signal: caller.signal });
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  await vi.advanceTimersByTimeAsync(150);
   expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
 });
