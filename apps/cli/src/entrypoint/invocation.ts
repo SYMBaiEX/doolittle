@@ -35,7 +35,7 @@ export async function resolveEntrypointInvocation(
   const oneShot = command === "exec" ? parseOneShotOptions(rest) : undefined;
   if (oneShot?.promptStdin) {
     if (stdinIsTTY)
-      throw new Error("--prompt-stdin requires non-interactive stdin.");
+      throw new CliUsageError("--prompt-stdin requires non-interactive stdin.");
     oneShot.prompt = await readEntrypointStdinText(stdin);
   }
   const isShellCommand = command === "start" || command === "plain";

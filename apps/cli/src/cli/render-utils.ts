@@ -12,6 +12,7 @@ export function escapeBlessed(text: string): string {
 export function restoreTerminalState(
   stream: NodeJS.WriteStream = errorOutput,
 ): void {
+  if (!stream.isTTY) return;
   try {
     stream.write("\x1b[0m\x1b[?25h\x1b[?2004l");
   } catch {

@@ -214,16 +214,53 @@ export function readCliJobEvents(dataDir: string, id: string): CliTurnEvent[] {
   return readCliJobEventsFromPath(job.logPath);
 }
 
-export function summarizeCliJob(job: CliJobRecord): string {
-  return [
-    `${job.id} [${job.status}]`,
+function clipEnd(text: string, width: number): string {
+  if (text.length <= width) return text;
+  if (width <= 0) return "";
+  if (width === 1) return "…";
+  return `${text.slice(0, width - 1)}…`;
+}
+
+/**
+ * Render a bounded operator summary. Full timestamps and session metadata are
+ * included only while at least a useful prompt preview still fits; the prompt
+ * is single-lined and explicitly ellipsized rather than left to terminal wrap.
+ */
+export function summarizeCliJob(
+  job: CliJobRecord,
+  options?: { maxWidth?: number },
+): string {
+  const maxWidth = Math.max(48, Math.floor(options?.maxWidth ?? 160));
+  const prompt = job.prompt.replace(/\s+/gu, " ").trim();
+  const identity = `${job.id} [${job.status}]`;
+  const metadata = [
     `created=${job.createdAt}`,
     job.startedAt ? `started=${job.startedAt}` : undefined,
     job.completedAt ? `completed=${job.completedAt}` : undefined,
     job.sessionId ? `session=${job.sessionId}` : undefined,
     job.exitCode !== undefined ? `exit=${job.exitCode}` : undefined,
-    `prompt=${job.prompt}`,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  ].filter((part): part is string => Boolean(part));
+  const promptPrefix = "prompt=";
+  const reservedPromptWidth = Math.min(Math.max(prompt.length, 1), 24);
+
+  const parts = [identity];
+  for (const part of metadata) {
+    const candidate = [...parts, part].join(" ");
+    const fitsWithPrompt =
+      candidate.length + 1 + promptPrefix.length + reservedPromptWidth <=
+      maxWidth;
+    if (fitsWithPrompt) parts.push(part);
+  }
+
+  const fixed = parts.join(" ");
+  const promptWidth = maxWidth - fixed.length - 1 - promptPrefix.length;
+  const singleLine = `${fixed} ${promptPrefix}${clipEnd(prompt, promptWidth)}`;
+  if (singleLine.length <= maxWidth) return singleLine;
+
+  const facts = metadata.join(" ");
+  return [
+    identity,
+    ...(facts ? [`  ${clipEnd(facts, Math.max(0, maxWidth - 2))}`] : []),
+    `  ${promptPrefix}${clipEnd(prompt, Math.max(0, maxWidth - 2 - promptPrefix.length))}`,
+  ].join("\n");
 }
