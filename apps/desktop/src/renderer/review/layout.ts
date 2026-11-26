@@ -1,5 +1,11 @@
+// Every fixed-height chrome region of this column already opts out of flex
+// shrinking (shrink-0 on the status bar, overview, and evidence drawer), but
+// the notice banners did not: when the column overflowed, a banner shrank to
+// its one-line min-content height and clipped the rest of its text — at 360px
+// the repository requirement warning cut off mid-sentence. Notices now keep
+// their natural height and the workspace region absorbs the negative space.
 export const REVIEW_PAGE_CLASS =
-  "review-page review-page--embedded flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--bg)] max-[760px]:overflow-auto";
+  "review-page review-page--embedded flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--bg)] [&>.notice]:shrink-0 max-[760px]:overflow-auto";
 
 const REVIEW_OVERVIEW_BASE =
   "review-work-overview grid min-h-16.5 shrink-0 grid-cols-[minmax(260px,1fr)_auto_minmax(132px,0.24fr)] items-stretch overflow-hidden rounded-none border border-x-0 border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-transparent shadow-[inset_2px_0_var(--border-strong)] max-[1180px]:grid-cols-[minmax(280px,1fr)_auto] max-[860px]:grid-cols-[minmax(0,1fr)_auto]";
