@@ -37,8 +37,6 @@ const ORCHESTRATION_CLASS = {
   good: "good border-[color-mix(in_srgb,var(--good)_34%,var(--border))]",
   bad: "bad border-[color-mix(in_srgb,var(--bad)_34%,var(--border))]",
   neutral: "neutral",
-  "orchestration-action-overflow__body":
-    "orchestration-action-overflow__body absolute top-[calc(100%+6px)] right-0 z-3 grid min-w-42.5 gap-1 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-[0_14px_36px_color-mix(in_srgb,var(--shadow)_28%,transparent)] max-[900px]:right-auto max-[900px]:left-0 [&_.text-button]:justify-start [&_.text-button]:px-0",
   "orchestration-inline-form": `orchestration-inline-form grid grid-cols-[minmax(140px,0.4fr)_minmax(240px,1fr)_minmax(180px,0.55fr)_auto] items-end gap-2 border-[var(--border)] border-b bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] p-3 max-[900px]:grid-cols-2 max-[900px]:[&_.inline-form-wide]:col-span-full ${FORM_LABEL} [&_input]:w-full [&_select]:w-full`,
   "orchestration-note-composer": `orchestration-note-composer grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 pt-1 max-[680px]:grid-cols-1 ${FORM_LABEL} [&_textarea]:min-h-13 [&_textarea]:w-full [&_textarea]:resize-y`,
   "orchestration-steps":
