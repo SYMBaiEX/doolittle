@@ -65,6 +65,9 @@ export function createTuiTranscriptController(
       });
     },
     pushResponseEntry(label, body, entryOptions) {
+      // Entries are retained for the whole session: the transcript export and
+      // viewport scrollback must both reach back to the first message. The
+      // previous 48-entry splice silently destroyed older history everywhere.
       responseHistory.push({
         label,
         body,
@@ -72,9 +75,6 @@ export function createTuiTranscriptController(
         elapsed: entryOptions?.elapsed,
         kind: resolveTranscriptEntryKind(label),
       });
-      if (responseHistory.length > 48) {
-        responseHistory.splice(0, responseHistory.length - 48);
-      }
       liveToolTrail = [];
       liveResponse = undefined;
       renderResponsePane();

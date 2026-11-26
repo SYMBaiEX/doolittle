@@ -8,8 +8,6 @@ import {
   renderPlainTranscript,
 } from "../transcript-renderer/index";
 
-const MAX_HISTORY_ENTRIES = 48;
-
 export function defaultNowStamp(): string {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -61,10 +59,9 @@ export function createPlainEntryWriter(options: PlainEntryWriterOptions): {
     entry: ResponseTranscriptEntry,
     tone?: CliExecutionResult["tone"],
   ) => {
+    // Full session retention: the exported transcript is the durable record,
+    // so entries are never spliced away once written.
     responseHistory.push(entry);
-    if (responseHistory.length > MAX_HISTORY_ENTRIES) {
-      responseHistory.splice(0, responseHistory.length - MAX_HISTORY_ENTRIES);
-    }
     persistTranscript(responseHistory);
     if (!interactiveShell) {
       output.write(`${entry.body.trim()}\n`);
