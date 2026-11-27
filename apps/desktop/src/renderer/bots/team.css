@@ -97,19 +97,6 @@
   flex: 0 0 auto;
 }
 
-@container work (max-width: 680px) {
-  .agents-empty .workbench-empty {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .agents-empty .workbench-empty__actions {
-    grid-column: 2;
-    justify-content: start;
-  }
-}
-
 .agents-workbench > .agents-monitor {
   flex: 1 1 0%;
 }
