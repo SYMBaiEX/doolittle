@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { AutomationWorkspace } from "../../apps/desktop/src/renderer/automations/AutomationWorkspace";
 
 const noop = () => {};
@@ -226,5 +226,41 @@ it("trades list and detail as one pane at narrow container widths", () => {
     host.remove();
     restore();
     restoreWidth();
+  }
+});
+
+it("offers automation creation from the empty rail and starter detail", () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const onToggleBuilder = vi.fn();
+  const onCreate = vi.fn();
+  const { root, restore } = renderWorkspace(host, {
+    ...workspaceProps(),
+    jobs: [],
+    onToggleBuilder,
+    onCreate,
+  });
+  try {
+    const railEmpty = host.querySelector(".ws-rail .workbench-empty");
+    expect(railEmpty?.textContent).toContain("No automations");
+    const railAction = railEmpty?.querySelector<HTMLButtonElement>(
+      ".workbench-empty__actions button",
+    );
+    expect(railAction?.textContent).toContain("New automation");
+    act(() => railAction?.click());
+    expect(onToggleBuilder).toHaveBeenCalledOnce();
+
+    const detailEmpty = host.querySelector(
+      ".automation-detail-column .workbench-empty",
+    );
+    const starters = [
+      ...(detailEmpty?.querySelectorAll(".workbench-empty__actions button") ??
+        []),
+    ].map((entry) => entry.textContent);
+    expect(starters).toEqual(["Weekday brief", "Webhook triage"]);
+  } finally {
+    act(() => root.unmount());
+    host.remove();
+    restore();
   }
 });
