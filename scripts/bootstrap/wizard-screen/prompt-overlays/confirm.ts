@@ -1,6 +1,6 @@
 import blessed from "blessed";
 import { buildYesNoFooter, buildYesNoItems, clampIndex } from "../prompts";
-import { wizardSelectionStyle } from "../theme";
+import { wizardSelectionStyle } from "../render";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createPromptYesNoHandler(

@@ -15,7 +15,6 @@ import {
   appendWizardLogLine,
   cloneWizardSnapshot,
   createWizardSnapshot,
-  WIZARD_SECTION_ORDER,
 } from "./state";
 import { applyWizardTheme, createThemePreviewRenderer } from "./theme";
 import type { CreateWizardScreenOptions, WizardScreenContext } from "./types";
@@ -69,13 +68,7 @@ export function createWizardScreen({
       },
     );
     widgets.header.setContent(model.headerContent);
-    widgets.sidebar.setContent(
-      WIZARD_SECTION_ORDER.map((name) =>
-        name === snapshot.currentSection
-          ? `{bold}{${model.selectedTextColor}-fg}› ${name}{/}{/bold}`
-          : `  ${name}`,
-      ).join("\n"),
-    );
+    widgets.sidebar.setContent(model.sidebarContent);
     widgets.detail.setContent(model.detailContent);
     widgets.logBox.setContent(model.logContent);
     if (!model.tooSmall) {

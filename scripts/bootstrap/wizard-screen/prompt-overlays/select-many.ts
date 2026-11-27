@@ -5,7 +5,7 @@ import {
   clampIndex,
   toggleSelection,
 } from "../prompts";
-import { wizardSelectionStyle } from "../theme";
+import { wizardSelectionStyle } from "../render";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
