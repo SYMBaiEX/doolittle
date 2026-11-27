@@ -3,7 +3,7 @@ import type {
   AutomationJobRecord,
   AutomationRunRecord,
 } from "@doolittle/contracts";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   agentRequest,
   chooseSidebarChatScope,
@@ -11,6 +11,12 @@ import {
   launchDesktop,
   makeProject,
 } from "../support/desktop-core";
+
+function automationRailEmptyState(page: Page) {
+  return page
+    .locator(".automation-page .ws-rail .workbench-empty")
+    .filter({ hasText: "No automations" });
+}
 
 test("automation schedules can be edited, paused, run, and deleted", async () => {
   test.setTimeout(90_000);
@@ -33,7 +39,7 @@ test("automation schedules can be edited, paused, run, and deleted", async () =>
       .getByRole("navigation", { name: "Workspace navigation" })
       .getByRole("button", { name: "Automations", exact: true })
       .click();
-    await page
+    await automationRailEmptyState(page)
       .getByRole("button", { name: "New automation", exact: true })
       .click();
     await page
@@ -170,8 +176,11 @@ test("delegation unlocks after confirming a Lead workspace chat and applies bulk
         .getByRole("button", { name: "Work", exact: true })
         .click();
     await openWork();
-    const newTask = page.getByRole("button", { name: "New task", exact: true });
-    await expect(newTask).toBeDisabled();
+    const lockedNewTask = page.getByRole("button", {
+      name: "New task",
+      exact: true,
+    });
+    await expect(lockedNewTask).toBeDisabled();
     await installProjectDialog(app, workspace);
     await page.getByRole("button", { name: "Open a Lead chat" }).click();
     const chooser = page.getByRole("dialog", {
@@ -190,6 +199,9 @@ test("delegation unlocks after confirming a Lead workspace chat and applies bulk
     );
     expect(selected?.botId).toBe(defaultBotId);
     await openWork();
+    const newTask = page
+      .getByRole("button", { name: "New task", exact: true })
+      .and(page.locator("[aria-expanded]"));
     await expect(newTask).toBeEnabled();
     for (const title of ["First fixture research", "Second fixture research"]) {
       await newTask.click();
@@ -259,7 +271,7 @@ test("named automation creation and edits require fresh native approval", async 
       .getByRole("navigation", { name: "Workspace navigation" })
       .getByRole("button", { name: "Automations", exact: true })
       .click();
-    await page
+    await automationRailEmptyState(page)
       .getByRole("button", { name: "New automation", exact: true })
       .click();
     await page
