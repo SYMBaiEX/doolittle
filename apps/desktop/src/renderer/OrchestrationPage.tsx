@@ -757,6 +757,11 @@ export function OrchestrationPage({
           {activeTab === "tasks" ? (
             <TaskQueuePanel
               active={canDelegate}
+              onCreateTask={
+                canDelegate && !busyKeys["task:create"]
+                  ? openTaskCreate
+                  : undefined
+              }
               projectScope={projectScope}
               workspaceLabel={workspaceLabel}
               effectiveOverview={effectiveOverview}
@@ -820,6 +825,11 @@ export function OrchestrationPage({
           {activeTab === "plans" ? (
             <PlanPanel
               active={active}
+              onCreatePlan={
+                active && supportsPlanCreate
+                  ? () => setShowPlanCreate(true)
+                  : undefined
+              }
               plansResource={plansResource}
               plans={plans}
               selectedPlan={selectedPlan}

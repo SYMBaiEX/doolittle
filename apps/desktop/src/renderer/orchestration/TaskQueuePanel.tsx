@@ -2,6 +2,7 @@ import { ClipboardList, Inbox, ListTodo } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { progressiveWindow } from "../components/progressive-window";
 import {
+  WorkbenchAction,
   WorkbenchEmpty,
   WorkbenchSection,
 } from "../components/workbench/Workbench";
@@ -51,6 +52,7 @@ export function TaskQueuePanel({
   childWorkspaceRoot,
   worktrees,
   confirmedAction,
+  onCreateTask,
   onSelectTask,
   onRunTaskAction,
   onRunBulkTaskAction,
@@ -80,6 +82,8 @@ export function TaskQueuePanel({
   childWorkspaceRoot: string;
   worktrees: readonly RepositoryWorktreeRecord[];
   confirmedAction: ConfirmedAction | null;
+  /** Present only when task creation is honestly available right now. */
+  onCreateTask?: () => void;
   onSelectTask: (task: DelegationTaskRecord) => void;
   onRunTaskAction: (task: DelegationTaskRecord, action: TaskAction) => void;
   onRunBulkTaskAction: (
@@ -149,6 +153,13 @@ export function TaskQueuePanel({
       <WorkbenchSection title="Task queue" icon={ListTodo}>
         <div id="orchestration-empty-queue-title">
           <WorkbenchEmpty
+            actions={
+              onCreateTask ? (
+                <WorkbenchAction onClick={onCreateTask}>
+                  New task
+                </WorkbenchAction>
+              ) : undefined
+            }
             icon={Inbox}
             title={
               projectScope === "all"
@@ -156,7 +167,7 @@ export function TaskQueuePanel({
                 : `No tasks for ${workspaceLabel || "this project"}`
             }
           >
-            Progress and results appear here.
+            Delegate a task and its progress and results appear here.
           </WorkbenchEmpty>
         </div>
       </WorkbenchSection>
