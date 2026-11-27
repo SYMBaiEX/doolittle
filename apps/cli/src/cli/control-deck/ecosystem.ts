@@ -45,11 +45,12 @@ function renderPackageRow(
   }
 
   const compatibility = ` [${entry.compatibility}]`;
+  const renderedCompatibility = ` [${escapeControlDeckBlessed(entry.compatibility)}]`;
   const mediumNameWidth = width - 2 - compatibility.length;
   if (width < 56 || mediumNameWidth < 8) {
     if (mediumNameWidth >= 4) {
       const name = clipControlDeckText(entry.packageName, mediumNameWidth);
-      return `- ${escapeControlDeckBlessed(name)}{gray-fg}${compatibility}{/}`;
+      return `- ${escapeControlDeckBlessed(name)}{gray-fg}${renderedCompatibility}{/}`;
     }
     return `- ${escapeControlDeckBlessed(clipControlDeckText(entry.packageName, width - 2))}`;
   }
@@ -58,10 +59,10 @@ function renderPackageRow(
   const nameWidth = width - 2 - compatibility.length - tagWidth;
   if (nameWidth < 8) {
     const name = clipControlDeckText(entry.packageName, mediumNameWidth);
-    return `- ${escapeControlDeckBlessed(name)}{gray-fg}${compatibility}{/}`;
+    return `- ${escapeControlDeckBlessed(name)}{gray-fg}${renderedCompatibility}{/}`;
   }
   const name = clipControlDeckText(entry.packageName, nameWidth);
-  return `- ${escapeControlDeckBlessed(name)}{gray-fg}${compatibility} ${escapeControlDeckBlessed(entry.currentTag)}{/}`;
+  return `- ${escapeControlDeckBlessed(name)}{gray-fg}${renderedCompatibility} ${escapeControlDeckBlessed(entry.currentTag)}{/}`;
 }
 
 export async function renderEcosystemContent(

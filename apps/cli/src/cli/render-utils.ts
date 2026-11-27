@@ -6,7 +6,11 @@ export {
 } from "@doolittle/agent/utils/terminal-text";
 
 export function escapeBlessed(text: string): string {
-  return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
+  // Blessed's canonical literal-brace tokens round-trip through its tag
+  // parser without leaving visible backslashes behind.
+  return text.replace(/[{}]/gu, (char) =>
+    char === "{" ? "{open}" : "{close}",
+  );
 }
 
 export function restoreTerminalState(
