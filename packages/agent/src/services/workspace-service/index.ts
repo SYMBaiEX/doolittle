@@ -104,7 +104,7 @@ export class WorkspaceService {
   async write(
     path: string,
     content: string,
-    options?: { expectedContent?: string },
+    options?: { expectedContent?: string; overwrite?: boolean },
   ): Promise<string> {
     return (await this.writeFile(path, content, options)).path;
   }
@@ -120,7 +120,7 @@ export class WorkspaceService {
   async writeFile(
     path: string,
     content: string,
-    options: { expectedContent?: string } = {},
+    options: { expectedContent?: string; overwrite?: boolean } = {},
   ): Promise<WorkspaceWriteResult> {
     const root = this.root();
     // Validate before creating a checkpoint so rejected paths cannot create
@@ -132,6 +132,7 @@ export class WorkspaceService {
         : captureWorkspaceWriteExpectation(
             resolvedPath,
             options.expectedContent,
+            { recreateMissing: options.overwrite === true },
           );
     await this.checkpointBeforeMutation(
       root,
