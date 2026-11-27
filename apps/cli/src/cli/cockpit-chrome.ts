@@ -13,8 +13,8 @@ export function buildHeaderContent(
   // spans near-black to near-white primaries. Hierarchy comes from bold, not
   // from chromatic accents that cannot survive every theme.
   return [
-    `{bold}${escapeBlessed(theme.sigil)} ${agentName}{/bold}  ${escapeBlessed(theme.shellGlyph)} conversation shell  ${escapeBlessed(currentProjectLabel())}`,
-    `{bold}${theme.label}{/bold} ${escapeBlessed(theme.idleFace)} · ${escapeBlessed(theme.tagline)} · cockpit for observability · shell for everyday work`,
+    `{bold}${escapeBlessed(theme.sigil)} ${escapeBlessed(agentName)}{/bold}  ${escapeBlessed(theme.shellGlyph)} conversation shell  ${escapeBlessed(currentProjectLabel())}`,
+    `{bold}${escapeBlessed(theme.label)}{/bold} ${escapeBlessed(theme.idleFace)} · ${escapeBlessed(theme.tagline)} · cockpit for observability · shell for everyday work`,
   ].join("\n");
 }
 

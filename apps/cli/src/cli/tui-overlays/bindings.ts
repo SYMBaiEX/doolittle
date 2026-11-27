@@ -1,4 +1,5 @@
 import { suggestCommands } from "@doolittle/agent/runtime/command-catalog";
+import { escapeBlessed } from "../render-utils";
 import type blessed from "blessed";
 
 interface PaletteSuggestionOptions {
@@ -51,7 +52,7 @@ export function renderPaletteItems(
 ): string[] {
   return readPaletteSuggestions(query, workspaceDir).map(
     (entry, index) =>
-      `${index === selectedIndex ? ">" : " "} {bold}${entry.command}{/bold} [${entry.category}]`,
+      `${index === selectedIndex ? ">" : " "} {bold}${escapeBlessed(entry.command)}{/bold} [${escapeBlessed(entry.category)}]`,
   );
 }
 
