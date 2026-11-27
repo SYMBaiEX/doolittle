@@ -4,6 +4,10 @@ import { asArray, asRecord, asString } from "./value-guards";
 export interface WorkspaceReadResponse {
   path?: string;
   content?: string;
+  binary?: boolean;
+  tooLarge?: boolean;
+  sizeBytes?: number;
+  limitBytes?: number;
 }
 
 export interface RepositoryChange {

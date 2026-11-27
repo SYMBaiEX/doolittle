@@ -25,9 +25,18 @@ export async function handleWorkspaceRoutes(
     if (!path) {
       return json({ error: "path is required" }, 400);
     }
+    const result = context.services.workspace.readFile(path);
     return json({
       path,
-      content: context.services.workspace.read(path),
+      ...(result.content === undefined ? {} : { content: result.content }),
+      ...(result.binary ? { binary: true } : {}),
+      ...(result.tooLarge
+        ? {
+            tooLarge: true,
+            sizeBytes: result.sizeBytes,
+            limitBytes: result.limitBytes,
+          }
+        : {}),
     });
   }
 
