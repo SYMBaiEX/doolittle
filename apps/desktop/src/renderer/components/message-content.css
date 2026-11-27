@@ -18,16 +18,19 @@
   letter-spacing: -0.018em;
 }
 
+/* A consistent ~1.2 step between levels keeps the hierarchy legible at
+ * conversation text sizes; the previous 1.38/1.22/1.09 scale compressed
+ * adjacent levels to within ~12% of each other. */
 .chat-message-prose h1 {
-  font-size: 1.38em;
+  font-size: 1.58em;
 }
 
 .chat-message-prose h2 {
-  font-size: 1.22em;
+  font-size: 1.32em;
 }
 
 .chat-message-prose h3 {
-  font-size: 1.09em;
+  font-size: 1.1em;
 }
 
 .chat-message-prose :is(h4, h5, h6) {
