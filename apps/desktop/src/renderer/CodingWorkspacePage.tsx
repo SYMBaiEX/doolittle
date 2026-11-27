@@ -650,6 +650,12 @@ export function CodingWorkspacePage({
 
   const discardFile = () => {
     if (editingLocked) return;
+    if (
+      fileDirty &&
+      !window.confirm(`Discard unsaved edits to ${selectedPath}?`)
+    ) {
+      return;
+    }
     setFileEdits((current) => discardFileEdit(current, selectedPath));
     clearFileConflict(selectedPath);
     setFileNotice({
