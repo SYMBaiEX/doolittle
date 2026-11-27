@@ -41,7 +41,8 @@
     ".": {
       "entry": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
       "project": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
-      "ignoreDependencies": ["scriptc", "@elizaos/plugin-sql"]
+      "ignoreDependencies": ["scriptc", "@elizaos/plugin-sql"],
+      "ignoreBinaries": ["locale"]
     },
     "apps/cli": {
       "entry": ["src/index.ts", "src/acp-server.ts", "src/managed-runtime.ts"],
