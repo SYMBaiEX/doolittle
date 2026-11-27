@@ -56,6 +56,7 @@ export function ProjectManager(props: ProjectManagerProps) {
   const [missingSource, setMissingSource] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+  const [editorError, setEditorError] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -77,6 +78,7 @@ export function ProjectManager(props: ProjectManagerProps) {
       setShowArchived(false);
       setEditing(null);
       setError("");
+      setEditorError("");
     }
   }, [isOpen]);
 
@@ -136,14 +138,18 @@ export function ProjectManager(props: ProjectManagerProps) {
     resourceId,
   ]);
 
-  const call = async (action: (() => void | Promise<void>) | undefined) => {
+  const call = async (
+    action: (() => void | Promise<void>) | undefined,
+    setFailure: (message: string) => void = setError,
+  ) => {
     if (!action) return;
     setWorking(true);
     setError("");
+    setEditorError("");
     try {
       await action();
     } catch (reason) {
-      setError(
+      setFailure(
         reason instanceof Error
           ? reason.message
           : "That change could not be saved. Try again.",
@@ -151,6 +157,14 @@ export function ProjectManager(props: ProjectManagerProps) {
     } finally {
       setWorking(false);
     }
+  };
+  const openEditor = (project: ProjectLike | "new") => {
+    setEditorError("");
+    setEditing(project);
+  };
+  const closeEditor = () => {
+    setEditorError("");
+    setEditing(null);
   };
   const selectScope = (scope: ProjectScope) => {
     onScopeChange(scope);
@@ -215,7 +229,7 @@ export function ProjectManager(props: ProjectManagerProps) {
           <Button
             type="button"
             size="sm"
-            onClick={() => setEditing("new")}
+            onClick={() => openEditor("new")}
             disabled={!onCreateProject || working}
           >
             <UiIcon icon={Plus} size="xs" />
@@ -264,7 +278,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                 focusedResourceRef={focusedResourceRef}
                 currentChatId={currentChatId}
                 currentChatProjectId={currentChatProjectId}
-                onEdit={() => setEditing(selected)}
+                onEdit={() => openEditor(selected)}
                 onArchive={() =>
                   call(() => onArchiveProject?.(selected, !selected.archived))
                 }
@@ -289,7 +303,7 @@ export function ProjectManager(props: ProjectManagerProps) {
               />
             ) : (
               <EmptyDetail
-                onCreate={onCreateProject ? () => setEditing("new") : undefined}
+                onCreate={onCreateProject ? () => openEditor("new") : undefined}
               />
             )}
           </section>
@@ -297,13 +311,14 @@ export function ProjectManager(props: ProjectManagerProps) {
         {editing ? (
           <ProjectEditor
             project={editing === "new" ? undefined : editing}
-            onClose={() => setEditing(null)}
+            error={editorError}
+            onClose={closeEditor}
             onSubmit={(draft: ProjectDraft) =>
               void call(async () => {
                 if (editing === "new") await onCreateProject?.(draft);
                 else await onUpdateProject?.(editing, draft);
-                setEditing(null);
-              })
+                closeEditor();
+              }, setEditorError)
             }
             saving={working}
           />
