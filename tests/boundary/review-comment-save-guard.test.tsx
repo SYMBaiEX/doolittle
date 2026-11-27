@@ -183,6 +183,7 @@ describe("review comment save guard", () => {
       save.click();
       save.click();
     });
+    await flush();
 
     const createPostCount = vi
       .mocked(desktopRequest)
