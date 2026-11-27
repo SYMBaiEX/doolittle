@@ -36,6 +36,13 @@ function dotStateClass(event: ActivityEvent): string {
   return "border-[var(--muted)] bg-[var(--surface-raised)]";
 }
 
+function titleToneClass(tone: ReturnType<typeof activityTone>): string {
+  if (tone === "bad") return "text-[var(--bad)]";
+  if (tone === "warn") return "text-[var(--warn)]";
+  if (tone === "good") return "text-[var(--good)]";
+  return "text-[var(--text)]";
+}
+
 export function ActivityTimeline({
   eventCount,
   groups,
@@ -112,7 +119,7 @@ export function ActivityTimeline({
                   </header>
 
                   <p className="mt-1 text-[13px] leading-[1.35] text-[var(--text)] [overflow-wrap:anywhere]">
-                    <strong className="font-bold text-[var(--accent-text)]">
+                    <strong className={`font-bold ${titleToneClass(tone)}`}>
                       {event.title}
                     </strong>
                   </p>
