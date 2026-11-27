@@ -33,6 +33,7 @@ interface HandleQueueResultOptions
   context: AppContext;
   state: { activeSessionId: string };
   line: string;
+  kind: "assistant" | "command" | "shell";
   result: CliExecutionResult;
 }
 
@@ -137,6 +138,9 @@ export async function handleQueuedResult(
           options.context,
           options.state.activeSessionId,
         ),
+        kind: options.kind,
+        tone: options.result.tone,
+        status: options.result.status,
       },
     );
     if (options.result.tone !== "agent") {
@@ -162,11 +166,14 @@ export function handleQueuedError(options: HandleQueueErrorOptions): void {
   options.logger.captureError("command-error", options.error, {
     command: options.line,
   });
-  options.pushResponseEntry(options.line, `Error: ${detail}`, {
+  options.pushResponseEntry("Error", detail, {
     elapsed: currentSessionElapsed(
       options.context,
       options.state.activeSessionId,
     ),
+    kind: "system",
+    tone: "error",
+    status: "failed",
   });
   options.appendActivity("err", detail, "error");
 }

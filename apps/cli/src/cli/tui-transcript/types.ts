@@ -30,7 +30,13 @@ export interface TuiTranscriptController {
   pushResponseEntry(
     label: string,
     body: string,
-    options?: { elapsed?: string; captureToolTrace?: boolean },
+    options?: {
+      elapsed?: string;
+      captureToolTrace?: boolean;
+      kind?: ResponseTranscriptEntry["kind"];
+      tone?: ResponseTranscriptEntry["tone"];
+      status?: ResponseTranscriptEntry["status"];
+    },
   ): void;
   refreshLiveResponse(): void;
   setLiveResponse(
