@@ -34,6 +34,7 @@ export interface ReviewCommentsPanelProps {
   openCommentCount: number;
   activeCommentTarget: ReviewCommentTarget | null;
   commentDraft: string;
+  commentSaveInFlight: boolean;
   editingCommentId: string;
   commentEditorRef: RefObject<HTMLTextAreaElement | null>;
   platform: string;
@@ -57,6 +58,7 @@ export function ReviewCommentsPanel({
   openCommentCount,
   activeCommentTarget,
   commentDraft,
+  commentSaveInFlight,
   editingCommentId,
   commentEditorRef,
   platform,
@@ -289,7 +291,7 @@ export function ReviewCommentsPanel({
                     event.key === "Enter"
                   ) {
                     event.preventDefault();
-                    onSave();
+                    if (!commentSaveInFlight) onSave();
                   } else if (event.key === "Escape") {
                     onCancel();
                   }
@@ -313,7 +315,7 @@ export function ReviewCommentsPanel({
                 </button>
                 <button
                   className="primary-button"
-                  disabled={!commentDraft.trim()}
+                  disabled={!commentDraft.trim() || commentSaveInFlight}
                   onClick={onSave}
                   type="button"
                 >

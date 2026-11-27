@@ -38,6 +38,7 @@ export interface ReviewDetailProps {
   selectedPathComments: ReviewComment[];
   activeCommentTarget: ReviewCommentTarget | null;
   commentDraft: string;
+  commentSaveInFlight: boolean;
   editingCommentId: string;
   commentEditorRef: RefObject<HTMLTextAreaElement | null>;
   openCommentCount: number;
@@ -67,6 +68,7 @@ export function ReviewDetail({
   selectedPathComments,
   activeCommentTarget,
   commentDraft,
+  commentSaveInFlight,
   editingCommentId,
   commentEditorRef,
   openCommentCount,
@@ -177,6 +179,7 @@ export function ReviewDetail({
                   activeCommentTarget={activeCommentTarget}
                   commentDraft={commentDraft}
                   commentEditorRef={commentEditorRef}
+                  commentSaveInFlight={commentSaveInFlight}
                   editingCommentId={editingCommentId}
                   onAskDoolittle={onAskDoolittle}
                   onCancel={onCancelComment}
