@@ -1,4 +1,4 @@
-import { Button } from "@doolittle/ui";
+import { Button, StateSurface } from "@doolittle/ui";
 import { CompactStatStrip } from "../components/CompactStatStrip";
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
@@ -125,30 +125,19 @@ export function AnalyticsPage({
       ) : resource.error ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : !hasActivity ? (
-        <section
-          aria-labelledby="analytics-empty-title"
-          className="analytics-empty-landing"
-          data-analytics-empty="true"
-        >
-          <div className="grid min-w-0 gap-[3px]">
-            <h2
-              className="font-semibold text-[var(--text)]"
-              id="analytics-empty-title"
-            >
-              No local activity yet
-            </h2>
-            <p className="text-[length:var(--text-control)] text-[var(--muted)]">
-              Start a conversation to see its activity here.
-            </p>
-          </div>
-          <Button
-            className="shrink-0 max-[700px]:w-fit"
-            onClick={onNewConversation}
-            type="button"
+        <div className="analytics-empty-landing" data-analytics-empty="true">
+          <StateSurface
+            action={
+              <Button onClick={onNewConversation} type="button">
+                Start conversation
+              </Button>
+            }
+            kind="empty"
+            title="No local activity yet"
           >
-            Start conversation
-          </Button>
-        </section>
+            Start a conversation to see its activity here.
+          </StateSurface>
+        </div>
       ) : (
         <div className="analytics-workbench">
           <CompactStatStrip
@@ -210,7 +199,7 @@ export function AnalyticsPage({
                   </ul>
                 </section>
               ) : (
-                <EmptyBlock density="compact" title="No daily activity yet">
+                <EmptyBlock title="No daily activity yet" variant="pane">
                   Session totals are available, but no daily message series was
                   reported.
                 </EmptyBlock>
