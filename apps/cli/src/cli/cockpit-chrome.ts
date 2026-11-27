@@ -7,9 +7,14 @@ export function buildHeaderContent(
   agentName: string,
   theme: TuiThemeProfile,
 ): string {
+  // The header renders on the theme.primary surface. Every span inherits the
+  // contrast-derived base foreground (see applyTuiTheme/createHeader); adding
+  // hardcoded color tags here would bypass the WCAG ladder, since the catalog
+  // spans near-black to near-white primaries. Hierarchy comes from bold, not
+  // from chromatic accents that cannot survive every theme.
   return [
-    `{bold}${escapeBlessed(theme.sigil)} ${agentName}{/bold}  {black-fg}${escapeBlessed(theme.shellGlyph)} conversation shell{/}  {white-fg}${escapeBlessed(currentProjectLabel())}{/}`,
-    `{white-fg}${theme.label}{/} ${escapeBlessed(theme.idleFace)} · {gray-fg}${escapeBlessed(theme.tagline)}{/} · {cyan-fg}cockpit for observability{/} · {green-fg}shell for everyday work{/}`,
+    `{bold}${escapeBlessed(theme.sigil)} ${agentName}{/bold}  ${escapeBlessed(theme.shellGlyph)} conversation shell  ${escapeBlessed(currentProjectLabel())}`,
+    `{bold}${theme.label}{/bold} ${escapeBlessed(theme.idleFace)} · ${escapeBlessed(theme.tagline)} · cockpit for observability · shell for everyday work`,
   ].join("\n");
 }
 
