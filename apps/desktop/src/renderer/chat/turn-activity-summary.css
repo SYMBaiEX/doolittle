@@ -1,0 +1,10 @@
+.chat-turn-activity-summary {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+  overflow: hidden;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

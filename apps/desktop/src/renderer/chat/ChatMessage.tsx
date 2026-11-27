@@ -14,6 +14,11 @@ import { ContextCapsuleIcon, contextCapsuleLabel } from "./ContextCapsuleIcon";
 import { MessageAttachmentList } from "./MessageAttachmentList";
 import type { DisplayMessage, RunReceipt } from "./models";
 import { RunReceiptView } from "./RunReceiptView";
+import {
+  deriveTurnActivitySummary,
+  formatTurnActivitySummary,
+} from "./turn-activity-summary";
+import "./turn-activity-summary.css";
 
 const FAILURE_BOILERPLATE = [
   /Something went wrong while I was working on that\.?/giu,
@@ -141,6 +146,10 @@ export function ChatMessage({
           : message.pending
             ? "streaming"
             : "complete";
+  const turnActivityLabel = useMemo(() => {
+    const summary = deriveTurnActivitySummary(receipt);
+    return summary ? formatTurnActivitySummary(summary) : "";
+  }, [receipt]);
   return (
     <article
       aria-labelledby={`${authorId} ${timestampId}`}
@@ -160,6 +169,14 @@ export function ChatMessage({
         <time dateTime={message.createdAt} id={timestampId}>
           {displayTimestamp(message.createdAt)}
         </time>
+        {assistant && !message.pending && turnActivityLabel ? (
+          <span
+            className="chat-turn-activity-summary"
+            title={turnActivityLabel}
+          >
+            {turnActivityLabel}
+          </span>
+        ) : null}
         {assistant &&
         visibleContent &&
         messageState === "streaming" &&
