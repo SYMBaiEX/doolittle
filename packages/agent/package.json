@@ -88,6 +88,7 @@
     "./runtime/sdk-terminal-identity": "./src/runtime/sdk-terminal-identity.ts",
     "./runtime/stable-runtime-uuid": "./src/runtime/stable-runtime-uuid.ts",
     "./runtime/theme-catalog": "./src/runtime/theme-catalog/index.ts",
+    "./runtime/terminal-capabilities": "./src/runtime/terminal-capabilities/index.ts",
     "./runtime/turn-runtime-scope": "./src/runtime/turn-runtime-scope.ts",
     "./server": "./src/server.ts",
     "./services": "./src/services/index.ts",
