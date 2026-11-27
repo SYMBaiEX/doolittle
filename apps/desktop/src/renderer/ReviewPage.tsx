@@ -6,8 +6,16 @@ import type {
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 import { useVisibleInterval } from "@doolittle/ui/environment";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { RepositoryReviewResponse } from "../shared/contracts";
+import { approvalDecisionForShortcut } from "./approval-shortcuts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
@@ -56,6 +64,7 @@ import {
   saveReviewComments,
 } from "./review-comments";
 import { reviewWorkState } from "./review-work-state";
+import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
 import {
   refreshWorkspaceResources,
   useRepositoryPatch,
@@ -644,6 +653,23 @@ export function ReviewPage({
     }
   };
 
+  const decideSelectedApprovalFromKeyboard = (
+    event: ReactKeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (event.defaultPrevented || shouldIgnoreShellShortcut(event.nativeEvent))
+      return;
+    const decision = approvalDecisionForShortcut(event.nativeEvent);
+    if (
+      !decision ||
+      busy ||
+      selected?.kind !== "approvals" ||
+      selected.status !== "pending"
+    )
+      return;
+    event.preventDefault();
+    void decideApproval(decision);
+  };
+
   const loading =
     approvals.loading ||
     changes.loading ||
@@ -686,10 +712,12 @@ export function ReviewPage({
     );
   }
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: The page container only catches keys bubbled from focusable review controls; the container itself is not interactive.
     <div
       className={REVIEW_PAGE_CLASS}
       data-project-scope={projectScope}
       data-workspace-path={workspacePath}
+      onKeyDown={decideSelectedApprovalFromKeyboard}
     >
       <ResourceStatusBar resources={statusResources} />
       {branchRecord.error ? (
