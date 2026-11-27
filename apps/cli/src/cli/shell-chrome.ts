@@ -11,6 +11,7 @@ import {
 } from "./operator-snapshot";
 import { sanitizeSingleLineTerminalText } from "./render-utils";
 import { paintText, resolveTerminalColorPolicy } from "./terminal-color";
+import { supportsTerminalUnicode, terminalGlyph } from "./terminal-glyphs";
 import { currentProjectLabel } from "./terminal-labels";
 
 export {
@@ -34,18 +35,22 @@ export function renderPlainBanner(
   const theme = getTuiTheme(settings.ui.theme);
   const snapshot = buildCliOperatorSnapshot(context, state, dependencies);
 
+  const unicodeOk = supportsTerminalUnicode();
+  const vertical = terminalGlyph("│", "|", unicodeOk);
+  const horizontal = terminalGlyph("─", "-", unicodeOk);
+  const separator = terminalGlyph("·", "|", unicodeOk);
   const lines = [
-    `┌─ ${theme.sigil} ${context.config.agentName.toUpperCase()} // conversation shell`,
-    `│ project   ${snapshot.project}`,
-    `│ workspace ${snapshot.workspace}`,
-    `│ provider  ${snapshot.providerSummary}`,
-    `│ signal    ${theme.label} ${theme.idleFace}   run ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}`,
-    `│ startup   ${snapshot.startupSummary}`,
-    `│ channels  ${snapshot.transportSummary}`,
-    `│ plugins   ${snapshot.pluginSummary}`,
-    `│ live      ${snapshot.liveSummary}`,
-    `│ session   ${snapshot.sessionLabel}`,
-    `└─ ${theme.shellGlyph} terminal-first · cockpit optional · !shell · /help`,
+    `${terminalGlyph("┌", "+", unicodeOk)}${horizontal} ${theme.sigil} ${context.config.agentName.toUpperCase()} // conversation shell`,
+    `${vertical} project   ${snapshot.project}`,
+    `${vertical} workspace ${snapshot.workspace}`,
+    `${vertical} provider  ${snapshot.providerSummary}`,
+    `${vertical} signal    ${theme.label} ${theme.idleFace}   run ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}`,
+    `${vertical} startup   ${snapshot.startupSummary}`,
+    `${vertical} channels  ${snapshot.transportSummary}`,
+    `${vertical} plugins   ${snapshot.pluginSummary}`,
+    `${vertical} live      ${snapshot.liveSummary}`,
+    `${vertical} session   ${snapshot.sessionLabel}`,
+    `${terminalGlyph("└", "+", unicodeOk)}${horizontal} ${theme.shellGlyph} terminal-first ${separator} cockpit optional ${separator} !shell ${separator} /help`,
   ];
 
   const policy = resolveTerminalColorPolicy(output);
@@ -94,7 +99,7 @@ export function renderPlainPrompt(
 
 export function renderPlainRunLine(detail: string, badge: string): string {
   const policy = resolveTerminalColorPolicy(output);
-  return `${paintText("  •", "muted", policy)} ${paintText(badge, "info", policy)} ${sanitizeSingleLineTerminalText(detail)}`;
+  return `${paintText(`  ${terminalGlyph("•", "-")}`, "muted", policy)} ${paintText(badge, "info", policy)} ${sanitizeSingleLineTerminalText(detail)}`;
 }
 
 export function currentSessionElapsed(

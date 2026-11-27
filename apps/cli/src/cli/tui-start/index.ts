@@ -19,6 +19,7 @@ import {
   isRecoverableProviderError,
 } from "../runtime-errors";
 import type { StartCliOptions } from "../start/types";
+import { supportsTerminalUnicode, terminalGlyph } from "../terminal-glyphs";
 import { truncate } from "../text-utils";
 import { createBlessedOutputProxy } from "../tui-output-proxy";
 import {
@@ -47,7 +48,9 @@ export async function startTui(
     input,
     output: tuiOutput,
     smartCSR: true,
-    fullUnicode: true,
+    // Wide-codepoint width math is only correct when the terminal locale
+    // negotiates UTF-8; POSIX/C sessions get narrow-width rendering instead.
+    fullUnicode: supportsTerminalUnicode(),
     title: `${context.config.agentName} TUI`,
     dockBorders: true,
   });
@@ -76,8 +79,8 @@ async function startCockpit(
   ) {
     screen.destroy();
     output.write(
-      `Terminal too small (${screen.width as number}×${screen.height as number}). ` +
-        `Minimum required: ${MIN_COLS}×${MIN_ROWS}. Falling back to plain CLI.\n`,
+      `Terminal too small (${screen.width as number}${terminalGlyph("×", "x")}${screen.height as number}). ` +
+        `Minimum required: ${MIN_COLS}${terminalGlyph("×", "x")}${MIN_ROWS}. Falling back to plain CLI.\n`,
     );
     return "too-small";
   }
