@@ -41,6 +41,51 @@ export function renderBlessedRoleTag(
   }
 }
 
+export function renderBlessedGutter(
+  kind?: ResponseTranscriptEntry["kind"],
+): string {
+  switch (kind) {
+    case "user":
+      return "{yellow-fg}│{/}";
+    case "assistant":
+      return "{cyan-fg}│{/}";
+    case "shell":
+      return "{green-fg}│{/}";
+    case "command":
+      return "{magenta-fg}│{/}";
+    default:
+      return "{gray-fg}│{/}";
+  }
+}
+
+export function indentBlessedTranscriptBlock(
+  block: string,
+  kind?: ResponseTranscriptEntry["kind"],
+): string {
+  if (!block) {
+    return block;
+  }
+  const gutter = renderBlessedGutter(kind);
+  return block
+    .split("\n")
+    .map((line) => `${gutter} ${line}`)
+    .join("\n");
+}
+
+export function isTranscriptTurnStart(entry: ResponseTranscriptEntry): boolean {
+  const body = entry.body.trimStart();
+  if (entry.kind === "user") {
+    return true;
+  }
+  if (entry.kind === "shell") {
+    return entry.label === "Shell" && body.startsWith("!");
+  }
+  if (entry.kind === "command") {
+    return entry.label === "Command" && body.startsWith("/");
+  }
+  return false;
+}
+
 export function renderPlainRoleLabel(
   kind?: ResponseTranscriptEntry["kind"],
 ): string {

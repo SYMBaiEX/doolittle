@@ -2,6 +2,7 @@ import { stdout as output } from "node:process";
 import type { CliTone } from "../activity-chrome";
 import {
   asciiRoleBadge,
+  isTranscriptTurnStart,
   normalizeTranscriptSections,
   renderNormalizedLabel,
   renderPlainBody,
@@ -24,6 +25,17 @@ const ANSI = {
 
 function paint(text: string, color: string, enabled: boolean): string {
   return enabled ? `${color}${text}${ANSI.reset}` : text;
+}
+
+function indentPlainViewportBlock(block: string, accent: string): string {
+  if (!block) {
+    return block;
+  }
+  const gutter = paint("│", accent, output.isTTY);
+  return block
+    .split("\n")
+    .map((line) => `${gutter} ${line}`)
+    .join("\n");
 }
 
 function resolveAccent(kind?: ResponseTranscriptEntry["kind"]): string {
@@ -74,11 +86,12 @@ export function renderPlainEntry(
     : "";
   const toolTrace = renderPlainToolTrace(entry, { collapsed: true });
   const prefix = renderTonePrefix(entry.tone ?? tone);
+  const metadata = [elapsed, at].filter(Boolean).join(" ");
 
   return [
-    `${at}  ${badge} ${label}${elapsed ? ` ${elapsed}` : ""}${pending}${prefix ? `  ${prefix}` : ""}`,
-    renderPlainBody(entry),
-    toolTrace,
+    `${badge} ${label}${pending}${prefix ? `  ${prefix}` : ""}${metadata ? `  ${metadata}` : ""}`,
+    indentPlainViewportBlock(renderPlainBody(entry), accent),
+    indentPlainViewportBlock(toolTrace, accent),
   ]
     .filter(Boolean)
     .join("\n");
@@ -94,19 +107,26 @@ export function renderPlainTranscript(
   }
 
   return sections
-    .map((entry) => {
+    .map((entry, index) => {
       const customLabel = renderPlainCustomLabel(entry);
       const body = renderPlainBody(entry);
       const toolTrace = renderPlainToolTrace(entry);
       const severity = renderPlainSeverity(entry);
-
-      return [
-        `${renderNormalizedLabel(entry.at)} ${renderPlainRoleLabel(entry.kind)}${customLabel}${severity ? ` · ${severity}` : ""}${entry.elapsed ? ` · ${renderNormalizedLabel(entry.elapsed)}` : ""}${entry.pending ? " ..." : ""}`,
+      const metadata = [entry.elapsed, entry.at]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => renderNormalizedLabel(value))
+        .join(" · ");
+      const rendered = [
+        `${renderPlainRoleLabel(entry.kind)}${customLabel}${severity ? ` · ${severity}` : ""}${entry.pending ? " ..." : ""}${metadata ? ` · ${metadata}` : ""}`,
         body,
         toolTrace,
       ]
         .filter(Boolean)
         .join("\n");
+      if (index === 0) {
+        return rendered;
+      }
+      return `${isTranscriptTurnStart(entry) ? "\n\n------------\n\n" : "\n\n"}${rendered}`;
     })
-    .join("\n\n----------------------------------------\n\n");
+    .join("");
 }

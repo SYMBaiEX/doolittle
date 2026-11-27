@@ -133,7 +133,7 @@ describe("CLI operator presentation", () => {
       kind: "assistant" as const,
     };
     const plain = stripVTControlCharacters(renderPlainEntry(entry));
-    expect(plain).toContain("Coding assistant\n");
+    expect(plain).toMatch(/Coding assistant\s+08:00\n/);
     expect(plain).toContain(path);
     expect(renderResponseTranscript([entry])).toContain(path);
   });
