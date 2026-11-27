@@ -34,10 +34,31 @@
   font-size: 1em;
 }
 
+/*
+ * Tailwind's preflight zeroes list-style, and the streamdown list elements
+ * rely on utility classes that are not generated for unordered lists, so the
+ * marker types are declared here rather than inherited from the utilities.
+ */
 .chat-message-prose :is(ul, ol) {
   margin-block: 0.7em;
   padding-inline-start: 1.4em;
   list-style-position: outside;
+}
+
+.chat-message-prose ul {
+  list-style-type: disc;
+}
+
+.chat-message-prose ul ul {
+  list-style-type: circle;
+}
+
+.chat-message-prose ul ul ul {
+  list-style-type: square;
+}
+
+.chat-message-prose ol {
+  list-style-type: decimal;
 }
 
 .chat-message-prose li {
