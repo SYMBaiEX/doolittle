@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { basename, isAbsolute, relative, sep } from "node:path";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import { type IPty, spawn as spawnPty } from "@lydell/node-pty";
 import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import {
@@ -107,7 +108,7 @@ function takeUtf8Suffix(value: string, maximumBytes: number): string {
 
 function validateSessionId(value: string): string {
   const id = value.trim();
-  if (!/^[a-f0-9-]{36}$/u.test(id)) {
+  if (!isUuid(id)) {
     throw new Error("A valid terminal session id is required.");
   }
   return id;

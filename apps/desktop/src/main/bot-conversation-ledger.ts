@@ -1,9 +1,9 @@
 import { chmodSync, existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
+import { isBotId } from "@doolittle/contracts/identifiers";
 import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 
 const SESSION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
-const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const PROJECT_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 const MAX_LEDGER_BYTES = 4_000_000;
 
@@ -103,7 +103,7 @@ function validProject(value: unknown): value is BoundProject {
     typeof item.projectId === "string" &&
     PROJECT_ID.test(item.projectId) &&
     typeof item.botId === "string" &&
-    BOT_ID.test(item.botId) &&
+    isBotId(item.botId) &&
     typeof item.createdAt === "string" &&
     !Number.isNaN(Date.parse(item.createdAt))
   );
@@ -118,7 +118,7 @@ function validResource(value: unknown): value is BoundResource {
     typeof item.projectId === "string" &&
     PROJECT_ID.test(item.projectId) &&
     typeof item.botId === "string" &&
-    BOT_ID.test(item.botId) &&
+    isBotId(item.botId) &&
     typeof item.createdAt === "string" &&
     !Number.isNaN(Date.parse(item.createdAt))
   );
@@ -133,7 +133,7 @@ function validRun(value: unknown): value is BoundRun {
     typeof item.sessionId === "string" &&
     SESSION_ID.test(item.sessionId) &&
     typeof item.botId === "string" &&
-    BOT_ID.test(item.botId) &&
+    isBotId(item.botId) &&
     (item.projectId === undefined ||
       (typeof item.projectId === "string" &&
         PROJECT_ID.test(item.projectId))) &&
@@ -149,7 +149,7 @@ function validConversation(value: unknown): value is BoundConversation {
     typeof item.sessionId === "string" &&
     SESSION_ID.test(item.sessionId) &&
     typeof item.botId === "string" &&
-    BOT_ID.test(item.botId) &&
+    isBotId(item.botId) &&
     (item.projectId === undefined ||
       (typeof item.projectId === "string" &&
         PROJECT_ID.test(item.projectId))) &&
@@ -313,7 +313,7 @@ export class BotConversationLedger {
   }
 
   list(botId: string): BoundConversation[] {
-    if (!BOT_ID.test(botId)) throw new Error("Bot ID is invalid.");
+    if (!isBotId(botId)) throw new Error("Bot ID is invalid.");
     return [...this.conversations.values()]
       .filter((record) => record.botId === botId)
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
@@ -327,7 +327,7 @@ export class BotConversationLedger {
     projectContext?: BoundConversation["projectContext"],
   ): BoundConversation {
     if (
-      !BOT_ID.test(botId) ||
+      !isBotId(botId) ||
       !SESSION_ID.test(sessionId) ||
       (projectId !== undefined && !PROJECT_ID.test(projectId)) ||
       (workspacePath !== undefined && !validWorkspacePath(workspacePath)) ||
@@ -452,7 +452,7 @@ export class BotConversationLedger {
   }
 
   bindProject(botId: string, projectId: string): BoundProject {
-    if (!BOT_ID.test(botId) || !PROJECT_ID.test(projectId))
+    if (!isBotId(botId) || !PROJECT_ID.test(projectId))
       throw new Error("Project owner input is invalid.");
     const existing = this.projects.get(projectId);
     if (existing) {

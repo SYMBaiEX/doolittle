@@ -1,4 +1,5 @@
 import type { AutomationJobRecord } from "@doolittle/contracts";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import type { BackendManagerOptions } from "../backend";
 import type { BotConsultationDispatchInput } from "../bot-consultation-broker";
 import type { BotProcessRegistry } from "../bot-process-registry";
@@ -200,7 +201,7 @@ export function createWorkerHostBridge({
           const payload = request.payload as { dispatchId?: unknown } | null;
           if (
             typeof payload?.dispatchId !== "string" ||
-            !/^[0-9a-f-]{36}$/iu.test(payload.dispatchId)
+            !isUuid(payload.dispatchId)
           )
             throw new Error("Consultation ID is invalid.");
           return request.operation === "consult.wait"

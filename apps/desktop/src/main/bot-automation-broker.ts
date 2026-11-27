@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { AutomationJobRecord } from "@doolittle/contracts";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import {
   type AutomationTargetApproval,
   type AutomationTargetFire,
@@ -8,7 +9,6 @@ import {
 import { effectivePermissions } from "./bot-consultation-broker";
 import type { BotProcessRegistry } from "./bot-process-registry";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const TERMINAL = new Set(["complete", "cancelled", "error"]);
 function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -32,9 +32,9 @@ function assertNamedJob(job: AutomationJobRecord): void {
   if (
     !job ||
     typeof job.id !== "string" ||
-    !UUID.test(job.id) ||
+    !isUuid(job.id) ||
     typeof job.targetBotId !== "string" ||
-    !UUID.test(job.targetBotId) ||
+    !isUuid(job.targetBotId) ||
     typeof job.name !== "string" ||
     !job.name.trim() ||
     job.name.length > 300 ||
@@ -275,7 +275,7 @@ export class BotAutomationBroker {
     if (
       !input ||
       typeof input.jobId !== "string" ||
-      !UUID.test(input.jobId) ||
+      !isUuid(input.jobId) ||
       typeof input.idempotencyKey !== "string" ||
       !input.idempotencyKey ||
       input.idempotencyKey.length > 512 ||
@@ -431,7 +431,7 @@ export class BotAutomationBroker {
     this.authority(caller);
     if (
       !input ||
-      !UUID.test(input.jobId) ||
+      !isUuid(input.jobId) ||
       typeof input.idempotencyKey !== "string" ||
       !input.idempotencyKey ||
       input.idempotencyKey.length > 512
@@ -451,7 +451,7 @@ export class BotAutomationBroker {
     signal?: AbortSignal,
   ): Promise<{ text: string }> {
     this.authority(caller);
-    if (!UUID.test(fireId)) throw new Error("Automation fire ID is invalid.");
+    if (!isUuid(fireId)) throw new Error("Automation fire ID is invalid.");
     const fire = this.ledger.get(fireId);
     if (!fire) throw new Error("Automation fire not found.");
     const deadline = Date.now() + 9 * 60_000;

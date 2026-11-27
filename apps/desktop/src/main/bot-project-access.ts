@@ -8,9 +8,9 @@ import {
 } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotDefinition, BotPermissions } from "@doolittle/contracts/bots";
+import { isBotId } from "@doolittle/contracts/identifiers";
 import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 
-const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const PROJECT_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 const MAX_BYTES = 2_000_000;
 const MAX_GRANTS = 4_096;
@@ -74,7 +74,7 @@ function validScope(value: unknown): value is ProjectAccessScope {
   const scope = value as Partial<ProjectAccessScope>;
   return (
     typeof scope.botId === "string" &&
-    BOT_ID.test(scope.botId) &&
+    isBotId(scope.botId) &&
     typeof scope.projectId === "string" &&
     PROJECT_ID.test(scope.projectId) &&
     typeof scope.workspacePath === "string" &&
@@ -173,7 +173,7 @@ export class BotProjectAccessStore {
   }
 
   forgetBot(botId: string): void {
-    if (!BOT_ID.test(botId)) throw new Error("Bot ID is invalid.");
+    if (!isBotId(botId)) throw new Error("Bot ID is invalid.");
     if (this.grants.some((grant) => grant.botId === botId))
       this.save(this.grants.filter((grant) => grant.botId !== botId));
   }
