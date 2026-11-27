@@ -1,3 +1,7 @@
+import {
+  approvalShortcutAriaKey,
+  approvalShortcutLabel,
+} from "../approval-shortcuts";
 import { asString, displayTimestamp } from "../lib";
 import {
   REVIEW_ACTIONS_CLASS,
@@ -55,6 +59,7 @@ export function ReviewApprovalActions({
   return (
     <div className={REVIEW_ACTIONS_CLASS}>
       <WorkbenchAction
+        aria-keyshortcuts={approvalShortcutAriaKey("approve")}
         emphasis="primary"
         icon={Check}
         disabled={Boolean(busy)}
@@ -64,6 +69,7 @@ export function ReviewApprovalActions({
         {busy === "approve" ? "Approving…" : "Approve"}
       </WorkbenchAction>
       <WorkbenchAction
+        aria-keyshortcuts={approvalShortcutAriaKey("deny")}
         emphasis="danger"
         icon={X}
         disabled={Boolean(busy)}
@@ -72,7 +78,11 @@ export function ReviewApprovalActions({
       >
         {busy === "deny" ? "Denying…" : "Deny"}
       </WorkbenchAction>
-      <small>Approval permits the agent to run the matching command.</small>
+      <small>
+        Approval permits the agent to run the matching command. Keyboard:{" "}
+        {approvalShortcutLabel("approve")} approve ·{" "}
+        {approvalShortcutLabel("deny")} deny.
+      </small>
     </div>
   );
 }

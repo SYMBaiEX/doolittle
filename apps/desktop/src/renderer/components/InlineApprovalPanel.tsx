@@ -7,7 +7,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@elizaos/ui/components/ui/dialog";
-import { useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  approvalDecisionForShortcut,
+  approvalShortcutAriaKey,
+  approvalShortcutLabel,
+} from "../approval-shortcuts";
 import type { PendingSessionApproval } from "../chat/session-approvals";
 import {
   type ActionFeedback,
@@ -74,6 +79,9 @@ export function InlineApprovalPanel({
   const feedback = result?.scope === scope.current ? result.feedback : null;
   const currentIds = useRef(new Set<string>());
   currentIds.current = new Set(approvals.map((approval) => approval.id));
+  const keyboardHintId = useId();
+  const approveShortcut = approvalShortcutLabel("approve");
+  const denyShortcut = approvalShortcutLabel("deny");
 
   const decide = async (
     approval: PendingSessionApproval,
@@ -135,6 +143,28 @@ export function InlineApprovalPanel({
     }
   };
 
+  const decideFromKeyboard = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.defaultPrevented) return;
+    const decision = approvalDecisionForShortcut(event.nativeEvent);
+    if (!decision) return;
+    const target = event.target;
+    const approvalId =
+      target instanceof HTMLElement
+        ? target
+            .closest<HTMLElement>("[data-session-approval-id]")
+            ?.getAttribute("data-session-approval-id")
+        : undefined;
+    const approval = approvalId
+      ? approvals.find((candidate) => candidate.id === approvalId)
+      : target === event.currentTarget
+        ? approvals[0]
+        : undefined;
+    if (!approval) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void decide(approval, decision);
+  };
+
   if (
     !enabled ||
     (!approvals.length && !resource.loading && !resource.error && !feedback)
@@ -160,6 +190,15 @@ export function InlineApprovalPanel({
             : `${approvals.length} pending request${approvals.length === 1 ? "" : "s"} for this session.`}{" "}
           Other requests remain in Review.
         </small>
+        {approvals.length ? (
+          <small
+            className="text-[length:var(--text-meta)] text-[var(--faint)]"
+            id={keyboardHintId}
+          >
+            Keyboard: focus this list, then {approveShortcut} approve ·{" "}
+            {denyShortcut} deny.
+          </small>
+        ) : null}
       </header>
       {resource.loading ? (
         <p
@@ -189,8 +228,10 @@ export function InlineApprovalPanel({
       ) : null}
       {approvals.length ? (
         <section
+          aria-describedby={keyboardHintId}
           aria-label="Session approval requests"
           className="grid min-h-0 min-w-0 gap-1.5 overflow-y-auto overscroll-contain pr-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+          onKeyDown={decideFromKeyboard}
           // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users must scroll complete commands before making a decision.
           tabIndex={0}
         >
@@ -201,6 +242,7 @@ export function InlineApprovalPanel({
             return (
               <article
                 className="grid min-w-0 grid-cols-1 gap-2 border border-[var(--border)] bg-[var(--surface-raised)] p-2"
+                data-session-approval-id={id}
                 key={id}
               >
                 <div className="grid min-w-0 gap-[3px]">
@@ -219,6 +261,7 @@ export function InlineApprovalPanel({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
+                    aria-keyshortcuts={approvalShortcutAriaKey("approve")}
                     className="!h-11 !min-h-11"
                     disabled={
                       Boolean(busyId) ||
@@ -232,6 +275,7 @@ export function InlineApprovalPanel({
                     {isBusy ? "Working…" : "Approve"}
                   </Button>
                   <Button
+                    aria-keyshortcuts={approvalShortcutAriaKey("deny")}
                     className="!h-11 !min-h-11"
                     disabled={
                       Boolean(busyId) ||
