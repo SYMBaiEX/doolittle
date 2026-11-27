@@ -7,6 +7,7 @@ import { UiIcon } from "../components/UiIcon";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { CHAT_TERMINAL_HEIGHT, clampPanelSize } from "../panel-layout";
+import { formatShortcutLabel } from "../shortcut-label";
 import "./chat-terminal-dock.css";
 
 const SHORT_VIEWPORT_MAX_HEIGHT = 640;
@@ -77,7 +78,7 @@ export function ChatTerminalPanel({
   origin,
   allowLegacy,
 }: ChatTerminalPanelProps) {
-  const shortcut = platform === "darwin" ? "⌘J" : "Ctrl+J";
+  const shortcut = formatShortcutLabel({ key: "j", mod: true }, platform);
   const panelRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const previousWorkspaceRef = useRef(workspacePath);
