@@ -71,7 +71,11 @@ import { registerUiExtensionScheme } from "./ui-extensions/community-view";
 import { UiExtensionHost } from "./ui-extensions/host";
 import { NativeUiBackend } from "./ui-host-integration";
 import { UiInterfaceController } from "./ui-interface-controller";
-import { configuredUpdater, DesktopUpdateController } from "./update-state";
+import {
+  configuredUpdater,
+  DesktopUpdateController,
+  startAutomaticUpdateChecks,
+} from "./update-state";
 import { loadDesktopWindow } from "./window-loading";
 import {
   createWindowStatePersistenceController,
@@ -95,6 +99,7 @@ let quitting = false;
 let tray: Tray | null = null;
 let desktopPreferences: DesktopPreferences | null = null;
 let updates: DesktopUpdateController | null = null;
+let disposeUpdateChecks: (() => void) | null = null;
 let secondInstanceRequested = false;
 let desktopInitialized = false;
 let uiBackend: NativeUiBackend | null = null;
@@ -864,7 +869,7 @@ if (ownsSingleInstance)
       resolve(app.getPath("userData"), "desktop-preferences.json"),
     );
     const packagedUpdater = app.isPackaged ? configuredUpdater() : null;
-    updates = new DesktopUpdateController(
+    const updateController = new DesktopUpdateController(
       packagedUpdater,
       app.isPackaged && process.platform === "linux"
         ? "Automatic updates are disabled on Linux until release metadata has an independently pinned signature. Download and verify a signed release manually."
@@ -872,6 +877,10 @@ if (ownsSingleInstance)
           ? "Updates are unavailable in this packaged build."
           : "Updates are only available in a packaged, signed Doolittle build.",
     );
+    updates = updateController;
+    disposeUpdateChecks = packagedUpdater
+      ? startAutomaticUpdateChecks(updateController)
+      : null;
     const providerAuth = new ProviderAuthController({
       openExternal: (url) => shell.openExternal(url),
       readClipboardText: () => clipboard.readText(),
@@ -1161,6 +1170,8 @@ const handleDesktopQuit = createDesktopQuitHandler({
     await captureBridge?.dispose();
     tray?.destroy();
     tray = null;
+    disposeUpdateChecks?.();
+    disposeUpdateChecks = null;
     disposeUiWorkspace?.();
     uiInterfaces?.dispose();
     uiBackend?.dispose();

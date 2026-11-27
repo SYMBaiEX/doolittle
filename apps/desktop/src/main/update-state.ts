@@ -14,10 +14,24 @@ export type ConfigurableUpdateProvider = UpdateProvider &
 
 type LoadUpdateProvider = () => Promise<UpdateProvider>;
 
+export interface UpdateCheckOptions {
+  automatic?: boolean;
+}
+
+export const AUTOMATIC_UPDATE_CHECK_START_DELAY_MS = 10_000;
+export const AUTOMATIC_UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+function canAutomaticallyCheck(state: DesktopUpdateState): boolean {
+  return !["unavailable", "checking", "downloading", "downloaded"].includes(
+    state.phase,
+  );
+}
+
 export class DesktopUpdateController {
   private state: DesktopUpdateState;
   private listeners = new Set<(state: DesktopUpdateState) => void>();
   private installRequested = false;
+  private automaticChecks = 0;
   private provider: UpdateProvider | null = null;
   private providerLoad?: Promise<UpdateProvider>;
 
@@ -47,6 +61,7 @@ export class DesktopUpdateController {
     provider.on("download-progress", (progress: { percent?: number }) =>
       this.set({
         phase: "downloading",
+        ...(this.state.version ? { version: this.state.version } : {}),
         progress: Math.max(0, Math.min(100, Math.round(progress.percent ?? 0))),
         message: "Downloading update…",
       }),
@@ -60,8 +75,12 @@ export class DesktopUpdateController {
     );
     provider.on("error", (error: Error) => {
       this.installRequested = false;
+      if (this.automaticChecks > 0) return;
+      const retriableVersion =
+        this.state.phase === "downloading" ? this.state.version : undefined;
       this.set({
         phase: "error",
+        ...(retriableVersion ? { version: retriableVersion } : {}),
         message: error.message || "Update check failed.",
       });
     });
@@ -78,34 +97,68 @@ export class DesktopUpdateController {
     this.state = state;
     for (const listener of this.listeners) listener(state);
   }
-  async check(): Promise<DesktopUpdateState> {
+  async check(options: UpdateCheckOptions = {}): Promise<DesktopUpdateState> {
     if (!this.loadProvider) return this.state;
-    if (!this.provider && !this.providerLoad) {
-      this.providerLoad = Promise.resolve()
-        .then(this.loadProvider)
-        .then((provider) => this.attach(provider))
-        .catch((error: unknown) => {
-          this.set({
-            phase: "error",
-            message:
-              error instanceof Error ? error.message : "Update check failed.",
+    const automatic = options.automatic === true;
+    if (automatic && !canAutomaticallyCheck(this.state)) return this.state;
+    const previousState = this.state;
+    if (automatic) this.automaticChecks += 1;
+    try {
+      if (!this.provider && !this.providerLoad) {
+        this.providerLoad = Promise.resolve()
+          .then(this.loadProvider)
+          .then((provider) => this.attach(provider))
+          .finally(() => {
+            this.providerLoad = undefined;
           });
-          throw error;
-        })
-        .finally(() => {
-          this.providerLoad = undefined;
+      }
+      const provider = this.provider ?? (await this.providerLoad);
+      await provider?.checkForUpdates();
+      return this.state;
+    } catch (error) {
+      if (automatic) {
+        if (this.state.phase === "checking" || this.state.phase === "error") {
+          this.set(previousState);
+        }
+      } else if (this.state.phase !== "error") {
+        this.set({
+          phase: "error",
+          message:
+            error instanceof Error ? error.message : "Update check failed.",
         });
+      }
+      throw error;
+    } finally {
+      if (automatic) this.automaticChecks -= 1;
     }
-    const provider = this.provider ?? (await this.providerLoad);
-    await provider?.checkForUpdates();
-    return this.state;
   }
   async download(): Promise<DesktopUpdateState> {
     if (!this.loadProvider) return this.state;
-    if (!this.provider || this.state.phase !== "available")
+    const retriable =
+      this.state.phase === "error" && typeof this.state.version === "string";
+    if (!this.provider || (this.state.phase !== "available" && !retriable)) {
       throw new Error("No update is ready to download.");
-    await this.provider.downloadUpdate();
-    return this.state;
+    }
+    this.set({
+      phase: "downloading",
+      ...(this.state.version ? { version: this.state.version } : {}),
+      progress: 0,
+      message: "Downloading update…",
+    });
+    try {
+      await this.provider.downloadUpdate();
+      return this.state;
+    } catch (error) {
+      if (this.state.phase === "downloading") {
+        this.set({
+          phase: "error",
+          ...(this.state.version ? { version: this.state.version } : {}),
+          message:
+            error instanceof Error ? error.message : "Update download failed.",
+        });
+      }
+      throw error;
+    }
   }
   install(): void {
     if (!this.loadProvider) throw new Error(this.state.message);
@@ -120,6 +173,38 @@ export class DesktopUpdateController {
       throw error;
     }
   }
+}
+
+export function startAutomaticUpdateChecks(
+  updates: DesktopUpdateController,
+): () => void {
+  let disposed = false;
+  let checkInFlight = false;
+  const runCheck = () => {
+    if (disposed || checkInFlight) return;
+    checkInFlight = true;
+    void updates
+      .check({ automatic: true })
+      .catch(() => undefined)
+      .finally(() => {
+        checkInFlight = false;
+      });
+  };
+  const startupTimer = setTimeout(
+    runCheck,
+    AUTOMATIC_UPDATE_CHECK_START_DELAY_MS,
+  );
+  const intervalTimer = setInterval(
+    runCheck,
+    AUTOMATIC_UPDATE_CHECK_INTERVAL_MS,
+  );
+  startupTimer.unref();
+  intervalTimer.unref();
+  return () => {
+    disposed = true;
+    clearTimeout(startupTimer);
+    clearInterval(intervalTimer);
+  };
 }
 
 export function configureUpdateProvider(
