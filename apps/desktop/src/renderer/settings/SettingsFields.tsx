@@ -1,3 +1,7 @@
+import {
+  MAX_COMMAND_TIMEOUT_MS,
+  MIN_COMMAND_TIMEOUT_MS,
+} from "@doolittle/contracts/execution";
 import { Input, NativeSelect, Textarea } from "@doolittle/ui";
 import { useEffect, useRef, useState } from "react";
 import { desktopRequest, EmptyBlock, errorMessage, titleCase } from "../lib";
@@ -81,15 +85,16 @@ const selectOptions: Record<string, string[]> = {
   "execution.backend": [
     "local",
     "docker",
+    "podman",
     "ssh",
     "singularity",
     "daytona",
     "modal",
   ],
-  "execution.remoteSyncMode": ["mirror", "upload", "none"],
-  "execution.remoteArtifactPolicy": ["metadata-only", "download", "ignore"],
-  "agent.runDepth": ["minimal", "standard", "deep"],
-  "agent.toolProgressMode": ["off", "new", "all"],
+  "execution.remoteSyncMode": ["mirror", "snapshot"],
+  "execution.remoteArtifactPolicy": ["metadata-only", "allowlisted"],
+  "agent.runDepth": ["quick", "standard", "deep", "explore"],
+  "agent.toolProgressMode": ["off", "new", "all", "verbose"],
 };
 
 const settingDescriptions: Record<string, string> = {
@@ -155,6 +160,106 @@ function controlValue(value: unknown): string | boolean {
       : String(value ?? "");
 }
 
+interface NumericFieldRule {
+  min?: number;
+  max?: number;
+  integer?: boolean;
+  exclusiveMin?: boolean;
+}
+
+const numericFieldRules: Record<string, NumericFieldRule> = {
+  "model.temperature": { min: 0, max: 2 },
+  "model.maxTokens": { min: 1, integer: true },
+  "gateway.sessionTimeoutMinutes": { min: 0, exclusiveMin: true },
+  "execution.commandTimeoutMs": {
+    min: MIN_COMMAND_TIMEOUT_MS,
+    max: MAX_COMMAND_TIMEOUT_MS,
+    integer: true,
+  },
+  "execution.healthTimeoutMs": { min: 1, integer: true },
+  "execution.containerPidsLimit": { min: 1, integer: true },
+  "execution.sshPort": { min: 1, max: 65_535, integer: true },
+  "mcp.maxRetries": { min: 0, integer: true },
+  "agent.maxIterations": { min: 1, integer: true },
+};
+
+const mcpServerNumericFieldRules: Record<string, NumericFieldRule> = {
+  timeout: { min: 1, integer: true },
+  timeoutInMillis: { min: 1, integer: true },
+};
+
+function mcpServerLeaf(path: string): string | undefined {
+  const segments = path.split(".");
+  return segments.length === 4 &&
+    segments[0] === "mcp" &&
+    segments[1] === "servers" &&
+    segments[2]
+    ? segments[3]
+    : undefined;
+}
+
+function numericFieldRule(path: string): NumericFieldRule | undefined {
+  const exact = numericFieldRules[path];
+  if (exact) return exact;
+  const serverLeaf = mcpServerLeaf(path);
+  return serverLeaf ? mcpServerNumericFieldRules[serverLeaf] : undefined;
+}
+
+function numericExpectation(rule: NumericFieldRule): string {
+  const type = rule.integer ? "an integer" : "a finite number";
+  if (rule.min !== undefined && rule.max !== undefined)
+    return `${type} from ${rule.min} to ${rule.max}`;
+  if (rule.min !== undefined && rule.exclusiveMin)
+    return `${type} greater than ${rule.min}`;
+  if (rule.min !== undefined)
+    return `${type} greater than or equal to ${rule.min}`;
+  if (rule.max !== undefined)
+    return `${type} less than or equal to ${rule.max}`;
+  return type;
+}
+
+function validateNumericField(
+  path: string,
+  value: number,
+  rule: NumericFieldRule,
+): string | undefined {
+  const valid =
+    Number.isFinite(value) &&
+    (!rule.integer || Number.isSafeInteger(value)) &&
+    (rule.min === undefined ||
+      (rule.exclusiveMin ? value > rule.min : value >= rule.min)) &&
+    (rule.max === undefined || value <= rule.max);
+  return valid ? undefined : `${path} must be ${numericExpectation(rule)}.`;
+}
+
+function isHttpOrHttpsUrl(value: string): boolean {
+  if (!value || value.trim() !== value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function validateUrlField(path: string, value: string): string | undefined {
+  if (path === "model.baseUrl") {
+    return value === "" || isHttpOrHttpsUrl(value)
+      ? undefined
+      : `${path} must be empty or a valid HTTP or HTTPS URL.`;
+  }
+  if (mcpServerLeaf(path) === "url") {
+    return isHttpOrHttpsUrl(value)
+      ? undefined
+      : `${path} must be a valid HTTP or HTTPS URL.`;
+  }
+  return undefined;
+}
+
+function isUrlField(path: string): boolean {
+  return path === "model.baseUrl" || mcpServerLeaf(path) === "url";
+}
+
 type SaveField = (
   field: FlatSetting,
   value: string | boolean,
@@ -203,6 +308,8 @@ export function SettingControl({
   const inFlightRef = useRef(false);
   const mountedRef = useRef(true);
   const options = selectOptions[field.path];
+  const numericRule =
+    typeof field.value === "number" ? numericFieldRule(field.path) : undefined;
   const controlId = settingControlId(field.path);
   const labelId = `${controlId}-label`;
   const descriptionId = `${controlId}-description`;
@@ -259,11 +366,27 @@ export function SettingControl({
         .map((entry) => entry.trim())
         .filter(Boolean);
     } else if (typeof field.value === "number") {
-      if (String(value).trim() === "" || !Number.isFinite(Number(value))) {
-        setError("Enter a valid number before saving.");
+      const numericValue = Number(value);
+      const numericError =
+        String(value).trim() === ""
+          ? "Enter a valid number before saving."
+          : numericRule
+            ? validateNumericField(field.path, numericValue, numericRule)
+            : !Number.isFinite(numericValue)
+              ? "Enter a valid number before saving."
+              : undefined;
+      if (numericError) {
+        setError(numericError);
         return;
       }
-      next = Number(value);
+      next = numericValue;
+    }
+    if (typeof value === "string") {
+      const urlError = validateUrlField(field.path, value);
+      if (urlError) {
+        setError(urlError);
+        return;
+      }
     }
     inFlightRef.current = true;
     if (saveField) {
@@ -369,8 +492,22 @@ export function SettingControl({
             className="min-w-0 text-sm"
             disabled={busy || readOnly}
             id={controlId}
-            type={typeof field.value === "number" ? "number" : "text"}
-            step={typeof field.value === "number" ? "any" : undefined}
+            type={
+              typeof field.value === "number"
+                ? "number"
+                : isUrlField(field.path)
+                  ? "url"
+                  : "text"
+            }
+            max={numericRule?.max}
+            min={numericRule?.exclusiveMin ? undefined : numericRule?.min}
+            step={
+              typeof field.value === "number"
+                ? numericRule?.integer
+                  ? 1
+                  : "any"
+                : undefined
+            }
             value={String(value)}
             onChange={(event) => edit(event.target.value)}
           />
