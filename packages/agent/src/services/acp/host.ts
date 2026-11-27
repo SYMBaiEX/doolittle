@@ -14,6 +14,7 @@ import type {
   WaitForTerminalExitResponse,
 } from "@doolittle/acp";
 import type { AppServices } from "../types";
+import { workspaceReadTruncationNotice } from "../workspace-service/file-operations";
 import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,
@@ -32,7 +33,10 @@ interface AcpTerminalState {
 }
 
 export interface AcpHostDependencies {
-  workspace: Pick<AppServices["workspace"], "root" | "read" | "write">;
+  workspace: Pick<
+    AppServices["workspace"],
+    "root" | "read" | "readText" | "write"
+  >;
   terminal: Pick<AppServices["terminal"], "runStreamingLocal">;
   runController: Pick<AppServices["runController"], "getActive">;
   executionApprovals: Pick<
@@ -71,8 +75,12 @@ export function createAcpProtocolHost(
     },
     readWorkspace(path, options) {
       assertOpen();
-      const content = dependencies.workspace.read(path);
-      return sliceTextFile(content, options);
+      const read = dependencies.workspace.readText(path);
+      const sliced = sliceTextFile(read.content, options);
+      if (!read.truncated || !sliced.reachesEnd) return sliced.content;
+      const separator =
+        sliced.content && !sliced.content.endsWith("\n") ? "\n" : "";
+      return `${sliced.content}${separator}${workspaceReadTruncationNotice(read)}\n`;
     },
     writeWorkspace(path, content) {
       assertOpen();
@@ -299,13 +307,21 @@ function permissionCommand(params: RequestPermissionRequest): string {
     .join(" ");
 }
 
-function sliceTextFile(content: string, options?: ReadTextFileRequest): string {
-  if (!options?.line && !options?.limit) return content;
+function sliceTextFile(
+  content: string,
+  options?: ReadTextFileRequest,
+): { content: string; reachesEnd: boolean } {
+  if (!options?.line && !options?.limit) {
+    return { content, reachesEnd: true };
+  }
   const lines = content.split(/\r?\n/u);
   const start = Math.max(0, (options.line ?? 1) - 1);
   const end =
     options.limit && options.limit > 0 ? start + options.limit : undefined;
-  return lines.slice(start, end).join("\n");
+  return {
+    content: lines.slice(start, end).join("\n"),
+    reachesEnd: end === undefined || end >= lines.length,
+  };
 }
 
 function buildTerminalCommand(

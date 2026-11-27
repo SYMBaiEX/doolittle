@@ -246,9 +246,17 @@ async function deliverMutationResult(
 }
 
 function formatReadResult(result: WorkspaceReadLinesResult): string {
+  const total = result.truncated
+    ? `at least ${result.total} (bounded read)`
+    : String(result.total);
   return [
     `Read: ${result.path}`,
-    `Lines: ${result.offset}-${result.end} of ${result.total}`,
+    `Lines: ${result.offset}-${result.end} of ${total}`,
+    ...(result.truncated
+      ? [
+          `Read truncated: scanned the first ${result.readBytes ?? 0} of ${result.sizeBytes ?? 0} bytes (limit ${result.limitBytes ?? 0}). Lines beyond the bounded prefix are unavailable.`,
+        ]
+      : []),
     ...result.lines.map((line) => `${line.number}|${line.text}`),
   ]
     .filter(Boolean)
