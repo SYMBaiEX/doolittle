@@ -4,7 +4,6 @@ import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { useModalFocusBoundary } from "../../apps/desktop/src/renderer/components/useModalFocusBoundary";
-import { useDialogFocus } from "../../apps/desktop/src/renderer/project-manager/dialog-focus";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -128,7 +127,7 @@ it("lets only the topmost active modal boundary consume each Escape", async () =
   expect(element.querySelector('[aria-label="bottom"]')).toBeNull();
 });
 
-function SuspendedLegacyParent({
+function SuspendedProjectParent({
   childClose,
   parentClose,
 }: {
@@ -139,14 +138,16 @@ function SuspendedLegacyParent({
   const dialogRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const initialFocusRef = useRef<HTMLButtonElement>(null);
-  useDialogFocus(
-    true,
+  useModalFocusBoundary({
+    active: true,
     dialogRef,
     initialFocusRef,
-    parentClose,
-    childOpen,
-    backdropRef,
-  );
+    isolationBoundaryRef: backdropRef,
+    isolateBackground: true,
+    onClose: parentClose,
+    restoreFocus: true,
+    suspended: childOpen,
+  });
   return (
     <div ref={backdropRef} role="presentation">
       <div aria-label="parent" ref={dialogRef} role="dialog" tabIndex={-1}>
@@ -172,7 +173,7 @@ it("passes project dialog suspension through the shared keyboard ownership stack
   const { element, root } = mount();
   act(() =>
     root.render(
-      <SuspendedLegacyParent
+      <SuspendedProjectParent
         childClose={childClose}
         parentClose={parentClose}
       />,
@@ -197,7 +198,7 @@ it("passes project dialog suspension through the shared keyboard ownership stack
   expect(parentClose).toHaveBeenCalledOnce();
 });
 
-function LegacyDialog({
+function ProjectDialog({
   onClose,
   open,
 }: {
@@ -207,11 +208,19 @@ function LegacyDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const initialFocusRef = useRef<HTMLButtonElement>(null);
-  useDialogFocus(open, dialogRef, initialFocusRef, onClose, false, backdropRef);
+  useModalFocusBoundary({
+    active: open,
+    dialogRef,
+    initialFocusRef,
+    isolationBoundaryRef: backdropRef,
+    isolateBackground: true,
+    onClose,
+    restoreFocus: true,
+  });
   if (!open) return null;
   return (
     <div ref={backdropRef} role="presentation">
-      <div aria-label="legacy" ref={dialogRef} role="dialog" tabIndex={-1}>
+      <div aria-label="project" ref={dialogRef} role="dialog" tabIndex={-1}>
         <button ref={initialFocusRef} type="button">
           Initial focus
         </button>
@@ -220,7 +229,7 @@ function LegacyDialog({
   );
 }
 
-it("keeps the project dialog adapter's initial focus and focus restoration", async () => {
+it("keeps the project dialog's initial focus and focus restoration", async () => {
   const close = vi.fn();
   const { element, root } = mount();
   act(() =>
@@ -229,7 +238,7 @@ it("keeps the project dialog adapter's initial focus and focus restoration", asy
         <button data-outside type="button">
           Outside
         </button>
-        <LegacyDialog onClose={close} open={false} />
+        <ProjectDialog onClose={close} open={false} />
       </>,
     ),
   );
@@ -244,7 +253,7 @@ it("keeps the project dialog adapter's initial focus and focus restoration", asy
         <button data-outside type="button">
           Outside
         </button>
-        <LegacyDialog onClose={close} open />
+        <ProjectDialog onClose={close} open />
       </>,
     ),
   );
@@ -262,7 +271,7 @@ it("keeps the project dialog adapter's initial focus and focus restoration", asy
         <button data-outside type="button">
           Outside
         </button>
-        <LegacyDialog onClose={close} open={false} />
+        <ProjectDialog onClose={close} open={false} />
       </>,
     ),
   );
