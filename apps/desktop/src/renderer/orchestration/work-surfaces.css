@@ -118,6 +118,15 @@
   border-radius: var(--radius-sm);
 }
 
+.review-rail .review-queue-row--stale-approval {
+  box-shadow: inset 2px 0 var(--warn);
+}
+
+.review-rail .review-queue-row time[data-wait-tone="stale"] {
+  color: color-mix(in srgb, var(--warn) 78%, var(--text-soft));
+  font-weight: 600;
+}
+
 .review-queue-row .review-kind-mark {
   border: 0;
 }

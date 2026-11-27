@@ -1,7 +1,13 @@
+import { useVisibleInterval } from "@doolittle/ui/environment";
+import { useEffect, useState } from "react";
 import {
   approvalShortcutAriaKey,
   approvalShortcutLabel,
 } from "../approval-shortcuts";
+import {
+  APPROVAL_WAIT_REFRESH_MS,
+  approvalWaitSnapshot,
+} from "../approval-waiting";
 import { asString, displayTimestamp } from "../lib";
 import {
   REVIEW_ACTIONS_CLASS,
@@ -18,6 +24,23 @@ export interface ReviewApprovalPanelProps {
 }
 
 export function ReviewApprovalPanel({ selected }: ReviewApprovalPanelProps) {
+  const pending = selected.status === "pending";
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (pending && selected.id) setNowMs(Date.now());
+  }, [pending, selected.id]);
+  useVisibleInterval(
+    () => setNowMs(Date.now()),
+    APPROVAL_WAIT_REFRESH_MS,
+    pending,
+  );
+  const wait = pending
+    ? approvalWaitSnapshot(
+        selected.raw.createdAt,
+        selected.raw.expiresAt,
+        nowMs,
+      )
+    : undefined;
   return (
     <div className={`${REVIEW_DETAIL_BODY_CLASS} review-decision`}>
       <div className={REVIEW_COMMAND_CLASS}>
@@ -40,9 +63,20 @@ export function ReviewApprovalPanel({ selected }: ReviewApprovalPanelProps) {
           <dt>Requested</dt>
           <dd>{displayTimestamp(asString(selected.raw.createdAt))}</dd>
         </div>
+        {pending ? (
+          <div>
+            <dt>Waiting</dt>
+            <dd className={wait?.tone === "stale" ? "text-[var(--warn)]" : ""}>
+              {wait?.elapsedText ?? "Not provided"}
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt>Expires</dt>
-          <dd>{displayTimestamp(asString(selected.raw.expiresAt))}</dd>
+          <dd>
+            {displayTimestamp(asString(selected.raw.expiresAt))}
+            {wait?.expiryText ? ` · ${wait.expiryText}` : ""}
+          </dd>
         </div>
       </dl>
     </div>
