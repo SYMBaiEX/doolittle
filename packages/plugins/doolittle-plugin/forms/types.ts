@@ -1,12 +1,12 @@
 import type {
-  PluginStorageOptions,
+  PluginStorageBinding,
   StoredFormRecord,
 } from "@doolittle/contracts";
 
 export type { FormMetadataValue, StoredFormRecord } from "@doolittle/contracts";
 
 export interface FormsPluginOptions {
-  storage?: PluginStorageOptions;
+  storage: PluginStorageBinding;
 }
 
 export interface FormTemplateRef {

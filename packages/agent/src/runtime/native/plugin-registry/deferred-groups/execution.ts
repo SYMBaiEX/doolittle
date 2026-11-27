@@ -6,6 +6,7 @@ import type { Plugin } from "@elizaos/core";
 import { formAction, formPlugin } from "@elizaos/plugin-form";
 import { githubPlugin } from "@elizaos/plugin-github";
 import mcpPlugin from "@elizaos/plugin-mcp";
+import { bindPluginStorage } from "../../../bootstrap/env/plugin-storage";
 import { normalizePlugin } from "../support";
 import {
   type DeferredPluginGroupContext,
@@ -28,9 +29,9 @@ export function loadDeferredExecutionPlugins({
     normalizePlugin(localSandboxPlugin),
     normalizePlugin(createNativeFormPlugin(), "official form plugin"),
     createFormsPlugin({
-      storage: {
+      storage: bindPluginStorage("forms", {
         dataRoot: resolveDeferredPluginDataRoot(config),
-      },
+      }),
     }),
     normalizePlugin(githubPlugin, "official GitHub plugin"),
   ];
