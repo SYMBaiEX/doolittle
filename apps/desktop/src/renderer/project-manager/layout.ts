@@ -49,6 +49,9 @@ export const PROJECT_EDITOR_BACKDROP_CLASS =
 export const PROJECT_EDITOR_CLASS =
   "project-editor grid max-h-full w-[min(100%,510px)] gap-4 overflow-y-auto rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 shadow-[0_18px_48px_color-mix(in_srgb,var(--shadow)_72%,transparent)]";
 
+export const PROJECT_EDITOR_ERROR_CLASS =
+  "project-editor__error m-0 rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--bad)_36%,var(--border))] bg-[var(--bad-soft)] px-3 py-2 text-[13px] text-[var(--bad)]";
+
 export const PROJECT_EDITOR_LABEL_CLASS =
   "grid gap-2 text-[length:var(--text-control)] font-medium text-[var(--text-soft)] [&>small]:text-[length:var(--text-control)] [&>small]:text-[var(--muted)]";
 

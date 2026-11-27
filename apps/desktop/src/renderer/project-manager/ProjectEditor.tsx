@@ -8,6 +8,7 @@ import { useDialogFocus } from "./dialog-focus";
 import {
   PROJECT_EDITOR_BACKDROP_CLASS,
   PROJECT_EDITOR_CLASS,
+  PROJECT_EDITOR_ERROR_CLASS,
   PROJECT_EDITOR_LABEL_CLASS,
 } from "./layout";
 import {
@@ -21,11 +22,13 @@ import {
 
 export function ProjectEditor({
   project,
+  error,
   onClose,
   onSubmit,
   saving,
 }: {
   project?: ProjectLike;
+  error?: string;
   onClose: () => void;
   onSubmit: (draft: ProjectDraft) => void;
   saving: boolean;
@@ -85,6 +88,11 @@ export function ProjectEditor({
             <UiIcon icon={X} size="sm" />
           </Button>
         </header>
+        {error ? (
+          <p className={PROJECT_EDITOR_ERROR_CLASS} role="alert">
+            {error}
+          </p>
+        ) : null}
         <label
           className={PROJECT_EDITOR_LABEL_CLASS}
           htmlFor={`${titleId}-name`}
