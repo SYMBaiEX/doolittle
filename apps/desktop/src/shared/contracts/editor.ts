@@ -9,6 +9,8 @@ export interface WorkspaceFileSaveRequest extends ComputerOwnerScope {
   path: string;
   content: string;
   expectedContent: string;
+  /** Explicit conflict resolution may recreate a missing file; compare-and-swap still applies. */
+  overwrite?: boolean;
 }
 export interface EditorProjectContextRequest extends ComputerOwnerScope {
   workspacePath: string;

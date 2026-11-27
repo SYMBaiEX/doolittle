@@ -308,6 +308,18 @@ it("dispatches an editor save with the approved chat origin and rechecks the wor
     });
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual(write);
 
+    await expect(
+      invoke(sender, { ...request, overwrite: true }),
+    ).resolves.toEqual({
+      status: "saved",
+      path: join(project.workspacePath, "main.ts"),
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toEqual({
+      ...write,
+      overwrite: true,
+    });
+
     confirm.mockImplementationOnce(async () => {
       project.workspacePath = replacement;
       return true;
@@ -315,7 +327,7 @@ it("dispatches an editor save with the approved chat origin and rechecks the wor
     await expect(invoke(sender, request)).rejects.toThrow(
       "Conversation project root changed",
     );
-    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledTimes(2);
   } finally {
     dispose();
   }
