@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { type BotDefinition, bindPluginStorage } from "@doolittle/contracts";
+import type { BotDefinition } from "@doolittle/contracts";
 import { createDoolittlePlugin } from "@doolittle/plugins/doolittle-plugin/plugin";
 import { createDoolittleRuntimeRoutes } from "@doolittle/plugins/doolittle-plugin/routes";
 import {
@@ -40,6 +40,7 @@ import { createAgentContextProviders } from "../../../../providers/agent-context
 import { createSelfAwarenessProvider } from "../../../../providers/self-awareness/index";
 import type { AppServices } from "../../../../services/index";
 import type { EnvConfig } from "../../../../types/runtime/index";
+import { bindPluginStorage } from "../../../bootstrap/env/plugin-storage";
 import { createAutomationExecutor } from "../../../bootstrap/runtime/automation-executor";
 import { createGatewayAccessor } from "../../../bootstrap/runtime/gateway-factory";
 import {

@@ -1,12 +1,12 @@
 import type {
-  PluginStorageOptions,
+  PluginStorageBinding,
   StoredPlanRecord,
 } from "@doolittle/contracts";
 
 export type { StoredPlanRecord } from "@doolittle/contracts";
 
 export interface PlanningPluginOptions {
-  storage?: PluginStorageOptions;
+  storage: PluginStorageBinding;
 }
 
 export interface PlanningStore {
