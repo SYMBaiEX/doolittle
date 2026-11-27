@@ -803,6 +803,9 @@ export function ChatComposer({
                 if (!command.disabledReason) selectCommandSuggestion(command);
               }}
               onMouseDown={(event) => event.preventDefault()}
+              onMouseMove={() => {
+                if (!command.disabledReason) setCommandSelection(index);
+              }}
               role="option"
               tabIndex={-1}
             >
@@ -853,6 +856,7 @@ export function ChatComposer({
                 selectReusableSuggestion(suggestion);
               }}
               onMouseDown={(event) => event.preventDefault()}
+              onMouseMove={() => setCommandSelection(index)}
               role="option"
               tabIndex={-1}
             >
