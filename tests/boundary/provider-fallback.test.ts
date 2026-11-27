@@ -49,3 +49,24 @@ it("resolves and probes the same Ollama catalog for native and compatibility URL
   ).resolves.toEqual({ state: "invalid_endpoint" });
   expect(fetchImpl).toHaveBeenCalledOnce();
 });
+
+it("reuses fresh ready Ollama probes without caching failures", async () => {
+  const fetchImpl = vi.fn(async () =>
+    Response.json({ models: [{ name: "granite:latest" }] }),
+  );
+  fetchImpl.mockRejectedValueOnce(new Error("down"));
+  const endpoint = "https://example.org/ready-probe-cache/v1";
+
+  await expect(
+    probeOllamaModel(endpoint, "granite", fetchImpl as typeof fetch),
+  ).resolves.toEqual({ state: "unreachable" });
+  await expect(
+    probeOllamaModel(endpoint, "granite", fetchImpl as typeof fetch),
+  ).resolves.toEqual({ state: "ready" });
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+  await expect(
+    probeOllamaModel(endpoint, "granite", fetchImpl as typeof fetch),
+  ).resolves.toEqual({ state: "ready" });
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
+});
