@@ -15,9 +15,11 @@ import {
   captureWorkspaceWriteExpectation,
   createWorkspaceDirectory,
   planWorkspacePatch,
+  readWorkspaceFile,
   readWorkspaceLines,
   searchWorkspaceFiles,
   type WorkspaceDirectoryResult,
+  type WorkspaceFileReadResult,
   type WorkspaceFileSearchInput,
   type WorkspaceFileSearchResult,
   type WorkspacePatchResult,
@@ -36,6 +38,7 @@ import {
 
 export type {
   WorkspaceDirectoryResult,
+  WorkspaceFileReadResult,
   WorkspaceFileSearchInput,
   WorkspaceFileSearchMatch,
   WorkspaceFileSearchResult,
@@ -82,6 +85,11 @@ export class WorkspaceService {
       throw new Error(`Path not found: ${path}`);
     }
     return readFileSync(resolvedPath, "utf8");
+  }
+
+  /** Editor-facing read: capped, lossless, and honest about binary content. */
+  readFile(path: string): WorkspaceFileReadResult {
+    return readWorkspaceFile(this.root(), path);
   }
 
   async write(

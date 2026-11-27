@@ -365,3 +365,87 @@ it("offers explicit overwrite and reload choices for a save conflict", async () 
   await act(async () => renderEditor(false));
   expect(host.querySelector('[role="alert"]')).toBeNull();
 });
+
+it("blocks binary and oversized files with a clear message instead of the editor", async () => {
+  const acpEditor: CodingWorkspaceAcpViewModel = {
+    cancel: vi.fn(),
+    error: "",
+    lastUpdateLabel: "",
+    phase: "idle",
+    promptBusy: false,
+    promptError: "",
+    promptPhase: "idle",
+    responseText: "",
+    retryConnection: vi.fn(),
+    sessionId: "",
+    stopReason: "",
+    updates: [],
+  };
+  const patchResource = {
+    data: null,
+    error: "",
+    loading: false,
+    reload: vi.fn(),
+  };
+  const renderEditor = (data: Record<string, unknown>) =>
+    root.render(
+      <CodingWorkspaceEditor
+        acpEditor={acpEditor}
+        acpTaskDraft=""
+        acpTaskOpen={false}
+        draftContent=""
+        editingLocked={false}
+        editorPane="file"
+        fileConflict={false}
+        fileDirty={false}
+        fileNotice={null}
+        fileResource={{ data, error: "", loading: false, reload: vi.fn() }}
+        onAcpTaskDraftChange={() => undefined}
+        onAcpTaskOpenChange={() => undefined}
+        onCloseDocument={() => true}
+        onDiscard={() => undefined}
+        onDraftChange={() => undefined}
+        onEditorPaneChange={() => undefined}
+        onEditorStateChange={() => undefined}
+        onMutateVisiblePatch={() => undefined}
+        onOpenDocument={() => true}
+        onOverwriteConflict={() => undefined}
+        onReloadConflict={() => undefined}
+        onSave={() => undefined}
+        onSendSelectedContext={() => undefined}
+        onSetStagedPatch={() => undefined}
+        onSubmitAcpTask={() => undefined}
+        openDocuments={[{ path: "image.png", dirty: false }]}
+        patchResource={patchResource}
+        savingFile={false}
+        selectedChange={undefined}
+        selectedLanguage={{ id: "plaintext", label: "Plain text" }}
+        selectedPath="image.png"
+        stagedPatch={false}
+        workspacePath="/repo"
+      />,
+    );
+
+  await act(async () =>
+    renderEditor({ path: "image.png", binary: true, sizeBytes: 42 }),
+  );
+  expect(host.textContent).toContain("Binary file");
+  expect(host.textContent).toContain("corrupting");
+  expect(host.querySelector("[data-word-wrap]")).toBeNull();
+
+  await act(async () =>
+    renderEditor({
+      path: "image.png",
+      tooLarge: true,
+      sizeBytes: 2_500_000,
+      limitBytes: 1_000_000,
+    }),
+  );
+  expect(host.textContent).toContain("File too large to edit");
+  expect(host.textContent).toContain("2.5 MB");
+  expect(host.textContent).toContain("1.0 MB");
+  expect(host.querySelector("[data-word-wrap]")).toBeNull();
+
+  await act(async () => renderEditor({ path: "image.png", content: "text" }));
+  expect(host.textContent).not.toContain("Binary file");
+});
