@@ -34,7 +34,7 @@ it("folds long viewport bodies to a tail preview while export retains every line
   const viewport = renderResponseTranscript([entry]);
   const exported = renderPlainTranscript([entry]);
 
-  expect(viewport).not.toMatch(/(^|\n)line 1\n/);
+  expect(viewport).not.toMatch(/(^|\n)\{magenta-fg\}│\{\/\} line 1\n/);
   expect(viewport).toContain("line 60");
   expect(viewport).toContain("48 more lines");
   expect(exported).toContain("line 1");
@@ -75,10 +75,10 @@ it("expands folded viewport output from the transcript pane key affordance", () 
   });
 
   controller.pushResponseEntry("Command Result", longEntry().body);
-  expect(pane.content).not.toMatch(/(^|\n)line 1\n/);
+  expect(pane.content).not.toMatch(/(^|\n)\{magenta-fg\}│\{\/\} line 1\n/);
   expect(expandOutput).toBeDefined();
 
   expandOutput?.();
-  expect(pane.content).toContain("line 1");
+  expect(pane.content).toMatch(/(^|\n)\{magenta-fg\}│\{\/\} line 1\n/);
   expect(pane.content).toContain("line 60");
 });
