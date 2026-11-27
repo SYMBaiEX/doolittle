@@ -134,7 +134,7 @@ export interface ChatComposerProps {
   onCancelRequest: (requestId: string) => void;
   canSubmit: boolean;
   canQueue: boolean;
-  /** Drafts are editable while a local runtime or selected agent warms up. */
+  /** Read-only surfaces disable drafting; transient runtime states do not. */
   canDraft?: boolean;
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
@@ -209,7 +209,7 @@ export function ChatComposer({
   onCancelRequest,
   canSubmit,
   canQueue,
-  canDraft = backend.phase === "ready",
+  canDraft = true,
   draft,
   setDraft,
   onSubmit,
@@ -981,7 +981,7 @@ export function ChatComposer({
               ? activeProject
                 ? `What should we work on in ${activeProject.name}?`
                 : `Message ${bot?.name ?? "Doolittle"}…`
-              : "Waiting for the local runtime…"
+              : "This conversation is read-only…"
           }
           ref={composerRef}
           role="combobox"
