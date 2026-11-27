@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { PROJECT_AVATAR_CLASS } from "./layout";
-import { type ProjectLike, projectAccentColor, projectLabel } from "./models";
+import { type ProjectLike, projectAccentColor } from "./models";
+import { ProjectIconGlyph } from "./ProjectIconGlyph";
 
 export function ProjectAvatar({
   project,
@@ -23,7 +24,10 @@ export function ProjectAvatar({
       }
       aria-hidden="true"
     >
-      {projectLabel(project)}
+      <ProjectIconGlyph
+        project={project}
+        size={size === "small" ? "xs" : "md"}
+      />
     </span>
   );
 }
