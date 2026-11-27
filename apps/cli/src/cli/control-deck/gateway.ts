@@ -73,11 +73,12 @@ function renderLatestInbox(
     width - "Latest inbox: ".length,
   );
   const previewPrefix = `- ${record.platform} `;
+  const renderedPreviewPrefix = `- ${escapeControlDeckBlessed(record.platform)} `;
   const preview = clipControlDeckText(
     record.textPreview,
     width - previewPrefix.length,
   );
-  return `Latest inbox: ${escapeControlDeckBlessed(recordId)}\n${previewPrefix}${escapeControlDeckBlessed(preview)}`;
+  return `Latest inbox: ${escapeControlDeckBlessed(recordId)}\n${renderedPreviewPrefix}${escapeControlDeckBlessed(preview)}`;
 }
 
 export async function renderGatewayOpsContent(

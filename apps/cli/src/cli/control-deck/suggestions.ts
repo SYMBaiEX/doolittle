@@ -19,6 +19,7 @@ function renderSuggestionRow(
   }
 
   const category = ` [${entry.category}]`;
+  const renderedCategory = ` [${escapeControlDeckBlessed(entry.category)}]`;
   const bodyWidth = width - 2 - category.length;
   if (bodyWidth < 4) {
     const command = clipControlDeckText(entry.command, compactWidth);
@@ -33,7 +34,7 @@ function renderSuggestionRow(
     descriptionIsUseful ? preferredCommandWidth : bodyWidth,
   );
   const command = clipControlDeckText(entry.command, commandWidth);
-  const base = `- {bold}${escapeControlDeckBlessed(command)}{/bold}{gray-fg}${category}{/}`;
+  const base = `- {bold}${escapeControlDeckBlessed(command)}{/bold}{gray-fg}${renderedCategory}{/}`;
   if (!descriptionIsUseful) {
     return base;
   }

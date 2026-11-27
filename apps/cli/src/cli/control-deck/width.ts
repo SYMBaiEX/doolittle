@@ -1,3 +1,5 @@
+import { escapeBlessed } from "../render-utils";
+
 const CONTROL_DECK_CHROME_WIDTH = 4;
 const MIN_CONTROL_DECK_CONTENT_WIDTH = 8;
 
@@ -52,7 +54,7 @@ export function renderControlDeckHeading(
 }
 
 export function escapeControlDeckBlessed(text: string): string {
-  return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
+  return escapeBlessed(text);
 }
 
 function resolveOuterWidth(widgetWidth: unknown, screenWidth: number): number {
