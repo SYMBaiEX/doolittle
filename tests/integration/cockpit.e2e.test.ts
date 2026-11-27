@@ -89,16 +89,17 @@ describe("cockpit boot acceptance", () => {
     expect(grid).toContain("Ops Stream");
     expect(grid).toContain("Input");
 
-    // Regional placement: at 110 columns the sidebar occupies the right edge
-    // (left = 86% => column ~94); conversation content stays left of it.
+    // Regional placement: at 110 columns the clamped scanable sidebar starts
+    // at column 80 and occupies the right edge; conversation content stays
+    // left of it.
     const sidebarColumn = columnOf(lines, "Status");
-    expect(sidebarColumn).toBeGreaterThanOrEqual(88);
+    expect(sidebarColumn).toBeGreaterThanOrEqual(80);
     const welcomeRow = lines.findIndex((line) =>
       line.includes("Doolittle is ready."),
     );
     expect(welcomeRow).toBeGreaterThanOrEqual(4);
     expect(welcomeRow).toBeLessThan(ROWS - 6);
-    expect(lines[welcomeRow].indexOf("Doolittle is ready.")).toBeLessThan(88);
+    expect(lines[welcomeRow].indexOf("Doolittle is ready.")).toBeLessThan(80);
 
     // Sidebar content: the operator snapshot renders inside the Status pane.
     expect(grid).toContain("Operator");

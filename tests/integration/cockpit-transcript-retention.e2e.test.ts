@@ -122,7 +122,7 @@ describe("cockpit transcript retention acceptance", () => {
     // first message.
     const conversationViewport = (await terminal.gridLines())
       .slice(3, 19)
-      .map((line) => line.slice(0, 85))
+      .map((line) => line.slice(0, 80))
       .join("\n");
     expect(conversationViewport).not.toContain(`${MESSAGE_PREFIX} 01`);
     expect(conversationViewport).not.toContain(`${MESSAGE_PREFIX} 05`);
