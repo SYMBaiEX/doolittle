@@ -122,7 +122,14 @@ it("keeps queue submission separate from stopping the active run", () => {
     view.render({ activeRequest: "run-1", canSubmit: false, canQueue: true });
     expect(view.button("Send message")).toBeNull();
     expect(view.button("Queue message")?.type).toBe("submit");
+    expect(view.button("Queue message")?.disabled).toBe(false);
     expect(view.button("Stop response")?.type).toBe("button");
+    expect(view.query<HTMLElement>(".chat-send-behavior")?.textContent).toBe(
+      "Enter queues behind the current response.",
+    );
+    expect(
+      view.query<HTMLElement>("#chat-composer-hint-chat-1")?.textContent,
+    ).toBe("Enter to queue. Escape to stop. Shift Enter for a new line.");
     expect(view.key("Enter")).toBe(true);
     expect(view.onSubmit).toHaveBeenCalledOnce();
     expect(view.key("Escape")).toBe(true);
@@ -134,9 +141,39 @@ it("keeps queue submission separate from stopping the active run", () => {
       canQueue: true,
     });
     expect(view.button("Queue message")).toBeNull();
+    expect(view.query<HTMLElement>(".chat-send-behavior")?.textContent).toBe(
+      "Stopping the current response; queueing is paused.",
+    );
     expect(view.button("Stopping response")?.disabled).toBe(true);
     expect(view.key("Escape")).toBe(false);
     expect(view.onCancelRequest).toHaveBeenCalledOnce();
+  } finally {
+    view.dispose();
+  }
+});
+
+it("shows a disabled queue control when an active-run draft cannot queue", () => {
+  const view = composer();
+  try {
+    view.render({ activeRequest: "run-1", canQueue: false });
+    expect(view.button("Queue message")?.disabled).toBe(true);
+    expect(
+      view.button("Queue message")?.getAttribute("aria-keyshortcuts"),
+    ).toBe(null);
+    expect(view.query<HTMLElement>(".chat-send-behavior")?.textContent).toBe(
+      "Queueing is unavailable for this draft.",
+    );
+    expect(
+      view.query<HTMLElement>("#chat-composer-hint-chat-1")?.textContent,
+    ).toBe(
+      "Queueing is unavailable for this draft. Escape to stop. Shift Enter for a new line.",
+    );
+    expect(view.key("Enter")).toBe(true);
+    expect(view.onSubmit).not.toHaveBeenCalled();
+
+    view.render({ activeRequest: "run-1", canQueue: false, draft: "" });
+    expect(view.button("Queue message")).toBeNull();
+    expect(view.query<HTMLElement>(".chat-send-behavior")).toBeNull();
   } finally {
     view.dispose();
   }

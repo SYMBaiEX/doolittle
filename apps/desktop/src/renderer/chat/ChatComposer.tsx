@@ -64,6 +64,7 @@ import {
   type ReusableCompletion,
   reusableCompletions,
 } from "./reusable-completion";
+import { composerSendControl } from "./send-control";
 
 import { pendingApprovalsForSession } from "./session-approvals";
 import { pendingInputRequestsForSession } from "./session-input-requests";
@@ -394,6 +395,14 @@ export function ChatComposer({
   const isCancellingActive = Boolean(
     activeRequest && cancellingRequest === activeRequest,
   );
+  const sendControl = composerSendControl({
+    active: Boolean(activeRequest),
+    cancelling: isCancellingActive,
+    canQueue,
+    hasContent: Boolean(
+      draft.trim() || attachedFiles.length > 0 || chatContextCapsule,
+    ),
+  });
   const [promptEntries, setPromptEntries] = useState(() =>
     typeof window === "undefined" ? [] : loadPromptLibrary(window.localStorage),
   );
@@ -634,6 +643,14 @@ export function ChatComposer({
             <small className="warning">
               {pendingApprovals} runtime approval
               {pendingApprovals === 1 ? "" : "s"}
+            </small>
+          ) : null}
+          {sendControl.behaviorText ? (
+            <small
+              className="chat-send-behavior"
+              id={controlId("chat-send-behavior")}
+            >
+              {sendControl.behaviorText}
             </small>
           ) : null}
         </div>
@@ -1086,12 +1103,24 @@ export function ChatComposer({
             importAndTranscribe={importAndTranscribeRecording}
             onTranscript={insertDictationTranscript}
           />
-          {activeRequest && canQueue && !isCancellingActive ? (
+          {sendControl.queueControl !== "hidden" ? (
             <ElizaButton
+              aria-describedby={
+                sendControl.behaviorText
+                  ? controlId("chat-send-behavior")
+                  : undefined
+              }
+              aria-keyshortcuts={
+                sendControl.queueControl === "enabled" ? "Enter" : undefined
+              }
               aria-label="Queue message"
-              aria-keyshortcuts="Enter"
               className="chat-composer-queue"
-              title="Queue message (Enter)"
+              disabled={sendControl.queueControl === "disabled"}
+              title={
+                sendControl.queueControl === "enabled"
+                  ? "Queue message (Enter)"
+                  : "Queueing is unavailable for this draft"
+              }
               type="submit"
               variant="ghost"
             >
@@ -1153,14 +1182,7 @@ export function ChatComposer({
         </div>
       </div>
       <small className="sr-only" id={controlId("chat-composer-hint")}>
-        {isCancellingActive
-          ? "Stopping response"
-          : activeRequest
-            ? canQueue
-              ? "Enter to queue. Escape to stop."
-              : "Escape to stop."
-            : "Enter to send."}{" "}
-        Shift Enter for a new line.
+        {sendControl.hiddenHint} Shift Enter for a new line.
       </small>
       {detailsOpen && canInspectContext ? (
         <div
