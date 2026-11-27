@@ -101,6 +101,51 @@ export function renderNormalizedLabel(label: string): string {
   });
 }
 
+function resolveSeverityTone(
+  entry: ResponseTranscriptEntry,
+): "error" | "warning" | "success" | undefined {
+  if (
+    entry.tone === "error" ||
+    entry.tone === "warning" ||
+    entry.tone === "success"
+  ) {
+    return entry.tone;
+  }
+  if (entry.status === "failed") {
+    return "error";
+  }
+  if (entry.status === "cancelled") {
+    return "warning";
+  }
+  return undefined;
+}
+
+export function renderBlessedSeverity(entry: ResponseTranscriptEntry): string {
+  switch (resolveSeverityTone(entry)) {
+    case "error":
+      return "{red-fg}error{/}";
+    case "warning":
+      return "{yellow-fg}warn{/}";
+    case "success":
+      return "{green-fg}done{/}";
+    default:
+      return "";
+  }
+}
+
+export function renderPlainSeverity(entry: ResponseTranscriptEntry): string {
+  switch (resolveSeverityTone(entry)) {
+    case "error":
+      return "error";
+    case "warning":
+      return "warn";
+    case "success":
+      return "done";
+    default:
+      return "";
+  }
+}
+
 export function renderPlainCustomLabel(entry: ResponseTranscriptEntry): string {
   return entry.label && !RESERVED_LABELS.has(entry.label)
     ? ` ${renderNormalizedLabel(entry.label)}`

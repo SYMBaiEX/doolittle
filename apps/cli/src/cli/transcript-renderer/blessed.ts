@@ -4,6 +4,7 @@ import {
   renderBlessedBody,
   renderBlessedCustomLabel,
   renderBlessedRoleTag,
+  renderBlessedSeverity,
   renderBlessedToolTrace,
   renderNormalizedLabel,
 } from "./shared";
@@ -13,9 +14,10 @@ function renderBlessedEntry(entry: ResponseTranscriptEntry): string {
   const customLabel = renderBlessedCustomLabel(entry);
   const body = renderBlessedBody(entry);
   const toolTrace = renderBlessedToolTrace(entry);
+  const severity = renderBlessedSeverity(entry);
 
   return [
-    `{gray-fg}${escapeBlessed(renderNormalizedLabel(entry.at))}{/} ${renderBlessedRoleTag(entry.kind)}${customLabel}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(renderNormalizedLabel(entry.elapsed))}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
+    `{gray-fg}${escapeBlessed(renderNormalizedLabel(entry.at))}{/} ${renderBlessedRoleTag(entry.kind)}${customLabel}${severity ? ` ${severity}` : ""}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(renderNormalizedLabel(entry.elapsed))}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
     body,
     toolTrace,
   ]

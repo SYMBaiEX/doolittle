@@ -78,7 +78,9 @@ export function createTuiTranscriptController(
         body,
         at: nowStamp(),
         elapsed: entryOptions?.elapsed,
-        kind: resolveTranscriptEntryKind(label),
+        kind: entryOptions?.kind ?? resolveTranscriptEntryKind(label),
+        tone: entryOptions?.tone,
+        status: entryOptions?.status,
         toolTrace,
       });
       if (captureToolTrace) {

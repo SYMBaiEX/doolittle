@@ -7,6 +7,7 @@ import {
   renderPlainBody,
   renderPlainCustomLabel,
   renderPlainRoleLabel,
+  renderPlainSeverity,
   renderPlainToolTrace,
 } from "./shared";
 import type { ResponseTranscriptEntry } from "./types";
@@ -72,7 +73,7 @@ export function renderPlainEntry(
     ? ` ${paint("…", ANSI.gray, output.isTTY)}`
     : "";
   const toolTrace = renderPlainToolTrace(entry, { collapsed: true });
-  const prefix = renderTonePrefix(tone);
+  const prefix = renderTonePrefix(entry.tone ?? tone);
 
   return [
     `${at}  ${badge} ${label}${elapsed ? ` ${elapsed}` : ""}${pending}${prefix ? `  ${prefix}` : ""}`,
@@ -97,9 +98,10 @@ export function renderPlainTranscript(
       const customLabel = renderPlainCustomLabel(entry);
       const body = renderPlainBody(entry);
       const toolTrace = renderPlainToolTrace(entry);
+      const severity = renderPlainSeverity(entry);
 
       return [
-        `${renderNormalizedLabel(entry.at)} ${renderPlainRoleLabel(entry.kind)}${customLabel}${entry.elapsed ? ` · ${renderNormalizedLabel(entry.elapsed)}` : ""}${entry.pending ? " ..." : ""}`,
+        `${renderNormalizedLabel(entry.at)} ${renderPlainRoleLabel(entry.kind)}${customLabel}${severity ? ` · ${severity}` : ""}${entry.elapsed ? ` · ${renderNormalizedLabel(entry.elapsed)}` : ""}${entry.pending ? " ..." : ""}`,
         body,
         toolTrace,
       ]

@@ -91,6 +91,8 @@ export async function processPlainCliLine(
           at: nowStamp(),
           elapsed: getElapsed(context, state.activeSessionId),
           kind: resolveResultEntryKind(line, result.tone),
+          tone: result.tone,
+          status: result.status,
         },
         result.tone,
       );
@@ -106,6 +108,8 @@ export async function processPlainCliLine(
         at: nowStamp(),
         elapsed: getElapsed(context, state.activeSessionId),
         kind: "system",
+        tone: "error",
+        status: "failed",
       },
       "error",
     );
