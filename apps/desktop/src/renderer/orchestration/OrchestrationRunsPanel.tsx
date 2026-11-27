@@ -11,6 +11,7 @@ import {
   asString,
   Badge,
   displayTimestamp,
+  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   Notice,
@@ -204,7 +205,9 @@ export function OrchestrationRunsPanel({
         ) : codegenWorkflowsResource.loading ? (
           <LoadingBlock />
         ) : workflows.length === 0 ? (
-          <p className="ws-empty-line">No workflows recorded.</p>
+          <EmptyBlock density="compact" title="No workflows recorded.">
+            {null}
+          </EmptyBlock>
         ) : (
           <ul className="ws-list ws-list--cap">
             {workflows.map((workflow) => {
@@ -260,7 +263,9 @@ export function OrchestrationRunsPanel({
         ) : workflowDetailResource.loading ? (
           <LoadingBlock />
         ) : visibleRuns.length === 0 ? (
-          <p className="ws-empty-line">No runs in this workflow.</p>
+          <EmptyBlock density="compact" title="No runs in this workflow.">
+            {null}
+          </EmptyBlock>
         ) : (
           <WorkList>
             {visibleRuns.map((run) => {
@@ -508,7 +513,12 @@ function WorkflowDetail({
         </Notice>
       ) : null}
       {!selectedRun ? (
-        <p className="ws-empty-line">Select a run to inspect its evidence.</p>
+        <EmptyBlock
+          density="compact"
+          title="Select a run to inspect its evidence."
+        >
+          {null}
+        </EmptyBlock>
       ) : runDetailResource.error ? (
         <ErrorBlock
           error={runDetailResource.error}
