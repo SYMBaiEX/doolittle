@@ -66,6 +66,24 @@ the root. Local one-off spacing is acceptable when a component has a real
 structural constraint, but new shared `--space-*` aliases should not be added
 without a consumer and a documented semantic role.
 
+## State surface variants
+
+`StateSurface` supports three canonical variants. Choose the variant by
+context rather than restyling the surface locally:
+
+- `hero` (default): centered route- or panel-sized loading, empty, error, and
+  offline states with room for explanatory copy and actions.
+- `pane`: compact centered states for inspectors, utility panes, and nested
+  workbench panels.
+- `inline`: quiet left-aligned factual empty lines or the contents of a
+  drop-zone whose parent supplies the target treatment. Inline titles use a
+  paragraph rather than adding a heading to the document outline.
+
+Renderer `EmptyBlock` accepts the same `variant` values. Its legacy
+`density="compact"` input remains as a compatibility alias for `variant="pane"`.
+`children` are optional; title-only states should omit them rather than render
+`{null}`.
+
 ## Develop
 
 From the repository root:

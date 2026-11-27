@@ -202,21 +202,31 @@ export function InspectorFrame({
   );
 }
 
+/** Canonical state-surface densities for routes, panes, and inline regions. */
+export type StateSurfaceVariant = "hero" | "pane" | "inline";
+
 export function StateSurface({
   kind,
   title,
   children,
   action,
+  variant = "hero",
 }: {
   kind: "loading" | "empty" | "error" | "offline";
   title: string;
   children?: ReactNode;
   action?: ReactNode;
+  variant?: StateSurfaceVariant;
 }) {
+  const Title = variant === "inline" ? "p" : "h2";
   return (
-    <section className="dl-state-surface" data-kind={kind}>
+    <section
+      className="dl-state-surface"
+      data-kind={kind}
+      data-variant={variant}
+    >
       <div role={kind === "error" ? "alert" : "status"}>
-        <h2>{title}</h2>
+        <Title className="dl-state-title">{title}</Title>
         {children && <div className="dl-meta">{children}</div>}
       </div>
       {action && <div className="dl-state-action">{action}</div>}

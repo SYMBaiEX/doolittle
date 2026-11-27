@@ -837,16 +837,70 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.dl-state-surface h2 {
+.dl-state-surface .dl-state-title {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 500;
 }
-.dl-state-surface[data-kind="error"] h2 {
+.dl-state-surface[data-kind="error"] .dl-state-title {
   color: var(--bad);
 }
 .dl-state-action {
   margin-top: 16px;
+}
+.dl-state-surface[data-variant="pane"] {
+  max-width: 320px;
+  padding: 12px 16px;
+}
+.dl-state-surface[data-variant="pane"] .dl-state-title {
+  margin-bottom: 4px;
+  font-size: var(--text-control, 14px);
+  line-height: 1.4;
+}
+.dl-state-surface[data-variant="pane"] .dl-meta {
+  font-size: var(--text-meta, 12px);
+  line-height: 1.45;
+}
+.dl-state-surface[data-variant="pane"] .dl-state-action {
+  margin-top: 10px;
+}
+.dl-state-surface[data-variant="inline"] {
+  display: flex;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  animation: none;
+}
+.dl-state-surface[data-variant="inline"] > div[role] {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+.dl-state-surface[data-variant="inline"] .dl-state-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-control, 14px);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.dl-state-surface[data-variant="inline"] .dl-meta {
+  font-size: var(--text-meta, 12px);
+  line-height: 1.45;
+}
+.dl-state-surface[data-variant="inline"] .dl-state-action {
+  margin-top: 0;
+}
+.dl-state-surface[data-variant="inline"][data-kind="loading"]::before {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  margin: 0;
+  border-width: 1px;
 }
 @media (max-width: 760px) {
   .dl-header {
