@@ -1,4 +1,5 @@
 import type { CodeEditorStateSnapshot } from "./components/CodeEditor";
+import { workspacePathBaseName } from "./workspace-path";
 
 const MAX_EDITOR_CONTENT_CHARS = 32_000;
 const MAX_SESSION_UPDATES = 100;
@@ -191,7 +192,7 @@ export function buildDesktopAcpEditorContext(
     resources: [
       {
         uri: snapshot.uri,
-        name: snapshot.path.split("/").at(-1) ?? snapshot.path,
+        name: workspacePathBaseName(snapshot.path),
         text: content,
       },
     ],

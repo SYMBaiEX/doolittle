@@ -19,6 +19,7 @@ import type {
   DoolittleDesktopBridge,
 } from "../../shared/contracts";
 import { UiIcon } from "../components/UiIcon";
+import { formatShortcutLabel } from "../shortcut-label";
 import {
   ICON_BUTTON_CLASS,
   WINDOW_COMMAND_BUTTON_CLASS,
@@ -74,7 +75,7 @@ export function DesktopWindowTools({
         ) : (
           <>
             <span>Search or jump to…</span>
-            <kbd>{platform === "darwin" ? "⌘K" : "Ctrl K"}</kbd>
+            <kbd>{formatShortcutLabel({ key: "k", mod: true }, platform)}</kbd>
           </>
         )}
       </button>
