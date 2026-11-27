@@ -1,5 +1,5 @@
 import { Input, NativeSelect, Textarea } from "@doolittle/ui";
-import { useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { desktopRequest, EmptyBlock, errorMessage, titleCase } from "../lib";
 import {
   SETTINGS_ROW_LAYOUT_CLASS,
@@ -294,6 +294,20 @@ export function SettingControl({
     }
   };
 
+  const discardDraft = () => {
+    if (busy || readOnly || !dirty) return;
+    setValue(savedValue);
+    drafts?.delete(field.path);
+    setError("");
+    clearSaveError?.(field.path);
+    setSaved(false);
+  };
+  const revertOnEscape = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Escape" || busy || readOnly || !dirty) return;
+    event.preventDefault();
+    discardDraft();
+  };
+
   return (
     <div className={SETTINGS_ROW_LAYOUT_CLASS} aria-busy={busy}>
       <div className="setting-copy">
@@ -318,6 +332,7 @@ export function SettingControl({
               id={controlId}
               type="checkbox"
               onChange={(event) => edit(event.target.checked)}
+              onKeyDown={revertOnEscape}
             />
             <i className={SETTINGS_SWITCH_TRACK_CLASS} aria-hidden="true" />
             <span className={SETTINGS_SWITCH_LABEL_CLASS}>
@@ -334,6 +349,7 @@ export function SettingControl({
             rows={Math.min(4, Math.max(2, field.value.length))}
             value={String(value)}
             onChange={(event) => edit(event.target.value)}
+            onKeyDown={revertOnEscape}
           />
         ) : options ? (
           <NativeSelect
@@ -344,6 +360,7 @@ export function SettingControl({
             id={controlId}
             value={String(value)}
             onChange={(event) => edit(event.target.value)}
+            onKeyDown={revertOnEscape}
           >
             {!options.includes(String(value)) ? (
               <option
@@ -373,6 +390,7 @@ export function SettingControl({
             step={typeof field.value === "number" ? "any" : undefined}
             value={String(value)}
             onChange={(event) => edit(event.target.value)}
+            onKeyDown={revertOnEscape}
           />
         )}
         <button
@@ -389,13 +407,7 @@ export function SettingControl({
           <button
             className="text-button"
             disabled={busy}
-            onClick={() => {
-              setValue(savedValue);
-              drafts?.delete(field.path);
-              setError("");
-              clearSaveError?.(field.path);
-              setSaved(false);
-            }}
+            onClick={discardDraft}
             type="button"
             aria-label={`Discard changes to ${settingFieldLabel(field.path)}`}
           >
