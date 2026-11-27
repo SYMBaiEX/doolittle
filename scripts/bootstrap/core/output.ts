@@ -78,10 +78,16 @@ export function createBootstrapOutput(
     );
   }
 
+  // The splash is once-per-process: the line-wizard fallback paths print it
+  // ahead of their resize/locale warning and the flow prints it again before
+  // the dependency probes, which doubled the banner in every line-mode run.
+  let bannerPrinted = false;
+
   function banner(): void {
-    if (getWizardScreen()) {
+    if (getWizardScreen() || bannerPrinted) {
       return;
     }
+    bannerPrinted = true;
     const unicode = supportsTerminalUnicode();
     const frame = unicode
       ? {
