@@ -1,4 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import {
   CircleCheck,
   ExternalLink,
@@ -8,7 +9,12 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import type { KeyboardEvent, RefObject } from "react";
+import { type KeyboardEvent, type RefObject, useEffect, useState } from "react";
+import {
+  APPROVAL_WAIT_REFRESH_MS,
+  type ApprovalWaitSnapshot,
+  approvalWaitSnapshot,
+} from "../approval-waiting";
 import { UiIcon } from "../components/UiIcon";
 import { WorkbenchEmpty } from "../components/workbench/Workbench";
 import { copyContextText } from "../context-menu-clipboard";
@@ -46,6 +52,24 @@ export interface ReviewQueueProps {
   onSelect: (id: string) => void;
 }
 
+function ReviewItemTimestamp({
+  timestamp,
+  wait,
+}: {
+  timestamp: string;
+  wait?: ApprovalWaitSnapshot;
+}) {
+  return (
+    <time
+      data-wait-tone={wait?.tone}
+      dateTime={timestamp}
+      title={wait ? `Requested ${displayTimestamp(timestamp)}` : undefined}
+    >
+      {wait ? wait.waitingText : displayTimestamp(timestamp)}
+    </time>
+  );
+}
+
 export function ReviewQueue({
   contextScope,
   filter,
@@ -73,6 +97,30 @@ export function ReviewQueue({
       ?.querySelectorAll<HTMLButtonElement>('button[role="tab"]')
       [index]?.focus();
   };
+  const pendingApprovalIdsKey = visibleItems
+    .filter((item) => item.kind === "approvals" && item.status === "pending")
+    .map((item) => item.id)
+    .join("\n");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (pendingApprovalIdsKey) setNowMs(Date.now());
+  }, [pendingApprovalIdsKey]);
+  useVisibleInterval(
+    () => setNowMs(Date.now()),
+    APPROVAL_WAIT_REFRESH_MS,
+    Boolean(pendingApprovalIdsKey),
+  );
+  const approvalWaits = new Map(
+    visibleItems.flatMap((item) => {
+      if (item.kind !== "approvals" || item.status !== "pending") return [];
+      const wait = approvalWaitSnapshot(
+        item.raw.createdAt,
+        item.raw.expiresAt,
+        nowMs,
+      );
+      return wait ? [[item.id, wait] as const] : [];
+    }),
+  );
 
   return (
     <aside
@@ -207,7 +255,7 @@ export function ReviewQueue({
                   selectedId === item.id
                     ? REVIEW_LIST_BUTTON_SELECTED_CLASS
                     : ""
-                }`}
+                } ${approvalWaits.get(item.id)?.tone === "stale" ? "review-queue-row--stale-approval" : ""}`}
                 onClick={() => onSelect(item.id)}
                 type="button"
               >
@@ -234,9 +282,10 @@ export function ReviewQueue({
                   <strong>{item.title}</strong>
                   <small>{item.description}</small>
                   {item.timestamp ? (
-                    <time dateTime={item.timestamp}>
-                      {displayTimestamp(item.timestamp)}
-                    </time>
+                    <ReviewItemTimestamp
+                      timestamp={item.timestamp}
+                      wait={approvalWaits.get(item.id)}
+                    />
                   ) : null}
                 </span>
                 <Badge tone={statusTone(item.status)}>{item.status}</Badge>

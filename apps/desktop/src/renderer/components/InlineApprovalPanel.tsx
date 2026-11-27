@@ -1,4 +1,5 @@
 import { Button } from "@doolittle/ui";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import {
   Dialog,
   DialogClose,
@@ -13,6 +14,10 @@ import {
   approvalShortcutAriaKey,
   approvalShortcutLabel,
 } from "../approval-shortcuts";
+import {
+  APPROVAL_WAIT_REFRESH_MS,
+  approvalWaitSnapshot,
+} from "../approval-waiting";
 import type { PendingSessionApproval } from "../chat/session-approvals";
 import {
   type ActionFeedback,
@@ -82,6 +87,16 @@ export function InlineApprovalPanel({
   const keyboardHintId = useId();
   const approveShortcut = approvalShortcutLabel("approve");
   const denyShortcut = approvalShortcutLabel("deny");
+  const approvalIdsKey = approvals.map((approval) => approval.id).join("\n");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (approvalIdsKey) setNowMs(Date.now());
+  }, [approvalIdsKey]);
+  useVisibleInterval(
+    () => setNowMs(Date.now()),
+    APPROVAL_WAIT_REFRESH_MS,
+    enabled && approvals.length > 0,
+  );
 
   const decide = async (
     approval: PendingSessionApproval,
@@ -239,6 +254,11 @@ export function InlineApprovalPanel({
             const { id } = approval;
             const decisionKey = JSON.stringify([botId, id]);
             const isBusy = busyId === id;
+            const wait = approvalWaitSnapshot(
+              approval.createdAt,
+              approval.expiresAt,
+              nowMs,
+            );
             return (
               <article
                 className="grid min-w-0 grid-cols-1 gap-2 border border-[var(--border)] bg-[var(--surface-raised)] p-2"
@@ -255,8 +275,17 @@ export function InlineApprovalPanel({
                       "Doolittle requested permission before continuing.",
                     )}
                   </p>
-                  <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                    Expires {displayTimestamp(asString(approval.expiresAt))}
+                  <small
+                    className={`text-[length:var(--text-meta)] ${
+                      wait?.tone === "stale"
+                        ? "font-medium text-[var(--warn)]"
+                        : "text-[var(--muted)]"
+                    }`}
+                    title={`Requested ${displayTimestamp(asString(approval.createdAt))} · expires ${displayTimestamp(asString(approval.expiresAt))}`}
+                  >
+                    {wait
+                      ? `${wait.waitingText}${wait.expiryText ? ` · ${wait.expiryText}` : ""}`
+                      : `Expires ${displayTimestamp(asString(approval.expiresAt))}`}
                   </small>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
