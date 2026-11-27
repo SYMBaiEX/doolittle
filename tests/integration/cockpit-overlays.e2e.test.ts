@@ -40,6 +40,20 @@ async function bootedCockpit(): Promise<TerminalSession> {
   return session;
 }
 
+async function probePaletteReadiness(session: TerminalSession): Promise<void> {
+  // The palette input renders before blessed's one-tick read listener is
+  // necessarily attached. Prove keyboard ownership behaviorally before the
+  // test relies on arrows/enter: a distinctive probe must echo, then clean it
+  // up so the real query starts from an empty input.
+  const probe = "zzpaletteprobe";
+  session.type(probe);
+  await session.waitForGridText(probe, 5_000);
+  for (let index = 0; index < probe.length; index += 1) {
+    session.key("backspace");
+  }
+  await session.waitForGridTextAbsent(probe, 5_000);
+}
+
 describe("cockpit overlay semantics", () => {
   it("restores a composer draft after Escape closes the overlay", async () => {
     const session = await bootedCockpit();
@@ -63,6 +77,7 @@ describe("cockpit overlay semantics", () => {
 
     session.key("ctrl-p");
     await session.waitForGridText("Search", 5_000);
+    await probePaletteReadiness(session);
     session.type("/th");
     await session.waitForGridText("/theme-list", 5_000);
 
@@ -82,6 +97,7 @@ describe("cockpit overlay semantics", () => {
 
     session.key("ctrl-p");
     await session.waitForGridText("Search", 5_000);
+    await probePaletteReadiness(session);
     session.type("/t");
 
     // With the committed "/t" value, the first theme-adjacent match group is
