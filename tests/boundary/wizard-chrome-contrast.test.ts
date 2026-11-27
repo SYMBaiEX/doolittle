@@ -40,11 +40,10 @@ describe("wizard chrome contrast", () => {
   it("paints the sidebar current section on a contrast-safe primary fill", () => {
     for (const summary of listTuiThemes()) {
       const theme = getTuiTheme(summary.name);
-      const model = buildWizardRenderModel(
-        createWizardSnapshot(),
-        theme,
-        { cols: 120, rows: 40 },
-      );
+      const model = buildWizardRenderModel(createWizardSnapshot(), theme, {
+        cols: 120,
+        rows: 40,
+      });
       // The current-section row must carry its own background fill. Before
       // this, the foreground was derived against theme.secondary — a surface
       // that is never painted — and came out black on the black panel in the
