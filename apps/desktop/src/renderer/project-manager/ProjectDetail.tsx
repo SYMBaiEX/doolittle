@@ -1,9 +1,8 @@
-import { Button } from "@doolittle/ui";
+import { Button, StateSurface } from "@doolittle/ui";
 import {
   File,
   FilePlus2,
   Folder,
-  FolderOpen,
   FolderPlus,
   Link2,
   NotebookText,
@@ -346,20 +345,21 @@ export function ProjectDetail({
 
 export function EmptyDetail({ onCreate }: { onCreate?: () => void }) {
   return (
-    <div className="project-manager__empty-detail mx-auto flex min-h-full max-w-90 flex-col items-center justify-center text-center text-[var(--text-soft)]">
-      <UiIcon className="text-[var(--accent)]" icon={FolderOpen} size="xl" />
-      <h3 className="mt-3.75 mb-1.5 font-[var(--font-display)] text-sm text-[var(--text)]">
-        Make space for the work
-      </h3>
-      <p className="mt-0 mb-4.5 text-[13px] leading-[1.55]">
+    <div className="project-manager__empty-detail grid min-h-full">
+      <StateSurface
+        action={
+          onCreate ? (
+            <Button type="button" onClick={onCreate}>
+              Create your first project
+            </Button>
+          ) : undefined
+        }
+        kind="empty"
+        title="Make space for the work"
+      >
         Projects keep your conversations, instructions, and local context
         together without losing the global chat history.
-      </p>
-      {onCreate ? (
-        <Button type="button" onClick={onCreate}>
-          Create your first project
-        </Button>
-      ) : null}
+      </StateSurface>
     </div>
   );
 }

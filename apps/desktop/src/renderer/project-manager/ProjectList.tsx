@@ -1,3 +1,4 @@
+import { StateSurface } from "@doolittle/ui";
 import { Archive, ArrowLeft, History, MessageCircle, Pin } from "lucide-react";
 import { UiIcon } from "../components/UiIcon";
 import {
@@ -89,9 +90,13 @@ export function ProjectList({
         />
       ))}
       {!projects.length ? (
-        <p className="project-manager__empty mx-2 my-2.5 text-xs text-[var(--muted)]">
-          {showArchived ? "No archived projects." : "No projects yet."}
-        </p>
+        <div className="project-manager__empty mx-2 my-2.5">
+          <StateSurface
+            kind="empty"
+            title={showArchived ? "No archived projects." : "No projects yet."}
+            variant="inline"
+          />
+        </div>
       ) : null}
       <button
         type="button"
