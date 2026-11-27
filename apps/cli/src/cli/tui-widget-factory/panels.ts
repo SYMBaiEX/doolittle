@@ -1,3 +1,4 @@
+import { terminalGlyph } from "../terminal-glyphs";
 import type { TuiWidgetFactoryContext } from "./context";
 import { panelStyle } from "./styles";
 import type { TuiWidgetSet } from "./types";
@@ -78,7 +79,7 @@ function createScrollableBox(
       // Blessed draws exactly one thumb cell in overflow; a blank glyph makes
       // it invisible. A single-column block in the panel accent stays quiet
       // while remaining visible against the panel background.
-      ch: "█",
+      ch: terminalGlyph("█", "#"),
     },
     style: panelStyle(theme, theme[layout.accent]),
     content: layout.content,
@@ -105,7 +106,7 @@ function createActivityPanel({
     mouse: false,
     vi: true,
     scrollbar: {
-      ch: "█",
+      ch: terminalGlyph("█", "#"),
     },
     style: panelStyle(theme, theme.cyanGlow),
   });

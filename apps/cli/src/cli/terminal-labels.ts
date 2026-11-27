@@ -1,5 +1,6 @@
 import { platform } from "node:os";
 import { basename, relative } from "node:path";
+import { terminalGlyph } from "./terminal-glyphs";
 
 const IS_MACOS = platform() === "darwin";
 
@@ -16,11 +17,12 @@ export function macAwareKeyLabel(label: string): string {
   if (!IS_MACOS) {
     return label;
   }
+  const arrows = terminalGlyph("Fn-↑/Fn-↓", "Fn-Up/Fn-Down");
   return label
     .replaceAll("Alt-", "Option-")
     .replaceAll("Alt", "Option")
-    .replaceAll("PageUp/PageDown", "Fn-↑/Fn-↓ or PageUp/PageDown")
-    .replaceAll("PgUp/PgDn", "Fn-↑/Fn-↓ or PgUp/PgDn");
+    .replaceAll("PageUp/PageDown", `${arrows} or PageUp/PageDown`)
+    .replaceAll("PgUp/PgDn", `${arrows} or PgUp/PgDn`);
 }
 
 export function currentWorkspaceLabel(): string {
