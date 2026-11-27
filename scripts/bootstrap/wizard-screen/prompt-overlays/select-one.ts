@@ -4,6 +4,7 @@ import {
   buildSelectOneFooter,
   clampIndex,
 } from "../prompts";
+import { wizardSelectionStyle } from "../theme";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
@@ -53,10 +54,7 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
-            selected: {
-              bg: deps.widgets.header.style.bg,
-              fg: "black",
-            },
+            selected: wizardSelectionStyle(deps.getChromeTheme()),
             item: { fg: "white" },
           },
           items: optionsList.map((item) => item.label),
@@ -87,6 +85,10 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           detailBox.setContent(
             `${current?.label || ""}\n\n${current?.detail || "No extra detail."}`,
           );
+          // Derived at paint time: the theme picker live-previews through
+          // onHighlight above, so a style captured at overlay creation would
+          // paint rows in the previous theme's primary.
+          list.style.selected = wizardSelectionStyle(deps.getChromeTheme());
           syncing = true;
           try {
             list.select(selectedIndex);

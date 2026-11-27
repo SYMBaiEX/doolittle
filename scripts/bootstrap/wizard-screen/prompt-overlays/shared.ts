@@ -1,8 +1,13 @@
 import type blessed from "blessed";
+import type { WizardChromeTheme } from "../render";
 import type { WizardScreenWidgets } from "../widgets";
 
 export interface WizardPromptOverlayDependencies {
   formatKeyLabel: (label: string) => string;
+  // Read at paint time, not overlay creation: theme selection live-previews
+  // while the select-one overlay is open, so chrome derived from the theme
+  // must follow the active theme rather than a captured snapshot.
+  getChromeTheme: () => WizardChromeTheme;
   render: () => void;
   setFooter: (content: string) => void;
   showOverlay: <T>(

@@ -135,6 +135,7 @@ export function createWizardScreen({
 
   const promptHandlers = createWizardPromptHandlers({
     formatKeyLabel,
+    getChromeTheme: () => getThemeByName(activeThemeName),
     render,
     setFooter,
     showOverlay,

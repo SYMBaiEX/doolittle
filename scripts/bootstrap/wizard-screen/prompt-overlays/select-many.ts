@@ -5,6 +5,7 @@ import {
   clampIndex,
   toggleSelection,
 } from "../prompts";
+import { wizardSelectionStyle } from "../theme";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
@@ -44,10 +45,7 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
-            selected: {
-              bg: deps.widgets.header.style.bg,
-              fg: "black",
-            },
+            selected: wizardSelectionStyle(deps.getChromeTheme()),
             item: { fg: "white" },
           },
           items: [],
@@ -67,6 +65,7 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
         let syncing = false;
         const refresh = () => {
           cursorIndex = clampIndex(cursorIndex, optionsList.length);
+          list.style.selected = wizardSelectionStyle(deps.getChromeTheme());
           syncing = true;
           try {
             list.setItems(
