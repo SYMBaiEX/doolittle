@@ -435,11 +435,7 @@ export function ChatSessionPanel({
     if (surface === "history") setVisitedHistory(true);
     if (surface === "media") setVisitedMedia(true);
   }, [surface]);
-  const canDraft =
-    !readOnlyChat &&
-    (backend.phase === "ready" ||
-      hostBackend.phase === "ready" ||
-      hostBackend.phase === "booting");
+  const canDraft = !readOnlyChat;
   const panelViewSnapshots = useWorkspaceRef<
     Record<string, ChatPanelViewState>
   >("view.snapshots", {});
