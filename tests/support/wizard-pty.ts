@@ -193,7 +193,8 @@ export function spawnWizardSession(options: {
  * Send a real X10 mouse press then release at one-based terminal
  * coordinates, separated like a human click. Blessed's mouse parser handles
  * one sequence per data chunk, so press and release must not be combined
- * into a single write.
+ * into a single write. Returns after the release write; callers that send
+ * dependent keys must first wait for the click's semantic or visible effect.
  */
 export async function clickTerminal(
   terminal: TerminalSession,
@@ -206,7 +207,6 @@ export async function clickTerminal(
   terminal.type(x10(0));
   await sleep(pauseMs);
   terminal.type(x10(3));
-  await sleep(180);
 }
 
 export function sleep(ms: number): Promise<void> {

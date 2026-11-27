@@ -4,7 +4,6 @@ import { destroyTerminalSession } from "../support/terminal-pty";
 import {
   clickTerminal,
   createWizardFixture,
-  sleep,
   spawnWizardSession,
   type WizardFixture,
 } from "../support/wizard-pty";
@@ -37,6 +36,21 @@ function boot(): TerminalSession {
   return session.terminal;
 }
 
+async function waitUntil(
+  description: string,
+  condition: () => Promise<boolean>,
+  timeoutMs = 5_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await condition()) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`Timed out waiting for ${description}.`);
+    }
+    await new Promise((done) => setTimeout(done, 50));
+  }
+}
+
 describe("setup wizard mouse selection semantics", () => {
   it("syncs the semantic selection when a click moves the highlight", async () => {
     const session = boot();
@@ -44,7 +58,7 @@ describe("setup wizard mouse selection semantics", () => {
 
     // Quick ignition's row: one-based terminal row 13 in the 110x30 layout.
     await clickTerminal(session, 30, 13);
-    await sleep(250);
+    await session.waitForGridText("Wake me quickly", STEP_TIMEOUT_MS);
 
     // The detail pane must follow the clicked highlight, not the stale
     // private index that still points at Full awakening.
@@ -138,10 +152,22 @@ describe("setup wizard mouse selection semantics", () => {
     );
     expect(yesRowIndex).toBeGreaterThan(-1);
     expect(lines[yesRowIndex + 1]).toContain("No");
-    // xterm rows are one-based; the No row is one below the Yes row.
+    // xterm rows are one-based; the No row is one below the Yes row. Prove
+    // the click's highlight repaint through cell attributes before Enter so
+    // release/enter chunk coalescing cannot become a timing race.
+    const attributeColumn = 29;
+    const yesBeforeClick = await session.cellAt(attributeColumn, yesRowIndex);
+    const noBeforeClick = await session.cellAt(
+      attributeColumn,
+      yesRowIndex + 1,
+    );
+    expect(yesBeforeClick?.bg).not.toBe(noBeforeClick?.bg);
     await clickTerminal(session, 30, yesRowIndex + 2);
-    await sleep(250);
-
+    await waitUntil("the clicked No row to own the selection", async () => {
+      const yes = await session.cellAt(attributeColumn, yesRowIndex);
+      const no = await session.cellAt(attributeColumn, yesRowIndex + 1);
+      return yes?.bg === noBeforeClick?.bg && no?.bg === yesBeforeClick?.bg;
+    });
     session.key("enter");
 
     // Clicking No means "do not write": the wizard loops back to the first
