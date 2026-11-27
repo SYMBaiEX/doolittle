@@ -26,6 +26,7 @@ import {
   type ProjectScope,
   projectAccentColor,
 } from "../project-manager/models";
+import { ProjectIconGlyph } from "../project-manager/ProjectIconGlyph";
 import {
   COMPOSER_ACTIONS_CLASS,
   COMPOSER_POPOVER_HEADER_CLASS,
@@ -64,7 +65,9 @@ function ProjectGlyph({
         } as CSSProperties
       }
     >
-      {project?.icon?.trim() || project?.name.slice(0, 1).toUpperCase() || (
+      {project ? (
+        <ProjectIconGlyph project={project} size="xs" />
+      ) : (
         <UiIcon icon={icon} size="xs" />
       )}
     </span>

@@ -123,7 +123,9 @@ export function defaultDraft(project?: ProjectLike): ProjectDraft {
 }
 
 export function projectLabel(project: ProjectLike): string {
-  return project.icon?.trim() || project.name.slice(0, 1).toUpperCase() || "P";
+  const icon = project.icon?.trim();
+  if (icon && Array.from(icon).length <= 2) return icon;
+  return project.name.slice(0, 1).toUpperCase() || "P";
 }
 
 export function resourceLabel(resource: ProjectResourceLike): string {
