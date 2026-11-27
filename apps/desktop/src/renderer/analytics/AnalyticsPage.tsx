@@ -227,8 +227,8 @@ export function AnalyticsPage({
                 <table className="w-full border-collapse">
                   <colgroup>
                     <col />
-                    <col className="w-[4.25rem]" />
-                    <col className="w-[4.75rem]" />
+                    <col className="w-[5.75rem]" />
+                    <col className="w-[6.75rem]" />
                     <col className="w-[8rem]" />
                   </colgroup>
                   <thead>
