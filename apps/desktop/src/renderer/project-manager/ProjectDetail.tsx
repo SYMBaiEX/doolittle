@@ -60,6 +60,26 @@ export function ProjectDetail({
   const hasPrimaryResource = folderResources.some((resource) =>
     samePath(resource.path, project.primaryPath),
   );
+  const confirmResourceRemoval = (resource: ProjectResourceLike) => {
+    if (
+      window.confirm(
+        `Remove ${resourceLabel(resource)} from ${project.name}? You can add it again later.`,
+      )
+    )
+      onRemoveResource(resource);
+  };
+  const confirmArchive = () => {
+    if (project.archived) {
+      onArchive();
+      return;
+    }
+    if (
+      window.confirm(
+        `Archive ${project.name}? Its chats and sources are kept, and you can restore it later.`,
+      )
+    )
+      onArchive();
+  };
   return (
     <>
       <div className="project-manager__project-head flex items-start gap-3">
@@ -289,7 +309,7 @@ export function ProjectDetail({
                   size="icon-sm"
                   variant="ghost"
                   aria-label={`Remove ${resourceLabel(resource)}`}
-                  onClick={() => onRemoveResource(resource)}
+                  onClick={() => confirmResourceRemoval(resource)}
                   disabled={working}
                 >
                   <UiIcon icon={X} size="sm" />
@@ -314,7 +334,7 @@ export function ProjectDetail({
           type="button"
           size="sm"
           variant="ghost"
-          onClick={onArchive}
+          onClick={confirmArchive}
           disabled={working}
         >
           {project.archived ? "Restore project" : "Archive project"}
