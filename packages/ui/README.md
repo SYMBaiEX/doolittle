@@ -56,6 +56,16 @@ offsets. Invalid fields may keep a positive offset so validation borders stay
 visible, but they retain the quiet outline color and width. Preserve the
 forced-color overrides in `styles.css`.
 
+## Spacing contract
+
+Doolittle does not expose a generic numbered spacing scale. Use the semantic
+component tokens instead: `--page-gap` for route-level gaps, `--card-pad` for
+card inset, `--row-pad` for row and table inset, and `--control-height` for
+standard control height. Density and theme manifests retune those tokens at
+the root. Local one-off spacing is acceptable when a component has a real
+structural constraint, but new shared `--space-*` aliases should not be added
+without a consumer and a documented semantic role.
+
 ## Develop
 
 From the repository root:
