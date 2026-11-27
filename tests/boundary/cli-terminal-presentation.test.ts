@@ -57,8 +57,8 @@ describe("terminal presentation primitives", () => {
     expect(toneTag("success")).toBe("{green-fg}[ok]{/}");
     expect(toneTag("warning")).toBe("{yellow-fg}[!]{/}");
     expect(toneTag("error")).toBe("{red-fg}[x]{/}");
-    expect(toneTag("agent")).toBe("{cyan-fg}<> {/}");
-    expect(toneTag(undefined)).toBe("{blue-fg}:: {/}");
+    expect(toneTag("agent")).toBe("{cyan-fg}<>{/}");
+    expect(toneTag(undefined)).toBe("{blue-fg}::{/}");
   });
 
   it("derives contrast selection pairs for arbitrary hex surfaces", () => {
