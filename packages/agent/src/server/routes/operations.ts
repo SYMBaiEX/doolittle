@@ -295,10 +295,14 @@ export async function handleOperationsRoutes(
       !path ||
       path.length > MAX_WORKSPACE_PATH_LENGTH ||
       typeof body.content !== "string" ||
-      typeof body.expectedContent !== "string"
+      typeof body.expectedContent !== "string" ||
+      (body.overwrite !== undefined && typeof body.overwrite !== "boolean")
     ) {
       return json(
-        { error: "path, content, and expectedContent are required" },
+        {
+          error:
+            "path, content, and expectedContent are required; overwrite must be a boolean",
+        },
         400,
       );
     }
@@ -314,6 +318,7 @@ export async function handleOperationsRoutes(
       return json({
         path: await context.services.workspace.write(path, body.content, {
           expectedContent: body.expectedContent,
+          overwrite: body.overwrite === true,
         }),
       });
     } catch (error) {

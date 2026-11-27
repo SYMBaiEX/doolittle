@@ -48,6 +48,8 @@ export interface WorkspacePatchPlan {
 interface WorkspaceWriteExpectation {
   target: string;
   bytes: Buffer;
+  existed: boolean;
+  recreateMissing: boolean;
 }
 
 export class WorkspaceWriteConflictError extends Error {
@@ -59,35 +61,57 @@ export class WorkspaceWriteConflictError extends Error {
   }
 }
 
+function asWorkspaceWriteTargetError(error: unknown): unknown {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (
+    error instanceof RegularFileError ||
+    code === "ENOENT" ||
+    code === "ENOTDIR" ||
+    code === "ELOOP" ||
+    code === "EEXIST"
+  ) {
+    return new WorkspaceWriteConflictError();
+  }
+  return error;
+}
+
 function checkWorkspaceWriteTarget<T>(check: () => T): T {
   try {
     return check();
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (
-      error instanceof RegularFileError ||
-      code === "ENOENT" ||
-      code === "ENOTDIR" ||
-      code === "ELOOP"
-    ) {
-      throw new WorkspaceWriteConflictError();
-    }
-    throw error;
+    throw asWorkspaceWriteTargetError(error);
   }
 }
 
 export function captureWorkspaceWriteExpectation(
   resolvedPath: string,
   expectedContent: string,
+  options: { recreateMissing?: boolean } = {},
 ): WorkspaceWriteExpectation {
-  return checkWorkspaceWriteTarget(() => {
+  const bytes = Buffer.from(expectedContent, "utf8");
+  try {
     const target = realpathSync(resolvedPath);
-    const bytes = Buffer.from(expectedContent, "utf8");
     if (!readRegularFileSync(target, bytes.byteLength).equals(bytes)) {
       throw new WorkspaceWriteConflictError();
     }
-    return { target, bytes };
-  });
+    return {
+      target,
+      bytes,
+      existed: true,
+      recreateMissing: options.recreateMissing === true,
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (options.recreateMissing === true && code === "ENOENT") {
+      return {
+        target: resolvedPath,
+        bytes,
+        existed: false,
+        recreateMissing: true,
+      };
+    }
+    throw asWorkspaceWriteTargetError(error);
+  }
 }
 
 export type {
@@ -265,8 +289,33 @@ export function writeWorkspaceFile(
   const bytes = Buffer.byteLength(content, "utf8");
   if (expected) {
     checkWorkspaceWriteTarget(() => {
-      const target = realpathSync(resolvedPath);
-      if (target !== expected.target) throw new WorkspaceWriteConflictError();
+      let target: string;
+      try {
+        target = realpathSync(resolvedPath);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (!expected.recreateMissing || code !== "ENOENT") throw error;
+        // The explicit overwrite choice makes recreation honest, but O_EXCL
+        // still refuses to replace a file recreated concurrently on disk.
+        mkdirSync(dirname(resolvedPath), { recursive: true });
+        const fd = openSync(
+          resolvedPath,
+          constants.O_WRONLY |
+            constants.O_CREAT |
+            constants.O_EXCL |
+            (constants.O_NOFOLLOW ?? 0),
+        );
+        try {
+          writeFileSync(fd, content, "utf8");
+        } finally {
+          closeSync(fd);
+        }
+        return;
+      }
+
+      if (expected.existed && target !== expected.target) {
+        throw new WorkspaceWriteConflictError();
+      }
       const fd = openSync(
         target,
         constants.O_RDWR |
