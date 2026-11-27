@@ -1,0 +1,33 @@
+/* Compact per-session attention marker. Static by design: motion never
+   substitutes for an execution status. Colors stay semantic and token-driven;
+   shape carries the meaning when color is unavailable. */
+.session-attention-mark {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.session-attention-mark[data-kind="working"] {
+  background: var(--muted);
+}
+
+/* Matches the activity feed's needs-attention dot: accent fill with a quiet
+   halo, no animation. */
+.session-attention-mark[data-kind="needs-input"] {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+@media (forced-colors: active) {
+  .session-attention-mark {
+    background: CanvasText;
+    box-shadow: none;
+  }
+
+  /* Color is unavailable, so the needs-input marker becomes a square. */
+  .session-attention-mark[data-kind="needs-input"] {
+    border-radius: 1px;
+  }
+}
