@@ -4,7 +4,7 @@ import {
   buildSelectOneFooter,
   clampIndex,
 } from "../prompts";
-import { wizardSelectionStyle } from "../theme";
+import { wizardSelectionStyle } from "../render";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
