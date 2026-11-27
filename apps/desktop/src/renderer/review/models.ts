@@ -5,6 +5,7 @@ import type {
 } from "../../shared/contracts";
 import { asArray, asRecord, asString } from "../lib";
 import type { RepositoryChangesResponse } from "../repository-resource-models";
+import { workspacePathBaseName } from "../workspace-path";
 
 export type {
   RepositoryBranchesResponse,
@@ -141,7 +142,7 @@ export function reviewItems(
     return {
       id: `changes:${path}`,
       kind: "changes" as const,
-      title: path.split("/").at(-1) ?? path,
+      title: workspacePathBaseName(path),
       description: path,
       status: untracked
         ? "untracked"
