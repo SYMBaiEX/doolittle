@@ -938,10 +938,7 @@ export function ChatComposer({
                 setCommandSelection((current) => Math.max(current - 1, 0));
                 return;
               }
-              if (
-                event.key === "Tab" ||
-                (event.key === "Enter" && reusableMenuOpen)
-              ) {
+              if (event.key === "Tab" || event.key === "Enter") {
                 event.preventDefault();
                 const selection = Math.min(
                   commandSelection,
