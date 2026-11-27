@@ -1,5 +1,6 @@
 import blessed from "blessed";
 import { buildYesNoFooter, buildYesNoItems, clampIndex } from "../prompts";
+import { wizardSelectionStyle } from "../theme";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createPromptYesNoHandler(
@@ -35,10 +36,7 @@ export function createPromptYesNoHandler(
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
-            selected: {
-              bg: deps.widgets.header.style.bg,
-              fg: "black",
-            },
+            selected: wizardSelectionStyle(deps.getChromeTheme()),
             item: { fg: "white" },
           },
           items: buildYesNoItems(defaultValue),
@@ -58,6 +56,7 @@ export function createPromptYesNoHandler(
         let syncing = false;
         const applySelection = (index: number) => {
           selectedIndex = clampIndex(index, 2);
+          list.style.selected = wizardSelectionStyle(deps.getChromeTheme());
           syncing = true;
           try {
             list.select(selectedIndex);
