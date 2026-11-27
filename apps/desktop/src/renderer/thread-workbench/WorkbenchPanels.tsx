@@ -8,6 +8,7 @@ import {
   asString,
   Badge,
   displayTimestamp,
+  EmptyBlock,
 } from "../lib";
 import { commandOutput, contextBlock } from "../thread-workbench-controller";
 import { ChangesPanel, TerminalPanel } from "./ChangesAndTerminalPanels";
@@ -140,9 +141,12 @@ function PlansPanel({ controller }: { controller: PlansPanelController }) {
             );
           })}
           {!planEntries.length ? (
-            <p className={WORKBENCH_EMPTY_CLASS}>
-              No plans are attached to the local runtime.
-            </p>
+            <EmptyBlock
+              density="compact"
+              title="No plans are attached to the local runtime."
+            >
+              {null}
+            </EmptyBlock>
           ) : null}
         </div>
       ) : null}
