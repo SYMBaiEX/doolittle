@@ -1,5 +1,5 @@
 export const CODING_WORKSPACE_PAGE_CLASS =
-  "coding-workspace-page m-0 flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden p-0 [&_.badge]:rounded-[3px] [&_.badge]:px-1.25 [&_.badge]:py-0.5 [&_.badge]:text-[length:var(--text-meta)] [&_.empty-block_h3]:text-[15px] [&_.empty-block_p]:text-[13px] [&_.empty-block_p]:leading-[1.55] [&_.notice_span]:text-[13px] [&_.notice_span]:leading-[1.55] [&_.loading-block_span]:text-[length:var(--text-control)] [&_.primary-button]:text-[length:var(--text-control)] [&_.secondary-button]:text-[length:var(--text-control)]";
+  "coding-workspace-page m-0 flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden p-0 [&_.badge]:rounded-[var(--radius-xs)] [&_.badge]:px-1.25 [&_.badge]:py-0.5 [&_.badge]:text-[length:var(--text-meta)] [&_.empty-block_h3]:text-[length:var(--text-body)] [&_.empty-block_p]:text-[length:var(--text-control)] [&_.empty-block_p]:leading-[1.55] [&_.notice_span]:text-[length:var(--text-control)] [&_.notice_span]:leading-[1.55] [&_.loading-block_span]:text-[length:var(--text-control)] [&_.primary-button]:text-[length:var(--text-control)] [&_.secondary-button]:text-[length:var(--text-control)]";
 
 const CODING_GRID_BASE =
   "coding-grid relative isolate grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden bg-[var(--surface)]";
@@ -102,7 +102,7 @@ export const CODING_ACP_TASK_LABEL_CLASS =
   "coding-acp-task-label flex min-w-0 flex-col gap-px font-[var(--font-mono)] text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--text-soft)] uppercase [&_small]:max-w-55 [&_small]:truncate [&_small]:text-[length:var(--text-meta)] [&_small]:font-medium [&_small]:tracking-[0.02em] [&_small]:text-[var(--muted)] [&_small]:normal-case";
 
 export const CODING_ACP_TASK_CLOSE_CLASS =
-  "coding-acp-task-close min-w-7.25 p-1 text-base";
+  "coding-acp-task-close min-w-7.25 p-1";
 
 export const CODING_ACP_TASK_OUTPUT_CLASS =
   "min-h-0 flex-1 overflow-auto rounded-[var(--radius-xs)] bg-[color-mix(in_srgb,var(--surface-soft)_84%,transparent)] px-1.75 py-1.25 text-[length:var(--text-meta)] leading-[1.45] text-[var(--text-soft)] [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin] whitespace-pre-wrap";

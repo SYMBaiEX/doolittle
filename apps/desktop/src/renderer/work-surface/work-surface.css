@@ -572,7 +572,7 @@
 
 .ws-disclosure > summary::after {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: var(--text-control);
   line-height: 1;
   text-align: end;
   color: var(--muted);
@@ -630,7 +630,7 @@
   min-block-size: 24px;
   padding: 2px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   cursor: pointer;
   font: inherit;
