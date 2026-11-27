@@ -20,6 +20,8 @@ export interface WizardChromeTheme {
   panelBg: string;
   cyanGlow: string;
   greenGlow: string;
+  magentaGlow: string;
+  muted: string;
 }
 
 export interface WizardSelectionStyle {

@@ -120,11 +120,22 @@ export function createWizardScreen({
       resolve: (value: T) => void,
     ) => void,
   ): Promise<T> =>
-    createWizardOverlay(screen, title, body, mount, () => {
-      widgets.footer.setContent(buildWizardBaseFooter(formatKeyLabel));
-      applyWizardTheme(widgets, activeThemeName);
-      render();
-    });
+    // Chrome derives from the theme active when the overlay opens. During
+    // the theme picker's live preview the frame keeps the opening theme
+    // until the next overlay; the selection rows inside still follow the
+    // preview because they derive at paint time.
+    createWizardOverlay(
+      screen,
+      title,
+      body,
+      mount,
+      () => {
+        widgets.footer.setContent(buildWizardBaseFooter(formatKeyLabel));
+        applyWizardTheme(widgets, activeThemeName);
+        render();
+      },
+      getThemeByName(activeThemeName),
+    );
 
   const promptHandlers = createWizardPromptHandlers({
     formatKeyLabel,

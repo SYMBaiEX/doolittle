@@ -16,10 +16,11 @@ export function createPromptTextHandler(deps: WizardPromptOverlayDependencies) {
     prompt: string,
     defaultValue = "",
     options?: { secret?: boolean },
-  ): Promise<string> =>
-    showOverlay<string>(
+  ): Promise<string> => {
+    const chrome = deps.getChromeTheme();
+    return showOverlay<string>(
       "Input",
-      `${prompt}\n{gray-fg}${buildTextPromptSubtitle(defaultValue, options?.secret)}{/gray-fg}`,
+      `${prompt}\n{${chrome.muted}-fg}${buildTextPromptSubtitle(defaultValue, options?.secret)}{/${chrome.muted}-fg}`,
       (overlay, resolve) => {
         const inputBox = blessed.textbox({
           parent: overlay,
@@ -34,9 +35,10 @@ export function createPromptTextHandler(deps: WizardPromptOverlayDependencies) {
           vi: true,
           mouse: true,
           style: {
-            border: { fg: "#55d6ff" },
-            fg: "white",
-            bg: "#202833",
+            border: { fg: chrome.cyanGlow },
+            fg: chrome.baseFg,
+            bg: chrome.panelBg,
+            focus: { border: { fg: chrome.primary } },
           },
           value: defaultValue,
         });
@@ -47,7 +49,7 @@ export function createPromptTextHandler(deps: WizardPromptOverlayDependencies) {
           width: "100%-2",
           height: 1,
           tags: true,
-          content: "{gray-fg}Enter save · Esc keep current{/gray-fg}",
+          content: `{${chrome.muted}-fg}Enter save · Esc keep current{/${chrome.muted}-fg}`,
         });
         deps.setFooter(buildTextPromptFooter(deps.formatKeyLabel));
         let settled = false;
@@ -80,4 +82,5 @@ export function createPromptTextHandler(deps: WizardPromptOverlayDependencies) {
         inputBox.screen.grabKeys = false;
       },
     );
+  };
 }
