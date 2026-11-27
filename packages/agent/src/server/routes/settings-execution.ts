@@ -14,6 +14,7 @@ import {
   resolveTuiThemeName,
 } from "../../runtime/theme-catalog/index";
 import { isSafeSettingPath } from "../../services/settings/path";
+import { validateSettingChanges } from "../../services/settings/validation";
 import { formatInputAnswerSubmission } from "../../services/user-input/service";
 import type {
   UserInputAnswer,
@@ -336,6 +337,10 @@ export async function handleSettingsExecutionRoutes(
       path: change.path as string,
       value: change.value,
     }));
+    const invalidChange = validateSettingChanges(changes);
+    if (invalidChange) {
+      return json({ error: invalidChange }, 400);
+    }
     const updatesModelRoute = changes.some((change) =>
       change.path.startsWith("model."),
     );

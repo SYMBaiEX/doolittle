@@ -9,7 +9,7 @@ import type {
 } from "../shared/contracts";
 import type { ToastInput } from "./components/ToastRegion";
 import { type View, workspaceName } from "./desktop-navigation";
-import { desktopRequest } from "./lib";
+import { desktopRequest, errorMessage } from "./lib";
 import type {
   ProjectDraft,
   ProjectLike,
@@ -303,31 +303,82 @@ export function useProjectManagement({
           ? await window.doolittle.pickProjectFiles()
           : await window.doolittle.pickProjectFolders();
       if (selection.canceled || selection.paths.length === 0) return;
+      const addedPaths: string[] = [];
+      const failures: { path: string; message: string }[] = [];
       for (const path of selection.paths) {
-        await desktopRequest(
-          `/projects/${encodeURIComponent(project.id)}/resources`,
-          "POST",
-          { kind, label: workspaceName(path), value: path },
-        );
+        try {
+          await desktopRequest(
+            `/projects/${encodeURIComponent(project.id)}/resources`,
+            "POST",
+            { kind, label: workspaceName(path), value: path },
+          );
+          addedPaths.push(path);
+        } catch (error) {
+          failures.push({ path, message: errorMessage(error) });
+        }
       }
+
       const storedProject = projects.find((entry) => entry.id === project.id);
-      if (kind === "folder" && !storedProject?.primaryPath) {
-        await desktopRequest<ProjectResponse>(
-          `/projects/${encodeURIComponent(project.id)}`,
-          "PATCH",
-          { primaryPath: selection.paths[0] },
+      let primaryFailure = "";
+      const fallbackPrimaryPath =
+        kind === "folder" && !storedProject?.primaryPath
+          ? addedPaths[0]
+          : undefined;
+      if (fallbackPrimaryPath) {
+        try {
+          await desktopRequest<ProjectResponse>(
+            `/projects/${encodeURIComponent(project.id)}`,
+            "PATCH",
+            { primaryPath: fallbackPrimaryPath },
+          );
+        } catch (error) {
+          primaryFailure = errorMessage(error);
+        }
+      }
+
+      let refreshFailure = "";
+      try {
+        await reloadProjects();
+      } catch (error) {
+        refreshFailure = errorMessage(error);
+      }
+
+      if (!failures.length && !primaryFailure && !refreshFailure) {
+        pushToast({
+          tone: "success",
+          title: `${addedPaths.length} ${
+            kind === "file" ? "file" : "folder"
+          }${addedPaths.length === 1 ? "" : "s"} added`,
+          message: `Doolittle can now use ${
+            addedPaths.length === 1 ? "this source" : "these sources"
+          } as ${project.name} context.`,
+        });
+        return;
+      }
+
+      const resourceNoun = kind === "file" ? "files" : "folders";
+      const report = [
+        `Added ${addedPaths.length} of ${selection.paths.length} ${resourceNoun}`,
+      ];
+      if (addedPaths.length) report.push(`Added: ${addedPaths.join(", ")}`);
+      if (failures.length) {
+        report.push(
+          `Could not add ${failures
+            .map(({ path, message }) => `${path}: ${message}`)
+            .join("; ")}`,
         );
       }
-      await reloadProjects();
-      pushToast({
-        tone: "success",
-        title: `${selection.paths.length} ${
-          kind === "file" ? "file" : "folder"
-        }${selection.paths.length === 1 ? "" : "s"} added`,
-        message: `Doolittle can now use ${
-          selection.paths.length === 1 ? "this source" : "these sources"
-        } as ${project.name} context.`,
-      });
+      if (primaryFailure) {
+        report.push(
+          `${fallbackPrimaryPath} was added but could not be set as primary: ${primaryFailure}`,
+        );
+      }
+      if (refreshFailure) {
+        report.push(
+          `The project list could not be refreshed: ${refreshFailure}`,
+        );
+      }
+      throw new Error(`${report.join(". ")}.`);
     },
     [projects, pushToast, reloadProjects],
   );

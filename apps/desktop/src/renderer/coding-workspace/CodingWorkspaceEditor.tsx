@@ -71,6 +71,12 @@ import "./editor-chrome.css";
 const EDITOR_CONTROL_CLASS =
   "inline-flex min-h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-xs)] px-2 font-[var(--font-sans)] text-[length:var(--text-meta)] font-medium text-[var(--text-soft)] enabled:hover:bg-[var(--surface-hover)] enabled:hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45";
 
+function formatFileBytes(bytes: number): string {
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  if (bytes >= 1_000) return `${(bytes / 1_000).toFixed(1)} KB`;
+  return `${bytes} bytes`;
+}
+
 const ACP_STATUS_LABELS = {
   idle: "ACP idle",
   connecting: "ACP linking",
@@ -119,6 +125,7 @@ export function CodingWorkspaceEditor({
   fileResource,
   patchResource,
   fileNotice,
+  fileConflict = false,
   fileDirty,
   savingFile,
   draftContent,
@@ -132,6 +139,8 @@ export function CodingWorkspaceEditor({
   onEditorStateChange,
   onSave,
   onDiscard,
+  onOverwriteConflict,
+  onReloadConflict,
   onMutateVisiblePatch,
   onAcpTaskOpenChange,
   onAcpTaskDraftChange,
@@ -153,6 +162,7 @@ export function CodingWorkspaceEditor({
   fileResource: ApiResource<WorkspaceReadResponse>;
   patchResource: ApiResource<RepositoryPatchResponse>;
   fileNotice: ActionNotice | null;
+  fileConflict?: boolean;
   fileDirty: boolean;
   savingFile: boolean;
   draftContent: string;
@@ -166,6 +176,8 @@ export function CodingWorkspaceEditor({
   onEditorStateChange: (snapshot: CodeEditorStateSnapshot) => void;
   onSave: () => void;
   onDiscard: () => void;
+  onOverwriteConflict: () => void;
+  onReloadConflict: () => void;
   onMutateVisiblePatch: (type: VisiblePatchMutation) => void | Promise<void>;
   onAcpTaskOpenChange: (open: boolean) => void;
   onAcpTaskDraftChange: (value: string) => void;
@@ -425,6 +437,28 @@ export function CodingWorkspaceEditor({
           {fileNotice.message}
         </p>
       ) : null}
+      {selectedPath && fileConflict ? (
+        <div className="ide-editor-read-warning" role="alert">
+          <span>
+            This file changed on disk after you opened it. Your edits are
+            preserved in this buffer.
+          </span>
+          <button
+            disabled={editingLocked || savingFile}
+            onClick={onOverwriteConflict}
+            type="button"
+          >
+            Overwrite workspace copy
+          </button>
+          <button
+            disabled={editingLocked || savingFile}
+            onClick={onReloadConflict}
+            type="button"
+          >
+            Reload from disk
+          </button>
+        </div>
+      ) : null}
       {active &&
       editorPane === "file" &&
       fileResource.error &&
@@ -467,6 +501,17 @@ export function CodingWorkspaceEditor({
               error={fileResource.error}
               retry={fileResource.reload}
             />
+          ) : !fileDirty && fileResource.data?.binary ? (
+            <EmptyBlock title="Binary file">
+              Binary files can’t be previewed or edited here without corrupting
+              them. Open {name} in another application.
+            </EmptyBlock>
+          ) : !fileDirty && fileResource.data?.tooLarge ? (
+            <EmptyBlock title="File too large to edit">
+              {name} is {formatFileBytes(fileResource.data.sizeBytes ?? 0)}; the
+              editing limit is{" "}
+              {formatFileBytes(fileResource.data.limitBytes ?? 0)}.
+            </EmptyBlock>
           ) : (
             <Suspense
               fallback={<LoadingBlock label={`Loading editor ${name}…`} />}

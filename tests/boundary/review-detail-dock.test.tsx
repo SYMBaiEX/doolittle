@@ -36,6 +36,7 @@ function renderDetail(selected: ReviewItem | undefined) {
         busy=""
         commentDraft=""
         commentEditorRef={{ current: null }}
+        commentSaveInFlight={false}
         editingCommentId=""
         onAskDoolittle={vi.fn()}
         onCancelComment={vi.fn()}

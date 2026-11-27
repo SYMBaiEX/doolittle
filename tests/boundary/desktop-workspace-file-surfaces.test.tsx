@@ -245,6 +245,8 @@ it("toggles line wrapping for the file editor only", async () => {
         onEditorStateChange={() => undefined}
         onMutateVisiblePatch={() => undefined}
         onOpenDocument={() => true}
+        onOverwriteConflict={() => undefined}
+        onReloadConflict={() => undefined}
         onSave={() => undefined}
         onSendSelectedContext={() => undefined}
         onSetStagedPatch={() => undefined}
@@ -274,4 +276,176 @@ it("toggles line wrapping for the file editor only", async () => {
 
   await act(async () => renderEditor("diff"));
   expect(host.querySelector('button[aria-label="Wrap lines"]')).toBeNull();
+});
+
+it("offers explicit overwrite and reload choices for a save conflict", async () => {
+  const acpEditor: CodingWorkspaceAcpViewModel = {
+    cancel: vi.fn(),
+    error: "",
+    lastUpdateLabel: "",
+    phase: "idle",
+    promptBusy: false,
+    promptError: "",
+    promptPhase: "idle",
+    responseText: "",
+    retryConnection: vi.fn(),
+    sessionId: "",
+    stopReason: "",
+    updates: [],
+  };
+  const fileResource = {
+    data: { path: "notes.txt", content: "disk version" },
+    error: "",
+    loading: false,
+    reload: vi.fn(),
+  };
+  const patchResource = {
+    data: null,
+    error: "",
+    loading: false,
+    reload: vi.fn(),
+  };
+  const onOverwriteConflict = vi.fn();
+  const onReloadConflict = vi.fn();
+  const renderEditor = (fileConflict: boolean) =>
+    root.render(
+      <CodingWorkspaceEditor
+        acpEditor={acpEditor}
+        acpTaskDraft=""
+        acpTaskOpen={false}
+        draftContent="user work"
+        editingLocked={false}
+        editorPane="file"
+        fileConflict={fileConflict}
+        fileDirty
+        fileNotice={null}
+        fileResource={fileResource}
+        onAcpTaskDraftChange={() => undefined}
+        onAcpTaskOpenChange={() => undefined}
+        onCloseDocument={() => true}
+        onDiscard={() => undefined}
+        onDraftChange={() => undefined}
+        onEditorPaneChange={() => undefined}
+        onEditorStateChange={() => undefined}
+        onMutateVisiblePatch={() => undefined}
+        onOpenDocument={() => true}
+        onOverwriteConflict={onOverwriteConflict}
+        onReloadConflict={onReloadConflict}
+        onSave={() => undefined}
+        onSendSelectedContext={() => undefined}
+        onSetStagedPatch={() => undefined}
+        onSubmitAcpTask={() => undefined}
+        openDocuments={[{ path: "notes.txt", dirty: true }]}
+        patchResource={patchResource}
+        savingFile={false}
+        selectedChange={undefined}
+        selectedLanguage={{ id: "plaintext", label: "Plain text" }}
+        selectedPath="notes.txt"
+        stagedPatch={false}
+        workspacePath="/repo"
+      />,
+    );
+
+  await act(async () => renderEditor(true));
+  const banner = host.querySelector('[role="alert"]');
+  expect(banner?.textContent).toContain("changed on disk");
+  const overwrite = Array.from(banner?.querySelectorAll("button") ?? []).find(
+    (button) => button.textContent === "Overwrite workspace copy",
+  );
+  const reload = Array.from(banner?.querySelectorAll("button") ?? []).find(
+    (button) => button.textContent === "Reload from disk",
+  );
+  if (!overwrite || !reload)
+    throw new Error("Conflict resolution actions were not rendered.");
+  act(() => overwrite.click());
+  expect(onOverwriteConflict).toHaveBeenCalledTimes(1);
+  act(() => reload.click());
+  expect(onReloadConflict).toHaveBeenCalledTimes(1);
+
+  await act(async () => renderEditor(false));
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+});
+
+it("blocks binary and oversized files with a clear message instead of the editor", async () => {
+  const acpEditor: CodingWorkspaceAcpViewModel = {
+    cancel: vi.fn(),
+    error: "",
+    lastUpdateLabel: "",
+    phase: "idle",
+    promptBusy: false,
+    promptError: "",
+    promptPhase: "idle",
+    responseText: "",
+    retryConnection: vi.fn(),
+    sessionId: "",
+    stopReason: "",
+    updates: [],
+  };
+  const patchResource = {
+    data: null,
+    error: "",
+    loading: false,
+    reload: vi.fn(),
+  };
+  const renderEditor = (data: Record<string, unknown>) =>
+    root.render(
+      <CodingWorkspaceEditor
+        acpEditor={acpEditor}
+        acpTaskDraft=""
+        acpTaskOpen={false}
+        draftContent=""
+        editingLocked={false}
+        editorPane="file"
+        fileConflict={false}
+        fileDirty={false}
+        fileNotice={null}
+        fileResource={{ data, error: "", loading: false, reload: vi.fn() }}
+        onAcpTaskDraftChange={() => undefined}
+        onAcpTaskOpenChange={() => undefined}
+        onCloseDocument={() => true}
+        onDiscard={() => undefined}
+        onDraftChange={() => undefined}
+        onEditorPaneChange={() => undefined}
+        onEditorStateChange={() => undefined}
+        onMutateVisiblePatch={() => undefined}
+        onOpenDocument={() => true}
+        onOverwriteConflict={() => undefined}
+        onReloadConflict={() => undefined}
+        onSave={() => undefined}
+        onSendSelectedContext={() => undefined}
+        onSetStagedPatch={() => undefined}
+        onSubmitAcpTask={() => undefined}
+        openDocuments={[{ path: "image.png", dirty: false }]}
+        patchResource={patchResource}
+        savingFile={false}
+        selectedChange={undefined}
+        selectedLanguage={{ id: "plaintext", label: "Plain text" }}
+        selectedPath="image.png"
+        stagedPatch={false}
+        workspacePath="/repo"
+      />,
+    );
+
+  await act(async () =>
+    renderEditor({ path: "image.png", binary: true, sizeBytes: 42 }),
+  );
+  expect(host.textContent).toContain("Binary file");
+  expect(host.textContent).toContain("corrupting");
+  expect(host.querySelector("[data-word-wrap]")).toBeNull();
+
+  await act(async () =>
+    renderEditor({
+      path: "image.png",
+      tooLarge: true,
+      sizeBytes: 2_500_000,
+      limitBytes: 1_000_000,
+    }),
+  );
+  expect(host.textContent).toContain("File too large to edit");
+  expect(host.textContent).toContain("2.5 MB");
+  expect(host.textContent).toContain("1.0 MB");
+  expect(host.querySelector("[data-word-wrap]")).toBeNull();
+
+  await act(async () => renderEditor({ path: "image.png", content: "text" }));
+  expect(host.textContent).not.toContain("Binary file");
 });

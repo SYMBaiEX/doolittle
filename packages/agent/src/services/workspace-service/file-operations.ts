@@ -9,6 +9,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -34,6 +35,9 @@ const DEFAULT_READ_LIMIT = 500;
 const MAX_READ_LIMIT = 2_000;
 const MAX_SEARCH_RESULTS = 100;
 const MAX_SEARCH_FILE_BYTES = 1_000_000;
+// Editor reads must round-trip byte-for-byte through the conditional write and
+// stay small enough to serialize to the desktop without stalling the runtime.
+export const MAX_EDITABLE_FILE_BYTES = 1_000_000;
 
 export interface WorkspacePatchPlan {
   path: string;
@@ -95,6 +99,68 @@ export type {
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "@doolittle/contracts";
+
+export interface WorkspaceFileReadResult {
+  path: string;
+  sizeBytes: number;
+  limitBytes: number;
+  binary: boolean;
+  tooLarge: boolean;
+  content?: string;
+}
+
+/**
+ * Read a workspace file for the editor. Content is only returned when the
+ * file is small enough to edit and decodes as lossless UTF-8; anything else
+ * is reported honestly so the client cannot save back corrupted bytes.
+ */
+export function readWorkspaceFile(
+  workspaceDir: string,
+  path: string,
+): WorkspaceFileReadResult {
+  const resolvedPath = resolveWorkspaceServicePath(workspaceDir, path, "read");
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`Path not found: ${path}`);
+  }
+  // Follow the final link like the write path does; confinement was already
+  // validated against the workspace root.
+  const target = realpathSync(resolvedPath);
+  const sizeBytes = statSync(target).size;
+  const result: WorkspaceFileReadResult = {
+    path: target,
+    sizeBytes,
+    limitBytes: MAX_EDITABLE_FILE_BYTES,
+    binary: false,
+    tooLarge: false,
+  };
+
+  let bytes: Buffer;
+  try {
+    bytes = readRegularFileSync(target, MAX_EDITABLE_FILE_BYTES);
+  } catch (error) {
+    if (error instanceof RegularFileError && error.code === "too_large") {
+      result.tooLarge = true;
+      return result;
+    }
+    throw error;
+  }
+
+  // NUL bytes never appear in plain text and a fatal decode rejects content
+  // that UTF-8 cannot represent, so re-encoding always reproduces the file.
+  if (!bytes.includes(0)) {
+    try {
+      result.content = new TextDecoder("utf8", {
+        fatal: true,
+        ignoreBOM: true,
+      }).decode(bytes);
+      return result;
+    } catch {
+      // Invalid UTF-8 cannot round-trip through the editor; report it as binary.
+    }
+  }
+  result.binary = true;
+  return result;
+}
 
 export function readWorkspaceLines(
   workspaceDir: string,

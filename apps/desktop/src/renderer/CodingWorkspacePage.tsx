@@ -22,6 +22,12 @@ import type { CodeSurface } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceUtility } from "./coding-workspace/CodingWorkspaceUtility";
 import {
+  acknowledgeFileSave,
+  applyFileDraft,
+  discardFileEdit,
+  rebaseFileEdit,
+} from "./coding-workspace/file-edits";
+import {
   CODING_LAYOUT_BUTTON_CLASS,
   CODING_PANE_DISMISS_CLASS,
   CODING_WORKSPACE_PAGE_CLASS,
@@ -54,6 +60,7 @@ import {
   asNumber,
   asRecord,
   asString,
+  desktopRequest,
   EmptyBlock,
   errorMessage,
   PageHeader,
@@ -179,6 +186,17 @@ export function CodingWorkspacePage({
   const [fileEdits, setFileEdits] = useState<ReadonlyMap<string, FileEdit>>(
     () => new Map(),
   );
+  const [fileConflicts, setFileConflicts] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const clearFileConflict = useCallback((path: string) => {
+    setFileConflicts((current) => {
+      if (!current.has(path)) return current;
+      const next = new Set(current);
+      next.delete(path);
+      return next;
+    });
+  }, []);
   const [fileNotices, setFileNotices] = useState<
     ReadonlyMap<string, ActionNotice>
   >(() => new Map());
@@ -514,12 +532,8 @@ export function CodingWorkspacePage({
     )
       return false;
     setOpenDocumentPaths((paths) => paths.filter((entry) => entry !== path));
-    setFileEdits((current) => {
-      if (!current.has(path)) return current;
-      const next = new Map(current);
-      next.delete(path);
-      return next;
-    });
+    setFileEdits((current) => discardFileEdit(current, path));
+    clearFileConflict(path);
     setFileNotices((current) => {
       if (!current.has(path)) return current;
       const next = new Map(current);
@@ -636,18 +650,66 @@ export function CodingWorkspacePage({
 
   const discardFile = () => {
     if (editingLocked) return;
-    setFileEdits((current) => {
-      const next = new Map(current);
-      next.delete(selectedPath);
-      return next;
-    });
+    if (
+      fileDirty &&
+      !window.confirm(`Discard unsaved edits to ${selectedPath}?`)
+    ) {
+      return;
+    }
+    setFileEdits((current) => discardFileEdit(current, selectedPath));
+    clearFileConflict(selectedPath);
     setFileNotice({
       tone: "neutral",
       message: "Local edits discarded. The workspace file was not changed.",
     });
   };
 
-  const saveFile = async () => {
+  // A conflict means the workspace copy no longer matches the editor baseline.
+  // Reread the disk content and rebase the baseline underneath the draft so
+  // the user can make an explicit overwrite-or-reload choice instead of facing
+  // a permanent conflict.
+  const prepareConflictResolution = async (
+    path: string,
+    conflictMessage: string,
+    attemptedDraft: string,
+  ) => {
+    try {
+      const fresh = await desktopRequest<WorkspaceReadResponse>(
+        `/workspace/read?path=${encodeURIComponent(path)}`,
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        botId,
+        resourceOrigin,
+      );
+      const freshContent = fresh?.content;
+      if (typeof freshContent !== "string") {
+        throw new Error("The workspace copy could not be reloaded.");
+      }
+      await publishWorkspaceFileSave(resourceOrigin, path, freshContent);
+      setFileEdits(
+        (current) => rebaseFileEdit(current, path, freshContent).next,
+      );
+      if (attemptedDraft === freshContent) {
+        setFileNotice({
+          tone: "neutral",
+          message: "The workspace copy already matches your edits.",
+        });
+        return;
+      }
+      setFileConflicts((current) => new Set(current).add(path));
+      setFileNotice({
+        tone: "warn",
+        message:
+          "The workspace copy changed after you opened it. Your edits are preserved — choose Overwrite or Reload above the editor.",
+      });
+    } catch {
+      setFileNotice({ tone: "bad", message: conflictMessage });
+    }
+  };
+
+  const saveFile = async (overwriteConflict = false) => {
     if (
       !active ||
       editingLocked ||
@@ -655,6 +717,14 @@ export function CodingWorkspacePage({
       !fileDirty ||
       savingFileRef.current
     ) {
+      return;
+    }
+    if (!overwriteConflict && fileConflicts.has(selectedPath)) {
+      setFileNotice({
+        tone: "warn",
+        message:
+          "This file changed on disk after you opened it. Choose Overwrite or Reload in the banner above the editor.",
+      });
       return;
     }
     savingFileRef.current = true;
@@ -678,24 +748,21 @@ export function CodingWorkspacePage({
           message: "Save cancelled. Your edits remain only in this editor.",
         });
       } else if (result.status === "conflict") {
-        setFileNotice({ tone: "bad", message: result.message });
+        await prepareConflictResolution(
+          selectedPath,
+          result.message,
+          draftContent,
+        );
       } else {
         await publishWorkspaceFileSave(
           resourceOrigin,
           selectedPath,
           draftContent,
         );
-        setFileEdits((current) => {
-          const latest = current.get(selectedPath);
-          const next = new Map(current);
-          if (latest && latest.content !== draftContent)
-            next.set(selectedPath, {
-              baseline: draftContent,
-              content: latest.content,
-            });
-          else next.delete(selectedPath);
-          return next;
-        });
+        setFileEdits((current) =>
+          acknowledgeFileSave(current, selectedPath, draftContent),
+        );
+        clearFileConflict(selectedPath);
         setFileNotice({
           tone: "good",
           message: "Saved after native confirmation.",
@@ -708,6 +775,17 @@ export function CodingWorkspacePage({
       savingFileRef.current = false;
       setSavingFile(false);
     }
+  };
+
+  const reloadConflictedFile = () => {
+    if (editingLocked || !fileConflicts.has(selectedPath)) return;
+    setFileEdits((current) => discardFileEdit(current, selectedPath));
+    clearFileConflict(selectedPath);
+    void fileResource.reload();
+    setFileNotice({
+      tone: "neutral",
+      message: "Reloaded the workspace copy. Your edits were discarded.",
+    });
   };
 
   const mutateVisiblePatch = async (
@@ -954,19 +1032,13 @@ export function CodingWorkspacePage({
             onAcpTaskOpenChange={(open) => {
               if (!editingLocked) setAcpTaskOpen(open);
             }}
+            fileConflict={fileConflicts.has(selectedPath) && fileDirty}
             onDiscard={discardFile}
             onDraftChange={(value) => {
               if (!editorActive || editingLocked) return;
-              setFileEdits((current) => {
-                const next = new Map(current);
-                if (value === originalContent) next.delete(selectedPath);
-                else
-                  next.set(selectedPath, {
-                    baseline: originalContent,
-                    content: value,
-                  });
-                return next;
-              });
+              setFileEdits((current) =>
+                applyFileDraft(current, selectedPath, originalContent, value),
+              );
               if (fileNotice?.tone !== "bad") setFileNotice(null);
             }}
             onEditorPaneChange={setEditorPane}
@@ -974,6 +1046,8 @@ export function CodingWorkspacePage({
               acpEditor.publishEditorState(snapshot, fileDirty)
             }
             onMutateVisiblePatch={mutateVisiblePatch}
+            onOverwriteConflict={() => void saveFile(true)}
+            onReloadConflict={reloadConflictedFile}
             onSave={() => void saveFile()}
             onSendSelectedContext={sendSelectedContext}
             onSetStagedPatch={setStagedPatch}
