@@ -93,14 +93,15 @@
   text-decoration-color: currentColor;
 }
 
+/*
+ * No block padding or borders: the first and last child margins collapse
+ * through the quote, so the accent bar hugs the quoted text exactly.
+ */
 .chat-message-prose blockquote {
   margin-block: 0.9em;
   margin-inline: 0;
-  border: 1px solid var(--border);
-  border-inline-start: 2px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  padding: 0.2em 0.8em;
-  background: var(--surface-soft);
+  border-inline-start: 3px solid var(--border-strong);
+  padding-inline: 0.9em 0.4em;
   color: var(--text-soft);
   font-style: normal;
 }
