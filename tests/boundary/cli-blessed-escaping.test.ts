@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { getTuiTheme } from "../../packages/agent/src/runtime/theme-catalog";
 import { buildHeaderContent } from "../../apps/cli/src/cli/cockpit-chrome";
 import { escapeBlessed } from "../../apps/cli/src/cli/render-utils";
+import { getTuiTheme } from "../../packages/agent/src/runtime/theme-catalog";
 
 describe("blessed tag escaping at widget boundaries", () => {
   it("escapes blessed-like markup inside the agent name in the cockpit header", () => {
