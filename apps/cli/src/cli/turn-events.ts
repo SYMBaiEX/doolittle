@@ -3,6 +3,7 @@ import {
   sanitizeSingleLineTerminalText,
   sanitizeTerminalText,
 } from "./render-utils";
+import { terminalGlyph } from "./terminal-glyphs";
 
 export type CliTurnEvent =
   | {
@@ -92,9 +93,10 @@ function formatElapsedMs(elapsedMs?: number): string | undefined {
 }
 
 export function renderCliTurnEvent(event: CliTurnEvent): string {
+  const separator = ` ${terminalGlyph("·", "|")} `;
   switch (event.type) {
     case "start":
-      return `job started · session ${sanitizeSingleLineTerminalText(event.sessionId)} · ${sanitizeSingleLineTerminalText(event.command)}`;
+      return `job started${separator}session ${sanitizeSingleLineTerminalText(event.sessionId)}${separator}${sanitizeSingleLineTerminalText(event.command)}`;
     case "progress":
       return sanitizeTerminalText(event.delta || event.response || event.chunk);
     case "notice":
@@ -108,6 +110,6 @@ export function renderCliTurnEvent(event: CliTurnEvent): string {
     case "error":
       return `error: ${sanitizeTerminalText(event.message)}`;
     case "completed":
-      return `job ${event.status}${formatElapsedMs(event.elapsedMs) ? ` · ${formatElapsedMs(event.elapsedMs)}` : ""}`;
+      return `job ${event.status}${formatElapsedMs(event.elapsedMs) ? `${separator}${formatElapsedMs(event.elapsedMs)}` : ""}`;
   }
 }
