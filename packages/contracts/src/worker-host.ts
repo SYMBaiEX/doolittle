@@ -1,3 +1,5 @@
+import { BOT_ID_PATTERN, UUID_V4_PATTERN } from "./identifiers";
+
 /**
  * Worker-to-host wire vocabulary. A valid envelope is not an authorization:
  * transports must attest the bot and hosts must authorize each operation.
@@ -10,9 +12,8 @@ export const WORKER_HOST_DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 export const WORKER_HOST_RECEIPT_TIMEOUT_MS = 55_000;
 
 /** Requests are generated with randomUUID; every transport uses its v4 policy. */
-export const WORKER_HOST_REQUEST_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-export const WORKER_HOST_BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
+export const WORKER_HOST_REQUEST_ID_PATTERN = UUID_V4_PATTERN;
+export const WORKER_HOST_BOT_ID_PATTERN = BOT_ID_PATTERN;
 
 export const WORKER_HOST_OPERATIONS = [
   "codex.auth",

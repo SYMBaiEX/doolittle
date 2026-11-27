@@ -2,24 +2,25 @@ import {
   closeSync,
   constants,
   existsSync,
+  fstatSync,
   ftruncateSync,
   lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
-  readFileSync,
+  readSync,
   realpathSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type {
+  WorkspaceReadLinesResult as ContractWorkspaceReadLinesResult,
   WorkspaceDirectoryResult,
   WorkspaceFileSearchInput,
   WorkspaceFileSearchMatch,
   WorkspaceFileSearchResult,
   WorkspacePatchResult,
-  WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "@doolittle/contracts";
 import {
@@ -48,6 +49,8 @@ export interface WorkspacePatchPlan {
 interface WorkspaceWriteExpectation {
   target: string;
   bytes: Buffer;
+  existed: boolean;
+  recreateMissing: boolean;
 }
 
 export class WorkspaceWriteConflictError extends Error {
@@ -59,35 +62,57 @@ export class WorkspaceWriteConflictError extends Error {
   }
 }
 
+function asWorkspaceWriteTargetError(error: unknown): unknown {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (
+    error instanceof RegularFileError ||
+    code === "ENOENT" ||
+    code === "ENOTDIR" ||
+    code === "ELOOP" ||
+    code === "EEXIST"
+  ) {
+    return new WorkspaceWriteConflictError();
+  }
+  return error;
+}
+
 function checkWorkspaceWriteTarget<T>(check: () => T): T {
   try {
     return check();
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (
-      error instanceof RegularFileError ||
-      code === "ENOENT" ||
-      code === "ENOTDIR" ||
-      code === "ELOOP"
-    ) {
-      throw new WorkspaceWriteConflictError();
-    }
-    throw error;
+    throw asWorkspaceWriteTargetError(error);
   }
 }
 
 export function captureWorkspaceWriteExpectation(
   resolvedPath: string,
   expectedContent: string,
+  options: { recreateMissing?: boolean } = {},
 ): WorkspaceWriteExpectation {
-  return checkWorkspaceWriteTarget(() => {
+  const bytes = Buffer.from(expectedContent, "utf8");
+  try {
     const target = realpathSync(resolvedPath);
-    const bytes = Buffer.from(expectedContent, "utf8");
     if (!readRegularFileSync(target, bytes.byteLength).equals(bytes)) {
       throw new WorkspaceWriteConflictError();
     }
-    return { target, bytes };
-  });
+    return {
+      target,
+      bytes,
+      existed: true,
+      recreateMissing: options.recreateMissing === true,
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (options.recreateMissing === true && code === "ENOENT") {
+      return {
+        target: resolvedPath,
+        bytes,
+        existed: false,
+        recreateMissing: true,
+      };
+    }
+    throw asWorkspaceWriteTargetError(error);
+  }
 }
 
 export type {
@@ -96,9 +121,26 @@ export type {
   WorkspaceFileSearchMatch,
   WorkspaceFileSearchResult,
   WorkspacePatchResult,
-  WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "@doolittle/contracts";
+
+export interface WorkspaceReadLinesResult
+  extends ContractWorkspaceReadLinesResult {
+  /** Present when the byte cap stopped the scan before the end of the file. */
+  truncated?: boolean;
+  sizeBytes?: number;
+  readBytes?: number;
+  limitBytes?: number;
+}
+
+export interface WorkspaceTextReadResult {
+  path: string;
+  content: string;
+  truncated: boolean;
+  sizeBytes: number;
+  readBytes: number;
+  limitBytes: number;
+}
 
 export interface WorkspaceFileReadResult {
   path: string;
@@ -162,6 +204,90 @@ export function readWorkspaceFile(
   return result;
 }
 
+interface WorkspaceFilePrefix {
+  bytes: Buffer;
+  truncated: boolean;
+  sizeBytes: number;
+  readBytes: number;
+}
+
+function readRegularFilePrefixSync(
+  path: string,
+  maxBytes: number,
+): WorkspaceFilePrefix {
+  const fd = openSync(
+    path,
+    constants.O_RDONLY |
+      (constants.O_NOFOLLOW ?? 0) |
+      (constants.O_NONBLOCK ?? 0),
+  );
+  try {
+    const before = fstatSync(fd);
+    if (!before.isFile()) throw new RegularFileError("not_regular");
+    const length = Math.min(before.size, maxBytes);
+    const bytes = Buffer.alloc(length);
+    let readBytes = 0;
+    while (readBytes < length) {
+      const count = readSync(
+        fd,
+        bytes,
+        readBytes,
+        length - readBytes,
+        readBytes,
+      );
+      if (count === 0) break;
+      readBytes += count;
+    }
+    const after = fstatSync(fd);
+    const sizeBytes = Math.max(before.size, after.size);
+    return {
+      bytes: bytes.subarray(0, readBytes),
+      truncated: sizeBytes > readBytes,
+      sizeBytes,
+      readBytes,
+    };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function readWorkspaceTextPath(
+  resolvedPath: string,
+): Omit<WorkspaceTextReadResult, "path"> {
+  // Follow the final link like the write path does; confinement was already
+  // validated against the workspace root.
+  const target = realpathSync(resolvedPath);
+  const prefix = readRegularFilePrefixSync(target, MAX_EDITABLE_FILE_BYTES);
+  return {
+    content: prefix.bytes.toString("utf8"),
+    truncated: prefix.truncated,
+    sizeBytes: prefix.sizeBytes,
+    readBytes: prefix.readBytes,
+    limitBytes: MAX_EDITABLE_FILE_BYTES,
+  };
+}
+
+export function workspaceReadTruncationNotice(
+  result: Pick<
+    WorkspaceTextReadResult,
+    "limitBytes" | "readBytes" | "sizeBytes"
+  >,
+): string {
+  return `[Doolittle truncated this workspace read after the first ${result.readBytes} of ${result.sizeBytes} bytes (limit ${result.limitBytes}). Later content was not returned.]`;
+}
+
+/** Agent-facing whole-file reads return a bounded prefix, never a silent one. */
+export function readWorkspaceText(
+  workspaceDir: string,
+  path: string,
+): WorkspaceTextReadResult {
+  const resolvedPath = resolveWorkspaceServicePath(workspaceDir, path, "read");
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`Path not found: ${path}`);
+  }
+  return { path: resolvedPath, ...readWorkspaceTextPath(resolvedPath) };
+}
+
 export function readWorkspaceLines(
   workspaceDir: string,
   path: string,
@@ -177,7 +303,8 @@ export function readWorkspaceLines(
     MAX_READ_LIMIT,
     Math.max(1, Math.floor(options.limit ?? DEFAULT_READ_LIMIT)),
   );
-  const allLines = readFileSync(resolvedPath, "utf8").split(/\r?\n/u);
+  const read = readWorkspaceTextPath(resolvedPath);
+  const allLines = read.content.split(/\r?\n/u);
   const lines = allLines
     .slice(offset - 1, offset - 1 + limit)
     .map((text, index) => ({ number: offset + index, text }));
@@ -188,6 +315,14 @@ export function readWorkspaceLines(
     end: lines.at(-1)?.number ?? offset - 1,
     total: allLines.length,
     lines,
+    ...(read.truncated
+      ? {
+          truncated: true,
+          sizeBytes: read.sizeBytes,
+          readBytes: read.readBytes,
+          limitBytes: read.limitBytes,
+        }
+      : {}),
   };
 }
 
@@ -216,7 +351,23 @@ export function planWorkspacePatch(
     throw new Error("oldText is required for PATCH_FILE.");
   }
 
-  const current = readFileSync(resolvedPath, "utf8");
+  let current: string;
+  try {
+    // Patches rewrite the whole file, so a truncated source would corrupt data.
+    // Rejecting oversized files is the honest mutation-side counterpart to the
+    // bounded partial reads exposed to inspection tools.
+    current = readRegularFileSync(
+      realpathSync(resolvedPath),
+      MAX_EDITABLE_FILE_BYTES,
+    ).toString("utf8");
+  } catch (error) {
+    if (error instanceof RegularFileError && error.code === "too_large") {
+      throw new Error(
+        `File exceeds the ${MAX_EDITABLE_FILE_BYTES}-byte patch limit: ${path}`,
+      );
+    }
+    throw error;
+  }
   let matches = 0;
   let offset = current.indexOf(oldText);
   while (offset !== -1) {
@@ -265,8 +416,33 @@ export function writeWorkspaceFile(
   const bytes = Buffer.byteLength(content, "utf8");
   if (expected) {
     checkWorkspaceWriteTarget(() => {
-      const target = realpathSync(resolvedPath);
-      if (target !== expected.target) throw new WorkspaceWriteConflictError();
+      let target: string;
+      try {
+        target = realpathSync(resolvedPath);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (!expected.recreateMissing || code !== "ENOENT") throw error;
+        // The explicit overwrite choice makes recreation honest, but O_EXCL
+        // still refuses to replace a file recreated concurrently on disk.
+        mkdirSync(dirname(resolvedPath), { recursive: true });
+        const fd = openSync(
+          resolvedPath,
+          constants.O_WRONLY |
+            constants.O_CREAT |
+            constants.O_EXCL |
+            (constants.O_NOFOLLOW ?? 0),
+        );
+        try {
+          writeFileSync(fd, content, "utf8");
+        } finally {
+          closeSync(fd);
+        }
+        return;
+      }
+
+      if (expected.existed && target !== expected.target) {
+        throw new WorkspaceWriteConflictError();
+      }
       const fd = openSync(
         target,
         constants.O_RDWR |

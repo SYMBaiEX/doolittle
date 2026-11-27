@@ -5,6 +5,7 @@ import {
   SHARED_ENGINE_START_CONTROL_TIMEOUT_MS,
   SHARED_ENGINE_STOP_CONTROL_TIMEOUT_MS,
 } from "@doolittle/contracts/engine";
+import { isBotId } from "@doolittle/contracts/identifiers";
 import {
   attachWorkerHostRpc,
   type WorkerHostHandler,
@@ -14,7 +15,6 @@ import {
 const CONTROL_PROTOCOL = "doolittle-engine-v1";
 const HOST_PROTOCOL = "doolittle-engine-host-v1";
 const WORKER_PROTOCOL = "doolittle-worker-host-v1";
-const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const LOOPBACK_URL = /^http:\/\/127\.0\.0\.1:(?:[1-9][0-9]{0,4})$/u;
 
 export interface EngineReady {
@@ -126,7 +126,7 @@ export class EngineClient {
   ): Promise<EngineReady> {
     if (this.disconnected || !this.child.connected)
       throw new Error("The shared Doolittle engine is unavailable.");
-    if (!BOT_ID.test(botId) || !expectedAgentId || this.hosts.has(botId))
+    if (!isBotId(botId) || !expectedAgentId || this.hosts.has(botId))
       throw new Error("Named bot engine request is invalid.");
     const virtualChild = new VirtualWorkerChild(this.child, botId);
     const detach = attachWorkerHostRpc(
@@ -210,7 +210,7 @@ export class EngineClient {
       return Promise.reject(
         new Error("The shared Doolittle engine is unavailable."),
       );
-    if (!BOT_ID.test(botId))
+    if (!isBotId(botId))
       return Promise.reject(new Error("Named bot identity is invalid."));
     const id = randomUUID();
     return new Promise<EngineReady | undefined>((resolve, reject) => {

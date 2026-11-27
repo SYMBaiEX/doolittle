@@ -8,10 +8,10 @@ import type {
   CreateBotTeamInput,
   UpdateBotTeamInput,
 } from "@doolittle/contracts/bots";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import { readRegularFileSync } from "@doolittle/storage";
 import { readLedgerCopies, writeLedgerCopies } from "./revisioned-ledger";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MAX_BYTES = 1_000_000;
 function date(value: unknown): boolean {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -30,15 +30,13 @@ function parse(path: string): BotTeamCatalogResponse | null {
       (team) =>
         !team ||
         typeof team.id !== "string" ||
-        !UUID.test(team.id) ||
+        !isUuid(team.id) ||
         typeof team.name !== "string" ||
         !team.name.trim() ||
         team.name.length > 100 ||
         !Array.isArray(team.memberBotIds) ||
         team.memberBotIds.length > 100 ||
-        team.memberBotIds.some(
-          (id) => typeof id !== "string" || !UUID.test(id),
-        ) ||
+        team.memberBotIds.some((id) => typeof id !== "string" || !isUuid(id)) ||
         new Set(team.memberBotIds).size !== team.memberBotIds.length ||
         !date(team.createdAt) ||
         !date(team.updatedAt) ||
@@ -96,7 +94,7 @@ export class BotTeamCatalog {
     if (
       !Array.isArray(ids) ||
       ids.length > 100 ||
-      ids.some((id) => typeof id !== "string" || !UUID.test(id)) ||
+      ids.some((id) => typeof id !== "string" || !isUuid(id)) ||
       new Set(ids).size !== ids.length
     )
       throw new Error("Explicit canonical bot UUID membership is required.");

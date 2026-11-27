@@ -1,7 +1,7 @@
 import type {
   ExecutionBackendHealth,
   ExecutionBackendPreview,
-} from "../../../types/execution";
+} from "@doolittle/contracts/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import type { ExecutionBackend } from "../contracts/backend";
 import {

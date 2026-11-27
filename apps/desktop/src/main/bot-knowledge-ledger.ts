@@ -4,6 +4,7 @@ import type {
   KnowledgeGrant,
   SharedKnowledgeRecord,
 } from "@doolittle/contracts/bots";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import { readRegularFileSync } from "@doolittle/storage";
 import {
   readLedgerCopies,
@@ -12,15 +13,10 @@ import {
 } from "./revisioned-ledger";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
-const UUID = /^[0-9a-f-]{36}$/iu;
 const MAX_BYTES = 4_000_000;
 
 function identifier(value: unknown): value is string {
   return typeof value === "string" && ID.test(value);
-}
-
-function uuid(value: unknown): value is string {
-  return typeof value === "string" && UUID.test(value);
 }
 
 function timestamp(value: unknown): value is string {
@@ -51,14 +47,14 @@ function parse(path: string): StoredKnowledge | null {
     value.records.some(
       (row) =>
         !row ||
-        !uuid(row.id) ||
-        !uuid(row.documentId) ||
+        !isUuid(row.id) ||
+        !isUuid(row.documentId) ||
         row.version !== 1 ||
         !["project", ...(value.version === 2 ? ["team"] : [])].includes(
           row.scope?.kind,
         ) ||
         !identifier(row.scope.id) ||
-        (row.scope.kind === "team" && !uuid(row.scope.id)) ||
+        (row.scope.kind === "team" && !isUuid(row.scope.id)) ||
         !identifier(row.source?.botId) ||
         !identifier(row.source?.agentId) ||
         !identifier(row.source?.sessionId) ||
@@ -81,7 +77,7 @@ function parse(path: string): StoredKnowledge | null {
     value.grants.some(
       (row) =>
         !row ||
-        !uuid(row.knowledgeId) ||
+        !isUuid(row.knowledgeId) ||
         !identifier(row.botId) ||
         !timestamp(row.grantedAt) ||
         (row.revokedAt !== undefined && !timestamp(row.revokedAt)),

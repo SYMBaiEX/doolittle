@@ -1,4 +1,4 @@
-import type { DiagnosticCheck } from "../../../types/index";
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import type { DiagnosticsAutonomyChecksInput } from "./types";
 
 export function buildAutonomyChecks(

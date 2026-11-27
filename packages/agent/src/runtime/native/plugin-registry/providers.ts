@@ -179,6 +179,9 @@ export async function loadProviderPlugins(
   return providers;
 }
 
+// This plugin-assembly boundary intentionally observes the official
+// account-pool credential projection because accounts can be selected after
+// EnvConfig is parsed. HTTP status/model routes remain launch-config only.
 async function loadConfiguredOpenAiProvider(config: EnvConfig) {
   // Direct API accounts are materialized into the process environment by the
   // official Eliza account-pool adapter before plugin assembly. Treat that

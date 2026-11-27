@@ -1,11 +1,8 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import { getTransportRequirementRecords } from "../../gateway/transport/index";
-import type {
-  DiagnosticCheck,
-  EnvConfig,
-  GatewayConfig,
-} from "../../types/index";
+import type { EnvConfig, GatewayConfig } from "../../types/index";
 import type { DiagnosticsRunInput } from "./types";
 
 export async function buildDiagnosticsFilesystemChecks(

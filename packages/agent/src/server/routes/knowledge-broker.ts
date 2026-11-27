@@ -1,12 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import type { UUID } from "@elizaos/core";
 import { DocumentService } from "@elizaos/plugin-assistant";
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 function authorized(request: Request): boolean {
   const token = process.env.DOOLITTLE_KNOWLEDGE_BROKER_TOKEN;
@@ -53,7 +51,7 @@ export async function handleKnowledgeBrokerRoutes(
         : suppliedScope;
     if (
       typeof clientDocumentId !== "string" ||
-      !UUID_PATTERN.test(clientDocumentId) ||
+      !isUuid(clientDocumentId) ||
       typeof content !== "string" ||
       !content.trim() ||
       content.length > 100_000 ||
@@ -72,7 +70,7 @@ export async function handleKnowledgeBrokerRoutes(
         String((scope as Record<string, unknown>).id),
       ) ||
       ((scope as Record<string, unknown>).kind === "team" &&
-        !UUID_PATTERN.test(String((scope as Record<string, unknown>).id))) ||
+        !isUuid((scope as Record<string, unknown>).id)) ||
       (suppliedScope !== undefined && projectId !== undefined)
     ) {
       return json({ error: "Document fields are invalid" }, 400);
@@ -120,7 +118,7 @@ export async function handleKnowledgeBrokerRoutes(
     url.pathname,
   );
   if (request.method === "GET" && match?.[1]) {
-    if (!UUID_PATTERN.test(match[1]) || !service.getDocumentById) {
+    if (!isUuid(match[1]) || !service.getDocumentById) {
       return json({ error: "Document lookup unavailable" }, 503);
     }
     const document = await service.getDocumentById(match[1] as UUID);

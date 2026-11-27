@@ -214,7 +214,7 @@ export function PanelResizeHandle({
       />
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute bg-transparent transition-colors duration-150 group-hover:bg-[var(--accent)] peer-focus-visible:bg-[var(--focus-ring)] motion-reduce:transition-none ${
+        className={`pointer-events-none absolute bg-[color-mix(in_srgb,var(--border-strong)_68%,transparent)] transition-colors duration-150 group-hover:bg-[var(--accent)] peer-focus-visible:bg-[var(--focus-ring)] motion-reduce:transition-none ${
           resizesHeight ? "top-1 right-0 left-0 h-px" : "inset-y-0 left-1 w-px"
         }`}
       />

@@ -20,6 +20,7 @@ import {
   asRecord,
   asString,
   displayTimestamp,
+  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
 } from "../lib";
@@ -282,7 +283,9 @@ export function ChangesPanel({
               truncated={selectedPatch?.truncated}
             />
           ) : (
-            <p className="workspace-inspector-empty">No textual diff.</p>
+            <EmptyBlock density="compact" title="No textual diff.">
+              {null}
+            </EmptyBlock>
           )}
         </section>
       ) : null}
@@ -432,9 +435,12 @@ export function TerminalPanel({
                   </pre>
                 </section>
               ) : (
-                <p className="workspace-inspector-empty">
-                  This command produced no output.
-                </p>
+                <EmptyBlock
+                  density="compact"
+                  title="This command produced no output."
+                >
+                  {null}
+                </EmptyBlock>
               )}
             </section>
           ) : null}

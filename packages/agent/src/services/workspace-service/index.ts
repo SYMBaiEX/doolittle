@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
 import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import type { WorkspaceEntry } from "../../types/index";
 import {
@@ -17,6 +16,7 @@ import {
   planWorkspacePatch,
   readWorkspaceFile,
   readWorkspaceLines,
+  readWorkspaceText,
   searchWorkspaceFiles,
   type WorkspaceDirectoryResult,
   type WorkspaceFileReadResult,
@@ -24,7 +24,9 @@ import {
   type WorkspaceFileSearchResult,
   type WorkspacePatchResult,
   type WorkspaceReadLinesResult,
+  type WorkspaceTextReadResult,
   type WorkspaceWriteResult,
+  workspaceReadTruncationNotice,
   writeWorkspaceFile,
 } from "./file-operations";
 import { resolveWorkspaceServicePath } from "./path";
@@ -44,9 +46,13 @@ export type {
   WorkspaceFileSearchResult,
   WorkspacePatchResult,
   WorkspaceReadLinesResult,
+  WorkspaceTextReadResult,
   WorkspaceWriteResult,
 } from "./file-operations";
-export { WorkspaceWriteConflictError } from "./file-operations";
+export {
+  WorkspaceWriteConflictError,
+  workspaceReadTruncationNotice,
+} from "./file-operations";
 
 export class WorkspaceService {
   constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
@@ -79,12 +85,15 @@ export class WorkspaceService {
   }
 
   read(path: string): string {
-    const root = this.root();
-    const resolvedPath = resolveWorkspaceServicePath(root, path, "read");
-    if (!existsSync(resolvedPath)) {
-      throw new Error(`Path not found: ${path}`);
-    }
-    return readFileSync(resolvedPath, "utf8");
+    const read = this.readText(path);
+    if (!read.truncated) return read.content;
+    const separator = read.content && !read.content.endsWith("\n") ? "\n" : "";
+    return `${read.content}${separator}${workspaceReadTruncationNotice(read)}\n`;
+  }
+
+  /** Agent-facing read: bounded to a prefix and explicit about truncation. */
+  readText(path: string): WorkspaceTextReadResult {
+    return readWorkspaceText(this.root(), path);
   }
 
   /** Editor-facing read: capped, lossless, and honest about binary content. */
@@ -95,7 +104,7 @@ export class WorkspaceService {
   async write(
     path: string,
     content: string,
-    options?: { expectedContent?: string },
+    options?: { expectedContent?: string; overwrite?: boolean },
   ): Promise<string> {
     return (await this.writeFile(path, content, options)).path;
   }
@@ -111,7 +120,7 @@ export class WorkspaceService {
   async writeFile(
     path: string,
     content: string,
-    options: { expectedContent?: string } = {},
+    options: { expectedContent?: string; overwrite?: boolean } = {},
   ): Promise<WorkspaceWriteResult> {
     const root = this.root();
     // Validate before creating a checkpoint so rejected paths cannot create
@@ -123,6 +132,7 @@ export class WorkspaceService {
         : captureWorkspaceWriteExpectation(
             resolvedPath,
             options.expectedContent,
+            { recreateMissing: options.overwrite === true },
           );
     await this.checkpointBeforeMutation(
       root,

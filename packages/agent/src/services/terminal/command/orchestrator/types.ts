@@ -1,8 +1,8 @@
-import type { ShellSandboxBackend } from "@elizaos/agent/services/shell-execution-router";
 import type {
   ExecutionBackendName,
   TerminalCommandRecord,
-} from "../../../../types/execution";
+} from "@doolittle/contracts/execution";
+import type { ShellSandboxBackend } from "@elizaos/agent/services/shell-execution-router";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import type { CloudStateAccessor } from "../../cloud/store";
 import type { ExecutionBackend } from "../../contracts/backend";

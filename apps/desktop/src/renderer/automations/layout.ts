@@ -5,7 +5,7 @@ export const AUTOMATION_BUILDER_CLASS =
   "automation-builder overflow-hidden rounded-[var(--radius-md)] border border-[var(--automation-line)] bg-[var(--surface)]";
 
 export const AUTOMATION_BUILDER_HEADER_CLASS =
-  "automation-builder__header grid grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] items-end gap-4 px-4 pt-3 pb-2 max-[720px]:grid-cols-1 [&_h2]:mt-0.5 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:tracking-[-0.015em]";
+  "automation-builder__header grid grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] items-end gap-4 px-4 pt-3 pb-2 max-[720px]:grid-cols-1 [&_h2]:mt-0.5 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-[length:var(--text-control)] [&_h2]:tracking-[-0.015em]";
 
 export const AUTOMATION_FIELD_LABEL_CLASS =
   "grid min-w-0 gap-2 text-[length:var(--text-control)] font-medium text-[var(--text-soft)]";
@@ -20,7 +20,7 @@ export const AUTOMATION_BUILDER_SECTION_CLASS =
   "automation-builder__section grid content-start gap-4 border-t border-[var(--border)] bg-transparent py-4";
 
 export const AUTOMATION_SECTION_HEADING_CLASS =
-  "automation-builder__section-heading flex items-start justify-between gap-3 [&_strong]:text-sm [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
+  "automation-builder__section-heading flex items-start justify-between gap-3 [&_strong]:text-[length:var(--text-control)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
 
 export const AUTOMATION_CHOICE_GRID_CLASS =
   "automation-choice-grid grid grid-cols-3 gap-1 border-b border-[var(--border)] bg-transparent";

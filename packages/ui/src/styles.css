@@ -1,5 +1,9 @@
 /* Browser-only composition. The application supplies semantic theme tokens. */
 :root {
+  --focus-quiet: 1px solid var(--text-soft);
+  --focus-quiet-offset: -1px;
+  --focus-command: 2px solid var(--focus-ring);
+  --focus-command-offset: 2px;
   --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-feedback: min(140ms, var(--motion-duration, 120ms));
   --motion-surface: min(240ms, calc(var(--motion-duration, 120ms) * 2));
@@ -27,19 +31,19 @@
   border-color: var(--bad);
 }
 .dl-control:not(.dl-field):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 .dl-control:not(.dl-field):is(
   [aria-haspopup="menu"],
   [aria-haspopup="listbox"]
 ):focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 .dl-field:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
   box-shadow: none;
 }
 .dl-field[aria-invalid="true"]:focus-visible {
@@ -49,6 +53,63 @@
   transition-property: background-color, border-color, color;
   transition-duration: var(--motion-feedback);
   transition-timing-function: var(--ease-liquid);
+}
+.dl-button.dl-button--primary,
+.dl-button.dl-button--secondary,
+.dl-button.dl-button--danger {
+  border-radius: var(--radius-xs);
+  box-shadow: var(--control-contact);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.dl-button.dl-button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.dl-button.dl-button--primary:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+.dl-button.dl-button--secondary {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--text-soft);
+}
+.dl-button.dl-button--secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.dl-button.dl-button--danger {
+  border-color: color-mix(in srgb, var(--bad) 38%, var(--border));
+  background: transparent;
+  color: var(--bad);
+}
+.dl-button.dl-button--danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--bad) 60%, var(--border));
+  background: var(--bad-soft);
+}
+.dl-button.dl-button--primary:active:not(:disabled),
+.dl-button.dl-button--secondary:active:not(:disabled),
+.dl-button.dl-button--danger:active:not(:disabled) {
+  box-shadow: none;
+}
+.dl-button.dl-button--text {
+  height: auto;
+  min-height: 0;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--accent-text);
+  font-size: var(--text-control);
+  font-weight: 600;
+}
+.dl-button.dl-button--text:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent-hover);
 }
 .dl-control:disabled {
   cursor: not-allowed;
@@ -159,8 +220,8 @@
   min-width: 0;
 }
 .dl-settings-menu-group button:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 .dl-settings-mobile-select {
   display: none;
@@ -365,8 +426,8 @@
 }
 .dl-settings-content
   :is(.dl-settings-choice, .dl-settings-theme-choice):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 .dl-settings-content
   :is(.dl-settings-choice, .dl-settings-theme-choice)
@@ -435,8 +496,8 @@
   font-weight: 600;
 }
 .dl-settings-tabs [role="tab"]:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 @container dl-settings-content (max-width: 600px) {
   .dl-settings-field-row {
@@ -527,8 +588,8 @@
   color: var(--muted);
 }
 .dl-settings-content .settings-field-disclosure > summary:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 @container dl-settings (max-width: 760px) {
   .dl-settings-layout {
@@ -644,8 +705,8 @@
   color: var(--text);
 }
 .dl-contact:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 .dl-avatar {
   display: grid;
@@ -776,16 +837,70 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.dl-state-surface h2 {
+.dl-state-surface .dl-state-title {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 500;
 }
-.dl-state-surface[data-kind="error"] h2 {
+.dl-state-surface[data-kind="error"] .dl-state-title {
   color: var(--bad);
 }
 .dl-state-action {
   margin-top: 16px;
+}
+.dl-state-surface[data-variant="pane"] {
+  max-width: 320px;
+  padding: 12px 16px;
+}
+.dl-state-surface[data-variant="pane"] .dl-state-title {
+  margin-bottom: 4px;
+  font-size: var(--text-control, 14px);
+  line-height: 1.4;
+}
+.dl-state-surface[data-variant="pane"] .dl-meta {
+  font-size: var(--text-meta, 12px);
+  line-height: 1.45;
+}
+.dl-state-surface[data-variant="pane"] .dl-state-action {
+  margin-top: 10px;
+}
+.dl-state-surface[data-variant="inline"] {
+  display: flex;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  animation: none;
+}
+.dl-state-surface[data-variant="inline"] > div[role] {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+.dl-state-surface[data-variant="inline"] .dl-state-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-control, 14px);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.dl-state-surface[data-variant="inline"] .dl-meta {
+  font-size: var(--text-meta, 12px);
+  line-height: 1.45;
+}
+.dl-state-surface[data-variant="inline"] .dl-state-action {
+  margin-top: 0;
+}
+.dl-state-surface[data-variant="inline"][data-kind="loading"]::before {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  margin: 0;
+  border-width: 1px;
 }
 @media (max-width: 760px) {
   .dl-header {
@@ -908,8 +1023,8 @@
 }
 .dl-action-menu-item:focus-visible,
 .dl-select-item:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 @media (pointer: coarse), (max-width: 760px) {
   .dl-action-menu-item,

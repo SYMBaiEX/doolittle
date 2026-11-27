@@ -7,8 +7,8 @@
 }
 
 .workbench-action:focus-visible {
-  outline: 1px solid var(--focus-ring);
-  outline-offset: 1px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 
 .workbench-section {

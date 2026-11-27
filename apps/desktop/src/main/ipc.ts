@@ -1,3 +1,4 @@
+import { isBotId, isUuid } from "@doolittle/contracts/identifiers";
 import { rejectAtDeadline } from "@elizaos/core/protocol";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
@@ -113,7 +114,7 @@ interface ActiveAgentRequest {
 
 function targetBotId(value: unknown): string {
   if (value === undefined) return "default";
-  if (typeof value !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(value)) {
+  if (!isBotId(value)) {
     throw new Error("Bot target is invalid.");
   }
   return value;
@@ -339,10 +340,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       if (!discardRecordedAudio) {
         throw new Error("Recorded audio cleanup is unavailable.");
       }
-      if (
-        typeof recordingId !== "string" ||
-        !/^[0-9a-f-]{36}$/iu.test(recordingId)
-      ) {
+      if (!isUuid(recordingId)) {
         throw new Error("Recording ID is invalid.");
       }
       const botId = targetBotId(unsafeBotId);

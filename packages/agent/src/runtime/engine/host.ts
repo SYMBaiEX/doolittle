@@ -5,6 +5,7 @@ import {
   SHARED_ENGINE_DEFAULT_CONCURRENT_STARTS,
   SHARED_ENGINE_MAX_WORKERS,
 } from "@doolittle/contracts/engine";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import {
   WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS,
   WORKER_HOST_MAX_PENDING_REQUESTS,
@@ -24,7 +25,6 @@ import {
   isWorkerHostRequest,
   isWorkerHostResponse,
   MAX_HOST_MESSAGE_BYTES,
-  UUID_PATTERN,
 } from "./protocol";
 
 type EngineWorker = Pick<Worker, "on" | "postMessage" | "terminate">;
@@ -461,10 +461,7 @@ export function installSharedEngineHost(
       return;
     }
     if (value.protocol !== ENGINE_PROTOCOL) return;
-    const id =
-      typeof value.id === "string" && UUID_PATTERN.test(value.id)
-        ? value.id
-        : null;
+    const id = isUuid(value.id) ? value.id : null;
     if (!id || seenRequests.has(id)) return;
     seenRequests.add(id);
     if (seenRequests.size > 2048) {

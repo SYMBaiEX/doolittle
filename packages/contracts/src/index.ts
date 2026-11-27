@@ -3,6 +3,7 @@ export * from "./coding-agent";
 export * from "./coding-verification";
 export * from "./coding-workspace";
 export * from "./execution";
+export * from "./identifiers";
 export * from "./model-route";
 export * from "./repository";
 export * from "./run";

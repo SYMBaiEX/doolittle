@@ -1,8 +1,8 @@
-import { isExecutionBackendName } from "@doolittle/contracts/execution";
 import type {
   ExecutionBackendName,
   ExecutionBackendPreview,
-} from "../../../../types/execution";
+} from "@doolittle/contracts/execution";
+import { isExecutionBackendName } from "@doolittle/contracts/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import type { ExecutionBackend } from "../../contracts/backend";
 

@@ -4,7 +4,7 @@ import type {
   ExecutionCloudSession,
   ExecutionCloudSnapshotRecord,
   TerminalCommandRecord,
-} from "../../../types/execution";
+} from "@doolittle/contracts/execution";
 import type { TerminalRunResult } from "../execution/subprocess";
 
 export interface TerminalStore {

@@ -1,2 +1,2 @@
-export { createFormsPlugin, default } from "./plugin";
+export { createFormsPlugin } from "./plugin";
 export type { FormsPluginOptions } from "./types";

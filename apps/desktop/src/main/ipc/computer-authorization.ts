@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
+import { isBotId } from "@doolittle/contracts/identifiers";
 import type { ComputerOwnerScope } from "../../shared/contracts/editor";
 import type { BackendManager } from "../backend";
 import type { BotProcessRegistry } from "../bot-process-registry";
 import type { DesktopExecutionAdmission } from "../execution-admission";
 import { isRecord } from "./input-validation";
 
-const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const CONVERSATION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 
 /** Direct REST filesystem effects need the same write seat as native tools. */
@@ -33,7 +33,7 @@ export function validateComputerOwnerScope(value: unknown): ComputerOwnerScope {
   }
   if (
     typeof botId !== "string" ||
-    !BOT_ID.test(botId) ||
+    !isBotId(botId) ||
     typeof originConversationId !== "string" ||
     !CONVERSATION_ID.test(originConversationId) ||
     typeof workspacePath !== "string" ||

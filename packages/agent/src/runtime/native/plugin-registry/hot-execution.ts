@@ -19,6 +19,7 @@ import {
   resolveLocalProjectTarget,
 } from "../../../services/project-inspection";
 import type { EnvConfig } from "../../../types/runtime";
+import { bindPluginStorage } from "../../bootstrap/env/plugin-storage";
 import { withManagedCodingDelegation } from "../coding-delegation";
 import { DesktopAdmittedAcpService } from "../desktop-admitted-acp";
 
@@ -74,9 +75,9 @@ export async function loadHotExecutionPlugins(
       services: [ClientAgentSkillsService],
     },
     createPlanningPlugin({
-      storage: {
+      storage: bindPluginStorage("planning", {
         dataRoot: join(config.dataDir, "plugins"),
-      },
+      }),
     }),
   ];
 }

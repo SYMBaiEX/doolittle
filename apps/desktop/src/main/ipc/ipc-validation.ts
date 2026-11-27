@@ -3,6 +3,7 @@ import {
   MAX_COMMAND_TIMEOUT_MS,
   MIN_COMMAND_TIMEOUT_MS,
 } from "@doolittle/contracts/execution";
+import { isBotId, isUuidV4 } from "@doolittle/contracts/identifiers";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
   AttachmentCleanupRequest,
@@ -47,8 +48,6 @@ export const MIN_INTERACTIVE_TERMINAL_ROWS = 5;
 export const MAX_INTERACTIVE_TERMINAL_ROWS = 200;
 
 const MAX_COMMAND_LENGTH = 4_096;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export interface SensitiveActionConfirmationRequest {
   kind:
@@ -122,17 +121,11 @@ export function validateAttachmentCleanupRequest(
   const attachmentIds = validateChatAttachmentIds(value.attachmentIds);
   if (
     typeof value.cleanupCapability !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-      value.cleanupCapability,
-    )
+    !isUuidV4(value.cleanupCapability)
   ) {
     throw new Error("Attachment cleanup capability is invalid.");
   }
-  if (
-    value.botId !== undefined &&
-    (typeof value.botId !== "string" ||
-      !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(value.botId))
-  ) {
+  if (value.botId !== undefined && !isBotId(value.botId)) {
     throw new Error("Attachment bot identity is invalid.");
   }
   return {
@@ -211,7 +204,7 @@ export function validateTerminalStreamRequest(
 
 export function validateInteractiveTerminalSessionId(value: unknown): string {
   const id = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (!UUID_PATTERN.test(id)) {
+  if (!isUuidV4(id)) {
     throw new Error("A valid interactive terminal session id is required.");
   }
   return id;
@@ -344,7 +337,7 @@ export function validateInteractiveTerminalResizeRequest(
 
 export function validateTerminalBotId(value: unknown): string {
   if (value === undefined) return "default";
-  if (typeof value !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(value)) {
+  if (!isBotId(value)) {
     throw new Error("Bot target is invalid.");
   }
   return value;
@@ -529,7 +522,7 @@ export function validateChatAttachmentIds(value: unknown): string[] {
     );
   }
   const ids = value.map((entry) => {
-    if (typeof entry !== "string" || !UUID_PATTERN.test(entry)) {
+    if (!isUuidV4(entry)) {
       throw new Error("A chat attachment id is invalid.");
     }
     return entry.toLowerCase();

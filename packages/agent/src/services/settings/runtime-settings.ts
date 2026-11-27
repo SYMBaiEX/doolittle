@@ -1,12 +1,11 @@
-import type { RuntimeModelSettings } from "@doolittle/contracts/model-route";
-import type { TuiThemeName } from "../../runtime/theme-catalog/index";
 import type {
   ExecutionBackendName,
   RemoteArtifactPolicy,
   RemoteWorkspaceSyncMode,
-  RunDepth,
-  ToolProgressMode,
-} from "../../types/index";
+} from "@doolittle/contracts/execution";
+import type { RuntimeModelSettings } from "@doolittle/contracts/model-route";
+import type { TuiThemeName } from "../../runtime/theme-catalog/index";
+import type { RunDepth, ToolProgressMode } from "../../types/index";
 import type { ElizaMcpSettings, LegacyMcpSettings } from "../mcp/settings";
 
 export {

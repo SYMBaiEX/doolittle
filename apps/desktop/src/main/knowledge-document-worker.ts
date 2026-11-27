@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { BotDefinition } from "@doolittle/contracts/bots";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import { type BackendLaunchTarget, BackendManager } from "./backend";
 
 const BROKER_ID = "knowledge-broker";
@@ -134,10 +135,7 @@ export class KnowledgeDocumentWorker {
         `SDK document promotion failed (HTTP ${response.status}).`,
       );
     const payload = await jsonResponse(response);
-    if (
-      typeof payload.documentId !== "string" ||
-      !/^[0-9a-f-]{36}$/iu.test(payload.documentId)
-    ) {
+    if (typeof payload.documentId !== "string" || !isUuid(payload.documentId)) {
       throw new Error("SDK document receipt is invalid.");
     }
     return payload.documentId;

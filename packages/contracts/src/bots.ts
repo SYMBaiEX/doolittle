@@ -36,6 +36,45 @@ export interface BotPermissions {
   allowDelegation: boolean;
 }
 
+export interface BotPermissionsValidationOptions {
+  /** Inclusive maximum length of each reference list. */
+  maxEntries?: number;
+  /** Inclusive maximum length of each reference. */
+  maxValueLength?: number;
+  /** Whether blank references are accepted in persisted legacy snapshots. */
+  allowBlankEntries?: boolean;
+}
+
+/** Structural validation shared by host and worker boundaries. */
+export function isBotPermissions(
+  value: unknown,
+  options: BotPermissionsValidationOptions = {},
+): value is BotPermissions {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const permissions = value as Partial<BotPermissions>;
+  const maxEntries = options.maxEntries ?? Number.POSITIVE_INFINITY;
+  const maxValueLength = options.maxValueLength ?? Number.POSITIVE_INFINITY;
+  return (
+    [
+      permissions.connectionIds,
+      permissions.workspacePaths,
+      permissions.toolIds,
+    ].every(
+      (entries) =>
+        Array.isArray(entries) &&
+        entries.length <= maxEntries &&
+        entries.every(
+          (entry) =>
+            typeof entry === "string" &&
+            entry.length <= maxValueLength &&
+            (options.allowBlankEntries === true || entry.trim().length > 0),
+        ),
+    ) &&
+    typeof permissions.allowMutation === "boolean" &&
+    typeof permissions.allowDelegation === "boolean"
+  );
+}
+
 export type BotLifecycleState =
   | "stopped"
   | "starting"

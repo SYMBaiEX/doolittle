@@ -1,5 +1,5 @@
+import type { TerminalCommandRecord } from "@doolittle/contracts/execution";
 import type { AppLogRecord } from "../../logging/logger";
-import type { TerminalCommandRecord } from "../../types/execution";
 import type { DeliveredMessageRecord } from "../../types/gateway";
 import type {
   AutomationRunRecord,

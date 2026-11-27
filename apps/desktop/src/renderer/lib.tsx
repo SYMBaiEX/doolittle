@@ -1,4 +1,4 @@
-import { StateSurface } from "@doolittle/ui";
+import { Button, StateSurface, type StateSurfaceVariant } from "@doolittle/ui";
 import { ApiError } from "@elizaos/ui/api/client-types";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
@@ -317,9 +317,9 @@ export function ErrorBlock({
           : cleaned}
       </span>
       {retry ? (
-        <button className="text-button" onClick={retry} type="button">
+        <Button onClick={retry} type="button" variant="text">
           Try again
-        </button>
+        </Button>
       ) : null}
       {showDetails ? (
         <details className="mt-1">
@@ -340,19 +340,25 @@ export function EmptyBlock({
   children,
   actions,
   density = "default",
+  variant,
 }: {
   title: string;
-  children: ReactNode;
+  /** Body copy is optional so title-only pane and inline states stay concise. */
+  children?: ReactNode;
   actions?: ReactNode;
+  /** Legacy density input; compact maps to the canonical pane variant. */
   density?: "default" | "compact";
+  variant?: StateSurfaceVariant;
 }) {
+  const surfaceVariant = variant ?? (density === "compact" ? "pane" : "hero");
   return (
     <div
-      className={`empty-block${density === "compact" ? " empty-block--compact" : ""}`}
+      className={`empty-block empty-block--${surfaceVariant}${density === "compact" ? " empty-block--compact" : ""}`}
     >
       <StateSurface
         kind="empty"
         title={title}
+        variant={surfaceVariant}
         action={
           actions ? <div className="empty-actions">{actions}</div> : undefined
         }

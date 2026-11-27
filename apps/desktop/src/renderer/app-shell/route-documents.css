@@ -298,8 +298,8 @@
 [data-route-document="settings"]
   .dl-settings-content
   :focus-visible:is(input, select, textarea, [role="tab"]) {
-  outline: 1px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 
 @container dl-settings (max-width: 760px) {

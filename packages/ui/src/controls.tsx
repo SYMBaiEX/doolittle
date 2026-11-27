@@ -16,6 +16,54 @@ import { Input as ElizaInput } from "@elizaos/ui/input";
 import { cn } from "@elizaos/ui/lib/utils";
 import type { ComponentPropsWithRef } from "react";
 
+type ElizaButtonProps = ComponentPropsWithRef<typeof ElizaButton>;
+type LegacyButtonVariant = NonNullable<ElizaButtonProps["variant"]>;
+
+/** Semantic action variants for Doolittle-owned UI. */
+export type CanonicalButtonVariant =
+  | "primary"
+  | "secondary"
+  | "danger"
+  | "text";
+/** Canonical variants plus upstream variants retained for source compatibility. */
+export type ButtonVariant = CanonicalButtonVariant | LegacyButtonVariant;
+export type ButtonSize = NonNullable<ElizaButtonProps["size"]>;
+export type ButtonProps = Omit<ElizaButtonProps, "size" | "variant"> & {
+  size?: ButtonSize | null;
+  variant?: ButtonVariant | null;
+};
+
+function upstreamButtonVariant(
+  variant: ButtonVariant | null | undefined,
+): LegacyButtonVariant | null | undefined {
+  switch (variant) {
+    case "primary":
+      return "default";
+    case "secondary":
+      return "secondary";
+    case "danger":
+      return "destructive";
+    case "text":
+      return "ghost";
+    default:
+      return variant;
+  }
+}
+
+function canonicalButtonVariant(
+  variant: ButtonVariant | null | undefined,
+): CanonicalButtonVariant | undefined {
+  switch (variant) {
+    case "primary":
+    case "secondary":
+    case "danger":
+    case "text":
+      return variant;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Browser-safe density bridge for the official Eliza controls.
  *
@@ -44,15 +92,19 @@ export function Button({
   size,
   variant = "default",
   ...props
-}: ComponentPropsWithRef<typeof ElizaButton>) {
-  const standard = size === undefined || size === "default";
-  const quiet = variant === "ghost" || variant === "link";
+}: ButtonProps) {
+  const canonicalVariant = canonicalButtonVariant(variant);
+  const upstreamVariant = upstreamButtonVariant(variant);
+  const standard =
+    (size === undefined || size === "default") && canonicalVariant !== "text";
+  const quiet = upstreamVariant === "ghost" || upstreamVariant === "link";
   return (
     <ElizaButton
       {...props}
       className={cn(
         "dl-button",
         controlClass,
+        canonicalVariant && `dl-button--${canonicalVariant}`,
         standard && standardControlClass,
         !quiet && "border border-[var(--border)]",
         variant === "default" &&
@@ -62,7 +114,7 @@ export function Button({
         className,
       )}
       size={size}
-      variant={variant}
+      variant={upstreamVariant}
     />
   );
 }

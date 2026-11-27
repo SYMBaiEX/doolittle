@@ -333,6 +333,8 @@ export function themeCssVariables(
     : theme.spacing.page;
   const softStatus = (color: string) =>
     `color-mix(in srgb, ${color} 14%, ${p.navigation})`;
+  // `spacing.unit` remains part of the serialized manifest contract, but
+  // runtime CSS exposes semantic spacing tokens rather than a numbered scale.
   const variables: Record<string, string> = {
     "--bg": p.background,
     "--surface": p.navigation,
@@ -399,8 +401,6 @@ export function themeCssVariables(
     "--warn-soft": softStatus(p.warning),
     "--bad-soft": softStatus(p.error),
   };
-  for (const [index, scale] of [1, 2, 3, 4, 6].entries())
-    variables[`--space-${index + 1}`] = `${theme.spacing.unit * scale}px`;
   return variables;
 }
 
