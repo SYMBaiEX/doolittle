@@ -14,7 +14,6 @@ import {
 } from "../support/terminal-pty";
 
 const BOOT_TIMEOUT_MS = 45_000;
-const RESIZE_SETTLE_MS = 700;
 const PAGE_UP = "\x1b[5~";
 const TAIL_MARKER = "R18LINE-42";
 const HIDDEN_TAIL_MARKER = "R18HIDDEN-42";
@@ -38,6 +37,35 @@ afterEach(async () => {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((done) => setTimeout(done, ms));
+}
+
+async function waitUntil(
+  description: string,
+  condition: () => Promise<boolean> | boolean,
+  timeoutMs = 5_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await condition()) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`Timed out waiting for ${description}.`);
+    }
+    await new Promise((done) => setTimeout(done, 50));
+  }
+}
+
+async function waitForCockpitResize(
+  session: TerminalSession,
+  cols: number,
+): Promise<void> {
+  // Row 3 is the Conversation panel's top border in every supported cockpit
+  // layout. xterm resizes immediately while the child repaints asynchronously;
+  // the old interior cell at the new right edge becomes a border corner only
+  // after the child has processed SIGWINCH and repainted the layout.
+  await waitUntil(`cockpit repaint at ${cols} columns`, async () => {
+    const cell = await session.cellAt(cols - 1, 3);
+    return cell?.chars === "┐";
+  });
 }
 
 function completionContextFrom(body: string) {
@@ -217,7 +245,7 @@ async function fillTranscript(session: TerminalSession, prompt: string) {
   session.type(prompt);
   session.key("enter");
   await session.waitForGridText("run complete", 25_000);
-  await sleep(400);
+  await session.waitForGridText(TAIL_MARKER, 10_000);
 }
 
 describe("cockpit resize scroll pinning", () => {
@@ -228,11 +256,11 @@ describe("cockpit resize scroll pinning", () => {
     expect(await session.gridText()).toContain(TAIL_MARKER);
 
     session.resize(100, 24);
-    await sleep(RESIZE_SETTLE_MS);
+    await waitForCockpitResize(session, 100);
     expect(await session.gridText()).toContain(TAIL_MARKER);
 
     session.resize(160, 30);
-    await sleep(RESIZE_SETTLE_MS);
+    await waitForCockpitResize(session, 160);
     expect(await session.gridText()).toContain(TAIL_MARKER);
 
     // Start a second overflowing turn and hide the cockpit while it is still
@@ -245,7 +273,7 @@ describe("cockpit resize scroll pinning", () => {
     await session.waitForGridText("Terminal too small", 10_000);
     await sleep(500);
     session.resize(120, 30);
-    await sleep(RESIZE_SETTLE_MS);
+    await waitForCockpitResize(session, 120);
     const restoredGrid = await session.gridText();
     expect(restoredGrid).not.toContain("Terminal too small");
     expect(restoredGrid).toContain(HIDDEN_TAIL_MARKER);
@@ -257,21 +285,22 @@ describe("cockpit resize scroll pinning", () => {
 
     // Ctrl-S focuses Conversation; PageUp is the deliberate operator scroll.
     session.type("\x13");
-    await sleep(150);
+    await session.waitForGridText("scroll conversation", 5_000);
     session.type(PAGE_UP);
-    await sleep(500);
+    await session.waitForGridTextAbsent(TAIL_MARKER, 5_000);
+    await session.waitForGridText("R18LINE-20", 5_000);
     const scrolledGrid = await session.gridText();
     expect(scrolledGrid).toContain("R18LINE-20");
     expect(scrolledGrid).not.toContain(TAIL_MARKER);
 
     session.resize(100, 24);
-    await sleep(RESIZE_SETTLE_MS);
+    await waitForCockpitResize(session, 100);
     const narrowGrid = await session.gridText();
     expect(narrowGrid).toContain("R18LINE-20");
     expect(narrowGrid).not.toContain(TAIL_MARKER);
 
     session.resize(160, 30);
-    await sleep(RESIZE_SETTLE_MS);
+    await waitForCockpitResize(session, 160);
     const wideGrid = await session.gridText();
     expect(wideGrid).toContain("R18LINE-20");
     expect(wideGrid).not.toContain(TAIL_MARKER);
@@ -279,7 +308,7 @@ describe("cockpit resize scroll pinning", () => {
     session.resize(70, 18);
     await session.waitForGridText("Terminal too small", 10_000);
     session.resize(120, 30);
-    await sleep(RESIZE_SETTLE_MS);
+    await waitForCockpitResize(session, 120);
     const restoredGrid = await session.gridText();
     expect(restoredGrid).not.toContain("Terminal too small");
     expect(restoredGrid).toContain("R18LINE-20");
