@@ -1,9 +1,5 @@
 import type { TuiThemeProfile } from "@doolittle/agent/runtime/theme-catalog";
-import {
-  SEVERITY_BADGES,
-  SEVERITY_BLESSED_COLORS,
-  severityBlessedTag,
-} from "./terminal-presentation";
+import { severityBlessedTag } from "./terminal-presentation";
 
 export type CliTone = "info" | "success" | "warning" | "error" | "agent";
 
@@ -116,10 +112,10 @@ export function decorateLiveActivity(detail: string): string {
 
 export function toneTag(tone: CliTone | undefined): string {
   if (tone === "agent") {
-    return "{cyan-fg}<> {/}";
+    return "{cyan-fg}<>{/}";
   }
   if (!tone) {
-    return `{${SEVERITY_BLESSED_COLORS.info}-fg}${SEVERITY_BADGES.info} {/}`;
+    return severityBlessedTag(undefined);
   }
   return severityBlessedTag(tone);
 }
