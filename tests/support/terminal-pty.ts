@@ -15,7 +15,10 @@ import { type IPty, spawn } from "@lydell/node-pty";
 // the module namespace in every runtime.
 import xtermHeadless from "@xterm/headless";
 import cliManifest from "../../apps/cli/package.json" with { type: "json" };
-import { isolatedRuntimeEnvironment } from "./isolated-runtime-environment";
+import {
+  isolatedRuntimeEnvironment,
+  utf8LocaleEnvironment,
+} from "./isolated-runtime-environment";
 
 const { Terminal } = xtermHeadless;
 
@@ -215,8 +218,7 @@ export function spawnTerminalSession(
         // deterministic rendering across hosts (CI runners default to POSIX).
         // These pins intentionally WIN over the passed environment — host
         // locale must never leak into spawned terminal sessions.
-        LC_ALL: "C.UTF-8",
-        LANG: "C.UTF-8",
+        ...utf8LocaleEnvironment(),
       },
     },
   );
