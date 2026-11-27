@@ -39,6 +39,9 @@ export function applyLinkedProviderSettings(
     settings.CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
   }
 
+  // The official account-pool bridge can materialize direct API credentials
+  // after EnvConfig is parsed. This bootstrap boundary intentionally observes
+  // that runtime credential projection; request/status surfaces must not.
   const openAiApiKey = config.openAiApiKey || process.env.OPENAI_API_KEY;
   if (openAiApiKey) {
     settings.OPENAI_API_KEY = openAiApiKey;
