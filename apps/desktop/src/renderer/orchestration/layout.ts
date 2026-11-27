@@ -13,7 +13,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-command-bar":
     "orchestration-command-bar flex flex-wrap items-center gap-2 max-[680px]:w-full [&_button]:min-h-10 [&_button]:px-3 [&_button]:py-2 [&_button]:text-[length:var(--text-control)] max-[680px]:[&_button]:min-h-11",
   "orchestration-queue-starter":
-    "orchestration-queue-starter flex min-h-14 min-w-0 shrink-0 items-start gap-2.5 bg-transparent px-3 py-2 [&>.eyebrow]:shrink-0 [&>.eyebrow]:pt-px [&>.eyebrow]:text-[length:var(--text-meta)] [&>.eyebrow]:text-[var(--accent-text)] [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]",
+    "orchestration-queue-starter flex min-h-14 min-w-0 shrink-0 items-start gap-2.5 bg-transparent px-3 py-2 [&>.eyebrow]:shrink-0 [&>.eyebrow]:pt-px [&>.eyebrow]:text-[length:var(--text-meta)] [&>.eyebrow]:text-[var(--accent-text)] [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium [&_strong]:leading-[1.3] [&_strong]:text-[var(--text)] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.35] [&_small]:text-[var(--muted)]",
   "orchestration-quick-create": `orchestration-quick-create grid shrink-0 grid-cols-[minmax(160px,0.7fr)_minmax(240px,1.2fr)_repeat(4,minmax(92px,0.45fr))_auto] items-end gap-1.75 border-[var(--border)] border-b bg-[var(--surface)] px-3 py-2.25  max-[1400px]:grid-cols-4 max-[1180px]:grid-cols-3 max-[900px]:grid-cols-2 max-[680px]:max-h-[52vh] max-[680px]:grid-cols-1 max-[680px]:overflow-auto max-[900px]:[&_.quick-title]:col-span-full max-[900px]:[&_.quick-objective]:col-span-full max-[900px]:[&_.quick-create-actions]:col-span-full ${FORM_LABEL} [&_input]:min-h-10 [&_input]:w-full [&_input]:px-1.75 [&_input]:py-1 [&_input]:text-[length:var(--text-control)] [&_select]:min-h-10 [&_select]:w-full [&_select]:px-1.75 [&_select]:py-1 [&_select]:text-[length:var(--text-control)]`,
   "quick-create-actions":
     "quick-create-actions flex items-center gap-1.75 pb-px max-[680px]:[&>button]:flex-1",
@@ -42,9 +42,9 @@ const ORCHESTRATION_CLASS = {
   "orchestration-steps":
     "orchestration-steps m-0 grid list-decimal gap-2 pl-4.5 text-[length:var(--text-control)] leading-[1.5] text-[var(--text-soft)]",
   "orchestration-plan-control":
-    "orchestration-plan-control grid grid-cols-[minmax(260px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2.5 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text)] [&_span]:text-[length:var(--text-meta)] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)]",
+    "orchestration-plan-control grid grid-cols-[minmax(260px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2.5 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text)] [&_span]:text-[length:var(--text-meta)] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)]",
   "orchestration-plan-steer":
-    "orchestration-plan-steer grid grid-cols-[minmax(180px,0.6fr)_minmax(260px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2.5 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text)] [&_span]:text-[length:var(--text-meta)] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_label]:min-w-0 [&_label]:w-full [&_textarea]:min-h-13 [&_textarea]:min-w-0 [&_textarea]:w-full [&_textarea]:resize-y",
+    "orchestration-plan-steer grid grid-cols-[minmax(180px,0.6fr)_minmax(260px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2.5 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text)] [&_span]:text-[length:var(--text-meta)] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_label]:min-w-0 [&_label]:w-full [&_textarea]:min-h-13 [&_textarea]:min-w-0 [&_textarea]:w-full [&_textarea]:resize-y",
   "orchestration-runs-layout":
     "orchestration-runs-layout grid h-full min-h-0 grid-cols-[300px_minmax(230px,27%)_minmax(0,1fr)]",
   "orchestration-launcher":
@@ -60,7 +60,7 @@ const ORCHESTRATION_CLASS = {
     "orchestration-runtime-detail m-0 px-2.5 pt-0 pb-2.5 text-[length:var(--text-meta)] leading-[1.45] text-[var(--warn)]",
   "orchestration-run-detail": "orchestration-run-detail",
   "orchestration-subheading":
-    "orchestration-subheading flex items-start justify-between gap-3 [&_h3]:mt-1 [&_h3]:mb-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-[length:var(--text-control)]",
+    "orchestration-subheading flex items-start justify-between gap-3 [&_h3]:mt-1 [&_h3]:mb-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-[length:var(--text-control)] [&_h3]:font-semibold [&_h3]:leading-[var(--line-title)]",
 } as const;
 
 export function orchestrationClass(
