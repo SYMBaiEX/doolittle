@@ -70,13 +70,6 @@ export interface ReviewRecordResponse {
   nextCursor?: string;
 }
 
-export interface ReviewPatchLine {
-  key: string;
-  kind: "addition" | "deletion" | "hunk" | "meta" | "context";
-  line: string;
-  anchor?: ReviewCommentAnchor;
-}
-
 function safeSegment(value: string): string {
   return encodeURIComponent(value.trim() || "unknown");
 }
@@ -105,67 +98,6 @@ export function reviewRecordMatchesIdentity(
     scope.branch === identity.branch &&
     scope.head === identity.revision
   );
-}
-
-function patchLineKind(line: string): ReviewPatchLine["kind"] {
-  if (line.startsWith("+++") || line.startsWith("---")) return "meta";
-  if (line.startsWith("+")) return "addition";
-  if (line.startsWith("-")) return "deletion";
-  if (line.startsWith("@@")) return "hunk";
-  if (line.startsWith("diff ") || line.startsWith("index ")) return "meta";
-  return "context";
-}
-
-export function parseReviewPatchLines(patch: string): ReviewPatchLine[] {
-  let oldLine = 0;
-  let newLine = 0;
-
-  return patch.split("\n").map((line, index) => {
-    const kind = patchLineKind(line);
-    const key = `${index}:${line}`;
-
-    if (kind === "hunk") {
-      const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/u.exec(line);
-      if (match) {
-        oldLine = Number(match[1]);
-        newLine = Number(match[2]);
-      }
-      return { key, kind, line };
-    }
-
-    if (kind === "addition") {
-      const anchor = {
-        side: "new" as const,
-        line: newLine,
-        preview: line.slice(1, 241),
-      };
-      newLine += 1;
-      return { key, kind, line, anchor };
-    }
-
-    if (kind === "deletion") {
-      const anchor = {
-        side: "old" as const,
-        line: oldLine,
-        preview: line.slice(1, 241),
-      };
-      oldLine += 1;
-      return { key, kind, line, anchor };
-    }
-
-    if (kind === "context" && (oldLine > 0 || newLine > 0)) {
-      const anchor = {
-        side: "new" as const,
-        line: newLine,
-        preview: line.startsWith(" ") ? line.slice(1, 241) : line.slice(0, 240),
-      };
-      oldLine += 1;
-      newLine += 1;
-      return { key, kind, line, anchor };
-    }
-
-    return { key, kind, line };
-  });
 }
 
 function isReviewComment(value: unknown): value is ReviewComment {

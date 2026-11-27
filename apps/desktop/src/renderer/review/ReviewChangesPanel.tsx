@@ -4,22 +4,14 @@ import { WorkbenchAction } from "../components/workbench/Workbench";
 import type { ApiResource } from "../lib";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
 import type { RepositoryPatchResponse } from "../repository-resource-models";
-import {
-  parseReviewPatchLines,
-  type ReviewComment,
-  type ReviewCommentAnchor,
-} from "../review-comments";
-import {
-  REVIEW_DETAIL_TOOLBAR_CLASS,
-  REVIEW_PATCH_CLASS,
-  REVIEW_PATCH_GUTTER_CLASS,
-  reviewPatchLineClass,
-} from "./layout";
+import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
+import { REVIEW_DETAIL_TOOLBAR_CLASS, REVIEW_PATCH_CLASS } from "./layout";
 import type { ReviewItem } from "./models";
 import {
   ReviewCommentsPanel,
   type ReviewCommentTarget,
 } from "./ReviewCommentsPanel";
+import { ReviewPatch } from "./ReviewPatch";
 
 export interface ReviewChangesPanelProps {
   contextScope?: string;
@@ -117,36 +109,13 @@ export function ReviewChangesPanel({
       ) : patch.error ? (
         <ErrorBlock error={patch.error} retry={patch.reload} />
       ) : patch.data?.patch?.patch ? (
-        <pre>
-          <code>
-            {parseReviewPatchLines(patch.data.patch.patch).map((line) => (
-              <span className={reviewPatchLineClass(line.kind)} key={line.key}>
-                {line.anchor ? (
-                  <button
-                    aria-label={`Add review note on ${line.anchor.side === "new" ? "new" : "old"} line ${line.anchor.line}`}
-                    className={
-                      selectedPathComments.some(
-                        (comment) =>
-                          comment.anchor?.side === line.anchor?.side &&
-                          comment.anchor?.line === line.anchor?.line,
-                      )
-                        ? "has-comment"
-                        : ""
-                    }
-                    onClick={() => onStartComment(path, line.anchor)}
-                    title={`Comment on ${line.anchor.side === "new" ? "+" : "−"} line ${line.anchor.line}`}
-                    type="button"
-                  >
-                    +
-                  </button>
-                ) : (
-                  <i aria-hidden="true" className={REVIEW_PATCH_GUTTER_CLASS} />
-                )}
-                {line.line || " "}
-              </span>
-            ))}
-          </code>
-        </pre>
+        <ReviewPatch
+          onStartComment={onStartComment}
+          patch={patch.data.patch.patch}
+          path={path}
+          selectedPathComments={selectedPathComments}
+          truncated={patch.data.patch.truncated}
+        />
       ) : (
         <EmptyBlock title="No textual patch">
           This may be a new, binary, or metadata-only file.
