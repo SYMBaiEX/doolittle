@@ -46,6 +46,7 @@ export function orchestrationScopeLabel({
   workspaceLabel?: string;
 }): string {
   if (projectScope === "all") return "All projects";
+  if (projectScope === "unscoped") return "Unscoped work";
   return workspaceLabel?.trim() || "Selected project";
 }
 
