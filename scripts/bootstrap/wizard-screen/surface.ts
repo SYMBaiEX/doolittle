@@ -3,6 +3,7 @@ import {
   type TuiThemeName,
 } from "@doolittle/agent/runtime/theme-catalog";
 import blessed from "blessed";
+import { supportsTerminalUnicode } from "../core/terminal-capabilities";
 import { createWizardInputLock, installWizardScreenEvents } from "./events";
 import { createWizardOverlay } from "./overlay";
 import { createWizardPromptHandlers } from "./prompt-overlays";
@@ -27,7 +28,7 @@ export function createWizardScreen({
 }: CreateWizardScreenOptions): WizardScreenContext {
   const screen = blessed.screen({
     smartCSR: true,
-    fullUnicode: true,
+    fullUnicode: supportsTerminalUnicode(),
     title: "Doolittle // Awakening",
     dockBorders: true,
     grabKeys: true,

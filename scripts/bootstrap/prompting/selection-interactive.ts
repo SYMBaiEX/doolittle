@@ -1,4 +1,5 @@
 import { bootstrapColor, paint } from "../core/output";
+import { terminalGlyph } from "../core/terminal-capabilities";
 import {
   clearRenderedMenu,
   readMenuKeypress,
@@ -25,12 +26,15 @@ export async function chooseOneInteractive<T extends string>(
       const lines = [
         paint(prompt, bootstrapColor.cyan + bootstrapColor.bold),
         paint(
-          "Use ↑/↓ to move, Enter to confirm, or press a number key.",
+          `Use ${terminalGlyph("↑/↓", "^/v")} to move, Enter to confirm, or press a number key.`,
           bootstrapColor.dim,
         ),
       ];
       optionsList.forEach((item, index) => {
-        const selected = index === selectedIndex ? "●" : "○";
+        const selected =
+          index === selectedIndex
+            ? terminalGlyph("●", "*")
+            : terminalGlyph("○", "o");
         lines.push(`  ${selected} ${index + 1}. ${item.label}`);
         if (item.detail) {
           lines.push(`    ${item.detail}`);
@@ -86,13 +90,15 @@ export async function chooseManyInteractive<T extends string>(
       const lines = [
         paint(prompt, bootstrapColor.cyan + bootstrapColor.bold),
         paint(
-          "Use ↑/↓ to move, Space to toggle, Enter to confirm.",
+          `Use ${terminalGlyph("↑/↓", "^/v")} to move, Space to toggle, Enter to confirm.`,
           bootstrapColor.dim,
         ),
       ];
       optionsList.forEach((item, index) => {
-        const cursor = index === cursorIndex ? "›" : " ";
-        const selected = active.has(item.value) ? "●" : "○";
+        const cursor = index === cursorIndex ? terminalGlyph("›", ">") : " ";
+        const selected = active.has(item.value)
+          ? terminalGlyph("●", "*")
+          : terminalGlyph("○", "o");
         lines.push(`  ${cursor} ${selected} ${index + 1}. ${item.label}`);
       });
       renderedLines = writeRenderedLines(lines);
