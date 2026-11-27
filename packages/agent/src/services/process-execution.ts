@@ -6,6 +6,7 @@ import {
   runShell,
   type ShellResult,
 } from "@elizaos/agent/services/shell-execution-router";
+import { hostExecutableForRouter } from "./host-executable";
 
 export interface TextProcessResult {
   exitCode: number;
@@ -313,9 +314,10 @@ export async function runTextProcess(
     throw new TextProcessCancellationUnavailableError();
   }
 
+  const routedCommand = hostExecutableForRouter(command);
   if (options.abortSignal && capabilities.ownedCancellation) {
     return runOwnedTextProcess(
-      command,
+      routedCommand,
       args,
       options,
       process.platform === "win32"
@@ -325,7 +327,7 @@ export async function runTextProcess(
   }
 
   return runShell({
-    command,
+    command: routedCommand,
     args,
     cwd: options.cwd,
     env: definedEnvironment(options.env),
@@ -558,7 +560,7 @@ async function runAbortableHostProcess(
   options.abortSignal?.addEventListener("abort", abort, { once: true });
   try {
     const result = await runShell({
-      command: "/bin/sh",
+      command: hostExecutableForRouter("/bin/sh"),
       args: ["-c", ABORT_WRAPPER_SCRIPT, "doolittle-router", command, ...args],
       cwd: options.cwd,
       env: definedEnvironment(options.env),

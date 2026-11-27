@@ -1,7 +1,56 @@
+import { execFileSync } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
 import { delimiter, dirname, isAbsolute, join, parse } from "node:path";
 
 const fixtureVaultKey = randomBytes(32);
+
+const UTF8_LOCALE_CANDIDATES = ["C.UTF-8", "en_US.UTF-8"] as const;
+let detectedUtf8Locale: string | undefined;
+
+function normalizeLocaleName(name: string): string {
+  return name.trim().toLowerCase().replace(/-/gu, "");
+}
+
+function fallbackUtf8Locale(): string {
+  // Older macOS installations do not always expose C.UTF-8, while minimal
+  // Linux images often have C.UTF-8 without generated en_US locales.
+  return process.platform === "darwin" ? "en_US.UTF-8" : "C.UTF-8";
+}
+
+function detectUtf8Locale(): string {
+  if (detectedUtf8Locale) return detectedUtf8Locale;
+  let availableLocales: string[] = [];
+  try {
+    availableLocales = execFileSync("locale", ["-a"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).split(/\r?\n/u);
+  } catch {
+    // Windows and minimal containers may not ship the locale utility. The
+    // platform fallback below is still preferable to inheriting POSIX/C.
+  }
+  for (const candidate of UTF8_LOCALE_CANDIDATES) {
+    const normalizedCandidate = normalizeLocaleName(candidate);
+    const available = availableLocales.find(
+      (name) => normalizeLocaleName(name) === normalizedCandidate,
+    );
+    if (available) {
+      detectedUtf8Locale = available.trim();
+      return detectedUtf8Locale;
+    }
+  }
+  detectedUtf8Locale = fallbackUtf8Locale();
+  return detectedUtf8Locale;
+}
+
+/** Locale pins authoritative over the host for fixture child processes. */
+export function utf8LocaleEnvironment(): Pick<
+  NodeJS.ProcessEnv,
+  "LC_ALL" | "LANG"
+> {
+  const locale = detectUtf8Locale();
+  return { LC_ALL: locale, LANG: locale };
+}
 
 export function liveCodexModel() {
   return {
@@ -95,6 +144,9 @@ export function isolatedRuntimeEnvironment(
   }
   return {
     ...environment,
+    // Host LC_ALL/LANG are launch details, not credentials, but POSIX/C leaks
+    // change unicode width and terminal rendering. Pin UTF-8 deterministically.
+    ...utf8LocaleEnvironment(),
     // The fixture's private HOME has no Nub runtime cache. Reuse the trusted
     // Node already executing the tests instead of provisioning it per child.
     PATH: [dirname(process.execPath), environment.PATH]

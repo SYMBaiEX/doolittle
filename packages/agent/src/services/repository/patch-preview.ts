@@ -1,4 +1,5 @@
 import { resolveHostExecutable } from "@elizaos/host";
+import { resolveHostExecutableWithinBootAuthority } from "../host-executable";
 import {
   type TextProcessOptions,
   textProcessCapabilities,
@@ -16,7 +17,7 @@ export async function runGitPatchPreview(
   if (
     process.platform === "win32" ||
     !textProcessCapabilities().ownedCancellation ||
-    !resolveHostExecutable("/bin/sh")
+    !resolveHostExecutableWithinBootAuthority("/bin/sh")
   ) {
     return runner("git", args, options);
   }

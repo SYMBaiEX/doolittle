@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -55,6 +55,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((done) => setTimeout(done, ms));
 }
 
+async function waitUntil(
+  description: string,
+  condition: () => Promise<boolean> | boolean,
+  timeoutMs = 5_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await condition()) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`Timed out waiting for ${description}.`);
+    }
+    await new Promise((done) => setTimeout(done, 50));
+  }
+}
+
+async function waitForInputRowText(
+  session: TerminalSession,
+  text: string,
+): Promise<void> {
+  await waitUntil(`input row to contain ${JSON.stringify(text)}`, async () =>
+    Boolean((await session.gridLines())[INPUT_ROW]?.includes(text)),
+  );
+}
+
 function countExactLine(text: string, expected: string): number {
   return text.split(/\r?\n/u).filter((line) => line.trim() === expected).length;
 }
@@ -77,12 +101,16 @@ describe("cockpit input ownership and focus lifecycle", () => {
     await session.waitForGridText("run complete", 15_000);
     await session.waitForGridText("Enter send", 10_000);
 
-    // Transcript persistence is coalesced; give the trailing write a bounded moment.
-    await sleep(700);
-    const transcript = readFileSync(
-      resolve(fixture.data, "latest-transcript.txt"),
-      "utf8",
-    );
+    // Transcript persistence is coalesced; wait for the trailing write rather
+    // than guessing how long the coalescer needs under CPU contention.
+    const transcriptPath = resolve(fixture.data, "latest-transcript.txt");
+    await waitUntil("the coalesced transcript write", () => {
+      if (!existsSync(transcriptPath)) return false;
+      return (
+        countExactLine(readFileSync(transcriptPath, "utf8"), "!sleep 1") === 1
+      );
+    });
+    const transcript = readFileSync(transcriptPath, "utf8");
     expect(countExactLine(transcript, "!sleep 1")).toBe(1);
   }, 120_000);
 
@@ -103,15 +131,11 @@ describe("cockpit input ownership and focus lifecycle", () => {
     await session.waitForGridText("Enter send", 5_000);
 
     session.type("draftprobe");
-    await sleep(250);
-    const duringBusy = await session.gridLines();
-    expect(duringBusy[INPUT_ROW]).toContain("draftprobe");
+    await waitForInputRowText(session, "draftprobe");
 
     await session.waitForGridText("run complete", 15_000);
     await session.waitForGridText("Enter send", 10_000);
-    await sleep(250);
-    const afterReady = await session.gridLines();
-    expect(afterReady[INPUT_ROW]).toContain("draftprobe");
+    await waitForInputRowText(session, "draftprobe");
   }, 120_000);
 
   it("cycles pane focus with Tab and Shift-Tab, then scrolls Conversation", async () => {
@@ -144,12 +168,17 @@ describe("cockpit input ownership and focus lifecycle", () => {
     session.key("tab");
     await session.waitForGridText("scroll conversation", 5_000);
 
-    session.type(PAGE_DOWN);
-    await sleep(300);
-    const afterPageDown = conversationRegion(await session.gridLines());
+    const beforeScroll = conversationRegion(await session.gridLines());
     session.type(PAGE_UP);
-    await sleep(300);
+    await waitUntil("Conversation to scroll upward", async () => {
+      return conversationRegion(await session.gridLines()) !== beforeScroll;
+    });
     const afterPageUp = conversationRegion(await session.gridLines());
+    session.type(PAGE_DOWN);
+    await waitUntil("Conversation to scroll back down", async () => {
+      return conversationRegion(await session.gridLines()) !== afterPageUp;
+    });
+    const afterPageDown = conversationRegion(await session.gridLines());
     expect(afterPageUp).not.toBe(afterPageDown);
 
     // Bare q is deliberately inert on pane surfaces; exit remains explicit.
