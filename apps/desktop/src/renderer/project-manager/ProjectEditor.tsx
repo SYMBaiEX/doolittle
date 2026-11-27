@@ -4,7 +4,7 @@ import { Input } from "@elizaos/ui/input";
 import { X } from "lucide-react";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { UiIcon } from "../components/UiIcon";
-import { useDialogFocus } from "./dialog-focus";
+import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import {
   PROJECT_EDITOR_BACKDROP_CLASS,
   PROJECT_EDITOR_CLASS,
@@ -38,7 +38,15 @@ export function ProjectEditor({
   const dialogRef = useRef<HTMLFormElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
-  useDialogFocus(true, dialogRef, firstInput, onClose, false, backdropRef);
+  useModalFocusBoundary({
+    active: true,
+    dialogRef,
+    initialFocusRef: firstInput,
+    isolationBoundaryRef: backdropRef,
+    isolateBackground: true,
+    onClose,
+    restoreFocus: true,
+  });
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.name.trim()) return;

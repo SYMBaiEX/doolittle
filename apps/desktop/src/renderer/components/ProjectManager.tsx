@@ -2,7 +2,6 @@ import { Button } from "@doolittle/ui";
 import { Input } from "@elizaos/ui/input";
 import { Plus, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { useDialogFocus } from "../project-manager/dialog-focus";
 import {
   PROJECT_MANAGER_BACKDROP_CLASS,
   PROJECT_MANAGER_BODY_CLASS,
@@ -23,6 +22,7 @@ import { EmptyDetail, ProjectDetail } from "../project-manager/ProjectDetail";
 import { ProjectEditor } from "../project-manager/ProjectEditor";
 import { ProjectList } from "../project-manager/ProjectList";
 import { UiIcon } from "./UiIcon";
+import { useModalFocusBoundary } from "./useModalFocusBoundary";
 
 export function ProjectManager(props: ProjectManagerProps) {
   const {
@@ -63,14 +63,16 @@ export function ProjectManager(props: ProjectManagerProps) {
   const focusedResourceRef = useRef<HTMLLIElement>(null);
   const titleId = useId();
   const searchId = useId();
-  useDialogFocus(
-    isOpen,
+  useModalFocusBoundary({
+    active: isOpen,
     dialogRef,
-    closeButtonRef,
+    initialFocusRef: closeButtonRef,
+    isolationBoundaryRef: backdropRef,
+    isolateBackground: true,
     onClose,
-    Boolean(editing),
-    backdropRef,
-  );
+    restoreFocus: true,
+    suspended: Boolean(editing),
+  });
 
   useEffect(() => {
     if (!isOpen) {
