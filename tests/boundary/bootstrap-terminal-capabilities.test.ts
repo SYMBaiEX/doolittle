@@ -125,6 +125,16 @@ describe("bootstrap line-mode output wiring", () => {
     expect(rendered).toContain("╔");
   });
 
+  it("prints the banner once even when invoked repeatedly", () => {
+    process.env.LC_ALL = "C.UTF-8";
+    const output = createBootstrapOutput(() => null);
+    const rendered = captureLogs(() => {
+      output.banner();
+      output.banner();
+    });
+    expect(rendered.split("DOOLITTLE // AWAKENING")).toHaveLength(2);
+  });
+
   it("marks sections with an ASCII bullet in a non-UTF-8 locale", () => {
     process.env.LC_ALL = "C";
     const output = createBootstrapOutput(() => null);
