@@ -155,13 +155,14 @@ export function DesktopSettingsPanel({
               >
                 Check for updates
               </WorkbenchAction>
-              {update?.phase === "available" ? (
+              {update?.phase === "available" ||
+              (update?.phase === "error" && update.version) ? (
                 <WorkbenchAction
                   disabled={updateBusy}
                   icon={Download}
                   onClick={onDownloadUpdate}
                 >
-                  Download
+                  {update?.phase === "error" ? "Retry download" : "Download"}
                 </WorkbenchAction>
               ) : null}
               {update?.phase === "downloaded" ? (
