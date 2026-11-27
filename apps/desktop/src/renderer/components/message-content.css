@@ -18,26 +18,50 @@
   letter-spacing: -0.018em;
 }
 
+/* A consistent ~1.2 step between levels keeps the hierarchy legible at
+ * conversation text sizes; the previous 1.38/1.22/1.09 scale compressed
+ * adjacent levels to within ~12% of each other. */
 .chat-message-prose h1 {
-  font-size: 1.38em;
+  font-size: 1.58em;
 }
 
 .chat-message-prose h2 {
-  font-size: 1.22em;
+  font-size: 1.32em;
 }
 
 .chat-message-prose h3 {
-  font-size: 1.09em;
+  font-size: 1.1em;
 }
 
 .chat-message-prose :is(h4, h5, h6) {
   font-size: 1em;
 }
 
+/*
+ * Tailwind's preflight zeroes list-style, and the streamdown list elements
+ * rely on utility classes that are not generated for unordered lists, so the
+ * marker types are declared here rather than inherited from the utilities.
+ */
 .chat-message-prose :is(ul, ol) {
   margin-block: 0.7em;
   padding-inline-start: 1.4em;
   list-style-position: outside;
+}
+
+.chat-message-prose ul {
+  list-style-type: disc;
+}
+
+.chat-message-prose ul ul {
+  list-style-type: circle;
+}
+
+.chat-message-prose ul ul ul {
+  list-style-type: square;
+}
+
+.chat-message-prose ol {
+  list-style-type: decimal;
 }
 
 .chat-message-prose li {
@@ -72,14 +96,15 @@
   text-decoration-color: currentColor;
 }
 
+/*
+ * No block padding or borders: the first and last child margins collapse
+ * through the quote, so the accent bar hugs the quoted text exactly.
+ */
 .chat-message-prose blockquote {
   margin-block: 0.9em;
   margin-inline: 0;
-  border: 1px solid var(--border);
-  border-inline-start: 2px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  padding: 0.2em 0.8em;
-  background: var(--surface-soft);
+  border-inline-start: 3px solid var(--border-strong);
+  padding-inline: 0.9em 0.4em;
   color: var(--text-soft);
   font-style: normal;
 }

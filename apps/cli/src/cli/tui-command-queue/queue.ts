@@ -68,6 +68,7 @@ export function installTuiCommandQueue(
         context: options.context,
         state: options.state,
         line,
+        kind,
         result,
         appendActivity: options.appendActivity,
         pushResponseEntry: options.pushResponseEntry,
@@ -116,7 +117,15 @@ export function installTuiCommandQueue(
         options.isConversationalInput,
       );
       if (historyLabel) {
-        options.pushResponseEntry(historyLabel, trimmed);
+        options.pushResponseEntry(historyLabel, trimmed, {
+          captureToolTrace: false,
+          kind:
+            historyLabel === "You"
+              ? "user"
+              : historyLabel === "Shell"
+                ? "shell"
+                : "command",
+        });
       }
       pendingCommands.push(trimmed);
       options.queueState.queueDepth = pendingCommands.length;

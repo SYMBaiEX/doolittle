@@ -28,10 +28,8 @@ export function buildLiveResponse(input: {
     at: nowStamp(),
     kind: input.kind,
     pending: input.pending,
-    liveActivity:
-      input.liveToolTrail.length > 0
-        ? input.liveToolTrail.slice(-4)
-        : undefined,
+    toolTrace:
+      input.liveToolTrail.length > 0 ? [...input.liveToolTrail] : undefined,
   };
 }
 

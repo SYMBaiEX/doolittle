@@ -266,7 +266,7 @@ function AutomationDetail({
         secondary={
           <>
             <button
-              className="text-button"
+              className="secondary-button"
               disabled={Boolean(busy)}
               onClick={() =>
                 void onAction(id, status === "paused" ? "resume" : "pause")
@@ -276,7 +276,7 @@ function AutomationDetail({
               {status === "paused" ? "Resume" : "Pause"}
             </button>
             <button
-              className="text-button danger-text-button"
+              className="danger-button"
               disabled={Boolean(busy)}
               onClick={() => setConfirmDelete(true)}
               ref={deleteButtonRef}
@@ -483,7 +483,7 @@ export function AutomationWorkspace({
                     status={titleCase(status)}
                     time={automationTimingLabel(entry, status)}
                     title={name}
-                    tone={statusTier(status)}
+                    tone={status === "paused" ? "muted" : statusTier(status)}
                   />
                 );
               })}

@@ -12,6 +12,7 @@ export function createTuiTranscriptController(
   const responseHistory: ResponseTranscriptEntry[] = [];
   let liveResponse: ResponseTranscriptEntry | undefined;
   let liveToolTrail: string[] = [];
+  let expandBodies = false;
 
   const renderResponsePane = () => {
     renderTranscriptPane({
@@ -19,8 +20,18 @@ export function createTuiTranscriptController(
       responseHistory,
       liveResponse,
       transcriptExportPath: options.transcriptExportPath,
+      expandBodies,
     });
   };
+
+  options.responsePane.key?.(["+"], () => {
+    if (options.responsePane.focused === false) {
+      return;
+    }
+    expandBodies = !expandBodies;
+    renderResponsePane();
+    options.scheduleRefreshPanels(0);
+  });
 
   const setLiveResponse = (
     label: string,
@@ -68,15 +79,25 @@ export function createTuiTranscriptController(
       // Entries are retained for the whole session: the transcript export and
       // viewport scrollback must both reach back to the first message. The
       // previous 48-entry splice silently destroyed older history everywhere.
+      const captureToolTrace = entryOptions?.captureToolTrace !== false;
+      const toolTrace =
+        captureToolTrace && liveToolTrail.length > 0
+          ? [...liveToolTrail]
+          : undefined;
       responseHistory.push({
         label,
         body,
         at: nowStamp(),
         elapsed: entryOptions?.elapsed,
-        kind: resolveTranscriptEntryKind(label),
+        kind: entryOptions?.kind ?? resolveTranscriptEntryKind(label),
+        tone: entryOptions?.tone,
+        status: entryOptions?.status,
+        toolTrace,
       });
-      liveToolTrail = [];
-      liveResponse = undefined;
+      if (captureToolTrace) {
+        liveToolTrail = [];
+        liveResponse = undefined;
+      }
       renderResponsePane();
     },
     setLiveResponse,
@@ -86,9 +107,6 @@ export function createTuiTranscriptController(
         return;
       }
       liveToolTrail.push(nextLine);
-      if (liveToolTrail.length > 6) {
-        liveToolTrail = liveToolTrail.slice(-6);
-      }
       refreshLiveResponse();
     },
     refreshLiveResponse,

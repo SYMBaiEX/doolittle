@@ -64,10 +64,12 @@ export function createPlainEntryWriter(options: PlainEntryWriterOptions): {
     responseHistory.push(entry);
     persistTranscript(responseHistory);
     if (!interactiveShell) {
-      output.write(`${entry.body.trim()}\n`);
+      output.write(`\n${renderPlainEntry(entry, tone, { ansi: false })}\n\n`);
       return;
     }
-    output.write(`\n${renderPlainEntry(entry, tone)}\n\n`);
+    output.write(
+      `\n${renderPlainEntry(entry, tone, { collapseTrace: true, viewport: true })}\n\n`,
+    );
   };
 
   return { pushPlainEntry, persistTranscript };

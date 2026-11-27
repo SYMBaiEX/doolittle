@@ -24,6 +24,10 @@ import {
 } from "../lib";
 import { compactSessionPreview } from "../session-preview";
 import {
+  SessionAttentionMark,
+  useSessionAttention,
+} from "../use-session-attention";
+import {
   SESSION_LIST_HEADER_CLASS,
   SESSION_LIST_PANEL_CLASS,
   SESSION_ROW_CLASS,
@@ -51,6 +55,7 @@ export function SessionListPanel({
   onSelect: (session: SessionSummary) => void;
 }) {
   const [query, setQuery] = useState("");
+  const attentionFor = useSessionAttention();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState({ key: "", limit: SESSION_LIST_PAGE_SIZE });
   const debouncedQuery = useDebouncedValue(query.trim());
@@ -150,98 +155,113 @@ export function SessionListPanel({
           aria-label="Conversations"
           className="overflow-auto overscroll-contain [scrollbar-gutter:stable]"
         >
-          {sessionWindow.visible.map((session) => (
-            <ContextActionMenu
-              className="group relative flex min-w-0 items-center"
-              items={[
-                {
-                  id: "preview",
-                  label: "Preview conversation",
-                  onSelect: () => onSelect(session),
-                },
-                ...(onOpenSession
-                  ? [
-                      {
-                        id: "open",
-                        label: "Open in workspace",
-                        disabled: !active,
-                        onSelect: () => onOpenSession(session.sessionId),
-                      },
-                    ]
-                  : []),
-                {
-                  id: "copy-title",
-                  label: "Copy conversation title",
-                  disabled: !session.title,
-                  separatorBefore: true,
-                  onSelect: () => void copyContextText(session.title || ""),
-                },
-                {
-                  id: "copy-id",
-                  label: "Copy conversation ID",
-                  onSelect: () => void copyContextText(session.sessionId),
-                },
-              ]}
-              key={session.sessionId}
-              label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
-              scopeKey={`conversation:${session.sessionId}`}
-              trigger={
-                <button
-                  aria-label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
-                  className="absolute top-1/2 right-1 z-10 grid size-10 shrink-0 -translate-y-1/2 place-items-center rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
-                  type="button"
-                >
-                  <UiIcon icon={MoreHorizontal} size="sm" />
-                </button>
-              }
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
+          {sessionWindow.visible.map((session) => {
+            const attention = attentionFor(session.sessionId);
+            return (
+              <ContextActionMenu
+                className="group relative flex min-w-0 items-center"
+                items={[
+                  {
+                    id: "preview",
+                    label: "Preview conversation",
+                    onSelect: () => onSelect(session),
+                  },
+                  ...(onOpenSession
+                    ? [
+                        {
+                          id: "open",
+                          label: "Open in workspace",
+                          disabled: !active,
+                          onSelect: () => onOpenSession(session.sessionId),
+                        },
+                      ]
+                    : []),
+                  {
+                    id: "copy-title",
+                    label: "Copy conversation title",
+                    disabled: !session.title,
+                    separatorBefore: true,
+                    onSelect: () => void copyContextText(session.title || ""),
+                  },
+                  {
+                    id: "copy-id",
+                    label: "Copy conversation ID",
+                    onSelect: () => void copyContextText(session.sessionId),
+                  },
+                ]}
+                key={session.sessionId}
+                label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
+                scopeKey={`conversation:${session.sessionId}`}
+                trigger={
                   <button
-                    className={`${SESSION_ROW_CLASS} min-w-0 flex-1 ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
-                    aria-current={
-                      selectedId === session.sessionId ? "true" : undefined
-                    }
-                    data-session-row="true"
-                    onClick={() => onSelect(session)}
+                    aria-label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
+                    className="absolute top-1/2 right-1 z-10 grid size-10 shrink-0 -translate-y-1/2 place-items-center rounded-[var(--radius-md)] bg-[var(--surface)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
                     type="button"
                   >
-                    <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
-                      <strong>
-                        {compactSessionPreview(session.title || "") ||
-                          compactSessionPreview(session.preview?.[0] || "") ||
-                          "Untitled conversation"}
-                      </strong>
-                      <small>
-                        {compactSessionPreview(session.preview?.[0] || "") ||
-                          session.sessionId}
-                      </small>
-                    </span>
-                    <span className="grid shrink-0 justify-items-end gap-0.5 @max-[300px]/sessions:grid-flow-col @max-[300px]/sessions:justify-start @max-[300px]/sessions:justify-items-start @max-[300px]/sessions:gap-x-2 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
-                      <small>{session.messageCount} messages</small>
-                      <small>{displayTimestamp(session.endedAt)}</small>
-                    </span>
+                    <UiIcon icon={MoreHorizontal} size="sm" />
                   </button>
-                </TooltipTrigger>
-                <TooltipContent
-                  className="dl-tooltip-content chat-history-tooltip"
-                  collisionPadding={12}
-                  side="right"
-                  sideOffset={12}
-                >
-                  <span className="chat-history-tooltip-title">
-                    {compactSessionPreview(session.title || "") ||
-                      compactSessionPreview(session.preview?.[0] || "") ||
-                      "Untitled conversation"}
-                  </span>
-                  <span className="chat-history-tooltip-meta">
-                    {session.messageCount}{" "}
-                    {session.messageCount === 1 ? "message" : "messages"}
-                  </span>
-                </TooltipContent>
-              </Tooltip>
-            </ContextActionMenu>
-          ))}
+                }
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className={`${SESSION_ROW_CLASS} min-w-0 flex-1 ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
+                      aria-current={
+                        selectedId === session.sessionId ? "true" : undefined
+                      }
+                      data-session-row="true"
+                      onClick={() => onSelect(session)}
+                      type="button"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <SessionAttentionMark attention={attention} />
+                        <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
+                          <strong>
+                            {compactSessionPreview(session.title || "") ||
+                              compactSessionPreview(
+                                session.preview?.[0] || "",
+                              ) ||
+                              "Untitled conversation"}
+                          </strong>
+                          <small>
+                            {compactSessionPreview(
+                              session.preview?.[0] || "",
+                            ) || session.sessionId}
+                          </small>
+                        </span>
+                      </span>
+                      <span className="grid shrink-0 justify-items-end gap-0.5 @max-[300px]/sessions:grid-flow-col @max-[300px]/sessions:justify-start @max-[300px]/sessions:justify-items-start @max-[300px]/sessions:gap-x-2 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
+                        <small>{session.messageCount} messages</small>
+                        <small>{displayTimestamp(session.endedAt)}</small>
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    className="dl-tooltip-content chat-history-tooltip"
+                    collisionPadding={12}
+                    side="right"
+                    sideOffset={12}
+                  >
+                    <span className="chat-history-tooltip-title">
+                      {compactSessionPreview(session.title || "") ||
+                        compactSessionPreview(session.preview?.[0] || "") ||
+                        "Untitled conversation"}
+                    </span>
+                    {attention.kind !== "idle" ? (
+                      <span className="chat-history-tooltip-detail">
+                        <SessionAttentionMark attention={attention} />
+                        <span>{attention.label}</span>
+                      </span>
+                    ) : null}
+                    <span className="chat-history-tooltip-meta">
+                      {session.messageCount}{" "}
+                      {session.messageCount === 1 ? "message" : "messages"}
+                    </span>
+                  </TooltipContent>
+                </Tooltip>
+              </ContextActionMenu>
+            );
+          })}
           {!filtered.length &&
           (!searchPath ||
             (searchMatchesQuery && !search.loading && !search.error)) ? (

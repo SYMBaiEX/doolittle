@@ -1,6 +1,7 @@
 import { asciiActivityBadge, toneTag } from "./activity-chrome";
 import type { CliExecutionResult, CliState } from "./execution";
 import { escapeBlessed } from "./render-utils";
+import { formatClockTime } from "./terminal-presentation";
 import { truncate } from "./text-utils";
 
 type ActivityTone = CliExecutionResult["tone"];
@@ -38,7 +39,7 @@ export function createTuiActivityFeed(options: CreateTuiActivityFeedOptions) {
     tone: ActivityTone,
   ): void {
     options.activityPane.log(
-      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {gray-fg}${escapeBlessed(asciiActivityBadge(kind))}{/} {bold}${escapeBlessed(kind)}{/bold} ${escapeBlessed(message)}`,
+      `{gray-fg}${formatClockTime()}{/} ${toneTag(tone)} {gray-fg}${escapeBlessed(asciiActivityBadge(kind))}{/} {bold}${escapeBlessed(kind)}{/bold} ${escapeBlessed(message)}`,
     );
   }
 
@@ -56,7 +57,7 @@ export function createTuiActivityFeed(options: CreateTuiActivityFeedOptions) {
     options.state.notices.unshift({
       kind,
       message: trimmed,
-      at: nowStamp(),
+      at: formatClockTime(),
     });
     if (options.state.notices.length > 6) {
       options.state.notices.splice(6);
@@ -145,12 +146,4 @@ export function createTuiActivityFeed(options: CreateTuiActivityFeedOptions) {
     routeForeignActivity,
     dispose,
   };
-}
-
-function nowStamp(): string {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }

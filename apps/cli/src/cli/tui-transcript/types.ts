@@ -6,6 +6,8 @@ export interface TuiResponsePane {
   setContent(content: string): void;
   getScrollPerc(): number;
   setScrollPerc(percent: number): void;
+  focused?: boolean;
+  key?(keys: string | string[], listener: () => void): void;
 }
 
 export interface TuiTranscriptOptions {
@@ -30,7 +32,13 @@ export interface TuiTranscriptController {
   pushResponseEntry(
     label: string,
     body: string,
-    options?: { elapsed?: string },
+    options?: {
+      elapsed?: string;
+      captureToolTrace?: boolean;
+      kind?: ResponseTranscriptEntry["kind"];
+      tone?: ResponseTranscriptEntry["tone"];
+      status?: ResponseTranscriptEntry["status"];
+    },
   ): void;
   refreshLiveResponse(): void;
   setLiveResponse(

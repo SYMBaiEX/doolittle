@@ -157,10 +157,16 @@ describe("review comment save guard", () => {
     await flush();
     if (!host) throw new Error("Review page host is missing.");
 
-    const addLineButton = host.querySelector<HTMLButtonElement>(
-      '[aria-label="Add review note on new line 1"]',
+    const addLineButton = await vi.waitFor(
+      () => {
+        const button = host.querySelector<HTMLButtonElement>(
+          '[aria-label="Add review note on new line 1"]',
+        );
+        if (!button) throw new Error("Patch line comment button missing.");
+        return button;
+      },
+      { timeout: 5000 },
     );
-    if (!addLineButton) throw new Error("Patch line comment button missing.");
     act(() => addLineButton.click());
     await flush();
 

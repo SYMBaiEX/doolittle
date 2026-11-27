@@ -42,7 +42,13 @@ export interface TuiCommandQueueOptions {
   pushResponseEntry: (
     label: string,
     body: string,
-    options?: { elapsed?: string },
+    options?: {
+      elapsed?: string;
+      captureToolTrace?: boolean;
+      kind?: ResponseTranscriptEntry["kind"];
+      tone?: ResponseTranscriptEntry["tone"];
+      status?: ResponseTranscriptEntry["status"];
+    },
   ) => void;
   pushNotice: (kind: "context" | "skills" | "status", message: string) => void;
   scheduleRefreshPanels: (delayMs?: number) => void;

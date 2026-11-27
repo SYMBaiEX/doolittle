@@ -43,6 +43,27 @@
   padding: 10px 12px;
 }
 
+/* Selected workflow mode uses the same quiet filled-row idiom as other
+   persistent selections, plus a neutral check so the state does not depend on
+   font weight alone. */
+.orchestration-mode-grid button {
+  position: relative;
+}
+
+.orchestration-mode-grid button.selected {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.orchestration-mode-grid__check {
+  position: absolute;
+  inset-block-start: 7px;
+  inset-inline-end: 8px;
+  color: var(--text);
+  pointer-events: none;
+}
+
 /* Mono evidence blocks inside cards and collapsed diagnostics. */
 .orchestration-run-detail .ws-card > pre,
 .orchestration-run-detail .ws-disclosure > pre {

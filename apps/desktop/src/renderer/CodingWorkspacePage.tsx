@@ -704,8 +704,18 @@ export function CodingWorkspacePage({
         message:
           "The workspace copy changed after you opened it. Your edits are preserved — choose Overwrite or Reload above the editor.",
       });
-    } catch {
-      setFileNotice({ tone: "bad", message: conflictMessage });
+    } catch (error) {
+      // Missing or temporarily unreadable files cannot be rebased. Keep the
+      // original compare-and-swap baseline intact and still make the operator
+      // choose explicitly; only that choice may recreate a deleted file.
+      setFileConflicts((current) => new Set(current).add(path));
+      const detail = errorMessage(error);
+      setFileNotice({
+        tone: "warn",
+        message: detail
+          ? `The workspace copy could not be reloaded (${detail}). Your edits are preserved — choose Overwrite or Reload above the editor.`
+          : `${conflictMessage} Your edits are preserved — choose Overwrite or Reload above the editor.`,
+      });
     }
   };
 
@@ -741,6 +751,7 @@ export function CodingWorkspacePage({
         path: selectedPath,
         content: draftContent,
         expectedContent: originalContent,
+        ...(overwriteConflict ? { overwrite: true } : {}),
       });
       if (result.status === "cancelled") {
         setFileNotice({

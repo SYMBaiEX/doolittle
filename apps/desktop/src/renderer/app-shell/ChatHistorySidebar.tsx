@@ -30,6 +30,11 @@ import {
   type ConversationPins,
   safeSetStorageItem,
 } from "../conversation-persistence";
+import type { SessionAttention } from "../session-attention";
+import {
+  SessionAttentionMark,
+  useSessionAttention,
+} from "../use-session-attention";
 import "./chat-history-sidebar.css";
 
 export interface ChatHistoryProject {
@@ -213,6 +218,7 @@ function ChatHistoryRow({
   project,
   current,
   pinned,
+  attention,
   open,
   togglePin,
   register,
@@ -221,6 +227,7 @@ function ChatHistoryRow({
   project: string;
   current: boolean;
   pinned: boolean;
+  attention: SessionAttention;
   open: () => void;
   togglePin: () => void;
   register: (element: HTMLButtonElement | null) => void;
@@ -274,6 +281,7 @@ function ChatHistoryRow({
             ref={register}
             type="button"
           >
+            <SessionAttentionMark attention={attention} />
             <span className="chat-history-row-title">{title}</span>
             {pinned || session.conversationKind === "group" ? (
               <UiIcon icon={pinned ? Pin : MessagesSquare} size="xs" />
@@ -287,6 +295,12 @@ function ChatHistoryRow({
           sideOffset={34}
         >
           <span className="chat-history-tooltip-title">{title}</span>
+          {attention.kind !== "idle" ? (
+            <span className="chat-history-tooltip-detail">
+              <SessionAttentionMark attention={attention} />
+              <span>{attention.label}</span>
+            </span>
+          ) : null}
           <span className="chat-history-tooltip-detail">
             <UiIcon icon={Folder} size="xs" />
             <span>{project}</span>
@@ -321,6 +335,7 @@ export function ChatHistorySidebar({
   onOpenSession,
 }: ChatHistorySidebarProps) {
   const { pinnedSessions, togglePin } = useConversationPins();
+  const attentionFor = useSessionAttention();
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const pendingFocus = useRef<string>(undefined);
   const rowButtons = useRef(new Map<string, HTMLButtonElement>());
@@ -379,6 +394,7 @@ export function ChatHistorySidebar({
   const renderRows = (rows: readonly SessionSummary[], pinned = false) =>
     rows.map((session) => (
       <ChatHistoryRow
+        attention={attentionFor(session.sessionId)}
         current={session.sessionId === selectedSession}
         key={session.sessionId}
         open={() => onOpenSession(session.sessionId)}

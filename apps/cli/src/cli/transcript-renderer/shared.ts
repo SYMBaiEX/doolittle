@@ -41,6 +41,51 @@ export function renderBlessedRoleTag(
   }
 }
 
+export function renderBlessedGutter(
+  kind?: ResponseTranscriptEntry["kind"],
+): string {
+  switch (kind) {
+    case "user":
+      return "{yellow-fg}│{/}";
+    case "assistant":
+      return "{cyan-fg}│{/}";
+    case "shell":
+      return "{green-fg}│{/}";
+    case "command":
+      return "{magenta-fg}│{/}";
+    default:
+      return "{gray-fg}│{/}";
+  }
+}
+
+export function indentBlessedTranscriptBlock(
+  block: string,
+  kind?: ResponseTranscriptEntry["kind"],
+): string {
+  if (!block) {
+    return block;
+  }
+  const gutter = renderBlessedGutter(kind);
+  return block
+    .split("\n")
+    .map((line) => `${gutter} ${line}`)
+    .join("\n");
+}
+
+export function isTranscriptTurnStart(entry: ResponseTranscriptEntry): boolean {
+  const body = entry.body.trimStart();
+  if (entry.kind === "user") {
+    return true;
+  }
+  if (entry.kind === "shell") {
+    return entry.label === "Shell" && body.startsWith("!");
+  }
+  if (entry.kind === "command") {
+    return entry.label === "Command" && body.startsWith("/");
+  }
+  return false;
+}
+
 export function renderPlainRoleLabel(
   kind?: ResponseTranscriptEntry["kind"],
 ): string {
@@ -81,10 +126,37 @@ export function renderPlainBody(entry: ResponseTranscriptEntry): string {
   return entry.pending ? "thinking..." : "waiting...";
 }
 
-export function renderBlessedBody(entry: ResponseTranscriptEntry): string {
+const VIEWPORT_BODY_PREVIEW_LINES = 12;
+const VIEWPORT_BODY_FOLD_THRESHOLD = 48;
+
+function foldViewportBody(body: string): {
+  body: string;
+  hiddenCount: number;
+} {
+  const lines = body.split("\n");
+  if (lines.length <= VIEWPORT_BODY_FOLD_THRESHOLD) {
+    return { body, hiddenCount: 0 };
+  }
+  const preview = lines.slice(-VIEWPORT_BODY_PREVIEW_LINES).join("\n");
+  return {
+    body: preview,
+    hiddenCount: lines.length - VIEWPORT_BODY_PREVIEW_LINES,
+  };
+}
+
+export function renderBlessedBody(
+  entry: ResponseTranscriptEntry,
+  options: { expandBody?: boolean } = {},
+): string {
   const safeBody = sanitizeTranscriptBody(entry.body);
   if (safeBody.trim()) {
-    return escapeBlessed(safeBody);
+    const folded = options.expandBody
+      ? { body: safeBody, hiddenCount: 0 }
+      : foldViewportBody(safeBody);
+    const body = escapeBlessed(folded.body);
+    return folded.hiddenCount > 0
+      ? `{gray-fg}… ${folded.hiddenCount} more lines · + expands{/}\n${body}`
+      : body;
   }
   return entry.pending ? "{gray-fg}thinking…{/}" : "{gray-fg}waiting…{/}";
 }
@@ -101,6 +173,51 @@ export function renderNormalizedLabel(label: string): string {
   });
 }
 
+function resolveSeverityTone(
+  entry: ResponseTranscriptEntry,
+): "error" | "warning" | "success" | undefined {
+  if (
+    entry.tone === "error" ||
+    entry.tone === "warning" ||
+    entry.tone === "success"
+  ) {
+    return entry.tone;
+  }
+  if (entry.status === "failed") {
+    return "error";
+  }
+  if (entry.status === "cancelled") {
+    return "warning";
+  }
+  return undefined;
+}
+
+export function renderBlessedSeverity(entry: ResponseTranscriptEntry): string {
+  switch (resolveSeverityTone(entry)) {
+    case "error":
+      return "{red-fg}error{/}";
+    case "warning":
+      return "{yellow-fg}warn{/}";
+    case "success":
+      return "{green-fg}done{/}";
+    default:
+      return "";
+  }
+}
+
+export function renderPlainSeverity(entry: ResponseTranscriptEntry): string {
+  switch (resolveSeverityTone(entry)) {
+    case "error":
+      return "error";
+    case "warning":
+      return "warn";
+    case "success":
+      return "done";
+    default:
+      return "";
+  }
+}
+
 export function renderPlainCustomLabel(entry: ResponseTranscriptEntry): string {
   return entry.label && !RESERVED_LABELS.has(entry.label)
     ? ` ${renderNormalizedLabel(entry.label)}`
@@ -115,25 +232,65 @@ export function renderBlessedCustomLabel(
     : "";
 }
 
-export function renderPlainLiveActivity(
-  entry: ResponseTranscriptEntry,
-): string {
-  return entry.liveActivity && entry.liveActivity.length > 0
-    ? `\n[live activity]\n${entry.liveActivity
-        .map((line) => sanitizeTerminalText(line))
-        .join("\n")}`
-    : "";
+const LIVE_TRACE_PREVIEW_LINES = 4;
+const COMPLETED_TRACE_PREVIEW_LINES = 3;
+
+function sanitizeToolTrace(entry: ResponseTranscriptEntry): string[] {
+  return (entry.toolTrace ?? []).map((line) => sanitizeTerminalText(line));
 }
 
-export function renderBlessedLiveActivity(
+function collapsedToolTrace(entry: ResponseTranscriptEntry): {
+  hiddenCount: number;
+  lines: string[];
+  totalCount: number;
+} {
+  const trace = sanitizeToolTrace(entry);
+  const previewLines = entry.pending
+    ? LIVE_TRACE_PREVIEW_LINES
+    : COMPLETED_TRACE_PREVIEW_LINES;
+  const lines = trace.slice(-previewLines);
+  return {
+    hiddenCount: trace.length - lines.length,
+    lines,
+    totalCount: trace.length,
+  };
+}
+
+function traceCountLabel(count: number): string {
+  return `${count} event${count === 1 ? "" : "s"}`;
+}
+
+export function renderPlainToolTrace(
   entry: ResponseTranscriptEntry,
+  options: { collapsed?: boolean } = {},
 ): string {
-  return entry.liveActivity && entry.liveActivity.length > 0
-    ? [
-        "{gray-fg}activity{/}",
-        ...entry.liveActivity.map((line) =>
-          escapeBlessed(sanitizeTerminalText(line)),
-        ),
-      ].join("\n")
-    : "";
+  const trace = sanitizeToolTrace(entry);
+  if (!trace.length) {
+    return "";
+  }
+  if (!options.collapsed) {
+    return `\n[tool trace · ${traceCountLabel(trace.length)}]\n${trace.join("\n")}`;
+  }
+  const collapsed = collapsedToolTrace(entry);
+  return [
+    `[tool trace · ${traceCountLabel(collapsed.totalCount)}]`,
+    ...collapsed.lines.map((line) => `  ${line}`),
+    ...(collapsed.hiddenCount > 0
+      ? [`  … ${collapsed.hiddenCount} earlier events in export`]
+      : []),
+  ].join("\n");
+}
+
+export function renderBlessedToolTrace(entry: ResponseTranscriptEntry): string {
+  const collapsed = collapsedToolTrace(entry);
+  if (!collapsed.totalCount) {
+    return "";
+  }
+  return [
+    `{gray-fg}activity · ${traceCountLabel(collapsed.totalCount)}{/}`,
+    ...collapsed.lines.map((line) => escapeBlessed(line)),
+    ...(collapsed.hiddenCount > 0
+      ? [`{gray-fg}… ${collapsed.hiddenCount} earlier events in export{/}`]
+      : []),
+  ].join("\n");
 }

@@ -8,6 +8,7 @@ import {
   renderResponsesContent,
   renderSuggestionsContent,
 } from "../../control-deck/index";
+import { resolveControlDeckContentWidth } from "../../control-deck/width";
 import { macAwareKeyLabel } from "../../terminal-labels";
 import { installTuiControlDeck } from "../../tui-control-deck";
 import { renderFooter } from "../../tui-renderers";
@@ -40,6 +41,11 @@ export function createTuiStartControlDeck({
     inputBox,
     paletteList,
   } = widgets;
+  const controlDeckContentWidth = () =>
+    resolveControlDeckContentWidth(
+      assistBox.width,
+      typeof screen.width === "number" ? screen.width : 80,
+    );
 
   return installTuiControlDeck({
     screen,
@@ -69,18 +75,22 @@ export function createTuiStartControlDeck({
         context.config.workspaceDir,
         value,
         getActiveTheme(),
+        controlDeckContentWidth(),
       ),
     renderNonAssistControlDeckContent: async (mode) => {
       if (mode === "ecosystem") {
-        return await renderEcosystemContent(context);
+        return await renderEcosystemContent(context, controlDeckContentWidth());
       }
       if (mode === "gateway") {
-        return await renderGatewayOpsContent(context);
+        return await renderGatewayOpsContent(
+          context,
+          controlDeckContentWidth(),
+        );
       }
       if (mode === "responses") {
-        return renderResponsesContent(context);
+        return renderResponsesContent(context, controlDeckContentWidth());
       }
-      return renderJobsContent(context);
+      return renderJobsContent(context, controlDeckContentWidth());
     },
   });
 }

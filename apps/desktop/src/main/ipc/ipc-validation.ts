@@ -488,6 +488,9 @@ export function validateWorkspaceFileSaveRequest(
       "File content and its expected prior content are required.",
     );
   }
+  if (value.overwrite !== undefined && typeof value.overwrite !== "boolean") {
+    throw new Error("The workspace overwrite flag must be a boolean.");
+  }
   const contentBytes = new TextEncoder().encode(value.content).byteLength;
   const expectedContentBytes = new TextEncoder().encode(
     value.expectedContent,
@@ -504,6 +507,7 @@ export function validateWorkspaceFileSaveRequest(
     path,
     content: value.content,
     expectedContent: value.expectedContent,
+    ...(value.overwrite === undefined ? {} : { overwrite: value.overwrite }),
   };
   if (
     serializedByteLength(request) >

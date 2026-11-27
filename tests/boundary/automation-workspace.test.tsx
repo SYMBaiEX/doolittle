@@ -57,10 +57,16 @@ it("keeps automation timing in the row time slot with all detail actions", () =>
       ".automation-detail-column .ws-actions",
     );
     expect(
-      [...(actionBar?.querySelectorAll("button") ?? [])].map(
-        (entry) => entry.textContent,
-      ),
-    ).toEqual(["Run now", "Edit", "Pause", "Delete"]);
+      [...(actionBar?.querySelectorAll("button") ?? [])].map((entry) => [
+        entry.textContent,
+        entry.className,
+      ]),
+    ).toEqual([
+      ["Run now", "primary-button"],
+      ["Edit", "secondary-button"],
+      ["Pause", "secondary-button"],
+      ["Delete", "danger-button"],
+    ]);
   } finally {
     act(() => root.unmount());
     host.remove();
@@ -104,14 +110,17 @@ function workspaceProps() {
   };
 }
 
-function renderWorkspace(host: HTMLDivElement) {
+function renderWorkspace(
+  host: HTMLDivElement,
+  props: ReturnType<typeof workspaceProps> = workspaceProps(),
+) {
   const reactEnvironment = globalThis as {
     IS_REACT_ACT_ENVIRONMENT?: boolean;
   };
   const previousAct = reactEnvironment.IS_REACT_ACT_ENVIRONMENT;
   reactEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
   const root = createRoot(host);
-  act(() => root.render(<AutomationWorkspace {...workspaceProps()} />));
+  act(() => root.render(<AutomationWorkspace {...props} />));
   return {
     root,
     restore() {
@@ -135,6 +144,30 @@ function mockContainerWidth(width: number) {
     }
   };
 }
+
+it("uses distinct row status tiers for active and paused automations", () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const props = workspaceProps();
+  props.jobs[1] = { ...props.jobs[1], status: "paused" };
+  const { root, restore } = renderWorkspace(host, props);
+  try {
+    const rows = [...host.querySelectorAll(".ws-rail .ws-row")];
+    expect(
+      rows[0]?.querySelector(".ws-row__mark")?.getAttribute("data-tier"),
+    ).toBe("active");
+    expect(
+      rows[1]?.querySelector(".ws-row__mark")?.getAttribute("data-tier"),
+    ).toBe("muted");
+    expect(
+      rows[1]?.querySelector(".ws-row__status")?.getAttribute("data-tier"),
+    ).toBe("muted");
+  } finally {
+    act(() => root.unmount());
+    host.remove();
+    restore();
+  }
+});
 
 it("keeps both panes mounted at wide container widths", () => {
   const restoreWidth = mockContainerWidth(1024);

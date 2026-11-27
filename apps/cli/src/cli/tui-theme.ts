@@ -3,6 +3,7 @@ import {
   type TuiThemeProfile,
 } from "@doolittle/agent/runtime/theme-catalog";
 import { buildHeaderContent } from "./cockpit-chrome";
+import { contrastSelectionStyle } from "./terminal-presentation";
 import { panelStyle, type TuiWidgetSet } from "./tui-widget-factory/index";
 
 export function applyTuiTheme(
@@ -44,10 +45,7 @@ export function applyTuiTheme(
   paletteInput.style.focus = { border: { fg: theme.primary } };
 
   paletteList.style.border = { fg: theme.cyanGlow };
-  paletteList.style.selected = {
-    bg: theme.primary,
-    fg: theme.baseFg,
-  };
+  paletteList.style.selected = contrastSelectionStyle(theme.primary);
   paletteList.style.item = { fg: theme.baseFg };
 
   composerOverlay.style.fg = theme.baseFg;

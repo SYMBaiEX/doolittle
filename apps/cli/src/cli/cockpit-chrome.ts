@@ -1,15 +1,22 @@
 import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
 import type { TuiThemeProfile } from "@doolittle/agent/runtime/theme-catalog";
 import { escapeBlessed } from "./render-utils";
+import { terminalGlyph } from "./terminal-glyphs";
 import { currentProjectLabel, macAwareKeyLabel } from "./terminal-labels";
 
 export function buildHeaderContent(
   agentName: string,
   theme: TuiThemeProfile,
 ): string {
+  const separator = terminalGlyph("·", "|");
+  // The header renders on the theme.primary surface. Every span inherits the
+  // contrast-derived base foreground (see applyTuiTheme/createHeader); adding
+  // hardcoded color tags here would bypass the WCAG ladder, since the catalog
+  // spans near-black to near-white primaries. Hierarchy comes from bold, not
+  // from chromatic accents that cannot survive every theme.
   return [
-    `{bold}${escapeBlessed(theme.sigil)} ${agentName}{/bold}  {black-fg}${escapeBlessed(theme.shellGlyph)} conversation shell{/}  {white-fg}${escapeBlessed(currentProjectLabel())}{/}`,
-    `{white-fg}${theme.label}{/} ${escapeBlessed(theme.idleFace)} · {gray-fg}${escapeBlessed(theme.tagline)}{/} · {cyan-fg}cockpit for observability{/} · {green-fg}shell for everyday work{/}`,
+    `{bold}${escapeBlessed(theme.sigil)} ${escapeBlessed(agentName)}{/bold}  ${escapeBlessed(theme.shellGlyph)} conversation shell  ${escapeBlessed(currentProjectLabel())}`,
+    `{bold}${escapeBlessed(theme.label)}{/bold} ${escapeBlessed(theme.idleFace)} ${separator} ${escapeBlessed(theme.tagline)} ${separator} cockpit for observability ${separator} shell for everyday work`,
   ].join("\n");
 }
 

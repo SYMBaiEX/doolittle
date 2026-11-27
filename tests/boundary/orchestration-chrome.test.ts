@@ -15,6 +15,12 @@ it("uses the current scope as the inner orchestration title", () => {
     }),
   ).toBe("Fixture project");
   expect(
+    orchestrationScopeLabel({
+      projectScope: "unscoped",
+      workspaceLabel: "General",
+    }),
+  ).toBe("Unscoped work");
+  expect(
     orchestrationScopeLabel({ projectScope: "project-1", workspaceLabel: " " }),
   ).toBe("Selected project");
 });

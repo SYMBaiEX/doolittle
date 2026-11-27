@@ -89,16 +89,17 @@ describe("cockpit boot acceptance", () => {
     expect(grid).toContain("Ops Stream");
     expect(grid).toContain("Input");
 
-    // Regional placement: at 110 columns the sidebar occupies the right edge
-    // (left = 86% => column ~94); conversation content stays left of it.
+    // Regional placement: at 110 columns the clamped scanable sidebar starts
+    // at column 80 and occupies the right edge; conversation content stays
+    // left of it.
     const sidebarColumn = columnOf(lines, "Status");
-    expect(sidebarColumn).toBeGreaterThanOrEqual(88);
+    expect(sidebarColumn).toBeGreaterThanOrEqual(80);
     const welcomeRow = lines.findIndex((line) =>
       line.includes("Doolittle is ready."),
     );
     expect(welcomeRow).toBeGreaterThanOrEqual(4);
     expect(welcomeRow).toBeLessThan(ROWS - 6);
-    expect(lines[welcomeRow].indexOf("Doolittle is ready.")).toBeLessThan(88);
+    expect(lines[welcomeRow].indexOf("Doolittle is ready.")).toBeLessThan(80);
 
     // Sidebar content: the operator snapshot renders inside the Status pane.
     expect(grid).toContain("Operator");
@@ -123,11 +124,14 @@ describe("cockpit boot acceptance", () => {
     // The /help body is far taller than the viewport. Because the transcript
     // pins to the bottom while the operator has never scrolled, correctness
     // is the END of the response being visible — not the echo header, which
-    // scrolls above the fold exactly like in any chat client. "doolittle
-    // jobs list" is the final line of the help Examples section.
-    await terminal.waitForGridText("doolittle jobs list", 15_000);
+    // scrolls above the fold exactly like in any chat client. The compact
+    // help ends with the one-shot exec example in its Examples section.
+    await terminal.waitForGridText(
+      'doolittle exec -p "review the repo" --json-stream',
+      15_000,
+    );
     const afterSubmit = await terminal.gridText();
-    expect(afterSubmit).toContain("/accounts connect codex");
+    expect(afterSubmit).toContain("/commands");
     expect(afterSubmit).toContain("!git status");
 
     // NOTE: no clean operator exit path is asserted here. C-c keystrokes do
