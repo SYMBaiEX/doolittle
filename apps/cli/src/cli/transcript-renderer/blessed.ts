@@ -12,10 +12,13 @@ import {
 } from "./shared";
 import type { ResponseTranscriptEntry } from "./types";
 
-function renderBlessedEntry(entry: ResponseTranscriptEntry): string {
+function renderBlessedEntry(
+  entry: ResponseTranscriptEntry,
+  options: { expandBodies?: boolean } = {},
+): string {
   const customLabel = renderBlessedCustomLabel(entry);
   const body = indentBlessedTranscriptBlock(
-    renderBlessedBody(entry),
+    renderBlessedBody(entry, { expandBody: options.expandBodies }),
     entry.kind,
   );
   const toolTrace = indentBlessedTranscriptBlock(
@@ -40,6 +43,7 @@ function renderBlessedEntry(entry: ResponseTranscriptEntry): string {
 export function renderResponseTranscript(
   history: ResponseTranscriptEntry[],
   live?: ResponseTranscriptEntry,
+  options: { expandBodies?: boolean } = {},
 ): string {
   const sections = normalizeTranscriptSections(history, live);
   if (!sections.length) {
@@ -48,7 +52,7 @@ export function renderResponseTranscript(
 
   return sections
     .map((entry, index) => {
-      const rendered = renderBlessedEntry(entry);
+      const rendered = renderBlessedEntry(entry, options);
       if (index === 0) {
         return rendered;
       }

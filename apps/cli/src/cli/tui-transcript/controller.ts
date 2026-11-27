@@ -12,6 +12,7 @@ export function createTuiTranscriptController(
   const responseHistory: ResponseTranscriptEntry[] = [];
   let liveResponse: ResponseTranscriptEntry | undefined;
   let liveToolTrail: string[] = [];
+  let expandBodies = false;
 
   const renderResponsePane = () => {
     renderTranscriptPane({
@@ -19,8 +20,18 @@ export function createTuiTranscriptController(
       responseHistory,
       liveResponse,
       transcriptExportPath: options.transcriptExportPath,
+      expandBodies,
     });
   };
+
+  options.responsePane.key?.(["+"], () => {
+    if (options.responsePane.focused === false) {
+      return;
+    }
+    expandBodies = !expandBodies;
+    renderResponsePane();
+    options.scheduleRefreshPanels(0);
+  });
 
   const setLiveResponse = (
     label: string,

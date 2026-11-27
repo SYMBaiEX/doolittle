@@ -6,6 +6,8 @@ export interface TuiResponsePane {
   setContent(content: string): void;
   getScrollPerc(): number;
   setScrollPerc(percent: number): void;
+  focused?: boolean;
+  key?(keys: string | string[], listener: () => void): void;
 }
 
 export interface TuiTranscriptOptions {

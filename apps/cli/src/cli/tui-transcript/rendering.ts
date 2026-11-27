@@ -118,6 +118,7 @@ export function renderTranscriptPane(input: {
   responseHistory: ResponseTranscriptEntry[];
   liveResponse: ResponseTranscriptEntry | undefined;
   transcriptExportPath: string;
+  expandBodies?: boolean;
 }): void {
   // The boot welcome is reference copy, not a live tail: at minimum geometry
   // it must remain readable from the top. Once operator dialogue exists, the
@@ -137,6 +138,7 @@ export function renderTranscriptPane(input: {
   const content = renderResponseTranscript(
     input.responseHistory,
     input.liveResponse,
+    { expandBodies: input.expandBodies },
   );
   if (lastPaneContent.get(input.responsePane) !== content) {
     lastPaneContent.set(input.responsePane, content);
