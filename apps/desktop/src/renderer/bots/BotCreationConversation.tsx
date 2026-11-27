@@ -8,6 +8,7 @@ import type {
   RuntimeModelsResponse,
   RuntimeStatus,
 } from "../../shared/contracts";
+import { confirmDirtyNavigation } from "../dirty-navigation";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
 import { botCharacterDraft } from "./bot-character-draft";
 import { botModelRoutes } from "./bot-model-routes";
@@ -181,6 +182,17 @@ export function BotCreationConversation({
       setSaving(false);
     }
   };
+  const cancel = () => {
+    if (
+      !confirmDirtyNavigation({
+        dirty,
+        confirm: () => window.confirm("Discard this unsaved bot design?"),
+        discard: () => undefined,
+      })
+    )
+      return;
+    onClose();
+  };
 
   return (
     <section aria-label="Create a new bot" className="bot-design-conversation">
@@ -193,7 +205,7 @@ export function BotCreationConversation({
           aria-label="Cancel bot creation"
           className="bot-design-icon"
           disabled={saving}
-          onClick={onClose}
+          onClick={cancel}
           type="button"
         >
           <X aria-hidden size={18} />
