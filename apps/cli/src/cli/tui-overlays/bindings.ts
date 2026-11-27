@@ -1,9 +1,11 @@
-import { suggestCommands } from "@doolittle/agent/runtime/command-catalog";
-import { escapeBlessed } from "../render-utils";
+import { stdout } from "node:process";
+import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
 import type blessed from "blessed";
+import { rankCliCommandCatalogEntries } from "../command-surface";
+import { escapeBlessed } from "../render-utils";
 
 interface PaletteSuggestionOptions {
-  workspaceDir: string;
+  workspaceDir?: string;
   query: string;
   paletteList: blessed.Widgets.ListElement;
   overlayState: {
@@ -34,8 +36,27 @@ interface ComposerBindingOptions {
   queueCommand: (line: string) => void;
 }
 
-function readPaletteSuggestions(query: string, workspaceDir: string) {
-  return suggestCommands(query, 12, workspaceDir);
+function readPaletteSuggestions(query: string, workspaceDir?: string) {
+  return rankCliCommandCatalogEntries(query, 12, workspaceDir);
+}
+
+function resolveDefaultPaletteContentWidth(): number {
+  const columns = stdout.columns ?? 80;
+  const overlayRatio = columns < 110 ? 0.94 : columns < 140 ? 0.82 : 0.72;
+  return Math.max(24, Math.floor(columns * overlayRatio) - 6);
+}
+
+function clipInline(text: string, width: number): string {
+  if (width <= 0) {
+    return "";
+  }
+  if (text.length <= width) {
+    return text;
+  }
+  if (width === 1) {
+    return "…";
+  }
+  return `${text.slice(0, width - 1)}…`;
 }
 
 /**
@@ -47,18 +68,39 @@ function readPaletteSuggestions(query: string, workspaceDir: string) {
  */
 export function renderPaletteItems(
   query: string,
-  workspaceDir: string,
+  workspaceDir?: string,
   selectedIndex = 0,
+  width = resolveDefaultPaletteContentWidth(),
 ): string[] {
-  return readPaletteSuggestions(query, workspaceDir).map(
-    (entry, index) =>
-      `${index === selectedIndex ? ">" : " "} {bold}${escapeBlessed(entry.command)}{/bold} [${escapeBlessed(entry.category)}]`,
-  );
+  return readPaletteSuggestions(query, workspaceDir).map((entry, index) => {
+    const marker = index === selectedIndex ? ">" : " ";
+    const rowWidth = width - 2;
+    const category = ` [${escapeBlessed(entry.category)}]`;
+    const displayCommand = normalizeSlashCommandSyntax(entry.command);
+    const commandWidth = rowWidth - category.length;
+    const compactCommand = clipInline(
+      displayCommand,
+      Math.max(1, commandWidth),
+    );
+    const command = `{bold}${escapeBlessed(compactCommand)}{/bold}`;
+    if (width < 52) {
+      return `${marker} ${command}${category}`;
+    }
+
+    const descriptionWidth = Math.max(
+      0,
+      rowWidth - compactCommand.length - category.length - 1,
+    );
+    const description = clipInline(entry.description, descriptionWidth);
+    return description
+      ? `${marker} ${command} ${escapeBlessed(description)}${category}`
+      : `${marker} ${command}${category}`;
+  });
 }
 
 function readSelectedPaletteCommand(
   query: string,
-  workspaceDir: string,
+  workspaceDir: string | undefined,
   selectionIndex: number,
 ): string | undefined {
   return readPaletteSuggestions(query, workspaceDir)[selectionIndex]?.command;

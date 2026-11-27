@@ -124,11 +124,14 @@ describe("cockpit boot acceptance", () => {
     // The /help body is far taller than the viewport. Because the transcript
     // pins to the bottom while the operator has never scrolled, correctness
     // is the END of the response being visible — not the echo header, which
-    // scrolls above the fold exactly like in any chat client. "doolittle
-    // jobs list" is the final line of the help Examples section.
-    await terminal.waitForGridText("doolittle jobs list", 15_000);
+    // scrolls above the fold exactly like in any chat client. The compact
+    // help ends with the one-shot exec example in its Examples section.
+    await terminal.waitForGridText(
+      'doolittle exec -p "review the repo" --json-stream',
+      15_000,
+    );
     const afterSubmit = await terminal.gridText();
-    expect(afterSubmit).toContain("/accounts connect codex");
+    expect(afterSubmit).toContain("/commands");
     expect(afterSubmit).toContain("!git status");
 
     // NOTE: no clean operator exit path is asserted here. C-c keystrokes do

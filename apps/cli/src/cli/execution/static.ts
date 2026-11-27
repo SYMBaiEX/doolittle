@@ -1,4 +1,4 @@
-import { renderCommandCatalog } from "@doolittle/agent/runtime/command-catalog";
+import { renderCliCommandCatalog } from "../command-surface";
 import { buildHelpText } from "../help-text";
 import type { CliExecutionResult } from "./types";
 
@@ -27,7 +27,7 @@ export function resolveStaticCliInput(
   }
   if (input === "/commands") {
     return {
-      text: renderCommandCatalog(undefined, 80, workspaceDir),
+      text: renderCliCommandCatalog(undefined, 80, workspaceDir),
       tone: "info",
     };
   }
@@ -35,7 +35,7 @@ export function resolveStaticCliInput(
     const query = input.slice("/commands search".length).trim();
     return {
       text: query
-        ? renderCommandCatalog(query, 80, workspaceDir)
+        ? renderCliCommandCatalog(query, 80, workspaceDir)
         : "Usage: /commands search <query>",
       tone: "info",
     };

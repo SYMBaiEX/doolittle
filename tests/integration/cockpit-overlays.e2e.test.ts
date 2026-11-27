@@ -79,12 +79,16 @@ describe("cockpit overlay semantics", () => {
     await session.waitForGridText("Search", 5_000);
     await probePaletteReadiness(session);
     session.type("/th");
-    await session.waitForGridText("/theme-list", 5_000);
+    await session.waitForGridText("/theme list", 5_000);
+    await session.waitForGridText(
+      "List all built-in operator cockpit themes",
+      5_000,
+    );
 
     session.key("down");
     session.key("enter");
 
-    // /theme-list has a distinct observable effect from /theme: it prints the
+    // /theme list has a distinct observable effect from /theme: it prints the
     // theme catalog rows, while the first match prints active=<name>.
     await session.waitForGridText("- orange ::", 15_000);
     const grid = await session.gridText();
@@ -103,11 +107,11 @@ describe("cockpit overlay semantics", () => {
     // With the committed "/t" value, the first theme-adjacent match group is
     // visible immediately. A one-key-lagged palette still shows the empty-query
     // catalog here.
-    await session.waitForGridText("/trajectories-compress", 5_000);
+    await session.waitForGridText("/trajectories compress", 5_000);
 
     session.type("h");
-    await session.waitForGridTextAbsent("/trajectories-compress", 5_000);
+    await session.waitForGridTextAbsent("/trajectories compress", 5_000);
     const grid = await session.gridText();
-    expect(grid).toContain("/theme-list");
+    expect(grid).toContain("/theme list");
   }, 120_000);
 });
