@@ -37,9 +37,21 @@ function readPaletteSuggestions(query: string, workspaceDir: string) {
   return suggestCommands(query, 12, workspaceDir);
 }
 
-function renderPaletteItems(query: string, workspaceDir: string): string[] {
+/**
+ * Rows carry a textual selection marker so the active row never depends on
+ * color alone: the selection background is a theme accent surface, and color
+ * is not an accessible signal by itself. The category suffix stays untinted
+ * because tagged colors would keep their low-contrast foreground when the row
+ * inverts onto the contrast selection surface.
+ */
+export function renderPaletteItems(
+  query: string,
+  workspaceDir: string,
+  selectedIndex = 0,
+): string[] {
   return readPaletteSuggestions(query, workspaceDir).map(
-    (entry) => `{bold}${entry.command}{/bold} {gray-fg}[${entry.category}]{/}`,
+    (entry, index) =>
+      `${index === selectedIndex ? ">" : " "} {bold}${entry.command}{/bold} [${entry.category}]`,
   );
 }
 
@@ -82,8 +94,8 @@ export function syncPaletteSuggestions({
   paletteList,
   overlayState,
 }: PaletteSuggestionOptions): void {
-  paletteList.setItems(renderPaletteItems(query, workspaceDir));
   overlayState.paletteSelectionIndex = 0;
+  paletteList.setItems(renderPaletteItems(query, workspaceDir, 0));
   paletteList.select(0);
 }
 
@@ -146,6 +158,9 @@ export function bindPaletteOverlay({
       suggestions.length,
     );
     overlayState.paletteSelectionIndex = nextIndex;
+    paletteList.setItems(
+      renderPaletteItems(paletteInput.getValue(), workspaceDir, nextIndex),
+    );
     paletteList.select(nextIndex);
     updateFooterHint();
     screenRender();

@@ -1,3 +1,4 @@
+import { contrastSelectionStyle } from "../terminal-presentation";
 import type { TuiWidgetFactoryContext } from "./context";
 import type { TuiWidgetSet } from "./types";
 
@@ -90,10 +91,7 @@ function createPaletteWidgets({
     tags: true,
     style: {
       border: { fg: theme.cyanGlow },
-      selected: {
-        bg: theme.primary,
-        fg: theme.baseFg,
-      },
+      selected: contrastSelectionStyle(theme.primary),
       item: {
         fg: theme.baseFg,
       },
