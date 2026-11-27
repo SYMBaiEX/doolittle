@@ -686,7 +686,7 @@ importers:
   packages/plugins/plugin-claude-code:
     dependencies:
       '@doolittle/provider-transport':
-        specifier: 0.1.0
+        specifier: 0.1.1
         version: link:../provider-transport
       '@elizaos/core':
         specifier: workspace:2.0.5
