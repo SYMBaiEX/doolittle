@@ -126,10 +126,37 @@ export function renderPlainBody(entry: ResponseTranscriptEntry): string {
   return entry.pending ? "thinking..." : "waiting...";
 }
 
-export function renderBlessedBody(entry: ResponseTranscriptEntry): string {
+const VIEWPORT_BODY_PREVIEW_LINES = 12;
+const VIEWPORT_BODY_FOLD_THRESHOLD = 48;
+
+function foldViewportBody(body: string): {
+  body: string;
+  hiddenCount: number;
+} {
+  const lines = body.split("\n");
+  if (lines.length <= VIEWPORT_BODY_FOLD_THRESHOLD) {
+    return { body, hiddenCount: 0 };
+  }
+  const preview = lines.slice(-VIEWPORT_BODY_PREVIEW_LINES).join("\n");
+  return {
+    body: preview,
+    hiddenCount: lines.length - VIEWPORT_BODY_PREVIEW_LINES,
+  };
+}
+
+export function renderBlessedBody(
+  entry: ResponseTranscriptEntry,
+  options: { expandBody?: boolean } = {},
+): string {
   const safeBody = sanitizeTranscriptBody(entry.body);
   if (safeBody.trim()) {
-    return escapeBlessed(safeBody);
+    const folded = options.expandBody
+      ? { body: safeBody, hiddenCount: 0 }
+      : foldViewportBody(safeBody);
+    const body = escapeBlessed(folded.body);
+    return folded.hiddenCount > 0
+      ? `{gray-fg}… ${folded.hiddenCount} more lines · + expands{/}\n${body}`
+      : body;
   }
   return entry.pending ? "{gray-fg}thinking…{/}" : "{gray-fg}waiting…{/}";
 }
