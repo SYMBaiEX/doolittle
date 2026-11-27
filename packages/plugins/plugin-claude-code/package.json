@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/plugin-claude-code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Structured local Claude CLI fallback behind the official Eliza Anthropic provider.",
   "license": "MIT",
   "type": "module",

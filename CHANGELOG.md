@@ -6,6 +6,47 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-26
+
+Twenty evidence-driven hardening rounds across every terminal surface, each
+defect confirmed by reproduction before fixing.
+
+### Cockpit (terminal chat)
+
+- Input focus ownership: printable typing is never lost — keystrokes during
+  busy turns buffer and replay in order (previously vanished entirely).
+- Full transcript retention with scroll-pin reconciliation: bottom pinning
+  survives resize and too-small-terminal transitions; deliberate scroll-up
+  is never yanked back.
+- Overlay semantics hardened: palette, help, and picker overlays coordinate
+  input ownership; foreign output line-buffers instead of tearing rows.
+- Layout, footer, and resize experience rebuilt; clean terminal state on exit
+  (cursor, bracketed paste, mouse, alternate screen all restored).
+
+### Setup wizard
+
+- Fixed a hard crash (stack overflow) when pressing Down at the channels
+  prompt — previously destroyed the entire in-progress setup session.
+- Mouse clicks now confirm the option they visually select; Escape at the
+  theme selector keeps the current theme instead of committing the preview.
+- Ctrl-C inside text inputs exits as the footer promises; invalid timezones
+  are rejected instead of written verbatim to config.
+
+### Machine interface and plain shell
+
+- `--json` output is now exactly one valid JSON document and `--json-stream`
+  clean NDJSON end-to-end — operational noise no longer contaminates stdout.
+- Background jobs boot with onboarding state, capture stderr privately, are
+  supervised through early-exit windows, and dead processes reconcile to
+  failed instead of haunting the jobs list as forever-running.
+- Empty stdin (EOF in pipelines) exits bounded instead of hanging forever.
+- Offline provider outages no longer report false success; escape bytes stay
+  out of piped stderr; token display truncation fixed.
+
+### Infrastructure
+
+- CI acceptance lanes split into concurrent CLI and desktop jobs.
+
 ### Changed
 
 - Desktop chat follows the shared runtime's ordered run stream and resumes from
