@@ -1,4 +1,4 @@
-import { StateSurface } from "@doolittle/ui";
+import { Button, StateSurface } from "@doolittle/ui";
 import { ApiError } from "@elizaos/ui/api/client-types";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
@@ -317,9 +317,9 @@ export function ErrorBlock({
           : cleaned}
       </span>
       {retry ? (
-        <button className="text-button" onClick={retry} type="button">
+        <Button onClick={retry} type="button" variant="text">
           Try again
-        </button>
+        </Button>
       ) : null}
       {showDetails ? (
         <details className="mt-1">

@@ -50,6 +50,63 @@
   transition-duration: var(--motion-feedback);
   transition-timing-function: var(--ease-liquid);
 }
+.dl-button.dl-button--primary,
+.dl-button.dl-button--secondary,
+.dl-button.dl-button--danger {
+  border-radius: var(--radius-xs);
+  box-shadow: var(--control-contact);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.dl-button.dl-button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.dl-button.dl-button--primary:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+.dl-button.dl-button--secondary {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--text-soft);
+}
+.dl-button.dl-button--secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.dl-button.dl-button--danger {
+  border-color: color-mix(in srgb, var(--bad) 38%, var(--border));
+  background: transparent;
+  color: var(--bad);
+}
+.dl-button.dl-button--danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--bad) 60%, var(--border));
+  background: var(--bad-soft);
+}
+.dl-button.dl-button--primary:active:not(:disabled),
+.dl-button.dl-button--secondary:active:not(:disabled),
+.dl-button.dl-button--danger:active:not(:disabled) {
+  box-shadow: none;
+}
+.dl-button.dl-button--text {
+  height: auto;
+  min-height: 0;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--accent-text);
+  font-size: var(--text-control);
+  font-weight: 600;
+}
+.dl-button.dl-button--text:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent-hover);
+}
 .dl-control:disabled {
   cursor: not-allowed;
 }
