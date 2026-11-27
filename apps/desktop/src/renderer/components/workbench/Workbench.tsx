@@ -5,10 +5,10 @@ import { UiIcon } from "../UiIcon";
 import "./workbench.css";
 
 const actionVariants = {
-  primary: "default",
+  primary: "primary",
   secondary: "secondary",
   quiet: "ghost",
-  danger: "destructive",
+  danger: "danger",
 } as const;
 
 export function WorkbenchAction({
