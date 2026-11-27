@@ -26,6 +26,30 @@
   color: var(--good);
 }
 
+/* Review outcome and selection headers borrow the shared work-surface detail
+   hierarchy: display titles stay prominent, while objectives remain control-scale
+   supporting copy instead of dropping into metadata. */
+:where(.review-outcome-heading, .review-selection)
+  .workbench-section__copy
+  :is(h2, h3) {
+  font-size: clamp(14px, 1.1vw, 17px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+:where(.review-outcome-heading, .review-selection)
+  .workbench-section__copy
+  > div {
+  color: var(--text-soft);
+  font-size: var(--text-control);
+  line-height: 1.55;
+}
+
+:where(.review-outcome-heading) .compact-stat-strip__item strong {
+  font-size: var(--text-body);
+}
+
 .review-outcome-revision {
   display: inline-flex;
   min-inline-size: 0;
