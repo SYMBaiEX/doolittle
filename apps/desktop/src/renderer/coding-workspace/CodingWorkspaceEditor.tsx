@@ -119,6 +119,7 @@ export function CodingWorkspaceEditor({
   fileResource,
   patchResource,
   fileNotice,
+  fileConflict = false,
   fileDirty,
   savingFile,
   draftContent,
@@ -132,6 +133,8 @@ export function CodingWorkspaceEditor({
   onEditorStateChange,
   onSave,
   onDiscard,
+  onOverwriteConflict,
+  onReloadConflict,
   onMutateVisiblePatch,
   onAcpTaskOpenChange,
   onAcpTaskDraftChange,
@@ -153,6 +156,7 @@ export function CodingWorkspaceEditor({
   fileResource: ApiResource<WorkspaceReadResponse>;
   patchResource: ApiResource<RepositoryPatchResponse>;
   fileNotice: ActionNotice | null;
+  fileConflict?: boolean;
   fileDirty: boolean;
   savingFile: boolean;
   draftContent: string;
@@ -166,6 +170,8 @@ export function CodingWorkspaceEditor({
   onEditorStateChange: (snapshot: CodeEditorStateSnapshot) => void;
   onSave: () => void;
   onDiscard: () => void;
+  onOverwriteConflict: () => void;
+  onReloadConflict: () => void;
   onMutateVisiblePatch: (type: VisiblePatchMutation) => void | Promise<void>;
   onAcpTaskOpenChange: (open: boolean) => void;
   onAcpTaskDraftChange: (value: string) => void;
@@ -424,6 +430,28 @@ export function CodingWorkspaceEditor({
         >
           {fileNotice.message}
         </p>
+      ) : null}
+      {selectedPath && fileConflict ? (
+        <div className="ide-editor-read-warning" role="alert">
+          <span>
+            This file changed on disk after you opened it. Your edits are
+            preserved in this buffer.
+          </span>
+          <button
+            disabled={editingLocked || savingFile}
+            onClick={onOverwriteConflict}
+            type="button"
+          >
+            Overwrite workspace copy
+          </button>
+          <button
+            disabled={editingLocked || savingFile}
+            onClick={onReloadConflict}
+            type="button"
+          >
+            Reload from disk
+          </button>
+        </div>
       ) : null}
       {active &&
       editorPane === "file" &&
