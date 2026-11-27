@@ -65,6 +65,7 @@ export function PlanPanel({
   planMetaLines,
   busyKeys,
   planSteerInstruction,
+  onCreatePlan,
   onSelectPlan,
   onApprovePlan,
   onSteerPlan,
@@ -79,6 +80,8 @@ export function PlanPanel({
   planMetaLines: readonly string[];
   busyKeys: Readonly<Record<string, boolean>>;
   planSteerInstruction: string;
+  /** Present only when plan creation is honestly available right now. */
+  onCreatePlan?: () => void;
   onSelectPlan: (plan: PlanRecord) => void;
   onApprovePlan: (plan: PlanRecord) => void | Promise<void>;
   onSteerPlan: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
@@ -102,7 +105,15 @@ export function PlanPanel({
   if (plans.length === 0) {
     return (
       <WorkbenchSection title="Plans" icon={ListChecks}>
-        <WorkbenchEmpty icon={Inbox} title="No plans yet">
+        <WorkbenchEmpty
+          actions={
+            onCreatePlan ? (
+              <WorkbenchAction onClick={onCreatePlan}>New plan</WorkbenchAction>
+            ) : undefined
+          }
+          icon={Inbox}
+          title="No plans yet"
+        >
           Create a plan to connect tasks and workflows.
         </WorkbenchEmpty>
       </WorkbenchSection>

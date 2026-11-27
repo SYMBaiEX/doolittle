@@ -205,7 +205,7 @@ export function OrchestrationRunsPanel({
         ) : codegenWorkflowsResource.loading ? (
           <LoadingBlock />
         ) : workflows.length === 0 ? (
-          <EmptyBlock density="compact" title="No workflows recorded.">
+          <EmptyBlock title="No workflows recorded." variant="pane">
             {null}
           </EmptyBlock>
         ) : (
@@ -263,7 +263,7 @@ export function OrchestrationRunsPanel({
         ) : workflowDetailResource.loading ? (
           <LoadingBlock />
         ) : visibleRuns.length === 0 ? (
-          <EmptyBlock density="compact" title="No runs in this workflow.">
+          <EmptyBlock title="No runs in this workflow." variant="pane">
             {null}
           </EmptyBlock>
         ) : (
@@ -514,11 +514,9 @@ function WorkflowDetail({
       ) : null}
       {!selectedRun ? (
         <EmptyBlock
-          density="compact"
           title="Select a run to inspect its evidence."
-        >
-          {null}
-        </EmptyBlock>
+          variant="pane"
+        />
       ) : runDetailResource.error ? (
         <ErrorBlock
           error={runDetailResource.error}
