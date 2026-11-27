@@ -22,10 +22,11 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
     optionsList: Array<{ value: T; label: string; detail?: string }>,
     defaultValue: T,
     options?: { onHighlight?: (value: T) => void },
-  ): Promise<T> =>
-    showOverlay<T>(
+  ): Promise<T> => {
+    const chrome = deps.getChromeTheme();
+    return showOverlay<T>(
       "Choose One",
-      `${prompt}\n{gray-fg}↑/↓ move · Enter confirm · Esc keep current{/gray-fg}`,
+      `${prompt}\n{${chrome.muted}-fg}↑/↓ move · Enter confirm · Esc keep current{/${chrome.muted}-fg}`,
       (overlay, resolve) => {
         const detailBox = blessed.box({
           parent: overlay,
@@ -36,7 +37,11 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           border: "line",
           label: " Detail ",
           padding: { left: 1, right: 1 },
-          style: { border: { fg: "#4fd17d" }, fg: "white" },
+          style: {
+            border: { fg: chrome.greenGlow },
+            label: { fg: chrome.greenGlow, bold: true },
+            fg: chrome.baseFg,
+          },
         });
         const list = blessed.list({
           parent: overlay,
@@ -53,9 +58,9 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           vi: true,
           mouse: true,
           style: {
-            border: { fg: "#55d6ff" },
-            selected: wizardSelectionStyle(deps.getChromeTheme()),
-            item: { fg: "white" },
+            border: { fg: chrome.cyanGlow },
+            selected: wizardSelectionStyle(chrome),
+            item: { fg: chrome.baseFg },
           },
           items: optionsList.map((item) => item.label),
         });
@@ -150,4 +155,5 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
         );
       },
     );
+  };
 }

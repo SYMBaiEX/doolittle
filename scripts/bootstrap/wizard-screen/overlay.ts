@@ -1,12 +1,16 @@
 import blessed from "blessed";
+import type { WizardChromeTheme } from "./render";
 
 // Blessed calculates explicit percentage widths from the parent's outer width
 // and then positions children inside the parent's border and padding. Wizard
 // prompt children use "100%-2" for full-width content, so with horizontal
 // padding they can repaint over the modal's right border. The overlay keeps
-// that padding for readability, normalizes full-width children to the padded
-// content width, and layers a transparent sibling frame above the content so
-// the border is continuous even during the first blessed invalidation pass.
+// that padding for readability and normalizes full-width children to the
+// padded content width. A transparent sibling frame used to layer above the
+// content to protect the border, but blessed blends every cell under a
+// transparent element toward the frame's default attr, washing every overlay
+// color toward gray — a worse defect than the one it solved, and the width
+// normalization below already keeps children off the border.
 const OVERLAY_CONTENT_WIDTH = "100%-4";
 const LEGACY_FULL_WIDTH = "100%-2";
 
@@ -32,6 +36,7 @@ export function createWizardOverlay<T>(
     settle: (value: T) => void,
   ) => void,
   onAfterClose: () => void,
+  theme: WizardChromeTheme,
 ): Promise<T> {
   return new Promise((resolve) => {
     let settled = false;
@@ -53,22 +58,10 @@ export function createWizardOverlay<T>(
       tags: true,
       padding: { top: 1, left: 1, right: 1, bottom: 1 },
       style: {
-        border: { fg: "#ffb000" },
-        fg: "white",
-        bg: "#151c24",
-      },
-    });
-    const borderFrame = blessed.box({
-      parent: screen,
-      top: "center",
-      left: "center",
-      width: "72%",
-      height: "70%",
-      border: "line",
-      label: ` ${title} `,
-      style: {
-        border: { fg: "#ffb000" },
-        transparent: true,
+        border: { fg: theme.magentaGlow },
+        label: { fg: theme.magentaGlow, bold: true },
+        fg: theme.baseFg,
+        bg: theme.panelBg,
       },
     });
     blessed.box({
@@ -81,7 +74,6 @@ export function createWizardOverlay<T>(
       content: body,
     });
     onMount(overlay, (value) => {
-      borderFrame.destroy();
       overlay.destroy();
       onAfterClose();
       settle(value);
