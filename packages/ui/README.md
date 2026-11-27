@@ -42,6 +42,20 @@ owning route. Button sizes are the explicit upstream sizes (`default`, `sm`,
 `lg`, `icon`, `icon-sm`, and `icon-lg`), with `default` bridged to the host's
 density-aware control height.
 
+## Focus contract
+
+`styles.css` defines the two canonical keyboard-focus treatments:
+
+- `--focus-quiet` / `--focus-quiet-offset`: a thin neutral inset outline for
+  fields, dropdown triggers, menu rows, tabs, and other dense navigation.
+- `--focus-command` / `--focus-command-offset`: a clearer accent outline for
+  command buttons and links.
+
+Use those custom properties instead of inventing local widths, colors, or
+offsets. Invalid fields may keep a positive offset so validation borders stay
+visible, but they retain the quiet outline color and width. Preserve the
+forced-color overrides in `styles.css`.
+
 ## Develop
 
 From the repository root:
