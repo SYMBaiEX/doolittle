@@ -9,6 +9,7 @@ import {
 } from "../desktop-navigation";
 import { displayTimestamp } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import { formatShortcutLabel } from "../shortcut-label";
 
 export interface DesktopCommandGroupsContext {
   paletteQuery: string;
@@ -100,7 +101,7 @@ export function buildDesktopCommandGroups({
       label: "New conversation",
       description: "Start with a clean context",
       keywords: ["compose", "new", "chat"],
-      shortcuts: [platform === "darwin" ? "⌘ N" : "Ctrl N"],
+      shortcuts: [formatShortcutLabel({ key: "n", mod: true }, platform)],
       onSelect: onCreateConversation,
     },
     {
@@ -108,7 +109,7 @@ export function buildDesktopCommandGroups({
       label: terminalOpen ? "Hide terminal" : "Open terminal",
       description: "Toggle the interactive workspace shell",
       keywords: ["shell", "console", "terminal", "command line"],
-      shortcuts: [platform === "darwin" ? "⌘ J" : "Ctrl J"],
+      shortcuts: [formatShortcutLabel({ key: "j", mod: true }, platform)],
       onSelect: onToggleTerminal,
     },
     {
@@ -116,7 +117,7 @@ export function buildDesktopCommandGroups({
       label: "Choose repository",
       description: "Open a local project for a new chat",
       keywords: ["project", "folder", "repository", "switch"],
-      shortcuts: [platform === "darwin" ? "⌘ O" : "Ctrl O"],
+      shortcuts: [formatShortcutLabel({ key: "o", mod: true }, platform)],
       onSelect: () => void onChooseRepository(),
     },
     {
@@ -192,7 +193,9 @@ export function buildDesktopCommandGroups({
           id: "navigation",
           label: `${navCollapsed ? "Expand" : "Collapse"} navigation`,
           description: "Change the sidebar density",
-          shortcuts: [platform === "darwin" ? "⌘ ⇧ B" : "Ctrl ⇧ B"],
+          shortcuts: [
+            formatShortcutLabel({ key: "b", mod: true, shift: true }, platform),
+          ],
           onSelect: onToggleNavigation,
         },
       ],

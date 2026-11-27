@@ -40,6 +40,7 @@ import type {
   DesktopAcpSessionUpdate,
 } from "../desktop-acp-client";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
+import { formatShortcutLabel } from "../shortcut-label";
 import {
   CODING_ACP_TASK_CLASS,
   CODING_ACP_TASK_CLOSE_CLASS,
@@ -218,6 +219,7 @@ export function CodingWorkspaceEditor({
   const showCursor = editorPane === "file" && cursor.scope === documentScope;
   const name = fileName(selectedPath);
   const directory = selectedPath.slice(0, -name.length).replace(/\/$/u, "");
+  const saveShortcut = formatShortcutLabel({ key: "s", mod: true });
   const fileActionsDisabled = editingLocked || !fileDirty || savingFile;
   const selectedPatch = patchResource.data?.patch;
   const canMutatePatch = Boolean(
@@ -249,7 +251,7 @@ export function CodingWorkspaceEditor({
       {
         id: "save-file",
         label: savingFile ? "Saving…" : "Save file",
-        shortcut: "⌘/Ctrl S",
+        shortcut: saveShortcut,
         separatorBefore: true,
         disabled: fileActionsDisabled,
         onSelect: onSave,
@@ -364,7 +366,7 @@ export function CodingWorkspaceEditor({
               className={EDITOR_CONTROL_CLASS}
               disabled={fileActionsDisabled}
               onClick={onSave}
-              title={savingFile ? "Saving…" : "Save file (⌘/Ctrl+S)"}
+              title={savingFile ? "Saving…" : `Save file (${saveShortcut})`}
               type="button"
             >
               <UiIcon icon={Save} size="xs" />

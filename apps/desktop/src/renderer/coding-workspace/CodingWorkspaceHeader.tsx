@@ -14,6 +14,7 @@ import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import { workspaceName } from "../desktop-navigation";
 import { ErrorBlock } from "../lib";
+import { formatShortcutLabel } from "../shortcut-label";
 import {
   CODING_GLOBAL_NOTICE_CLASS,
   CODING_LAYOUT_BUTTON_CLASS,
@@ -78,11 +79,14 @@ export function CodingWorkspaceHeader({
   ]
     .filter(Boolean)
     .join(" · ");
+  const explorerShortcut = formatShortcutLabel({ key: "b", mod: true });
+  const utilityShortcut = formatShortcutLabel({ key: "j", mod: true });
+  const zenShortcut = formatShortcutLabel({ key: "z", mod: true, shift: true });
   const tools = [
     {
       pane: "explorer",
       label: "Explorer",
-      hint: "Toggle explorer (⌘/Ctrl B)",
+      hint: `Toggle explorer (${explorerShortcut})`,
       icon: PanelLeft,
       pressed: explorerVisible,
       onClick: onToggleExplorer,
@@ -90,7 +94,7 @@ export function CodingWorkspaceHeader({
     {
       pane: "utility",
       label: "Tools",
-      hint: "Toggle utility rail (⌘/Ctrl J)",
+      hint: `Toggle utility rail (${utilityShortcut})`,
       icon: PanelRight,
       pressed: utilityVisible,
       onClick: onToggleUtility,
@@ -98,7 +102,7 @@ export function CodingWorkspaceHeader({
     {
       pane: undefined,
       label: "Focus mode",
-      hint: "Toggle focus mode (⌘/Ctrl Shift Z)",
+      hint: `Toggle focus mode (${zenShortcut})`,
       icon: Maximize2,
       pressed: zenMode,
       onClick: onToggleZen,
