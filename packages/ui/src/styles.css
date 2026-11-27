@@ -1,5 +1,9 @@
 /* Browser-only composition. The application supplies semantic theme tokens. */
 :root {
+  --focus-quiet: 1px solid var(--text-soft);
+  --focus-quiet-offset: -1px;
+  --focus-command: 2px solid var(--focus-ring);
+  --focus-command-offset: 2px;
   --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-feedback: min(140ms, var(--motion-duration, 120ms));
   --motion-surface: min(240ms, calc(var(--motion-duration, 120ms) * 2));
@@ -27,19 +31,19 @@
   border-color: var(--bad);
 }
 .dl-control:not(.dl-field):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 .dl-control:not(.dl-field):is(
   [aria-haspopup="menu"],
   [aria-haspopup="listbox"]
 ):focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 .dl-field:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
   box-shadow: none;
 }
 .dl-field[aria-invalid="true"]:focus-visible {
@@ -216,8 +220,8 @@
   min-width: 0;
 }
 .dl-settings-menu-group button:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 .dl-settings-mobile-select {
   display: none;
@@ -422,8 +426,8 @@
 }
 .dl-settings-content
   :is(.dl-settings-choice, .dl-settings-theme-choice):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 .dl-settings-content
   :is(.dl-settings-choice, .dl-settings-theme-choice)
@@ -492,8 +496,8 @@
   font-weight: 600;
 }
 .dl-settings-tabs [role="tab"]:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 @container dl-settings-content (max-width: 600px) {
   .dl-settings-field-row {
@@ -584,8 +588,8 @@
   color: var(--muted);
 }
 .dl-settings-content .settings-field-disclosure > summary:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 @container dl-settings (max-width: 760px) {
   .dl-settings-layout {
@@ -701,8 +705,8 @@
   color: var(--text);
 }
 .dl-contact:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: var(--focus-command);
+  outline-offset: var(--focus-command-offset);
 }
 .dl-avatar {
   display: grid;
@@ -965,8 +969,8 @@
 }
 .dl-action-menu-item:focus-visible,
 .dl-select-item:focus-visible {
-  outline: 1px solid var(--text-soft);
-  outline-offset: -1px;
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
 }
 @media (pointer: coarse), (max-width: 760px) {
   .dl-action-menu-item,
