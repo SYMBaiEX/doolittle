@@ -129,6 +129,8 @@ export function ReviewPage({
   } | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [editingCommentId, setEditingCommentId] = useState("");
+  const commentSaveInFlightRef = useRef(false);
+  const [commentSaveInFlight, setCommentSaveInFlight] = useState(false);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [sourceControlOpen, setSourceControlOpen] = useState(false);
   const requestPolicy = reviewRequests({
@@ -400,63 +402,77 @@ export function ReviewPage({
   };
 
   const saveComment = async () => {
-    if (!active || !repositoryOrigin || !commentTarget || !commentDraft.trim())
+    if (
+      !active ||
+      !repositoryOrigin ||
+      !commentTarget ||
+      !commentDraft.trim() ||
+      commentSaveInFlightRef.current
+    ) {
       return;
-    const now = new Date().toISOString();
-    if (editingCommentId) {
-      const nextComments = comments.map((comment) =>
-        comment.id === editingCommentId
-          ? {
-              ...comment,
-              body: commentDraft.trim().slice(0, 2_000),
-              updatedAt: now,
-            }
-          : comment,
-      );
-      const locallyPersisted = persistComments(nextComments);
-      try {
-        applyDurableRecord(
-          await desktopRequest<ReviewRecordResponse>(
-            `/review-record/comments/${encodeURIComponent(editingCommentId)}`,
-            "PATCH",
-            { body: commentDraft.trim() },
-            undefined,
-            undefined,
-            computerOrigin?.botId,
-            computerOrigin,
-          ),
-        );
-      } catch (error) {
-        showOfflineFallback(error, locallyPersisted);
-      }
-    } else {
-      const comment = createReviewComment({
-        id:
-          globalThis.crypto?.randomUUID?.() ??
-          `review-${Date.now()}-${comments.length}`,
-        path: commentTarget.path,
-        anchor: commentTarget.anchor,
-        body: commentDraft,
-        now,
-      });
-      const locallyPersisted = persistComments([...comments, comment]);
-      try {
-        applyDurableRecord(
-          await desktopRequest<ReviewRecordResponse>(
-            "/review-record/comments",
-            "POST",
-            { comment },
-            undefined,
-            undefined,
-            computerOrigin?.botId,
-            computerOrigin,
-          ),
-        );
-      } catch (error) {
-        showOfflineFallback(error, locallyPersisted);
-      }
     }
-    cancelComment();
+    commentSaveInFlightRef.current = true;
+    setCommentSaveInFlight(true);
+    try {
+      const now = new Date().toISOString();
+      if (editingCommentId) {
+        const nextComments = comments.map((comment) =>
+          comment.id === editingCommentId
+            ? {
+                ...comment,
+                body: commentDraft.trim().slice(0, 2_000),
+                updatedAt: now,
+              }
+            : comment,
+        );
+        const locallyPersisted = persistComments(nextComments);
+        try {
+          applyDurableRecord(
+            await desktopRequest<ReviewRecordResponse>(
+              `/review-record/comments/${encodeURIComponent(editingCommentId)}`,
+              "PATCH",
+              { body: commentDraft.trim() },
+              undefined,
+              undefined,
+              computerOrigin?.botId,
+              computerOrigin,
+            ),
+          );
+        } catch (error) {
+          showOfflineFallback(error, locallyPersisted);
+        }
+      } else {
+        const comment = createReviewComment({
+          id:
+            globalThis.crypto?.randomUUID?.() ??
+            `review-${Date.now()}-${comments.length}`,
+          path: commentTarget.path,
+          anchor: commentTarget.anchor,
+          body: commentDraft,
+          now,
+        });
+        const locallyPersisted = persistComments([...comments, comment]);
+        try {
+          applyDurableRecord(
+            await desktopRequest<ReviewRecordResponse>(
+              "/review-record/comments",
+              "POST",
+              { comment },
+              undefined,
+              undefined,
+              computerOrigin?.botId,
+              computerOrigin,
+            ),
+          );
+        } catch (error) {
+          showOfflineFallback(error, locallyPersisted);
+        }
+      }
+      cancelComment();
+    } finally {
+      commentSaveInFlightRef.current = false;
+      setCommentSaveInFlight(false);
+    }
   };
 
   const toggleCommentResolved = async (commentId: string) => {
@@ -740,6 +756,7 @@ export function ReviewPage({
             busy={busy}
             commentDraft={commentDraft}
             commentEditorRef={commentEditorRef}
+            commentSaveInFlight={commentSaveInFlight}
             editingCommentId={editingCommentId}
             onAskDoolittle={() => {
               if (!repositoryOrigin || !selected?.path) return;

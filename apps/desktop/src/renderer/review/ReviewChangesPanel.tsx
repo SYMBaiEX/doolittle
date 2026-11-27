@@ -28,6 +28,7 @@ export interface ReviewChangesPanelProps {
   selectedPathComments: ReviewComment[];
   activeCommentTarget: ReviewCommentTarget | null;
   commentDraft: string;
+  commentSaveInFlight: boolean;
   editingCommentId: string;
   commentEditorRef: RefObject<HTMLTextAreaElement | null>;
   openCommentCount: number;
@@ -54,6 +55,7 @@ export function ReviewChangesPanel({
   selectedPathComments,
   activeCommentTarget,
   commentDraft,
+  commentSaveInFlight,
   editingCommentId,
   commentEditorRef,
   openCommentCount,
@@ -96,6 +98,7 @@ export function ReviewChangesPanel({
         activeCommentTarget={activeCommentTarget}
         commentDraft={commentDraft}
         commentEditorRef={commentEditorRef}
+        commentSaveInFlight={commentSaveInFlight}
         comments={selectedPathComments}
         editingCommentId={editingCommentId}
         onCancel={onCancel}
