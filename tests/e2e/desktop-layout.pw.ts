@@ -57,6 +57,21 @@ test("desktop pages fill their workbench while Chat keeps its gutter", async () 
             (element) => getComputedStyle(element).padding,
           ),
         ).toBe("0px");
+
+        if (view === "settings" || view === "connections") {
+          expect(
+            await frame.evaluate(
+              (element) => getComputedStyle(element).overflowY,
+            ),
+          ).toBe("hidden");
+          const content = surface.locator(".dl-settings-content");
+          await expect(content).toBeVisible();
+          expect(
+            await content.evaluate(
+              (element) => getComputedStyle(element).overflowY,
+            ),
+          ).toBe("auto");
+        }
       }
 
       await page.evaluate((hash) => {

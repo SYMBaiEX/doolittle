@@ -187,7 +187,13 @@
 }
 
 /* Settings owns its independent navigation and content scrollports. Keep the
-   current section and its tabs in reach when a catalog or form fills the page. */
+   current section and its tabs in reach when a catalog or form fills the page.
+   The route container must not add a third scrollport around the bounded
+   settings frame. */
+.view-container[data-view-owner="settings"] {
+  overflow-y: hidden;
+}
+
 [data-route-document="settings"] .dl-settings-page-heading,
 [data-route-document="settings"] .dl-settings-tabs {
   position: sticky;
