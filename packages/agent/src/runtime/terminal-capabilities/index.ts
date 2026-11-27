@@ -16,3 +16,4 @@ export {
   type SeverityTone,
   severityBlessedTag,
 } from "./presentation";
+export type { TerminalCapabilityEnv } from "./types";

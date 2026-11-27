@@ -1,3 +1,5 @@
+import type { TerminalCapabilityEnv } from "./types";
+
 /**
  * Central glyph selection for terminal chrome.
  *
@@ -14,16 +16,10 @@
  * set stays.
  */
 
-interface TerminalLocaleEnv {
-  LC_ALL?: string | undefined;
-  LC_CTYPE?: string | undefined;
-  LANG?: string | undefined;
-}
-
 const UTF8_PATTERN = /utf-?8/iu;
 
 export function supportsTerminalUnicode(
-  env: TerminalLocaleEnv = process.env,
+  env: TerminalCapabilityEnv = process.env,
 ): boolean {
   const locale = env.LC_ALL || env.LC_CTYPE || env.LANG;
   if (!locale) {

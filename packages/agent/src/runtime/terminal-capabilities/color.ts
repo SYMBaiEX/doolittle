@@ -1,4 +1,5 @@
 import { stdout as defaultOutput } from "node:process";
+import type { TerminalCapabilityEnv } from "./types";
 
 /**
  * Central terminal color policy for plain (non-blessed) output.
@@ -33,16 +34,10 @@ export type PlainTextRole =
   | "warning"
   | "error";
 
-interface TerminalColorEnv {
-  NO_COLOR?: string | undefined;
-  FORCE_COLOR?: string | undefined;
-  COLORFGBG?: string | undefined;
-}
-
 /** Whether the stream may receive ANSI color under the current environment. */
 export function terminalColorEnabled(
   stream: { isTTY?: boolean | undefined } = defaultOutput,
-  env: TerminalColorEnv = process.env,
+  env: TerminalCapabilityEnv = process.env,
 ): boolean {
   if (env.FORCE_COLOR !== undefined && env.FORCE_COLOR !== "") {
     return env.FORCE_COLOR !== "0";
@@ -53,7 +48,7 @@ export function terminalColorEnabled(
   return stream.isTTY === true;
 }
 
-function backgroundScheme(env: TerminalColorEnv): "light" | "dark" {
+function backgroundScheme(env: TerminalCapabilityEnv): "light" | "dark" {
   const colorfgbg = env.COLORFGBG;
   if (!colorfgbg) {
     return "dark";
@@ -70,7 +65,7 @@ function backgroundScheme(env: TerminalColorEnv): "light" | "dark" {
 
 export function resolveTerminalColorPolicy(
   stream: { isTTY?: boolean | undefined } = defaultOutput,
-  env: TerminalColorEnv = process.env,
+  env: TerminalCapabilityEnv = process.env,
 ): TerminalColorPolicy {
   return {
     enabled: terminalColorEnabled(stream, env),
