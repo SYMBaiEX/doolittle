@@ -84,6 +84,11 @@ describe("PanelResizeHandle", () => {
       'hr[aria-label="Resize project rail"]',
     );
     expect(handle?.parentElement?.className).toContain("cursor-col-resize");
+    const hairline = handle?.parentElement?.querySelector("span");
+    expect(hairline?.className).toContain(
+      "bg-[color-mix(in_srgb,var(--border-strong)_68%,transparent)]",
+    );
+    expect(hairline?.className).not.toContain("bg-transparent");
 
     act(() => {
       handle?.dispatchEvent(
