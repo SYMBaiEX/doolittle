@@ -871,6 +871,12 @@ if (ownsSingleInstance)
         : app.isPackaged
           ? "Updates are unavailable in this packaged build."
           : "Updates are only available in a packaged, signed Doolittle build.",
+      {
+        downloadedStatePath: resolve(
+          app.getPath("userData"),
+          "downloaded-update.json",
+        ),
+      },
     );
     const providerAuth = new ProviderAuthController({
       openExternal: (url) => shell.openExternal(url),
