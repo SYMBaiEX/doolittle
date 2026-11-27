@@ -2,6 +2,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { type CliState, createCliSessionId } from "../execution/index";
+import { installPlainForeignOutputRouting } from "../plain-foreign-output";
 import {
   installPlainCliLifecycle,
   type PlainCliLifecycleState,
@@ -21,6 +22,10 @@ export async function startPlainCli(
   const plainLogger = context.services.logger.child("cli.plain");
   const rl = createInterface({ input, output });
   const interactiveShell = input.isTTY && output.isTTY;
+  const foreignOutput = installPlainForeignOutputRouting({
+    enabled: Boolean(interactiveShell),
+    output,
+  });
   const state: CliState = {
     activeSessionId: createCliSessionId("cli"),
     notices: [],
@@ -83,9 +88,11 @@ export async function startPlainCli(
       resetLastRenderedRunEventKey: () => {
         lastRenderedRunEventKey = "";
       },
+      drainForeignOutput: foreignOutput.drain,
     });
   } finally {
     plainLifecycle.cleanup();
+    foreignOutput.close();
   }
 
   return plainLifecycleState.requestedExitCode;

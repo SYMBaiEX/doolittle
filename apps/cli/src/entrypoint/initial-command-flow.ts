@@ -47,7 +47,6 @@ export async function handleEntrypointInitialCommandFlow(
   }
 
   if (command === "exec" && !prompt?.trim()) {
-    entryLogger.warn("exec-usage");
     writeStderrLine('Usage: doolittle exec --prompt "your request" [--json]');
     return 1;
   }

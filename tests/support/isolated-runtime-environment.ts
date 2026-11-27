@@ -101,6 +101,11 @@ export function isolatedRuntimeEnvironment(
       .filter(Boolean)
       .join(delimiter),
     HOME: runtimeDir,
+    // Linux browser native-transport sockets live under XDG_RUNTIME_DIR. If
+    // inherited, every fixture shares the per-user /run/user/<uid> dir and
+    // sequential boots collide with EADDRINUSE — macOS never notices because
+    // the socket follows the isolated HOME instead.
+    XDG_RUNTIME_DIR: runtimeDir,
     USERPROFILE: runtimeDir,
     APPDATA: join(runtimeDir, "appdata"),
     LOCALAPPDATA: join(runtimeDir, "local-appdata"),

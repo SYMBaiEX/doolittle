@@ -10,6 +10,10 @@ export function displayCommand(command: string): string {
   return normalizeSlashCommandSyntax(command);
 }
 
+// Match the CLI transcript's code/path token budget. Shell output is user
+// data; the command formatter must not destroy it before presentation policy.
+const SHELL_OUTPUT_TOKEN_LIMIT = 4_000;
+
 export function formatShellCommandResponse(
   result: ShellCommandTurnResult,
 ): string {
@@ -22,8 +26,12 @@ export function formatShellCommandResponse(
     result.durationMs !== undefined
       ? `Duration: ${result.durationMs}ms`
       : undefined,
-    `STDOUT:\n${sanitizeTerminalText(result.stdout || "(empty)")}`,
-    `STDERR:\n${sanitizeTerminalText(result.stderr || "(empty)")}`,
+    `STDOUT:\n${sanitizeTerminalText(result.stdout || "(empty)", {
+      maxTokenLength: SHELL_OUTPUT_TOKEN_LIMIT,
+    })}`,
+    `STDERR:\n${sanitizeTerminalText(result.stderr || "(empty)", {
+      maxTokenLength: SHELL_OUTPUT_TOKEN_LIMIT,
+    })}`,
   ]
     .filter(Boolean)
     .join("\n");

@@ -59,7 +59,10 @@ describe("setup wizard text input abort semantics", () => {
     await session.waitForGridText("What should I answer to", STEP_TIMEOUT_MS);
 
     // The footer explicitly advertises "Ctrl-C exits".
-    await session.waitForGridText("Control-C exits", STEP_TIMEOUT_MS);
+    // Key labels are platform-dependent: macOS rewrites Ctrl- to Control-.
+    const abortLabel =
+      process.platform === "darwin" ? "Control-C exits" : "Ctrl-C exits";
+    await session.waitForGridText(abortLabel, STEP_TIMEOUT_MS);
     session.key("ctrl-c");
 
     // The process must exit like every other wizard abort: code 1, no

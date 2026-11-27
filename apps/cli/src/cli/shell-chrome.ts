@@ -76,6 +76,7 @@ export function renderPlainBanner(
     paint(lines[7] ?? "", ANSI.green, true),
     paint(lines[8] ?? "", ANSI.magenta, true),
     paint(lines[9] ?? "", ANSI.gray, true),
+    paint(lines[10] ?? "", ANSI.bold + ANSI.magenta, true),
   ].join("\n");
 }
 

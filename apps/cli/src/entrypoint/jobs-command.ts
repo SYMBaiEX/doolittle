@@ -18,25 +18,21 @@ export async function handleJobsSubcommand(input: {
   const config = loadConfig();
   const dataDir = input.jobControlDir || config.dataDir;
   const command = input.rest[0] ?? "list";
-  const { entryLogger } = input;
 
   if (command === "list") {
     console.log(cliJobStatusSummary(dataDir));
     return 0;
   }
   if (command !== "show" && command !== "attach" && command !== "cancel") {
-    entryLogger.warn("jobs-usage");
     writeStderrLine("Usage: doolittle jobs <list|show|attach|cancel> [job-id]");
     return 1;
   }
   const jobId = input.rest[1]?.trim();
   if (!jobId) {
-    entryLogger.warn(`jobs-${command}-usage`);
     writeStderrLine(`Usage: doolittle jobs ${command} <job-id>`);
     return 1;
   }
   const missingJob = () => {
-    entryLogger.warn(`jobs-${command}-missing`, { jobId });
     writeStderrLine(`Background job not found: ${jobId}`);
     return 1;
   };

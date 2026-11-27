@@ -42,6 +42,7 @@ export function jobPaths(dataDir: string, id: string) {
     root,
     stateDir: join(root, "state"),
     logPath: join(root, "events.jsonl"),
+    stderrPath: join(root, "stderr.log"),
     controlPath: join(root, "control.json"),
     requestPath: join(root, "cancel-request.json"),
     heartbeatPath: join(root, "heartbeat"),

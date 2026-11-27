@@ -9,6 +9,13 @@ import { runCliShellFlow } from "./shell-flow";
 import { resolveStaticCliInput } from "./static";
 import type { CliExecutionHooks, CliExecutionResult, CliState } from "./types";
 
+// The offline-bootstrap model owns this exact deterministic fallback sentence.
+// Its run receipt is `complete` because the SDK did produce text, but no model
+// provider actually answered; automation must not mistake that degradation for
+// a successful agent turn.
+const PROVIDER_UNAVAILABLE_FALLBACK_PREFIX =
+  "Doolittle's local runtime is ready, but its model provider is unavailable.";
+
 export async function executeCliInput(
   line: string,
   context: AppContext,
@@ -101,10 +108,19 @@ export async function executeCliInput(
           ? "completed"
           : undefined
     : undefined;
+  const providerUnavailable = response.startsWith(
+    PROVIDER_UNAVAILABLE_FALLBACK_PREFIX,
+  );
+  const executionStatus = providerUnavailable ? "failed" : status;
   return {
     text: response,
-    tone:
-      status === "failed" ? "error" : isExplicitSlashCommand ? "info" : "agent",
-    ...(status ? { status } : {}),
+    tone: providerUnavailable
+      ? "warning"
+      : executionStatus === "failed"
+        ? "error"
+        : isExplicitSlashCommand
+          ? "info"
+          : "agent",
+    ...(executionStatus ? { status: executionStatus } : {}),
   };
 }
