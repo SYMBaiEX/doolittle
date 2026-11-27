@@ -49,6 +49,8 @@ export const VIEW_PRIMITIVES_CLASS = [
   "[&_.empty-block_h3]:mt-2.5 [&_.empty-block_h3]:mb-1.25 [&_.empty-block_h3]:font-[var(--font-display)] [&_.empty-block_h3]:text-sm [&_.empty-block_h3]:font-semibold",
   "[&_.empty-block_p]:m-0 [&_.empty-block_p]:max-w-82.5 [&_.empty-block_p]:text-[length:var(--text-body)] [&_.empty-block_p]:leading-[var(--line-body)] [&_.empty-block_p]:text-[var(--muted)]",
   "[&_.empty-actions]:mt-3 [&_.empty-actions]:flex [&_.empty-actions]:flex-wrap [&_.empty-actions]:justify-center [&_.empty-actions]:gap-1.5",
+  "[&_.empty-block--pane]:min-h-18 [&_.empty-block--pane]:px-3.5 [&_.empty-block--pane]:py-2.75",
+  "[&_.empty-block--inline]:block [&_.empty-block--inline]:min-h-0 [&_.empty-block--inline]:p-0 [&_.empty-block--inline]:text-left [&_.empty-block--inline_.empty-actions]:mt-0 [&_.empty-block--inline_.empty-actions]:justify-start",
   "[&_.empty-block--compact]:min-h-18 [&_.empty-block--compact]:px-3.5 [&_.empty-block--compact]:py-2.75 [&_.empty-block--compact_.empty-glyph]:hidden [&_.empty-block--compact_h3]:mt-0",
   "[&_.field-grid]:grid [&_.field-grid]:grid-cols-2 [&_.field-grid]:gap-x-3 [&_.field-grid]:gap-y-2.75 max-[760px]:[&_.field-grid]:grid-cols-1",
   "[&_.field-grid_label]:flex [&_.field-grid_label]:flex-col [&_.field-grid_label]:gap-1 [&_.inline-form_label]:flex [&_.inline-form_label]:flex-col [&_.inline-form_label]:gap-1",
