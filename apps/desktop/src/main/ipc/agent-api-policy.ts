@@ -1,3 +1,4 @@
+import { isBotId } from "@doolittle/contracts/identifiers";
 import type { AgentTransportRequest, HttpMethod } from "../../shared/contracts";
 import {
   fullyDecodeComponent,
@@ -1158,10 +1159,7 @@ export function validateAgentTransportRequest(
     throw new Error("Eliza desktop transport request ID is invalid.");
   }
   const botId = unsafeRequest.botId;
-  if (
-    botId !== undefined &&
-    (typeof botId !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(botId))
-  ) {
+  if (botId !== undefined && !isBotId(botId)) {
     throw new Error("Eliza desktop bot target is invalid.");
   }
   const originConversationId = unsafeRequest.originConversationId;

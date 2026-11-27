@@ -2,6 +2,7 @@ import type {
   BotConsultationResult,
   BotRunOwner,
 } from "@doolittle/contracts/bots";
+import { isBotId, isUuid } from "@doolittle/contracts/identifiers";
 import type { Action, ActionResult, HandlerOptions } from "@elizaos/core";
 import { readWorkerBotProfile } from "../runtime/bootstrap/bot-profile";
 import { requestWorkerHost } from "../runtime/bootstrap/worker-host-rpc";
@@ -21,8 +22,7 @@ function parameters(
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   if (
-    typeof input.targetBotId !== "string" ||
-    !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(input.targetBotId) ||
+    !isBotId(input.targetBotId) ||
     typeof input.objective !== "string" ||
     !input.objective.trim() ||
     input.objective.length > 32_000
@@ -32,10 +32,7 @@ function parameters(
     input.knowledgeIds !== undefined &&
     (!Array.isArray(input.knowledgeIds) ||
       input.knowledgeIds.length > 8 ||
-      input.knowledgeIds.some(
-        (id: unknown) =>
-          typeof id !== "string" || !/^[0-9a-f-]{36}$/iu.test(id),
-      ))
+      input.knowledgeIds.some((id: unknown) => !isUuid(id)))
   )
     return null;
   return {

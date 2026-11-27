@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import type { BotPermissions } from "@doolittle/contracts/bots";
+import {
+  type BotPermissions,
+  isBotPermissions,
+} from "@doolittle/contracts/bots";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import { readRegularFileSync } from "@doolittle/storage";
 import { BotAutomationHistory } from "./bot-automation-history";
 import { readLedgerCopies, writeLedgerCopies } from "./revisioned-ledger";
@@ -35,11 +39,7 @@ interface Stored {
   approvals: AutomationTargetApproval[];
   fires: AutomationTargetFire[];
 }
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const HASH = /^[0-9a-f]{64}$/u;
-function validId(value: unknown): value is string {
-  return typeof value === "string" && UUID.test(value);
-}
 function date(value: unknown): boolean {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -59,9 +59,9 @@ function parse(path: string): Stored | null {
     value.approvals.some(
       (row) =>
         !row ||
-        !validId(row.id) ||
-        !validId(row.jobId) ||
-        !validId(row.targetBotId) ||
+        !isUuid(row.id) ||
+        !isUuid(row.jobId) ||
+        !isUuid(row.targetBotId) ||
         !date(row.targetRevision) ||
         !date(row.createdAt) ||
         typeof row.definitionDigest !== "string" ||
@@ -70,27 +70,19 @@ function parse(path: string): Stored | null {
           (typeof row.workspacePath !== "string" ||
             !isAbsolute(row.workspacePath) ||
             resolve(row.workspacePath) !== row.workspacePath)) ||
-        !row.permissions ||
-        ![
-          row.permissions.connectionIds,
-          row.permissions.workspacePaths,
-          row.permissions.toolIds,
-        ].every(
-          (ids) =>
-            Array.isArray(ids) &&
-            ids.length < 200 &&
-            ids.every((id) => typeof id === "string" && id.length <= 4_096),
-        ) ||
-        typeof row.permissions.allowMutation !== "boolean" ||
-        typeof row.permissions.allowDelegation !== "boolean",
+        !isBotPermissions(row.permissions, {
+          maxEntries: 199,
+          maxValueLength: 4_096,
+          allowBlankEntries: true,
+        }),
     ) ||
     value.fires.some(
       (row) =>
         !row ||
-        !validId(row.fireId) ||
-        !validId(row.jobId) ||
-        !validId(row.approvalId) ||
-        !validId(row.targetBotId) ||
+        !isUuid(row.fireId) ||
+        !isUuid(row.jobId) ||
+        !isUuid(row.approvalId) ||
+        !isUuid(row.targetBotId) ||
         typeof row.fireKeyDigest !== "string" ||
         !HASH.test(row.fireKeyDigest) ||
         row.sessionId !== `automation:${row.jobId}:${row.fireId}` ||

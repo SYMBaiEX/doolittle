@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { availableParallelism } from "node:os";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isUuid } from "@doolittle/contracts/identifiers";
 
 export type ExecutionAdmissionKind = "foreground" | "automatic-acp";
 export interface ExecutionAdmissionLease {
@@ -376,7 +377,7 @@ export class DesktopExecutionAdmission {
     if (
       typeof input.runId !== "string" ||
       typeof input.leaseId !== "string" ||
-      !/^[0-9a-f-]{36}$/iu.test(input.leaseId)
+      !isUuid(input.leaseId)
     )
       throw new Error("Execution release request is invalid.");
     return {

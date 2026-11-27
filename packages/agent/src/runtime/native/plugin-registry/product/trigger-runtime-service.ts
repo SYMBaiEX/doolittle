@@ -2,6 +2,7 @@ import {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
 } from "@doolittle/contracts";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import {
   executeTriggerTask,
   listTriggerTasks,
@@ -530,7 +531,7 @@ async function approveNamedJob(job: AutomationJobRecord): Promise<void> {
   if (
     typeof receipt.targetBotId !== "string" ||
     typeof receipt.approvalId !== "string" ||
-    !/^[0-9a-f-]{36}$/iu.test(receipt.approvalId)
+    !isUuid(receipt.approvalId)
   )
     throw new Error("Named automation host approval is unavailable.");
   job.targetBotId = receipt.targetBotId;

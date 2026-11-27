@@ -10,6 +10,7 @@ import {
   statSync,
 } from "node:fs";
 import { basename, extname } from "node:path";
+import { isBotId } from "@doolittle/contracts/identifiers";
 import { readRegularFileSync } from "@doolittle/storage";
 import { isStrictlyContainedPath } from "../../utils/path-containment";
 import type { MediaAssetOrigin } from "./types";
@@ -63,8 +64,7 @@ function parseAssetOrigin(value: unknown): MediaAssetOrigin | undefined {
   if (!value || typeof value !== "object") return;
   const { botId, sessionId } = value as Partial<MediaAssetOrigin>;
   if (
-    typeof botId === "string" &&
-    /^[a-z0-9][a-z0-9_-]{0,63}$/u.test(botId) &&
+    isBotId(botId) &&
     typeof sessionId === "string" &&
     /^[a-zA-Z0-9:_-]{1,128}$/u.test(sessionId)
   )

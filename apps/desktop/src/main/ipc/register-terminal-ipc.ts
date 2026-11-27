@@ -1,4 +1,5 @@
 import { MAX_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
   DesktopCommandRequest,
@@ -331,7 +332,7 @@ export function registerTerminalIpcHandlers(
           !isRecord(payload) ||
           !Number.isSafeInteger(payload.processId) ||
           typeof payload.runtimeInstanceId !== "string" ||
-          !/^[a-f0-9-]{36}$/u.test(payload.runtimeInstanceId)
+          !isUuid(payload.runtimeInstanceId)
         ) {
           throw new Error("The local runtime identity is invalid.");
         }

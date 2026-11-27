@@ -1,11 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import { isUuidV4 } from "@doolittle/contracts/identifiers";
 import { readOptionalJson, writeJsonAtomicSync } from "@doolittle/storage";
 import type { ManagedAttachmentDescriptor } from "./attachment-import";
-
-const ATTACHMENT_ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 interface ManagedAttachmentMetadata {
   id: string;
@@ -34,7 +32,7 @@ export class ChatAttachmentLifecycle {
 
   lease(attachments: readonly ManagedAttachmentDescriptor[]): string {
     const ids = new Set(attachments.map((attachment) => attachment.id));
-    if (ids.size === 0 || [...ids].some((id) => !ATTACHMENT_ID.test(id))) {
+    if (ids.size === 0 || [...ids].some((id) => !isUuidV4(id))) {
       throw new Error("Managed attachment IDs are invalid.");
     }
     const capability = randomUUID();
@@ -66,7 +64,7 @@ export class ChatAttachmentLifecycle {
   }
 
   private authorize(ids: readonly string[], capability: string): string[] {
-    if (!ATTACHMENT_ID.test(capability)) {
+    if (!isUuidV4(capability)) {
       throw new Error("Attachment cleanup capability is invalid.");
     }
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -75,7 +73,7 @@ export class ChatAttachmentLifecycle {
     const normalized = [...new Set(ids.map((id) => id.toLowerCase()))];
     if (
       normalized.length !== ids.length ||
-      normalized.some((id) => !ATTACHMENT_ID.test(id))
+      normalized.some((id) => !isUuidV4(id))
     ) {
       throw new Error("Attachment cleanup IDs are invalid.");
     }
@@ -111,7 +109,7 @@ export class ChatAttachmentLifecycle {
       persisted.version !== 1 ||
       !Array.isArray(persisted.attachmentIds) ||
       persisted.attachmentIds.length === 0 ||
-      persisted.attachmentIds.some((id) => !ATTACHMENT_ID.test(id))
+      persisted.attachmentIds.some((id) => !isUuidV4(id))
     ) {
       throw new Error("Attachment cleanup lease is invalid.");
     }

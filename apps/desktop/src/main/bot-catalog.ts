@@ -12,10 +12,12 @@ import {
   type UpdateBotInput,
 } from "@doolittle/contracts";
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
+import { isBotPermissions } from "@doolittle/contracts/bots";
+import { isBotId, isUuid } from "@doolittle/contracts/identifiers";
+import { isRuntimeReasoningEffort } from "@doolittle/contracts/model-route";
 import { readRegularFileSync, writeJsonAtomicSync } from "@doolittle/storage";
 import type { RuntimeEndpoint } from "./runtime-endpoint";
 
-const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 // AgentRuntime derives this id from the unmodified Doolittle character name.
 const LEGACY_AGENT_ID = "9f21e797-127f-0eba-b547-92f9b113fb1e";
 const MAX_NAME_LENGTH = 80;
@@ -117,16 +119,7 @@ function normalizeModel(
   const reasoningEffort = value.reasoningEffort;
   if (
     reasoningEffort !== undefined &&
-    ![
-      "none",
-      "minimal",
-      "low",
-      "medium",
-      "high",
-      "xhigh",
-      "max",
-      "ultra",
-    ].includes(reasoningEffort)
+    !isRuntimeReasoningEffort(reasoningEffort)
   ) {
     throw new Error("Bot reasoning effort is invalid.");
   }
@@ -165,12 +158,10 @@ function isStoredBotDefinition(value: unknown): value is BotDefinition {
   const bot = value as Partial<BotDefinition>;
   if (
     typeof bot.id !== "string" ||
-    !BOT_ID_PATTERN.test(bot.id) ||
+    !isBotId(bot.id) ||
     bot.id === "default" ||
     typeof bot.agentId !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
-      bot.agentId,
-    ) ||
+    !isUuid(bot.agentId) ||
     bot.isDefault !== false ||
     typeof bot.createdAt !== "string" ||
     typeof bot.updatedAt !== "string" ||
@@ -191,11 +182,7 @@ function isStoredBotDefinition(value: unknown): value is BotDefinition {
     normalizeModel(bot.model, DEFAULT_MODEL_ROUTE);
     const permissions = normalizePermissions(bot.permissions, workspacePath);
     if (
-      !Array.isArray(bot.permissions.connectionIds) ||
-      !Array.isArray(bot.permissions.workspacePaths) ||
-      !Array.isArray(bot.permissions.toolIds) ||
-      typeof bot.permissions.allowMutation !== "boolean" ||
-      typeof bot.permissions.allowDelegation !== "boolean" ||
+      !isBotPermissions(bot.permissions) ||
       permissions.workspacePaths.length !==
         bot.permissions.workspacePaths.length
     )
@@ -254,10 +241,7 @@ export class BotCatalog {
     const value = JSON.parse(raw) as StoredBotCatalog;
     if (
       value.version !== 1 ||
-      (value.defaultAgentId !== undefined &&
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
-          value.defaultAgentId,
-        )) ||
+      (value.defaultAgentId !== undefined && !isUuid(value.defaultAgentId)) ||
       !Array.isArray(value.bots) ||
       value.bots.some((bot) => !isStoredBotDefinition(bot)) ||
       new Set(value.bots.map((bot) => bot.id)).size !== value.bots.length

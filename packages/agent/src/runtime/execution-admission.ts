@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { isUuidV4 } from "@doolittle/contracts/identifiers";
 import { requestWorkerHost } from "./bootstrap/worker-host-rpc";
 
 export type ExecutionAdmissionKind = "foreground" | "automatic-acp";
@@ -89,8 +90,6 @@ export class ExecutionAdmissionLimitError extends Error {
 }
 
 const RUN_ID = /^[A-Za-z0-9:_-]{1,128}$/u;
-const LEASE_ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 // Host admission permits up to 120s of queueing; leave delivery/cancel margin.
 const EXECUTION_CLAIM_RPC_TIMEOUT_MS = 150_000;
 
@@ -228,7 +227,7 @@ function parseAdmissionDecision(result: unknown): string {
   if (
     decision.accepted !== true ||
     typeof decision.leaseId !== "string" ||
-    !LEASE_ID.test(decision.leaseId)
+    !isUuidV4(decision.leaseId)
   ) {
     throw new Error("Global execution admission receipt is invalid.");
   }

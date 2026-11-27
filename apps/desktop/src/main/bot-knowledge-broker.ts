@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { SharedKnowledgeRecord } from "@doolittle/contracts/bots";
+import { isUuid } from "@doolittle/contracts/identifiers";
 import type { BackendLaunchTarget } from "./backend";
 import { BotKnowledgeLedger } from "./bot-knowledge-ledger";
 import type { BotProcessRegistry } from "./bot-process-registry";
@@ -64,7 +65,7 @@ export class BotKnowledgeBroker {
       !ID.test(input.messageId) ||
       (input.projectId === undefined) === (input.teamId === undefined) ||
       (input.projectId !== undefined && !ID.test(input.projectId)) ||
-      (input.teamId !== undefined && !/^[0-9a-f-]{36}$/iu.test(input.teamId)) ||
+      (input.teamId !== undefined && !isUuid(input.teamId)) ||
       typeof input.title !== "string" ||
       !input.title.trim() ||
       input.title.length > 300
