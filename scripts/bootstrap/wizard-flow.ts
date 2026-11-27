@@ -3,6 +3,7 @@ import { createInterface } from "node:readline/promises";
 import { getLinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import { createHeadlessAnswers } from "./answers";
 import type { BootstrapWizardContext } from "./bootstrap-context";
+import { supportsTerminalUnicode } from "./core/terminal-capabilities";
 import type { PromptHandle } from "./prompting/types";
 import { runProviderSelectionFlow } from "./provider/selection/flow";
 import type { WizardAnswers } from "./types";
@@ -27,7 +28,14 @@ export async function runWizard(
   if (input.isTTY && output.isTTY) {
     const cols = typeof output.columns === "number" ? output.columns : 0;
     const rows = typeof output.rows === "number" ? output.rows : 0;
-    if (cols >= 96 && rows >= 28) {
+    if (!supportsTerminalUnicode()) {
+      // The fullscreen ritual is box-drawn unicode chrome; in a POSIX/C
+      // locale it renders as mojibake, so the line wizard — which carries
+      // ASCII fallbacks for every glyph — is the readable path.
+      context.warn(
+        "This terminal locale does not advertise UTF-8. I'm switching to the line wizard so the setup stays readable.",
+      );
+    } else if (cols >= 96 && rows >= 28) {
       initializeWizardScreen(context);
     } else {
       context.banner();

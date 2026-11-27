@@ -1,4 +1,5 @@
 import { bootstrapColor, paint } from "../core/output";
+import { terminalGlyph } from "../core/terminal-capabilities";
 import type { PromptRuntime, SelectManyOption, SelectOneOption } from "./types";
 
 export async function chooseOneFallback<T extends string>(
@@ -10,7 +11,10 @@ export async function chooseOneFallback<T extends string>(
 ): Promise<T> {
   console.log(paint(prompt, bootstrapColor.cyan + bootstrapColor.bold));
   optionsList.forEach((item, index) => {
-    const selected = item.value === defaultValue ? "●" : "○";
+    const selected =
+      item.value === defaultValue
+        ? terminalGlyph("●", "*")
+        : terminalGlyph("○", "o");
     console.log(`  ${selected} ${index + 1}. ${item.label}`);
     if (item.detail) {
       runtime.info(item.detail);
@@ -45,7 +49,9 @@ export async function chooseManyFallback<T extends string>(
 ): Promise<T[]> {
   console.log(paint(prompt, bootstrapColor.cyan + bootstrapColor.bold));
   optionsList.forEach((item, index) => {
-    const selected = defaults.includes(item.value) ? "●" : "○";
+    const selected = defaults.includes(item.value)
+      ? terminalGlyph("●", "*")
+      : terminalGlyph("○", "o");
     console.log(`  ${selected} ${index + 1}. ${item.label}`);
   });
   runtime.info(
