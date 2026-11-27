@@ -61,6 +61,8 @@ describe("host-owned execution boundaries", () => {
         DATABASE_URL: "fixture-private",
         NODE_OPTIONS: "--inspect",
         HOME: "/operator-home",
+        LC_ALL: "C",
+        LANG: "POSIX",
       },
     );
     expect(environment.PATH?.split(delimiter)).toEqual([
@@ -71,6 +73,9 @@ describe("host-owned execution boundaries", () => {
     expect(environment.DATABASE_URL).toBeUndefined();
     expect(environment.NODE_OPTIONS).toBeUndefined();
     expect(environment.HOME).not.toBe("/operator-home");
+    expect(environment.LC_ALL).toMatch(/utf-?8/iu);
+    expect(environment.LC_ALL).not.toBe("C");
+    expect(environment.LANG).toBe(environment.LC_ALL);
     expect(environment.ELIZA_HOME).toBe(environment.HOME);
   });
   it("rejects forged bot and workspace ownership for a conversation", () => {
