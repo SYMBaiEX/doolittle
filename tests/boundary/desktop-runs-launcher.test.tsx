@@ -105,6 +105,26 @@ it("does not disguise loading or failed history as an empty collection", () => {
   expect(host.textContent).toContain("History unavailable");
 });
 
+it("marks the selected workflow mode with a visible neutral indicator", () => {
+  render({ codegenMode: "research" });
+  const choices = [
+    ...host.querySelectorAll<HTMLButtonElement>(
+      ".orchestration-mode-grid button",
+    ),
+  ];
+  const selected = choices.find(
+    (choice) => choice.getAttribute("aria-current") === "true",
+  );
+  expect(selected?.textContent).toContain("Research");
+  expect(selected?.className).toContain("selected");
+  expect(
+    selected?.querySelector(".orchestration-mode-grid__check"),
+  ).not.toBeNull();
+  for (const choice of choices.filter((entry) => entry !== selected)) {
+    expect(choice.querySelector(".orchestration-mode-grid__check")).toBeNull();
+  }
+});
+
 it.each(CODEGEN_MODES)(
   "keeps $label fields, submission and execution gates",
   (mode) => {

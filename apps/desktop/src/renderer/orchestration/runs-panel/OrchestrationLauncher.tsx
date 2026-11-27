@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { asArray, asNumber, asString, Badge, ErrorBlock } from "../../lib";
 import { compactWorkspacePath } from "../../workspace-path";
 import { orchestrationClass as oc } from "../layout";
@@ -81,6 +82,14 @@ export function OrchestrationLauncher(props: LauncherProps) {
           >
             <strong>{mode.label}</strong>
             <span>{mode.detail}</span>
+            {codegenMode === mode.id ? (
+              <Check
+                aria-hidden
+                className="orchestration-mode-grid__check"
+                size={12}
+                strokeWidth={2.5}
+              />
+            ) : null}
           </button>
         ))}
       </fieldset>
