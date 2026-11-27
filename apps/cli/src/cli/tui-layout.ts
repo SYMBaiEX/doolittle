@@ -14,6 +14,34 @@ interface RowShareSpec {
   weight: number;
 }
 
+const TWO_COLUMN_MIN_WIDTH = 110;
+const RAIL_MIN_WIDTH = 30;
+const RAIL_MAX_WIDTH = 42;
+const RAIL_WIDTH_RATIO = 0.24;
+const PANEL_CHROME_WIDTH = 4;
+const NARROW_COMPACT_OPS_MAX_PANEL_ROWS = 19;
+
+/**
+ * Right-rail outer width in two-column geometry. The old proportional-only
+ * calculation bottomed out at 16 cells at the 110-column breakpoint, below
+ * the width needed for even one scanable status or command row. Clamp the
+ * rail instead: 30 columns leaves an 80-column conversation at the breakpoint,
+ * while 42 columns is enough for command context without crowding wide shells.
+ */
+export function resolveCockpitRailWidth(screenWidth: number): number {
+  const proportional = Math.floor(screenWidth * RAIL_WIDTH_RATIO);
+  return Math.max(RAIL_MIN_WIDTH, Math.min(RAIL_MAX_WIDTH, proportional));
+}
+
+/** Content columns inside a bordered, horizontally padded rail panel. */
+export function resolveCockpitRailContentWidth(screenWidth: number): number {
+  const outerWidth =
+    screenWidth < TWO_COLUMN_MIN_WIDTH
+      ? screenWidth
+      : resolveCockpitRailWidth(screenWidth);
+  return Math.max(1, outerWidth - PANEL_CHROME_WIDTH);
+}
+
 /**
  * Partition `total` rows across panels so the sum of the shares is exactly
  * `total`. Every panel first receives its minimum; the remaining rows are
@@ -95,6 +123,18 @@ function stackPanels(
   }
 }
 
+function setPanelHidden(
+  panel: blessed.Widgets.BoxElement | blessed.Widgets.Log,
+  hidden: boolean,
+): void {
+  if (panel.hidden === hidden) return;
+  if (hidden) {
+    panel.hide();
+  } else {
+    panel.show();
+  }
+}
+
 export function applyTuiLayout(
   screen: blessed.Widgets.Screen,
   layout: TuiLayoutWidgets,
@@ -102,7 +142,7 @@ export function applyTuiLayout(
 ): void {
   const width = screen.width as number;
   const height = screen.height as number;
-  const narrow = width < 110;
+  const narrow = width < TWO_COLUMN_MIN_WIDTH;
   const opsCollapsed = options?.opsCollapsed ?? true;
 
   // Fixed chrome: header rows 0-2, footer row height-1, input rows
@@ -128,36 +168,65 @@ export function applyTuiLayout(
   layout.footer.height = 1;
 
   if (narrow) {
-    // Single column: every panel spans the full width and the four panels
-    // exactly partition the rows between header and input. Minimums are
-    // sized so the 80x24 minimum geometry (panelRows = 17) still renders
-    // every panel with inner rows: 5+3+4+4 = 16 <= 17 collapsed, and
-    // 5+4+4+4 = 17 <= 17 expanded.
-    const [responseShare, activityShare, sidebarShare, assistShare] =
-      distributeRowShares(panelRows, [
-        { min: 5, weight: opsCollapsed ? 4 : 2 },
-        { min: opsCollapsed ? 3 : 4, weight: opsCollapsed ? 1 : 3 },
-        { min: 4, weight: 1 },
-        { min: 4, weight: 1 },
-      ]);
-    stackPanels(
-      [
-        { box: layout.response, share: responseShare },
-        { box: layout.activity, share: activityShare },
-        { box: layout.sidebar, share: sidebarShare },
-        { box: layout.assistBox, share: assistShare },
-      ],
-      PANELS_TOP,
-      0,
-      width,
-    );
+    // Single column. Four simultaneously visible panels cannot be scanable at
+    // the 80x24 minimum: borders and padding would consume most of their rows.
+    // Use the existing Ctrl-O disclosure as the progressive layer instead —
+    // collapsed ops yields its rows to Conversation, Status and Controls at
+    // very short geometry, while expanded ops becomes the prioritized panel.
+    const compactOps =
+      opsCollapsed && panelRows <= NARROW_COMPACT_OPS_MAX_PANEL_ROWS;
+    setPanelHidden(layout.activity, compactOps);
+
+    if (compactOps) {
+      layout.activity.top = PANELS_TOP;
+      layout.activity.left = 0;
+      layout.activity.width = width;
+      layout.activity.height = 0;
+      const [responseShare, sidebarShare, assistShare] = distributeRowShares(
+        panelRows,
+        [
+          { min: 7, weight: 5 },
+          { min: 4, weight: 1 },
+          { min: 6, weight: 2 },
+        ],
+      );
+      stackPanels(
+        [
+          { box: layout.response, share: responseShare },
+          { box: layout.sidebar, share: sidebarShare },
+          { box: layout.assistBox, share: assistShare },
+        ],
+        PANELS_TOP,
+        0,
+        width,
+      );
+    } else {
+      const [responseShare, activityShare, sidebarShare, assistShare] =
+        distributeRowShares(panelRows, [
+          { min: opsCollapsed ? 6 : 5, weight: opsCollapsed ? 4 : 2 },
+          { min: opsCollapsed ? 3 : 5, weight: opsCollapsed ? 1 : 3 },
+          { min: opsCollapsed ? 4 : 3, weight: 1 },
+          { min: opsCollapsed ? 5 : 4, weight: opsCollapsed ? 2 : 1 },
+        ]);
+      stackPanels(
+        [
+          { box: layout.response, share: responseShare },
+          { box: layout.activity, share: activityShare },
+          { box: layout.sidebar, share: sidebarShare },
+          { box: layout.assistBox, share: assistShare },
+        ],
+        PANELS_TOP,
+        0,
+        width,
+      );
+    }
   } else {
-    // Two columns. The right rail width is the complement of the floored
-    // left-pane width, so the columns always cover every column exactly —
-    // independently floored percentages leak a dead one-column strip at the
-    // right edge whenever floor(86%) + floor(14%) < width.
-    const leftWidth = Math.floor(width * 0.86);
-    const railWidth = width - leftWidth;
+    // Two columns. The rail uses a clamped operator-facing width rather than
+    // an unbounded percentage remainder; the left pane takes the complement so
+    // the columns still cover every terminal column exactly.
+    setPanelHidden(layout.activity, false);
+    const railWidth = resolveCockpitRailWidth(width);
+    const leftWidth = width - railWidth;
 
     const [responseShare, activityShare] = distributeRowShares(panelRows, [
       { min: 5, weight: opsCollapsed ? 4 : 2 },

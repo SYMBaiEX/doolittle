@@ -20,12 +20,34 @@ import {
   macAwareKeyLabel,
   shortModelId,
 } from "./terminal-labels";
-import { truncate } from "./text-utils";
+import { resolveCockpitRailContentWidth } from "./tui-layout";
+
+function clipInline(text: string, width: number): string {
+  const normalized = text.replace(/\s+/gu, " ").trim();
+  if (footerTextWidth(normalized) <= width) return normalized;
+  if (width <= 0) return "";
+  if (width === 1) return "…";
+  return `${takeFooterTextPrefix(normalized, width - 1)}…`;
+}
+
+function resolveStatusContentWidth(width?: number): number {
+  if (width !== undefined) {
+    return Math.max(1, Math.floor(width));
+  }
+  return resolveCockpitRailContentWidth(stdout.columns ?? 80);
+}
+
+function valueWidth(width: number, label: string): number {
+  return Math.max(4, width - label.length);
+}
 
 export function renderStatusContent(
   context: AppContext,
   state: CliState,
+  width?: number,
 ): string {
+  const contentWidth = resolveStatusContentWidth(width);
+  const compact = contentWidth < 48;
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
   const snapshot = buildCliOperatorSnapshot(context, state);
@@ -45,33 +67,85 @@ export function renderStatusContent(
   const active = sessions.find(
     (entry) => entry.sessionId === state.activeSessionId,
   );
+  const projectLabel = currentProjectLabel();
+  const workspaceSessionLines = compact
+    ? [
+        `workspace {cyan-fg}${escapeBlessed(clipInline(projectLabel, valueWidth(contentWidth, "workspace ")))}{/}`,
+        `session ${escapeBlessed(clipInline(snapshot.sessionLabel, valueWidth(contentWidth, "session ")))}`,
+      ]
+    : (() => {
+        const fixedWidth = "workspace  · session ".length;
+        const budget = Math.max(16, contentWidth - fixedWidth);
+        const projectWidth = Math.max(8, Math.floor(budget * 0.45));
+        const sessionWidth = Math.max(8, budget - projectWidth);
+        return [
+          `workspace {cyan-fg}${escapeBlessed(clipInline(projectLabel, projectWidth))}{/} · session ${escapeBlessed(clipInline(snapshot.sessionLabel, sessionWidth))}`,
+        ];
+      })();
+  const modelLines = compact
+    ? [
+        `provider {cyan-fg}${escapeBlessed(clipInline(settings.model.provider, valueWidth(contentWidth, "provider ")))}{/}`,
+        `model {cyan-fg}${escapeBlessed(clipInline(settings.model.model, valueWidth(contentWidth, "model ")))}{/}`,
+      ]
+    : [
+        `{cyan-fg}${escapeBlessed(clipInline(settings.model.provider, Math.max(8, Math.floor((contentWidth - 3) / 2))))}{/} · {cyan-fg}${escapeBlessed(clipInline(settings.model.model, Math.max(8, Math.ceil((contentWidth - 3) / 2))))}{/}`,
+      ];
+  const connection = autonomousControl.alignment.connection;
+  const connectionSummary = clipInline(
+    `${connection.kind}${connection.provider ? ` via ${connection.provider}` : ""}`,
+    contentWidth,
+  );
+  const startupSummary = clipInline(
+    snapshot.startupSummary,
+    valueWidth(contentWidth, "startup "),
+  );
+  const runSummary = clipInline(
+    `run ${settings.agent.runDepth} · cap ${settings.agent.maxIterations} · progress ${settings.agent.toolProgressMode}`,
+    contentWidth,
+  );
+  const liveLine = activeRun
+    ? (() => {
+        const elapsed = formatElapsedMs(getRunElapsedMs(activeRun));
+        let line = `live ${activeRun.status} · ${activeRun.observedActionCount} steps`;
+        if (elapsed && line.length + elapsed.length + 3 <= contentWidth) {
+          line += ` · ${elapsed}`;
+        }
+        const detail = activeRun.activeAction || activeRun.statusDetail;
+        const detailWidth = contentWidth - line.length - 3;
+        if (detail && detailWidth >= 8) {
+          line += ` · ${clipInline(detail, detailWidth)}`;
+        }
+        return escapeBlessed(line);
+      })()
+    : "{gray-fg}live idle{/}";
+  const hydrationSummary = clipInline(
+    `hydration gw:${startup.phases.gateway.status} cron:${startup.phases.cron.status} diag:${startup.phases.diagnostics.status} skills:${startup.phases.skills.status}`,
+    contentWidth,
+  );
+  const delegationSummary = clipInline(
+    `delegation ${delegation.running}/${delegation.pending}/${delegation.completed} · workers ${delegation.activeWorkers}`,
+    contentWidth,
+  );
+  const gatewaySummary = clipInline(
+    `gateway sessions ${gatewaySessions.length} · voice ${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
+    contentWidth,
+  );
+  const focusTarget = active?.title ?? state.activeSessionId;
 
   return [
     "{bold}Operator Snapshot{/}",
-    `{gray-fg}${escapeBlessed(theme.sigil)} ${escapeBlessed(theme.label)} ${escapeBlessed(runStatusFace(theme, activeRun?.status))}{/}`,
-    `workspace {cyan-fg}${escapeBlessed(currentProjectLabel())}{/} · session ${escapeBlessed(truncate(snapshot.sessionLabel, 28))}`,
-    `{cyan-fg}${settings.model.provider}{/} · {cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
-    `${escapeBlessed(autonomousControl.alignment.connection.kind)}${autonomousControl.alignment.connection.provider ? ` via ${escapeBlessed(autonomousControl.alignment.connection.provider)}` : ""}`,
-    `startup ${escapeBlessed(snapshot.startupSummary)}`,
-    `run ${settings.agent.runDepth} · cap ${settings.agent.maxIterations} · progress ${settings.agent.toolProgressMode}`,
-    activeRun
-      ? (() => {
-          const elapsed = formatElapsedMs(getRunElapsedMs(activeRun));
-          const tail = activeRun.activeAction
-            ? ` · ${escapeBlessed(truncate(activeRun.activeAction, 26))}`
-            : activeRun.statusDetail
-              ? ` · ${escapeBlessed(truncate(activeRun.statusDetail, 26))}`
-              : "";
-          return `live ${activeRun.status}${elapsed ? ` · ${escapeBlessed(elapsed)}` : ""} · ${activeRun.observedActionCount} steps${tail}`;
-        })()
-      : "{gray-fg}live idle{/}",
-    `hydration gw:${startup.phases.gateway.status} cron:${startup.phases.cron.status} diag:${startup.phases.diagnostics.status} skills:${startup.phases.skills.status}`,
-    `channels ${escapeBlessed(snapshot.transportSummary)}`,
-    `delegation ${delegation.running}/${delegation.pending}/${delegation.completed} · workers ${delegation.activeWorkers}`,
-    `gateway sessions ${gatewaySessions.length} · voice ${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
-    active?.title
-      ? `focus ${truncate(active.title, 28)}`
-      : `focus ${state.activeSessionId}`,
+    `{gray-fg}${escapeBlessed(clipInline(`${theme.sigil} ${theme.label} ${runStatusFace(theme, activeRun?.status)}`, contentWidth))}{/}`,
+    ...workspaceSessionLines,
+    ...modelLines,
+    escapeBlessed(connectionSummary),
+    `startup ${escapeBlessed(startupSummary)}`,
+    escapeBlessed(runSummary),
+    liveLine,
+    escapeBlessed(hydrationSummary),
+    `channels ${escapeBlessed(clipInline(snapshot.transportSummary, valueWidth(contentWidth, "channels ")))}`,
+    escapeBlessed(delegationSummary),
+    escapeBlessed(gatewaySummary),
+    `focus ${escapeBlessed(clipInline(focusTarget, valueWidth(contentWidth, "focus ")))}`,
     "",
     "{bold}Live Notices{/}",
     ...(state.notices.length
@@ -82,21 +156,22 @@ export function renderStatusContent(
               : entry.kind === "skills"
                 ? "{magenta-fg}SKL{/}"
                 : "{cyan-fg}SYS{/}";
-          return `${accent} {gray-fg}${escapeBlessed(entry.at)}{/} ${escapeBlessed(truncate(entry.message, 84))}`;
+          const messageWidth = Math.max(4, contentWidth - entry.at.length - 5);
+          return `${accent} {gray-fg}${escapeBlessed(entry.at)}{/} ${escapeBlessed(clipInline(entry.message, messageWidth))}`;
         })
       : ["{gray-fg}No active notices.{/}"]),
     "",
     "{bold}Native Surface{/}",
-    `plugins ${escapeBlessed(snapshot.pluginSummary)}`,
-    `runtime {gray-fg}${escapeBlessed(audit.runtime.beta)}{/}`,
+    `plugins ${escapeBlessed(clipInline(snapshot.pluginSummary, valueWidth(contentWidth, "plugins ")))}`,
+    `runtime {gray-fg}${escapeBlessed(clipInline(audit.runtime.beta, valueWidth(contentWidth, "runtime ")))}{/}`,
     "",
     "{bold}Next Step{/}",
-    escapeBlessed(snapshot.nextCockpitHint),
+    escapeBlessed(clipInline(snapshot.nextCockpitHint, contentWidth)),
     "",
     "{bold}Recent Sessions{/}",
     ...sessions.slice(0, 4).map((entry) => {
       const marker = entry.sessionId === state.activeSessionId ? "*" : "-";
-      return `${marker} ${truncate(entry.title ?? entry.sessionId, 26)}`;
+      return `${marker} ${escapeBlessed(clipInline(entry.title ?? entry.sessionId, contentWidth - 2))}`;
     }),
   ].join("\n");
 }

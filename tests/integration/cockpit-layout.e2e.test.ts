@@ -19,10 +19,10 @@ import {
 //   rows H-4..H-2 input chrome (height 3, bottom-anchored 1 above footer)
 //   row  H-1     footer strip
 //
-// Every booted panel must have inner rows (height >= 3), no two panels may
-// share a row or column, and the right rail must reach the terminal's last
-// column — independently floored percentages previously leaked a dead
-// one-column strip there.
+// Every visible booted panel must have inner rows (height >= 3), no two
+// panels may share a row or column, and the clamped right rail must reach the
+// terminal's last column. At narrow minimum height the collapsed Ops Stream
+// uses progressive disclosure rather than rendering as a chrome-only strip.
 
 const BOOT_TIMEOUT_MS = 60_000;
 
@@ -31,7 +31,8 @@ interface SizeExpectation {
   rows: number;
   /** Inclusive border rows for each panel, as rendered. */
   response: [number, number];
-  activity: [number, number];
+  /** Undefined when progressive disclosure hides the collapsed ops panel. */
+  activity?: [number, number];
   sidebar: [number, number];
   commands: [number, number];
   /** First column of the right rail; undefined for the narrow single column. */
@@ -41,13 +42,13 @@ interface SizeExpectation {
 // Shares derive from distributeRowShares() over H-7 rows; see tui-layout.ts.
 const EXPECTATIONS: SizeExpectation[] = [
   {
-    // Narrow minimum geometry: every panel keeps inner rows.
+    // Narrow minimum geometry: collapsed ops is progressively disclosed so
+    // the three visible panels retain useful inner rows.
     cols: 80,
     rows: 24,
-    response: [3, 8],
-    activity: [9, 11],
-    sidebar: [12, 15],
-    commands: [16, 19],
+    response: [3, 9],
+    sidebar: [10, 13],
+    commands: [14, 19],
   },
   {
     cols: 110,
@@ -56,7 +57,7 @@ const EXPECTATIONS: SizeExpectation[] = [
     activity: [20, 25],
     sidebar: [3, 14],
     commands: [15, 25],
-    railLeft: 94,
+    railLeft: 80,
   },
   {
     cols: 140,
@@ -65,7 +66,7 @@ const EXPECTATIONS: SizeExpectation[] = [
     activity: [28, 35],
     sidebar: [3, 19],
     commands: [20, 35],
-    railLeft: 120,
+    railLeft: 107,
   },
   {
     cols: 200,
@@ -74,7 +75,7 @@ const EXPECTATIONS: SizeExpectation[] = [
     activity: [36, 45],
     sidebar: [3, 24],
     commands: [25, 45],
-    railLeft: 172,
+    railLeft: 158,
   },
 ];
 
@@ -142,19 +143,22 @@ describe("cockpit layout geometry", () => {
         "┘",
       ]);
 
-      // Ops Stream: exact border rows with at least one inner row between
-      // them (the zero-inner-row regression at 110x30).
-      const activityInnerRows =
-        expectation.activity[1] - expectation.activity[0] - 1;
-      expect(activityInnerRows).toBeGreaterThanOrEqual(1);
-      await expectBorderRow(expectation.activity[0], 0, responseRight, [
-        "┌",
-        "┐",
-      ]);
-      await expectBorderRow(expectation.activity[1], 0, responseRight, [
-        "└",
-        "┘",
-      ]);
+      // Ops Stream: exact border rows when disclosed. At the narrow minimum
+      // its collapsed state is intentionally hidden instead of spending rows
+      // on a chrome-only strip.
+      if (expectation.activity) {
+        const activityInnerRows =
+          expectation.activity[1] - expectation.activity[0] - 1;
+        expect(activityInnerRows).toBeGreaterThanOrEqual(1);
+        await expectBorderRow(expectation.activity[0], 0, responseRight, [
+          "┌",
+          "┐",
+        ]);
+        await expectBorderRow(expectation.activity[1], 0, responseRight, [
+          "└",
+          "┘",
+        ]);
+      }
 
       // Status and Commands: exact rows. In the two-column layouts they
       // occupy the right rail; in the narrow layout they stack full-width.
@@ -188,14 +192,18 @@ describe("cockpit layout geometry", () => {
       // Adjacency: the partition leaves no dead rows — each panel's top
       // border directly follows the previous panel's bottom border, and
       // the last panel ends on the row directly above the input chrome.
-      expect(expectation.activity[0]).toBe(expectation.response[1] + 1);
       if (narrow) {
-        expect(expectation.sidebar[0]).toBe(expectation.activity[1] + 1);
+        // With collapsed ops hidden, Status directly follows Conversation.
+        expect(expectation.sidebar[0]).toBe(expectation.response[1] + 1);
         expect(expectation.commands[0]).toBe(expectation.sidebar[1] + 1);
       } else {
+        if (!expectation.activity) {
+          throw new Error("two-column expectations must include ops geometry");
+        }
+        expect(expectation.activity[0]).toBe(expectation.response[1] + 1);
         expect(expectation.commands[0]).toBe(expectation.sidebar[1] + 1);
         // In the two-column layouts the left column's last panel is the
-        // Ops Stream; in the narrow single column it sits mid-stack.
+        // Ops Stream.
         expect(expectation.activity[1]).toBe(inputTopRow - 1);
       }
       expect(expectation.commands[1]).toBe(inputTopRow - 1);
@@ -203,10 +211,15 @@ describe("cockpit layout geometry", () => {
       // Input chrome: top border exactly where the fixed geometry puts it.
       await expectBorderRow(inputTopRow, 0, rightEdge, ["┌", "┐"]);
 
-      // Every core panel is present — the 80x24 regression dropped Ops
-      // Stream, Status and Commands entirely.
+      // Core primary panels are present at every geometry. Ops Stream is
+      // visible in two-column geometry and intentionally folded away only in
+      // the narrow minimum collapsed state.
       expect(grid).toContain("Conversation");
-      expect(grid).toContain("Ops Stream");
+      if (expectation.activity) {
+        expect(grid).toContain("Ops Stream");
+      } else {
+        expect(grid).not.toContain("Ops Stream");
+      }
       expect(grid).toContain("Status");
       expect(grid).toContain("Commands");
 
@@ -237,10 +250,11 @@ describe("cockpit layout geometry", () => {
     });
     await terminal.waitForGridText("queue:0", BOOT_TIMEOUT_MS);
 
-    // Conversation rows 3-8: the thumb must sit inside the right border
-    // (column 79) on one of the inner rows 4-7, right of the text gutter.
+    // Conversation rows 3-9 in the progressive minimum layout: the thumb
+    // must sit inside the right border (column 79) on one of the inner rows
+    // 4-8, right of the text gutter.
     const thumbColumns = [75, 76, 77, 78];
-    const innerRows = [4, 5, 6, 7];
+    const innerRows = [4, 5, 6, 7, 8];
     const thumbCells: Array<[number, number]> = [];
     for (const row of innerRows) {
       for (const column of thumbColumns) {
@@ -258,9 +272,20 @@ describe("cockpit layout geometry", () => {
         .join("\n")}`,
     ).toBeGreaterThanOrEqual(1);
 
-    // Ops Stream rows 9-11 overflows with boot entries at boot time; its
-    // single inner row 10 must carry a thumb inside the right border too.
-    const opsThumb = await cellChars(78, 10);
-    expect(opsThumb).toBe("█");
+    // Status rows 10-13 also overflow at boot; at least one of its two inner
+    // rows must carry a visible thumb. Collapsed Ops is hidden here rather
+    // than occupying a chrome-only strip.
+    const statusThumbRows = [11, 12];
+    const statusThumbs: number[] = [];
+    for (const row of statusThumbRows) {
+      for (const column of thumbColumns) {
+        if ((await cellChars(column, row)) === "█") {
+          statusThumbs.push(row);
+          break;
+        }
+      }
+    }
+    expect(statusThumbs.length).toBeGreaterThanOrEqual(1);
+    expect((await terminal.gridLines()).join("\n")).not.toContain("Ops Stream");
   }, 120_000);
 });
