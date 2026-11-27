@@ -139,10 +139,14 @@ describe("built CLI output channel ownership", () => {
     expect(result.timedOut).toBe(false);
     // Failure diagnostics travel with the assertion: piped-shell behavior
     // diverges across platforms and CI evidence is otherwise invisible.
+    // Exit 1 is deliberate: the offline-bootstrap fallback is marked a failed
+    // execution so automation never mistakes provider degradation for success
+    // (round-20 error hygiene). This test owns channel separation, not the
+    // exit policy — stdout carries the response, stderr the warnings.
     expect(
       result.code,
       `exit code (stderr tail: ${JSON.stringify(result.stderr.slice(-2000))}; stdout tail: ${JSON.stringify(result.stdout.slice(-400))})`,
-    ).toBe(0);
+    ).toBe(1);
     expect(result.stdout).toContain("model provider is unavailable");
     expect(result.stdout).not.toContain("[codex-cli] initialized");
     expect(result.stdout).not.toMatch(/(?:^|\n)\s*(?:Info|Warn)\s/u);
