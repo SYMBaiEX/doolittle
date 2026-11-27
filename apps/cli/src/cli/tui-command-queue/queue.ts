@@ -116,7 +116,9 @@ export function installTuiCommandQueue(
         options.isConversationalInput,
       );
       if (historyLabel) {
-        options.pushResponseEntry(historyLabel, trimmed);
+        options.pushResponseEntry(historyLabel, trimmed, {
+          captureToolTrace: false,
+        });
       }
       pendingCommands.push(trimmed);
       options.queueState.queueDepth = pendingCommands.length;

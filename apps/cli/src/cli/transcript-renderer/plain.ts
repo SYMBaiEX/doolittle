@@ -1,14 +1,13 @@
 import { stdout as output } from "node:process";
 import type { CliTone } from "../activity-chrome";
-import { sanitizeTerminalText } from "../render-utils";
 import {
   asciiRoleBadge,
   normalizeTranscriptSections,
   renderNormalizedLabel,
   renderPlainBody,
   renderPlainCustomLabel,
-  renderPlainLiveActivity,
   renderPlainRoleLabel,
+  renderPlainToolTrace,
 } from "./shared";
 import type { ResponseTranscriptEntry } from "./types";
 
@@ -72,18 +71,13 @@ export function renderPlainEntry(
   const pending = entry.pending
     ? ` ${paint("…", ANSI.gray, output.isTTY)}`
     : "";
-  const liveActivity =
-    entry.liveActivity && entry.liveActivity.length > 0
-      ? `\n${paint("activity", ANSI.gray, output.isTTY)}\n${entry.liveActivity
-          .map((line) => `  ${sanitizeTerminalText(line)}`)
-          .join("\n")}`
-      : "";
+  const toolTrace = renderPlainToolTrace(entry, { collapsed: true });
   const prefix = renderTonePrefix(tone);
 
   return [
     `${at}  ${badge} ${label}${elapsed ? ` ${elapsed}` : ""}${pending}${prefix ? `  ${prefix}` : ""}`,
     renderPlainBody(entry),
-    liveActivity,
+    toolTrace,
   ]
     .filter(Boolean)
     .join("\n");
@@ -102,12 +96,12 @@ export function renderPlainTranscript(
     .map((entry) => {
       const customLabel = renderPlainCustomLabel(entry);
       const body = renderPlainBody(entry);
-      const liveActivity = renderPlainLiveActivity(entry);
+      const toolTrace = renderPlainToolTrace(entry);
 
       return [
         `${renderNormalizedLabel(entry.at)} ${renderPlainRoleLabel(entry.kind)}${customLabel}${entry.elapsed ? ` · ${renderNormalizedLabel(entry.elapsed)}` : ""}${entry.pending ? " ..." : ""}`,
         body,
-        liveActivity,
+        toolTrace,
       ]
         .filter(Boolean)
         .join("\n");
