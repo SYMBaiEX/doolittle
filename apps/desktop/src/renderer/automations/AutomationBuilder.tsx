@@ -195,12 +195,15 @@ export function AutomationBuilder({
           </label>
         </div>
         {botsError || (!botsLoading && !targetAvailable) ? (
-          <p role="alert" className="m-0 text-sm text-[var(--bad)]">
+          <p
+            role="alert"
+            className="m-0 text-[length:var(--text-control)] text-[var(--bad)]"
+          >
             {botsError || "This automation’s bot is no longer active."}
           </p>
         ) : null}
         {namedTarget ? (
-          <p className="m-0 text-sm text-[var(--muted)]">
+          <p className="m-0 text-[length:var(--text-control)] text-[var(--muted)]">
             This bot keeps its own history and approved workspace access. Saving
             requires native confirmation. This target supports scheduled or
             manual prompt and agent runs. Target ownership is fixed after
