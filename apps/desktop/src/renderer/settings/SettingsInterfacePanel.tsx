@@ -6,6 +6,7 @@ import type {
   InstalledUiInterface,
   UiInterfaceState,
 } from "../../shared/ui-interface";
+import { formatShortcutLabel } from "../shortcut-label";
 
 const capabilityLabels: Record<UiPluginCapability, string> = {
   "conversation.read": "Read conversations and agent output",
@@ -156,6 +157,11 @@ export function SettingsInterfacePanel() {
         Use Doolittle's desktop application to install or manage interfaces.
       </StateSurface>
     );
+  const restoreShortcut = formatShortcutLabel({
+    key: "r",
+    mod: true,
+    shift: true,
+  });
   return (
     <section
       className="settings-group dl-settings-group"
@@ -439,8 +445,8 @@ export function SettingsInterfacePanel() {
         </form>
       ) : null}
       <p className="m-0 text-sm leading-relaxed text-[var(--muted)]">
-        Recovery is always host-owned: Interface → Restore default interface
-        (⌘⇧R), or launch with{" "}
+        Recovery is always host-owned: Interface → Restore default interface{" "}
+        {`(${restoreShortcut})`}, or launch with{" "}
         <code className="whitespace-nowrap">--safe-ui</code>. Revoking access
         preserves conversations and running work.
       </p>

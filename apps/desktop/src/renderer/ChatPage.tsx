@@ -35,7 +35,11 @@ import {
   CompanionInspector,
   type InspectorTab,
 } from "./chat/CompanionInspector";
-import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
+import {
+  isChatNearBottom,
+  observeChatTranscriptResize,
+  scheduleChatScroll,
+} from "./chat/chat-scroll";
 import {
   chatComposerModule,
   chatTranscriptModule,
@@ -431,11 +435,7 @@ export function ChatSessionPanel({
     if (surface === "history") setVisitedHistory(true);
     if (surface === "media") setVisitedMedia(true);
   }, [surface]);
-  const canDraft =
-    !readOnlyChat &&
-    (backend.phase === "ready" ||
-      hostBackend.phase === "ready" ||
-      hostBackend.phase === "booting");
+  const canDraft = !readOnlyChat;
   const panelViewSnapshots = useWorkspaceRef<
     Record<string, ChatPanelViewState>
   >("view.snapshots", {});
@@ -716,6 +716,22 @@ export function ChatSessionPanel({
       container.removeEventListener("scroll", handleScroll);
     };
   }, [coordinator, panelViewSnapshots, selectedId, visible]);
+
+  useLayoutEffect(() => {
+    if (coordinator || !visible) return;
+    const container = endRef.current?.parentElement;
+    if (!container) return;
+    return observeChatTranscriptResize(
+      container,
+      () => transcriptFollowRef.current,
+      () => {
+        // Resize follow-through is positional preservation, not a new-scroll
+        // animation; smooth scrolling can lag behind continuous composer growth.
+        endRef.current?.scrollIntoView({ behavior: "auto" });
+      },
+      (callback) => requestAnimationFrame(callback),
+    );
+  }, [coordinator, visible]);
 
   useEffect(() => {
     const currentIds = selectedMessages.map((message) => message.id);

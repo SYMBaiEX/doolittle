@@ -1,6 +1,7 @@
 import { asArray, asRecord, asString } from "../lib";
 import type { RepositoryChange } from "../repository-resource-models";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
+import { workspacePathBaseName } from "../workspace-path";
 
 export type {
   RepositoryBranchesResponse,
@@ -81,7 +82,7 @@ export const EMPTY_SUMMARY: RepositorySummary = {
 };
 
 export function fileName(path: string): string {
-  return path.split("/").filter(Boolean).at(-1) ?? path;
+  return workspacePathBaseName(path);
 }
 
 export function boundedContext(value: string, limit = 12_000): string {

@@ -1,10 +1,18 @@
 export type DesktopPlatform = "darwin" | "win32" | "linux";
 
+function workspacePathSegments(value: string): string[] {
+  return value.replaceAll("\\", "/").split("/").filter(Boolean);
+}
+
+export function workspacePathBaseName(value: string): string {
+  return workspacePathSegments(value).at(-1) ?? value;
+}
+
 export function compactWorkspacePath(value: string, maxSegments = 4): string {
   if (!Number.isSafeInteger(maxSegments) || maxSegments < 1) {
     throw new RangeError("maxSegments must be a positive integer.");
   }
-  const parts = value.replaceAll("\\", "/").split("/").filter(Boolean);
+  const parts = workspacePathSegments(value);
   return parts.length > maxSegments
     ? `…/${parts.slice(-maxSegments).join("/")}`
     : value;
