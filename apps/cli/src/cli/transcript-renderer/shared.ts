@@ -115,25 +115,65 @@ export function renderBlessedCustomLabel(
     : "";
 }
 
-export function renderPlainLiveActivity(
-  entry: ResponseTranscriptEntry,
-): string {
-  return entry.liveActivity && entry.liveActivity.length > 0
-    ? `\n[live activity]\n${entry.liveActivity
-        .map((line) => sanitizeTerminalText(line))
-        .join("\n")}`
-    : "";
+const LIVE_TRACE_PREVIEW_LINES = 4;
+const COMPLETED_TRACE_PREVIEW_LINES = 3;
+
+function sanitizeToolTrace(entry: ResponseTranscriptEntry): string[] {
+  return (entry.toolTrace ?? []).map((line) => sanitizeTerminalText(line));
 }
 
-export function renderBlessedLiveActivity(
+function collapsedToolTrace(entry: ResponseTranscriptEntry): {
+  hiddenCount: number;
+  lines: string[];
+  totalCount: number;
+} {
+  const trace = sanitizeToolTrace(entry);
+  const previewLines = entry.pending
+    ? LIVE_TRACE_PREVIEW_LINES
+    : COMPLETED_TRACE_PREVIEW_LINES;
+  const lines = trace.slice(-previewLines);
+  return {
+    hiddenCount: trace.length - lines.length,
+    lines,
+    totalCount: trace.length,
+  };
+}
+
+function traceCountLabel(count: number): string {
+  return `${count} event${count === 1 ? "" : "s"}`;
+}
+
+export function renderPlainToolTrace(
   entry: ResponseTranscriptEntry,
+  options: { collapsed?: boolean } = {},
 ): string {
-  return entry.liveActivity && entry.liveActivity.length > 0
-    ? [
-        "{gray-fg}activity{/}",
-        ...entry.liveActivity.map((line) =>
-          escapeBlessed(sanitizeTerminalText(line)),
-        ),
-      ].join("\n")
-    : "";
+  const trace = sanitizeToolTrace(entry);
+  if (!trace.length) {
+    return "";
+  }
+  if (!options.collapsed) {
+    return `\n[tool trace · ${traceCountLabel(trace.length)}]\n${trace.join("\n")}`;
+  }
+  const collapsed = collapsedToolTrace(entry);
+  return [
+    `[tool trace · ${traceCountLabel(collapsed.totalCount)}]`,
+    ...collapsed.lines.map((line) => `  ${line}`),
+    ...(collapsed.hiddenCount > 0
+      ? [`  … ${collapsed.hiddenCount} earlier events in export`]
+      : []),
+  ].join("\n");
+}
+
+export function renderBlessedToolTrace(entry: ResponseTranscriptEntry): string {
+  const collapsed = collapsedToolTrace(entry);
+  if (!collapsed.totalCount) {
+    return "";
+  }
+  return [
+    `{gray-fg}activity · ${traceCountLabel(collapsed.totalCount)}{/}`,
+    ...collapsed.lines.map((line) => escapeBlessed(line)),
+    ...(collapsed.hiddenCount > 0
+      ? [`{gray-fg}… ${collapsed.hiddenCount} earlier events in export{/}`]
+      : []),
+  ].join("\n");
 }

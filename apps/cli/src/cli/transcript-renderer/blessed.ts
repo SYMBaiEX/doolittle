@@ -3,8 +3,8 @@ import {
   normalizeTranscriptSections,
   renderBlessedBody,
   renderBlessedCustomLabel,
-  renderBlessedLiveActivity,
   renderBlessedRoleTag,
+  renderBlessedToolTrace,
   renderNormalizedLabel,
 } from "./shared";
 import type { ResponseTranscriptEntry } from "./types";
@@ -12,12 +12,12 @@ import type { ResponseTranscriptEntry } from "./types";
 function renderBlessedEntry(entry: ResponseTranscriptEntry): string {
   const customLabel = renderBlessedCustomLabel(entry);
   const body = renderBlessedBody(entry);
-  const liveActivity = renderBlessedLiveActivity(entry);
+  const toolTrace = renderBlessedToolTrace(entry);
 
   return [
     `{gray-fg}${escapeBlessed(renderNormalizedLabel(entry.at))}{/} ${renderBlessedRoleTag(entry.kind)}${customLabel}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(renderNormalizedLabel(entry.elapsed))}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
     body,
-    liveActivity,
+    toolTrace,
   ]
     .filter(Boolean)
     .join("\n");
