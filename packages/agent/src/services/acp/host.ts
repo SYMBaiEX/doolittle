@@ -231,7 +231,16 @@ async function requestPermission(
     command: permissionCommand(params),
     reason: params.toolCall.title ?? "ACP tool request",
   });
-  const status = await waitForApproval(dependencies, record.id, signal);
+  if (signal.aborted) {
+    return { outcome: { outcome: "cancelled" } };
+  }
+  const status =
+    record.status === "approved" ||
+    record.status === "denied" ||
+    record.status === "expired" ||
+    record.status === "used"
+      ? record.status
+      : await waitForApproval(dependencies, record.id, signal);
   if (status === "approved" || status === "used") {
     const option = allowOptions[0];
     return option

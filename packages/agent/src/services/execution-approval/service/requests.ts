@@ -7,11 +7,13 @@ import type {
 } from "../types";
 import {
   createPendingApprovalRecord,
+  createRuleSatisfiedApprovalRecord,
   markApprovalApproved,
   markApprovalDenied,
   markApprovalExpired,
   pruneApprovalStore,
 } from "../updates";
+import { findMatchingExecutionApprovalRule } from "./rules";
 import { safeMutateApprovalRecord } from "./store-state";
 
 export interface RequestExecutionApprovalInput {
@@ -35,6 +37,37 @@ export async function requestExecutionApproval(input: {
   input: RequestExecutionApprovalInput;
 }): Promise<ExecutionApprovalRecord> {
   const ttlMinutes = input.input.ttlMinutes ?? 15;
+  const matchingRule = findMatchingExecutionApprovalRule(input.store, {
+    platform: input.input.platform,
+    userId: input.input.userId,
+    roomId: input.input.roomId,
+    sessionKey: input.input.sessionKey,
+    botId: input.input.botId,
+    sessionId: input.input.sessionId,
+    runId: input.input.runId,
+    command: input.input.command,
+  });
+  if (matchingRule) {
+    // A persistent rule satisfies the request without a native prompt, a
+    // pending record, or consumption. The terminal receipt is synthetic: it
+    // is returned to callers so they can unblock this execution, but it is
+    // deliberately not written to the per-request approval store.
+    return createRuleSatisfiedApprovalRecord(
+      {
+        platform: input.input.platform,
+        userId: input.input.userId,
+        roomId: input.input.roomId,
+        sessionKey: input.input.sessionKey,
+        botId: input.input.botId,
+        sessionId: input.input.sessionId,
+        runId: input.input.runId,
+        command: input.input.command,
+        reason: input.input.reason,
+        ttlMinutes,
+      },
+      matchingRule.id,
+    );
+  }
   let nativeTaskId: string | undefined;
 
   if (input.nativeApprovals && input.input.runtimeRoomId) {
