@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { WorkspaceService } from "../../packages/agent/src/services/workspace-service";
+import { MAX_EDITABLE_FILE_BYTES } from "../../packages/agent/src/services/workspace-service/file-operations";
 
 let root: string;
 let workspace: WorkspaceService;
@@ -64,4 +65,13 @@ it.each([
     entry.error,
   );
   expect(await readFile(join(root, "file.txt"), "utf8")).toBe("aba");
+});
+
+it("rejects patches against oversized files instead of scanning them without a bound", async () => {
+  const content = `PATCH${"x".repeat(MAX_EDITABLE_FILE_BYTES)}`;
+  await writeFile(join(root, "large.txt"), content);
+  await expect(
+    workspace.patch("large.txt", "PATCH", "REPLACED"),
+  ).rejects.toThrow("patch limit");
+  expect(await readFile(join(root, "large.txt"), "utf8")).toBe(content);
 });
