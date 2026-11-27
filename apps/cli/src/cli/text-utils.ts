@@ -1,13 +1,12 @@
+import { ellipsizeText } from "./terminal-presentation";
+
 function compactJsonLine(value: unknown): string {
   const raw = JSON.stringify(value);
   return raw.length > 320 ? `${raw.slice(0, 317)}...` : raw;
 }
 
 export function truncate(text: string, max = 520): string {
-  const normalized = text.replace(/\s+/gu, " ").trim();
-  return normalized.length > max
-    ? `${normalized.slice(0, Math.max(0, max - 3))}...`
-    : normalized;
+  return ellipsizeText(text, max);
 }
 
 export function compactPreview(text: string): string {
