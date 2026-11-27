@@ -78,6 +78,21 @@ describe("sessions workspace layout", () => {
     expect(host.querySelector(".split-workspace")).toBeNull();
   });
 
+  it("offers the next conversation actions from the canonical empty hero", () => {
+    renderPage([]);
+    const surface = host.querySelector<HTMLElement>(
+      "[data-session-empty-landing] .dl-state-surface",
+    );
+    expect(surface?.getAttribute("data-kind")).toBe("empty");
+    expect(surface?.getAttribute("data-variant")).toBe("hero");
+    expect(surface?.querySelector(".dl-state-title")?.textContent).toBe(
+      "No saved conversations",
+    );
+    const actions = surface?.querySelector(".dl-state-action");
+    expect(actions?.textContent).toContain("New conversation");
+    expect(actions?.textContent).toContain("Import archive");
+  });
+
   it("starts with the list pane active for narrow single-pane navigation", () => {
     renderPage([session("chat-1")]);
     const workspace = host.querySelector<HTMLElement>(".sessions-workspace");

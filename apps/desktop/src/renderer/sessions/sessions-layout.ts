@@ -5,7 +5,7 @@ export const SESSIONS_WORKSPACE_CLASS =
   "sessions-workspace grid min-h-0 flex-1 grid-cols-[clamp(250px,24vw,320px)_minmax(0,1fr)] overflow-hidden max-[760px]:grid-cols-1";
 
 export const SESSIONS_EMPTY_WORKSPACE_CLASS =
-  "grid min-h-0 flex-none grid-cols-1 overflow-hidden";
+  "grid min-h-0 flex-1 grid-cols-1 overflow-hidden";
 
 // In the narrow single-pane layout the list owns the whole workspace, so it
 // keeps its full height instead of the stacked layout's 42vh cap.

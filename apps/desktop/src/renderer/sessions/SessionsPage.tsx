@@ -1,4 +1,4 @@
-import { Button, ContextActionMenu } from "@doolittle/ui";
+import { Button, ContextActionMenu, StateSurface } from "@doolittle/ui";
 import { ArrowLeft } from "lucide-react";
 import { useRef, useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
@@ -203,30 +203,35 @@ export function SessionsPage({
             data-sessions-detail={detailOpen ? "open" : "closed"}
           >
             {showEmptyLanding ? (
-              <section
-                aria-labelledby="sessions-empty-title"
-                className="session-empty-landing flex min-h-0 items-center justify-between gap-4 px-4 py-3 max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3"
+              <div
+                className="session-empty-landing grid min-h-0 flex-1"
                 data-session-empty-landing="true"
               >
-                <div className="grid min-w-0 gap-[3px] [&_h2]:m-0 [&_h2]:text-sm [&_h2]:text-[var(--text-strong)] [&_p]:m-0 [&_p]:text-[length:var(--text-control)] [&_p]:text-[var(--muted)]">
-                  <span className="eyebrow">Conversation archive</span>
-                  <h2 id="sessions-empty-title">No saved conversations</h2>
-                  <p>Start fresh, or bring in a portable Doolittle archive.</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5 max-[860px]:justify-start">
-                  <Button onClick={onNewConversation} type="button">
-                    New conversation
-                  </Button>
-                  <Button
-                    disabled={transfer.transferring}
-                    onClick={() => transfer.archiveInputRef.current?.click()}
-                    type="button"
-                    variant="secondary"
-                  >
-                    Import archive
-                  </Button>
-                </div>
-              </section>
+                <StateSurface
+                  action={
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <Button onClick={onNewConversation} type="button">
+                        New conversation
+                      </Button>
+                      <Button
+                        disabled={transfer.transferring}
+                        onClick={() =>
+                          transfer.archiveInputRef.current?.click()
+                        }
+                        type="button"
+                        variant="secondary"
+                      >
+                        Import archive
+                      </Button>
+                    </div>
+                  }
+                  kind="empty"
+                  title="No saved conversations"
+                >
+                  Start a conversation, or bring in a portable Doolittle
+                  archive.
+                </StateSurface>
+              </div>
             ) : null}
             {!showEmptyLanding ? (
               <>
