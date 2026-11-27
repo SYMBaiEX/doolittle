@@ -1,4 +1,4 @@
-import type { DiagnosticCheck } from "../../../../types/execution";
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import { createCheck } from "../../execution/diagnostics";
 import { buildShellCheck, buildWorkspaceCheck } from "./shared";

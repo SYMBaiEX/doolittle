@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import type { DiagnosticCheck } from "../../../../types/execution";
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import { createCheck } from "../../execution/diagnostics";
 
 export function buildWorkspaceCheck(

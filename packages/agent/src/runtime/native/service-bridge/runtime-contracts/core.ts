@@ -8,6 +8,7 @@ import {
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
+import type { TerminalCommandRecord } from "@doolittle/contracts/execution";
 import type {
   BrowserAnalysisBundle,
   BrowserCaptureBundle,
@@ -17,7 +18,6 @@ import type {
   BrowserStatus,
   WebPageSnapshot,
 } from "../../../../services/web/service";
-import type { TerminalCommandRecord } from "../../../../types/execution";
 
 export const PDF_SERVICE = "pdf";
 export {

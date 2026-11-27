@@ -1,3 +1,4 @@
+import type { TerminalCommandRecord } from "@doolittle/contracts/execution";
 import { terminalAction } from "@elizaos/agent/actions/terminal";
 import type { Action, ActionResult } from "@elizaos/core";
 import { rememberProjectVerification } from "../runtime/prompt-cache/project-verification";
@@ -8,7 +9,6 @@ import {
 } from "../runtime/turn-runtime-scope";
 import { isDesktopWorkspaceRuntime } from "../runtime/workspace-scope";
 import type { AppServices } from "../services/index";
-import type { TerminalCommandRecord } from "../types/execution";
 import { isRecord } from "../utils/records";
 
 function commandParameter(options: unknown): string | undefined {

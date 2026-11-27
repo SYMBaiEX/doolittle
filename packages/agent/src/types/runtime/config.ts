@@ -2,7 +2,7 @@ import type {
   ExecutionBackendName,
   RemoteArtifactPolicy,
   RemoteWorkspaceSyncMode,
-} from "../execution";
+} from "@doolittle/contracts/execution";
 import type { RunDepth, ToolProgressMode } from "./primitives";
 
 export interface EnvConfig {

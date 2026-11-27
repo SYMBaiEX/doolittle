@@ -1,12 +1,12 @@
 import { realpath } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
+import type { TerminalCommandRecord } from "@doolittle/contracts/execution";
 import {
   extractSessionContext,
   type IAgentRuntime,
   type Memory,
 } from "@elizaos/core";
 import type { AppServices } from "../../services/index";
-import type { TerminalCommandRecord } from "../../types/execution";
 import { isRecord } from "../../utils/records";
 import {
   getScopedTurnAbortSignal,

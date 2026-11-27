@@ -1,8 +1,8 @@
-import { DEFAULT_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
 import type {
   DiagnosticCheck,
   ExecutionBackendLimits,
-} from "../../../types/execution";
+} from "@doolittle/contracts/execution";
+import { DEFAULT_COMMAND_TIMEOUT_MS } from "@doolittle/contracts/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 
 export function createCheck(

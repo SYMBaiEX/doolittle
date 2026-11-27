@@ -1,4 +1,4 @@
-import type { TerminalCommandRecord } from "../../../../types/execution";
+import type { TerminalCommandRecord } from "@doolittle/contracts/execution";
 import * as processExecution from "../../../process-execution";
 import {
   localShellInvocation,
