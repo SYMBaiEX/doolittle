@@ -1,5 +1,5 @@
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import { summarizeTransportInventory } from "../../../../gateway/transport/index";
-import type { DiagnosticCheck } from "../../../../types/index";
 import type {
   GatewayTransportOverview,
   ProviderOwnershipContext,

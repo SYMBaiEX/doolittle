@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type {
   ExecutionCloudProfile,
   ExecutionCloudSession,
-} from "../../../../types/execution";
+} from "@doolittle/contracts/execution";
 import type { CloudStore } from "./types";
 
 export function findCloudSession(

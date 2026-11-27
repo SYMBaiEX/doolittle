@@ -1,4 +1,5 @@
-import type { DiagnosticCheck, EnvConfig } from "../../../types/index";
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
+import type { EnvConfig } from "../../../types/index";
 
 export interface DiagnosticsExecutionControlLike {
   approvals: {

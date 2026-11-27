@@ -8,7 +8,7 @@ import type {
   ExecutionCloudArtifactRecord,
   ExecutionCloudSnapshotRecord,
   TerminalCommandRecord,
-} from "../../types/index";
+} from "@doolittle/contracts/execution";
 import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
 import type { RuntimeSettings } from "../settings/runtime-settings";
 import {

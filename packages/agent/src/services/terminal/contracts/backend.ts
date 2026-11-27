@@ -3,7 +3,7 @@ import type {
   ExecutionBackendHealth,
   ExecutionBackendName,
   ExecutionBackendPreview,
-} from "../../../types/execution";
+} from "@doolittle/contracts/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import type { TerminalRunResult } from "../execution/subprocess";
 

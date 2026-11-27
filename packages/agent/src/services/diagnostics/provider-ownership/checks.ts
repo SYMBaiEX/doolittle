@@ -1,4 +1,4 @@
-import type { DiagnosticCheck } from "../../../types/index";
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import { buildEcosystemChecks } from "./check-builders/ecosystem";
 import { buildNativeOwnershipChecks } from "./check-builders/native-ownership";
 import { buildProviderChecks } from "./check-builders/provider";

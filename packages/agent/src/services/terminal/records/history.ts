@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
+import type { TerminalCommandRecord } from "@doolittle/contracts/execution";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import type { TerminalCommandRecord } from "../../../types/execution";
 import type { TerminalStore } from "./command";
 import { appendCommandRecord } from "./command";
 

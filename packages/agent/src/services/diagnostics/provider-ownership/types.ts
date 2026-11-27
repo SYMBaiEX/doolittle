@@ -1,3 +1,4 @@
+import type { DiagnosticCheck } from "@doolittle/contracts/execution";
 import type { LinkedProviderAccountsSnapshot } from "../../../runtime/native/account-auth/index";
 import type { NativeOwnershipCache } from "../../../runtime/native/ownership-cache";
 import type { getNativePackageAudit } from "../../../runtime/native/package-audit/index";
@@ -9,11 +10,7 @@ import type {
 } from "../../../runtime/native/service-bridge/control-planes/index";
 import type { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 import type { RuntimeLike } from "../../../runtime/native/service-bridge/runtime";
-import type {
-  DiagnosticCheck,
-  EnvConfig,
-  GatewayConfig,
-} from "../../../types/index";
+import type { EnvConfig, GatewayConfig } from "../../../types/index";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
 import type { SkillsHubService } from "../../skills-hub/service";
