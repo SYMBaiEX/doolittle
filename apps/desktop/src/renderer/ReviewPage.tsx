@@ -5,6 +5,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RepositoryReviewResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
@@ -81,6 +82,8 @@ export function reviewWorkspaceScopeKey(
 export function shouldShowReviewWorkspace(itemCount: number): boolean {
   return itemCount > 0;
 }
+
+const REVIEW_POLL_INTERVAL_MS = 5_000;
 
 export function ReviewPage({
   active,
@@ -351,6 +354,7 @@ export function ReviewPage({
     branchRecord.reload();
     void refreshWorkspaceResources(repositoryOrigin);
   };
+  useVisibleInterval(reload, REVIEW_POLL_INTERVAL_MS, requestPolicy.primary);
   const mutateRepository = (request: RepositoryMutationRequest) =>
     window.doolittle.mutateRepository(
       workspaceMutationRequest(request, repositoryOrigin),
