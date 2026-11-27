@@ -68,8 +68,8 @@ function buttonByText(host: HTMLElement, text: string) {
 }
 
 describe("review comment save guard", () => {
-  let root: Root | undefined;
-  let host: HTMLElement | undefined;
+  let root: Root;
+  let host: HTMLElement;
   let commentPostResolvers: Array<(value: ReviewRecordResponse) => void> = [];
 
   beforeEach(() => {
@@ -144,10 +144,8 @@ describe("review comment save guard", () => {
     for (const resolve of commentPostResolvers.splice(0)) {
       resolve({ record: emptyRecord });
     }
-    if (root) act(() => root.unmount());
-    host?.remove();
-    root = undefined;
-    host = undefined;
+    act(() => root.unmount());
+    host.remove();
     desktopQueryClient.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

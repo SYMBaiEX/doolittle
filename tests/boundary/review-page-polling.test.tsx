@@ -94,8 +94,8 @@ function getCount(path: string): number {
 }
 
 describe("review page polling", () => {
-  let root: Root | undefined;
-  let host: HTMLElement | undefined;
+  let root: Root;
+  let host: HTMLElement;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -139,10 +139,8 @@ describe("review page polling", () => {
   });
 
   afterEach(() => {
-    if (root) act(() => root.unmount());
-    host?.remove();
-    root = undefined;
-    host = undefined;
+    act(() => root.unmount());
+    host.remove();
     desktopQueryClient.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

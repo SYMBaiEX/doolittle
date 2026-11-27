@@ -99,8 +99,8 @@ function buttonByText(host: HTMLElement, text: string) {
 }
 
 describe("review comment synchronization", () => {
-  let root: Root | undefined;
-  let host: HTMLElement | undefined;
+  let root: Root;
+  let host: HTMLElement;
   let createResolvers: Array<(value: ReviewRecordResponse) => void> = [];
   let resolveResolvers: Array<(value: ReviewRecordResponse) => void> = [];
   let resolveRejecters: Array<(error: unknown) => void> = [];
@@ -195,10 +195,8 @@ describe("review comment synchronization", () => {
     for (const resolve of createResolvers.splice(0)) resolve(fallback);
     for (const resolve of resolveResolvers.splice(0)) resolve(fallback);
     resolveRejecters = [];
-    if (root) act(() => root.unmount());
-    host?.remove();
-    root = undefined;
-    host = undefined;
+    act(() => root.unmount());
+    host.remove();
     desktopQueryClient.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
