@@ -307,10 +307,8 @@ function providerDefinitions(
   activeModel: string,
   linkedReadiness: LinkedProviderReadiness,
 ): ModelProvider[] {
-  const openAiApiKey =
-    config.openAiApiKey?.trim() || process.env.OPENAI_API_KEY;
-  const anthropicApiKey =
-    config.anthropicApiKey?.trim() || process.env.ANTHROPIC_API_KEY;
+  const openAiApiKey = config.openAiApiKey?.trim();
+  const anthropicApiKey = config.anthropicApiKey?.trim();
   const withActive = (
     provider: string,
     models: Array<ModelCatalogEntry | string>,
@@ -674,10 +672,10 @@ function providerApiKey(
   provider: string,
 ): string | undefined {
   if (provider === "openai") {
-    return config.openAiApiKey || process.env.OPENAI_API_KEY;
+    return config.openAiApiKey?.trim() || undefined;
   }
   if (provider === "anthropic") {
-    return config.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+    return config.anthropicApiKey?.trim() || undefined;
   }
   if (provider === "elizacloud") return config.elizaCloudApiKey;
   return undefined;
