@@ -57,8 +57,7 @@
   color: var(--text-soft);
 }
 
-.workbench-section__copy,
-.workbench-empty__copy {
+.workbench-section__copy {
   display: grid;
   min-inline-size: 0;
   gap: 2px;
@@ -68,16 +67,14 @@
   overflow-wrap: anywhere;
 }
 
-.workbench-section__copy :is(h2, h3),
-.workbench-empty__copy strong {
+.workbench-section__copy :is(h2, h3) {
   margin: 0;
   color: var(--text);
   font-size: var(--text-body);
   font-weight: 650;
 }
 
-.workbench-section__copy p,
-.workbench-empty__copy p {
+.workbench-section__copy p {
   margin: 0;
 }
 
@@ -85,18 +82,23 @@
   min-inline-size: 0;
 }
 
+/* The canonical pane state surface owns copy, actions, and rhythm; this shell
+   only centers the composition and its decorative glyph. */
 .workbench-empty {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 12px;
-  border-radius: var(--radius-md);
-  background: var(--surface-soft);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 16px 12px;
 }
 
-.workbench-empty__copy {
-  flex: 1 1 12rem;
+/* As with EmptyBlock, the surface keeps its standalone padding, so nested
+   copies would double the gutter. Unlayered to match the surface's origin. */
+.workbench-empty .dl-state-surface {
+  padding: 0;
+}
+
+.workbench-empty__actions {
+  justify-content: center;
 }
 
 .workbench-empty__glyph {

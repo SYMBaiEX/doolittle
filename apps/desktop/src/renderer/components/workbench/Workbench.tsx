@@ -1,4 +1,4 @@
-import { Button } from "@doolittle/ui";
+import { Button, StateSurface } from "@doolittle/ui";
 import type { LucideIcon } from "lucide-react";
 import { type ComponentProps, type ReactNode, useId } from "react";
 import { UiIcon } from "../UiIcon";
@@ -94,23 +94,29 @@ export function WorkbenchEmpty({
 }: {
   title: string;
   children?: ReactNode;
+  /** Decorative glyph rendered above the canonical pane state surface. */
   icon?: LucideIcon;
   actions?: ReactNode;
 }) {
   return (
     <div className="workbench-empty">
       {icon ? (
-        <span className="workbench-empty__glyph">
+        <span aria-hidden="true" className="workbench-empty__glyph">
           <UiIcon icon={icon} size="lg" />
         </span>
       ) : null}
-      <div className="workbench-empty__copy">
-        <strong>{title}</strong>
-        {children ? <div>{children}</div> : null}
-      </div>
-      {actions ? (
-        <div className="workbench-empty__actions">{actions}</div>
-      ) : null}
+      <StateSurface
+        action={
+          actions ? (
+            <div className="workbench-empty__actions">{actions}</div>
+          ) : undefined
+        }
+        kind="empty"
+        title={title}
+        variant="pane"
+      >
+        {children}
+      </StateSurface>
     </div>
   );
 }
