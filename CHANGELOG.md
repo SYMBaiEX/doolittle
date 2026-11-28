@@ -20,6 +20,28 @@ the first release whose installs can update themselves.
 
 ### Desktop
 
+- Chat interaction rebuilt: scroll-pinning survives resize and reflow,
+  composer and transcript coordinate focus honestly.
+- Dialog and focus consolidation: modal focus is trapped and restored
+  correctly across every dialog surface.
+- Platform polish: desktop shell behaviors across macOS and Linux
+  (round-22 platform cluster).
+- Design system foundation: canonical button, focus-treatment, and
+  empty-state contracts now govern every surface; numbered spacing-token
+  debt removed; resize handles discoverable at rest.
+- Visual hierarchy restored on work surfaces: review and orchestration
+  read at three type levels instead of a uniform wall of small text;
+  geometry derives from theme tokens rather than hardcoded values.
+- Editor file integrity: save conflicts resolve through explicit
+  overwrite/reload instead of a dead end; reads are capped and
+  binary-safe; deleted-file saves can be recreated deliberately.
+- Project manager feedback: editor submit failures surface inside the
+  editor, partial multi-adds report honestly, destructive actions
+  confirm first.
+- Review queue freshness: visibility-aware polling, duplicate-save
+  guards, serialized comment mutations — the wait-and-decide surface
+  actually updates while you watch.
+
 - Session attention indicators: rows show at a glance which agent needs
   input (accent+halo) versus which is working (muted) — derived passively
   with zero new polling.
@@ -40,9 +62,6 @@ the first release whose installs can update themselves.
   pending reads warning, ordinary success stays neutral.
 - Composer honesty: sending during an active run visibly queues instead of
   implying steer the runtime does not yet support.
-- Editor file integrity: save conflicts resolve through explicit
-  overwrite/reload instead of a dead end; reads are capped and binary-safe;
-  deleted-file saves can be recreated deliberately.
 - Project icons render real glyphs; settings and orchestration chrome
   polish throughout.
 
@@ -65,6 +84,12 @@ the first release whose installs can update themselves.
   command discovery, width-aware control deck.
 
 ### Architecture
+
+- Execution imports canonicalized, validators centralized (eleven regex
+  copies eliminated), contracts purified, environment-secret boundary
+  enforced.
+- CI migrated to dedicated runners with parallel lanes; test readiness
+  hardened across the matrix.
 
 - Terminal capabilities canonical in `@doolittle/agent`; CLI and bootstrap
   consume one implementation.
