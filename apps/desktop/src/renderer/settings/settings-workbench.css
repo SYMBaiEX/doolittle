@@ -106,3 +106,203 @@
     padding-block-start: 4px;
   }
 }
+
+.approval-rules-list {
+  display: grid;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border-block-start: 1px solid var(--line-subtle);
+  list-style: none;
+}
+
+.approval-rules-list__item {
+  min-inline-size: 0;
+  border-block-end: 1px solid var(--line-subtle);
+}
+
+.approval-rule-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1.1fr) minmax(12rem, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding: 9px 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+}
+
+.approval-rule-row:hover {
+  background: var(--surface-hover);
+}
+
+.approval-rule-row[aria-current] {
+  background: var(--surface-soft);
+}
+
+.approval-rule-row:focus-visible {
+  outline: var(--focus-quiet);
+  outline-offset: var(--focus-quiet-offset);
+}
+
+.approval-rule-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.approval-rule-row__command,
+.approval-rule-row__meta {
+  display: grid;
+  min-inline-size: 0;
+  gap: 3px;
+}
+
+.approval-rule-row__command code {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 620;
+}
+
+.approval-rule-row__meta {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.approval-rule-row__status {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.approval-rule-editor {
+  display: grid;
+  min-inline-size: 0;
+  gap: 14px;
+  margin-block-start: 14px;
+  padding-block-start: 14px;
+  border-block-start: 1px solid var(--line-subtle);
+}
+
+.approval-rule-editor__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px 14px;
+}
+
+.approval-rule-editor__heading > div {
+  display: grid;
+  max-inline-size: 62ch;
+  gap: 3px;
+}
+
+.approval-rule-editor__heading h3,
+.approval-rule-editor__heading p {
+  margin: 0;
+}
+
+.approval-rule-editor__heading h3 {
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+.approval-rule-editor__heading p,
+.approval-rule-editor__heading code,
+.approval-rule-scope-fields p {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.approval-rule-form-grid,
+.approval-rule-scope-fields > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  align-items: start;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.approval-rule-field {
+  display: grid;
+  min-inline-size: 0;
+  gap: 6px;
+  color: var(--text-soft);
+  font-size: var(--text-control);
+}
+
+.approval-rule-field > span {
+  font-weight: 570;
+}
+
+.approval-rule-field small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.approval-rule-field--wide {
+  grid-column: 1 / -1;
+}
+
+.approval-rule-scope-fields {
+  display: grid;
+  min-inline-size: 0;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.approval-rule-scope-fields legend {
+  padding: 0;
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 620;
+}
+
+.approval-rule-scope-fields p {
+  margin: 0;
+}
+
+.approval-rule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-rule-editor .ws-confirm {
+  inline-size: 100%;
+}
+
+@media (max-width: 780px) {
+  .approval-rule-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .approval-rule-row__status {
+    justify-self: start;
+  }
+}
+
+@media (forced-colors: active) {
+  .approval-rule-row:focus-visible {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+}
