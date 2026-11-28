@@ -199,6 +199,11 @@ export function toolActivityDetails(activity: ToolActivity): ToolDetails {
     output?.value,
     activity.output,
   );
+  // ActionResult.userFacingText is the upstream field explicitly authored for
+  // user display (the same contract the run projector already trusts for
+  // failure prose). The web-search plugin, for example, keeps the raw provider
+  // JSON in `text` while authoring markdown source rows in `userFacingText`.
+  const userFacingText = firstText(output?.userFacingText);
 
   // SDK shell actions often report an ActionResult text blob instead of
   // structured commandResult fields; recover the sections it carries.
@@ -277,8 +282,12 @@ export function toolActivityDetails(activity: ToolActivity): ToolDetails {
     output?.success === false ||
     Boolean(activity.error);
   const hasStreams = stdout !== undefined || stderr !== undefined;
+  // Successful results prefer the explicitly user-authored field; failures
+  // keep diagnostic text in the detail surface because the authored failure
+  // prose is already carried by the summary and error fields.
+  const successText = userFacingText ?? resultText;
   const outputText = boundHead(
-    !failed && !hasStreams && resultText !== diff ? resultText : undefined,
+    !failed && !hasStreams && successText !== diff ? successText : undefined,
     MAX_TEXT_CHARACTERS,
   );
   const errorText = boundTail(

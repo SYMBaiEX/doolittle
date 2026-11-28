@@ -542,6 +542,64 @@ it("shows result text and file paths for non-shell actions", () => {
   );
 });
 
+it("prefers the explicitly user-authored text over machine payload text", () => {
+  const payload = JSON.stringify({
+    results: [
+      {
+        title: "Example",
+        url: "https://example.com",
+        excerpts: ["A result excerpt."],
+      },
+    ],
+  });
+  const authored =
+    "### Web results for “example”\n\n1. [Example](https://example.com)\n   A result excerpt.";
+  const search: ToolActivity = {
+    id: "search-user-facing",
+    name: "WEB_SEARCH",
+    status: "completed",
+    input: { query: "example" },
+    output: { success: true, text: payload, userFacingText: authored },
+  };
+  expect(toolActivityDetails(search)).toMatchObject({ output: authored });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[search]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Web search details").click());
+  expect(host.querySelector('section[aria-label="Result"]')?.textContent).toBe(
+    authored,
+  );
+  // The machine payload stays available as structured evidence: the sources
+  // list is still recovered from the JSON text, and the full envelope remains
+  // under the raw disclosure.
+  expect(
+    host
+      .querySelector('section[aria-label="Sources"]')
+      ?.querySelector<HTMLAnchorElement>('a[href="https://example.com"]')
+      ?.textContent,
+  ).toContain("Example");
+  expect(host.textContent).toContain("Full result");
+});
+
+it("keeps diagnostic text in the error block when a failure authors user-facing prose", () => {
+  const failure: ToolActivity = {
+    id: "failed-prose",
+    name: "WRITE_FILE",
+    status: "error",
+    error: "Write failed.",
+    output: {
+      success: false,
+      text: "Error: permission denied\n  at writeFile (fs.ts:12)",
+      userFacingText: "I couldn't write the file because access was denied.",
+    },
+  };
+  const details = toolActivityDetails(failure);
+  expect(details.error).toContain("permission denied");
+  expect(details.error).not.toContain("I couldn't write the file");
+  expect(details.output).toBeUndefined();
+});
+
 it("renders an error block for failed actions carrying a text blob", () => {
   const failure: ToolActivity = {
     id: "failed",
