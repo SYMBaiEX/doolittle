@@ -3,7 +3,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { ReviewPatch } from "../../apps/desktop/src/renderer/review/ReviewPatch";
+import {
+  ReviewPatch,
+  type ReviewPatchMutation,
+} from "../../apps/desktop/src/renderer/review/ReviewPatch";
 
 const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 const previousAct = environment.IS_REACT_ACT_ENVIRONMENT;
@@ -41,15 +44,26 @@ const multiFilePatch = [
   "+after",
 ].join("\n");
 
-function renderPatch(patch = multiFilePatch, truncated = false) {
+function renderPatch(
+  patch = multiFilePatch,
+  truncated = false,
+  options: {
+    staged?: boolean;
+    mutationError?: string;
+    onPatchMutation?: (mutation: ReviewPatchMutation) => void;
+  } = {},
+) {
   const onStartComment = vi.fn();
   act(() =>
     root.render(
       <ReviewPatch
+        mutationError={options.mutationError}
+        onPatchMutation={options.onPatchMutation}
         onStartComment={onStartComment}
         patch={patch}
         path="src/alpha.ts"
         selectedPathComments={[]}
+        staged={options.staged}
         truncated={truncated}
       />,
     ),
@@ -119,4 +133,96 @@ it("shows metadata-only content and marks truncated patches as partial", () => {
   expect(host.querySelector("[data-patch-file]")?.textContent).toContain(
     "image.png",
   );
+});
+
+it("emits a reduced unified patch when accepting one hunk", () => {
+  const onPatchMutation = vi.fn();
+  renderPatch(multiFilePatch, false, { onPatchMutation });
+  const button = host.querySelector<HTMLButtonElement>(
+    '[aria-label="Accept hunk at old line 10"]',
+  );
+
+  act(() => button?.click());
+
+  expect(onPatchMutation).toHaveBeenCalledExactlyOnceWith({
+    type: "stage-hunk",
+    label: "Hunk at old line 10",
+    patch: `${[
+      "diff --git a/src/alpha.ts b/src/alpha.ts",
+      "index 1111111..2222222 100644",
+      "--- a/src/alpha.ts",
+      "+++ b/src/alpha.ts",
+      "@@ -10,2 +10,3 @@ export function alpha",
+      " keep",
+      "-old",
+      "+new",
+      "+another",
+    ].join("\n")}\n`,
+  });
+});
+
+it("emits discard and unstage mutations for the working and staged patch states", () => {
+  const onPatchMutation = vi.fn();
+  renderPatch(multiFilePatch, false, { onPatchMutation });
+  act(() =>
+    host
+      .querySelector<HTMLButtonElement>(
+        '[aria-label="Reject hunk at old line 10"]',
+      )
+      ?.click(),
+  );
+  expect(onPatchMutation).toHaveBeenLastCalledWith(
+    expect.objectContaining({ type: "discard-hunk" }),
+  );
+
+  onPatchMutation.mockClear();
+  renderPatch(multiFilePatch, false, { onPatchMutation, staged: true });
+  const unstage = host.querySelector<HTMLButtonElement>(
+    '[aria-label="Reject staged hunk at old line 10"]',
+  );
+  expect(unstage?.textContent).toBe("Unstage");
+  act(() => unstage?.click());
+  expect(onPatchMutation).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ type: "unstage-hunk" }),
+  );
+});
+
+it("hides hunk decisions for truncated or unsupported file patches", () => {
+  const onPatchMutation = vi.fn();
+  renderPatch(multiFilePatch, true, { onPatchMutation });
+
+  expect(host.querySelector('[aria-label^="Accept hunk"]')).toBeNull();
+  expect(host.textContent).toContain(
+    "Hunk decisions are disabled for partial patches.",
+  );
+
+  renderPatch(
+    [
+      "diff --git a/new.txt b/new.txt",
+      "new file mode 100644",
+      "--- /dev/null",
+      "+++ b/new.txt",
+      "@@ -0,0 +1 @@",
+      "+created",
+    ].join("\n"),
+    false,
+    { onPatchMutation },
+  );
+  expect(host.querySelector('[aria-label^="Accept hunk"]')).toBeNull();
+  expect(host.textContent).toContain(
+    "Hunk decisions are unavailable for this file format.",
+  );
+});
+
+it("renders hunk application failure inline without hiding the patch", () => {
+  renderPatch(multiFilePatch, false, {
+    mutationError:
+      "Hunk at old line 10 did not apply cleanly. patch does not apply",
+    onPatchMutation: vi.fn(),
+  });
+
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    "did not apply cleanly",
+  );
+  expect(host.querySelectorAll("[data-patch-hunk]")).toHaveLength(2);
 });
