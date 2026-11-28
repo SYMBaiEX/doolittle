@@ -22,6 +22,26 @@ export const RUN_STATUSES = [
 export type RunStatus = (typeof RUN_STATUSES)[number];
 export type RunTerminalReason = "completed" | "cancelled" | "error";
 
+/**
+ * Conservative observability threshold. Crossing it means only that no
+ * meaningful run event was observed for this long; it never proves failure.
+ */
+export const RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS = 180_000;
+
+export const RUN_DEGRADED_REASONS = ["no-meaningful-activity"] as const;
+export type RunDegradedReason = (typeof RUN_DEGRADED_REASONS)[number];
+
+/** Current run observability degradation; orthogonal to the run's lifecycle status. */
+export interface RunDegradedState {
+  reason: RunDegradedReason;
+  /** Start of the continuous inactivity episode that caused degradation. */
+  since: string;
+  /** When the backend watchdog first surfaced this episode. */
+  detectedAt: string;
+  /** Policy threshold in effect when the episode was detected. */
+  thresholdMs: number;
+}
+
 export function isActiveRunStatus(value: unknown): value is ActiveRunStatus {
   return (
     typeof value === "string" &&
@@ -97,6 +117,8 @@ export interface RunSnapshot extends RunReceiptEnvelope {
   /** Most recent non-heartbeat activity. Heartbeats must not hide a stalled run. */
   lastMeaningfulActivityAt?: string;
   lastHeartbeatAt?: string;
+  /** Current observability degradation. This is evidence of missing updates, not failure. */
+  degraded?: RunDegradedState;
   endedAt?: string;
   /** Final lifecycle outcome, retained after a run leaves the active session slot. */
   terminalReason?: RunTerminalReason;
@@ -155,6 +177,7 @@ export const RUN_UPDATE_TYPES = [
   "local-mutation",
   "stream",
   "heartbeat",
+  "degraded",
   "completed",
   "cancelled",
   "error",

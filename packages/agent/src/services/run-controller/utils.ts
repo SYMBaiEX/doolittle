@@ -16,4 +16,5 @@ export const cloneRun = (run: RunSnapshot): RunSnapshot => ({
       }
     : { walletActivities: undefined }),
   localMutations: run.localMutations.map((mutation) => ({ ...mutation })),
+  degraded: run.degraded ? { ...run.degraded } : undefined,
 });
