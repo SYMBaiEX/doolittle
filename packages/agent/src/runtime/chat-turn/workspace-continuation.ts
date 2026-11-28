@@ -71,6 +71,30 @@ export function incompleteVerificationScopes(
   return scopes;
 }
 
+const GENERIC_UNFINISHED_WORK =
+  /\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/giu;
+const NEGATED_UNFINISHED_WORK_PREFIX =
+  /\b(?:no|nothing|none)\s+(?:[\p{L}\p{N}_-]+\s+){0,4}$/iu;
+const UNFINISHED_WORK_EXCEPTION = /^\s*(?:,\s*)?(?:except|but)\b/iu;
+
+function hasGenericUnfinishedWorkAdmission(response: string): boolean {
+  for (const admission of response.matchAll(GENERIC_UNFINISHED_WORK)) {
+    const beforeClause =
+      response
+        .slice(0, admission.index)
+        .split(/[.!?\n;]/u)
+        .at(-1) ?? "";
+    const after = response.slice(admission.index + admission[0].length);
+    if (
+      NEGATED_UNFINISHED_WORK_PREFIX.test(beforeClause) &&
+      !UNFINISHED_WORK_EXCEPTION.test(after)
+    )
+      continue;
+    return true;
+  }
+  return false;
+}
+
 export function explicitlyReportsIncompleteWork(
   response: string,
 ): IncompleteWorkspaceKind | undefined {
@@ -85,9 +109,7 @@ export function explicitlyReportsIncompleteWork(
   // Only use the generic unfinished-work fallback after identifying explicit
   // verification objects. Mixed implementation/verification admissions above
   // keep the stronger correction obligation.
-  return /\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
-    response,
-  )
+  return hasGenericUnfinishedWorkAdmission(response)
     ? "implementation"
     : undefined;
 }
@@ -300,11 +322,11 @@ export function incompleteAdmittedWorkspaceFailure(
   actionResults: readonly ActionResult[],
 ): string {
   return [
-    "The requested workspace task is still incomplete after the agent's continuation attempts.",
+    "Doolittle stopped this run before completion: the agent acknowledged unfinished implementation or verification and did not verify a correction.",
     hasVerifiedWorkspaceMutation(actionResults)
-      ? "Some local files changed, but a prior response explicitly acknowledged unfinished implementation or verification, and no later verified correction receipt superseded that admission."
-      : "A prior response explicitly acknowledged unfinished implementation or verification, and no later verified correction receipt superseded that admission.",
-    "Inspect the current workspace before retrying; completed partial changes have been preserved.",
+      ? "Partial file changes are preserved."
+      : "No verified file changes were recorded.",
+    "Inspect the workspace, then retry the remaining step.",
   ].join(" ");
 }
 

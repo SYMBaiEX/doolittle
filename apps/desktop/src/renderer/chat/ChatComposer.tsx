@@ -56,14 +56,21 @@ import {
 } from "../conversation-persistence";
 import { asArray, asRecord, useApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import { useWorkspaceState } from "../session-workspace/chat-workspace-store";
 import { ContextCapsuleIcon, contextCapsuleLabel } from "./ContextCapsuleIcon";
-import type { ChatMemoryMatchState } from "./models";
-import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
+import type { ChatMemoryMatchState, RunReceiptStore } from "./models";
+import {
+  attachmentSize,
+  fileName,
+  MAX_MESSAGE_ATTACHMENTS,
+  RUN_RECEIPTS_STATE_KEY,
+} from "./models";
 import { PromptLibrary } from "./PromptLibrary";
 import {
   type ReusableCompletion,
   reusableCompletions,
 } from "./reusable-completion";
+import { formatRunElapsed, liveRunActivity } from "./run-activity";
 import { composerSendControl } from "./send-control";
 
 import { pendingApprovalsForSession } from "./session-approvals";
@@ -283,6 +290,26 @@ export function ChatComposer({
     inputRequestsResource.data?.requests,
     selectedId,
   );
+  const [runReceipts] = useWorkspaceState<RunReceiptStore>(
+    RUN_RECEIPTS_STATE_KEY,
+    {},
+  );
+  const activeReceipt = activeRequest ? runReceipts[activeRequest] : undefined;
+  const activeRunId = activeReceipt?.latest.run.runId;
+  const [clock, setClock] = useState(Date.now);
+  useLayoutEffect(() => {
+    if (activeRunId) setClock(Date.now());
+  }, [activeRunId]);
+  useVisibleInterval(() => setClock(Date.now()), 1_000, Boolean(activeRunId));
+  const liveActivity = useMemo(() => {
+    if (
+      !activeReceipt ||
+      activeReceipt.latest.sessionId !== selectedId ||
+      activeReceipt.latest.run.sessionId !== selectedId
+    )
+      return null;
+    return liveRunActivity(activeReceipt, clock);
+  }, [activeReceipt, clock, selectedId]);
   const formRef = useRef<HTMLFormElement>(null);
   const [approvalHeightBudget, setApprovalHeightBudget] = useState<
     number | null
@@ -489,7 +516,7 @@ export function ChatComposer({
         ? `${bot?.name ?? "Doolittle"} waiting`
         : bot && (bot.state === "stopped" || bot.state === "starting")
           ? `Starting ${bot.name}`
-          : `${bot?.name ?? "Doolittle"} working`
+          : (liveActivity?.label ?? `${bot?.name ?? "Doolittle"} working`)
       : bot &&
           !bot.isDefault &&
           ["stopped", "waiting", "error", "archived"].includes(bot.state)
@@ -634,6 +661,23 @@ export function ChatComposer({
             }
             withDot
           />
+          {liveActivity?.detail ? (
+            <small
+              className="chat-live-activity-detail"
+              title={liveActivity.detail}
+            >
+              {liveActivity.detail}
+            </small>
+          ) : null}
+          {liveActivity?.elapsedMs !== undefined ? (
+            <small
+              aria-hidden="true"
+              className="chat-live-activity-elapsed"
+              title="Elapsed run time"
+            >
+              {formatRunElapsed(liveActivity.elapsedMs)}
+            </small>
+          ) : null}
           {runningTasks > 0 ? (
             <small>
               {runningTasks} runtime task{runningTasks === 1 ? "" : "s"} active

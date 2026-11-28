@@ -98,7 +98,6 @@ the first release whose installs can update themselves.
 - Settings writes validated server-side with atomic rejection; execution
   imports canonicalized; validators centralized.
 
-
 ## [0.1.1] - 2026-11-26
 
 Twenty evidence-driven hardening rounds across every terminal surface, each

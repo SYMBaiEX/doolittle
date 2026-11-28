@@ -1,12 +1,45 @@
 // @vitest-environment jsdom
 
-import { act, createRef } from "react";
+import { act, createRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import {
   ChatComposer,
   type ChatComposerProps,
 } from "../../apps/desktop/src/renderer/chat/ChatComposer";
+import {
+  RUN_RECEIPTS_STATE_KEY,
+  type RunReceiptStore,
+} from "../../apps/desktop/src/renderer/chat/models";
+import {
+  ChatWorkspaceProvider,
+  useWorkspaceState,
+} from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
+import type { DesktopRunUpdate } from "../../apps/desktop/src/shared/contracts";
+
+interface ReceiptHarnessApi {
+  write?: (receipts: RunReceiptStore) => void;
+}
+
+function LiveReceiptHarness({
+  composerProps,
+  harnessApi,
+}: {
+  composerProps: ChatComposerProps;
+  harnessApi: ReceiptHarnessApi;
+}) {
+  const [, setReceipts] = useWorkspaceState<RunReceiptStore>(
+    RUN_RECEIPTS_STATE_KEY,
+    {},
+  );
+  useEffect(() => {
+    harnessApi.write = (receipts) => setReceipts(receipts);
+    return () => {
+      harnessApi.write = undefined;
+    };
+  }, [harnessApi, setReceipts]);
+  return <ChatComposer {...composerProps} />;
+}
 
 function composer() {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -72,8 +105,12 @@ function composer() {
   return {
     onSubmit,
     onCancelRequest,
+    defaults,
     render(overrides: Partial<ChatComposerProps> = {}) {
       act(() => root.render(<ChatComposer {...defaults} {...overrides} />));
+    },
+    renderElement(element: Parameters<typeof root.render>[0]) {
+      act(() => root.render(element));
     },
     button(label: string) {
       return container.querySelector<HTMLButtonElement>(
@@ -174,6 +211,97 @@ it("shows a disabled queue control when an active-run draft cannot queue", () =>
     view.render({ activeRequest: "run-1", canQueue: false, draft: "" });
     expect(view.button("Queue message")).toBeNull();
     expect(view.query<HTMLElement>(".chat-send-behavior")).toBeNull();
+  } finally {
+    view.dispose();
+  }
+});
+
+it("narrates live run activity from receipt events without fabricating details", () => {
+  const view = composer();
+  const harnessApi: {
+    write?: (receipts: RunReceiptStore) => void;
+  } = {};
+  const startedAt = new Date(Date.now() - 4_000).toISOString();
+  const update = (
+    type: DesktopRunUpdate["type"],
+    runFields: Partial<DesktopRunUpdate["run"]>,
+    activity?: DesktopRunUpdate["activity"],
+  ): DesktopRunUpdate => ({
+    type,
+    sessionId: "chat-1",
+    ...(activity ? { activity } : {}),
+    run: {
+      runId: "run-1",
+      sessionId: "chat-1",
+      roomId: "chat-1",
+      source: "desktop",
+      message: "",
+      runDepth: "standard",
+      configuredMaxIterations: 4,
+      observedActionCount: 0,
+      progressMode: "all",
+      status: "thinking",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt,
+      updatedAt: new Date().toISOString(),
+      ...runFields,
+    },
+  });
+  try {
+    view.renderElement(
+      <ChatWorkspaceProvider>
+        <LiveReceiptHarness
+          composerProps={{ ...view.defaults, activeRequest: "run-1" }}
+          harnessApi={harnessApi}
+        />
+      </ChatWorkspaceProvider>,
+    );
+    const label = () =>
+      view.query<HTMLElement>(".chat-status-badge")?.textContent;
+    expect(label()).toBe("Doolittle working");
+    if (!harnessApi.write) throw new Error("Receipt harness did not mount.");
+    const publish = (event: DesktopRunUpdate) => {
+      act(() =>
+        harnessApi.write?.({
+          "run-1": { latest: event, events: [event] },
+        }),
+      );
+    };
+
+    publish(
+      update(
+        "action-started",
+        {
+          status: "acting",
+          activeAction: "TERMINAL_SHELL",
+          lastAction: "TERMINAL_SHELL",
+          observedActionCount: 1,
+        },
+        {
+          action: "TERMINAL_SHELL",
+          phase: "running",
+          command: "nub run test:scope",
+        },
+      ),
+    );
+    expect(label()).toBe("Running shell command");
+    expect(
+      view.query<HTMLElement>(".chat-live-activity-detail")?.textContent,
+    ).toBe("nub run test:scope");
+    expect(
+      view.query<HTMLElement>(".chat-live-activity-elapsed")?.textContent,
+    ).toMatch(/^\d/u);
+
+    publish(update("thinking", { status: "thinking" }));
+    expect(label()).toBe("Thinking");
+    expect(view.query<HTMLElement>(".chat-live-activity-detail")).toBeNull();
+
+    publish(update("acting", { status: "acting" }));
+    expect(label()).toBe("Doolittle working");
+    expect(
+      view.query<HTMLElement>(".chat-live-activity-elapsed")?.textContent,
+    ).toMatch(/^\d/u);
   } finally {
     view.dispose();
   }

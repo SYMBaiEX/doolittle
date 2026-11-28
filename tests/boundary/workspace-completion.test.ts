@@ -388,6 +388,26 @@ describe("workspace completion across SDK turns", () => {
     ).toBeUndefined();
   });
 
+  it("does not invert negated completion statements into unfinished-work admissions", () => {
+    for (const response of [
+      "No work remains to be done.",
+      "No further work remains to be done.",
+      "Nothing is left to do.",
+      "There is nothing left to do.",
+      "The implementation is complete; no work remains to be done.",
+    ]) {
+      expect(explicitlyReportsIncompleteWork(response)).toBeUndefined();
+    }
+    expect(
+      explicitlyReportsIncompleteWork(
+        "Nothing is left to do except fix the regression.",
+      ),
+    ).toBe("implementation");
+    expect(explicitlyReportsIncompleteWork("Work remains to be done.")).toBe(
+      "implementation",
+    );
+  });
+
   it("rejects sibling-directory mutation evidence when pinning the workspace", () => {
     const results = [mutation("/workspace/project-other/server.ts")];
     expect(hasVerifiedWorkspaceMutation(results, workdir)).toBe(false);

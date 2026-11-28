@@ -10,6 +10,7 @@ import {
 import { getMessageActions } from "../../apps/desktop/src/renderer/chat/MessageActions";
 import type { DisplayMessage } from "../../apps/desktop/src/renderer/chat/models";
 import { ChatWorkspaceProvider } from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
+import type { DesktopRunUpdate } from "../../apps/desktop/src/shared/contracts";
 
 vi.mock(
   import("../../apps/desktop/src/renderer/chat/ChatMessage"),
@@ -357,6 +358,118 @@ it("updates the streaming row while settled rows retain current actions", async 
       menu?.querySelector('[role="menuitem"]:not([aria-disabled])')
         ?.textContent,
     ).toBe("Copy message");
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+  }
+});
+
+it("streams active tool receipts into the pending transcript row", () => {
+  const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const now = Date.now();
+  const startedAt = new Date(now - 8_000).toISOString();
+  const update = (
+    type: DesktopRunUpdate["type"],
+    updatedAt: string,
+    runFields: Partial<DesktopRunUpdate["run"]>,
+    activity?: DesktopRunUpdate["activity"],
+  ): DesktopRunUpdate => ({
+    type,
+    sessionId: "conversation-a",
+    ...(activity ? { activity } : {}),
+    run: {
+      runId: "run",
+      sessionId: "conversation-a",
+      roomId: "conversation-a",
+      source: "desktop",
+      message: "",
+      runDepth: "standard",
+      configuredMaxIterations: 4,
+      observedActionCount: 0,
+      progressMode: "all",
+      status: "thinking",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt,
+      updatedAt,
+      ...runFields,
+    },
+  });
+  const started = update("started", startedAt, {});
+  const actionStarted = update(
+    "action-started",
+    new Date(now).toISOString(),
+    {
+      status: "acting",
+      activeAction: "READ_FILE",
+      lastAction: "READ_FILE",
+      observedActionCount: 1,
+    },
+    { action: "READ_FILE", phase: "running" },
+  );
+  const pendingMessage: DisplayMessage = {
+    ...response,
+    id: "assistant:run",
+    runId: "run",
+    content: "",
+    pending: true,
+  };
+  const noop = () => {};
+  const render = (receipt: {
+    latest: DesktopRunUpdate;
+    events: DesktopRunUpdate[];
+  }) => {
+    act(() => {
+      root.render(
+        <ChatTranscript
+          sessionId="conversation-a"
+          backendReady
+          activeRequest="run"
+          loading={false}
+          historyError=""
+          messages={[pendingMessage]}
+          runReceipts={{ run: receipt }}
+          progress=""
+          endRef={createRef<HTMLDivElement>()}
+          forkingMessageId=""
+          copyStates={{}}
+          speakingMessageId=""
+          speechSupported={false}
+          onBranch={noop}
+          onCopy={noop}
+          onRead={noop}
+          onRetryHistory={noop}
+          onStopReading={noop}
+          onSelectPrompt={noop}
+        />,
+      );
+    });
+  };
+
+  try {
+    render({ latest: started, events: [started] });
+    expect(
+      container
+        .querySelector('section[aria-label="Run receipt"] > button')
+        ?.getAttribute("aria-label"),
+    ).toBe("Planning");
+
+    render({
+      latest: actionStarted,
+      events: [started, actionStarted],
+    });
+    expect(
+      container
+        .querySelector('section[aria-label="Run receipt"] > button')
+        ?.getAttribute("aria-label"),
+    ).toBe("Reading file");
+    expect(container.textContent).not.toContain("Run complete");
   } finally {
     act(() => root.unmount());
     container.remove();

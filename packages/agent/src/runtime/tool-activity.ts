@@ -5,7 +5,10 @@ import type { RunToolActivity } from "@doolittle/contracts/run";
 import type { ActionResult } from "@elizaos/core";
 import { isSensitiveKeyName, redactWithSecrets } from "@elizaos/core/protocol";
 import { isRecord } from "../utils/records";
-import { sanitizeTerminalText } from "../utils/terminal-text";
+import {
+  sanitizeSingleLineTerminalText,
+  sanitizeTerminalText,
+} from "../utils/terminal-text";
 import { inspectWorkspaceCommands } from "../utils/workspace-commands";
 import {
   extractCommandResultFromActionResult,
@@ -17,6 +20,7 @@ const MAX_COMMAND = 512;
 const MAX_OUTPUT = 4 * 1024;
 const MAX_PATH = 768;
 const MAX_PATHS = 4;
+const MAX_SUMMARY = 768;
 const UNSAFE_TEXT = /[\p{Cc}\u202a-\u202e\u2066-\u2069]/u;
 const SAFE_PROGRAM =
   /^(?:bun|cargo|cat|cd|curl|find|git|go|grep|ls|make|node|npm|nub|pnpm|python3?|rg|sed|sh|yarn|zsh)$/u;
@@ -25,15 +29,22 @@ const READ_COMMAND =
 const KNOWN_CHECK =
   /^(?:build|test|check|lint|typecheck|type-check|validate|verify)(?::(?:scope|related|all|release|check|tools))?$/u;
 
-/** Mask configured secrets and credential shapes, keeping the tail when bounded. */
-function redactText(value: string, limit: number): string | undefined {
+/** Mask configured secrets and credential shapes before any display bound. */
+function redactSensitiveText(value: string): string | undefined {
   if (!value) return undefined;
   const secrets = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key, secret]) => isSensitiveKeyName(key) && typeof secret === "string",
     ),
   ) as Record<string, string>;
-  const redacted = redactWithSecrets(value, { secrets, applyPatterns: true });
+  return (
+    redactWithSecrets(value, { secrets, applyPatterns: true }) || undefined
+  );
+}
+
+/** Mask configured secrets and credential shapes, keeping the tail when bounded. */
+function redactText(value: string, limit: number): string | undefined {
+  const redacted = redactSensitiveText(value);
   if (!redacted) return undefined;
   if (redacted.length <= limit) return redacted;
   // Bound after masking so a credential split at the cut is already replaced.
@@ -111,6 +122,27 @@ function shellOutput(shell: CommandResult): string | undefined {
   return cleaned || undefined;
 }
 
+/**
+ * Failure prose is admitted only from ActionResult.userFacingText, the upstream
+ * field explicitly authored for user display. Diagnostic text/error fields are
+ * never a fallback; an internal transcript marker wins over the field.
+ */
+function failureSummary(result: ActionResult | undefined): string | undefined {
+  if (
+    !result ||
+    result.transcriptVisibility === "internal" ||
+    typeof result.userFacingText !== "string"
+  )
+    return undefined;
+  const redacted = redactSensitiveText(result.userFacingText);
+  if (!redacted) return undefined;
+  const cleaned = sanitizeSingleLineTerminalText(redacted);
+  if (!cleaned) return undefined;
+  return cleaned.length <= MAX_SUMMARY
+    ? cleaned
+    : `${cleaned.slice(0, MAX_SUMMARY - 1).trimEnd()}…`;
+}
+
 export function projectActionActivity(
   action: string,
   result: ActionResult | undefined,
@@ -131,6 +163,7 @@ export function projectActionActivity(
       : failed
         ? "failed"
         : "completed";
+  const summary = failed ? failureSummary(result) : undefined;
   if (shell) {
     const directory = safePath(shell.executedIn);
     const detail = shell.command.trim();
@@ -146,6 +179,7 @@ export function projectActionActivity(
         : redactText(detail, MAX_COMMAND),
       directory,
       output: shellOutput(shell),
+      ...(summary && { summary }),
       exitCode: shell.exitCode,
       durationMs: shell.durationMs,
     };
@@ -159,9 +193,10 @@ export function projectActionActivity(
       phase,
       kind: file?.type === "write" ? "edit" : file?.type,
       paths: [path],
+      ...(summary && { summary }),
     };
   }
-  return { action, phase };
+  return { action, phase, ...(summary && { summary }) };
 }
 
 const WORKER_TOOL_TITLES = {
@@ -187,6 +222,51 @@ function workerPath(root: string, value: unknown): string | undefined {
     !isAbsolute(path)
     ? path
     : undefined;
+}
+
+const INPUT_COMMAND_ACTIONS = new Set([
+  "RUN_IN_TERMINAL",
+  "SHELL",
+  "SHELL_COMMAND",
+  "TERMINAL_SHELL",
+]);
+
+const INPUT_PATH_KEYS: Record<string, readonly string[]> = {
+  CREATE_DIRECTORY: ["path", "directory", "folder", "target"],
+  DOOLITTLE_WORKSPACE: ["path"],
+  PATCH_FILE: ["path", "file", "target"],
+  READ_FILE: ["path", "file", "target"],
+  SEARCH_FILES: ["path", "directory"],
+  WRITE_FILE: ["path", "file", "target"],
+};
+
+/**
+ * Project the small target subset of an owner-observed tool invocation. Input
+ * remains untrusted even after the SDK owner-observation redaction pass: only
+ * action-specific path/command keys are read, paths must stay inside the
+ * approved workdir, and commands keep the existing collapsed shell preview.
+ */
+export function projectNativeActionInputTarget(
+  action: string,
+  input: unknown,
+  workdir: string,
+): Pick<RunToolActivity, "command" | "paths"> {
+  if (!isRecord(input)) return {};
+  const name = action.toUpperCase();
+  if (INPUT_COMMAND_ACTIONS.has(name)) {
+    const command = commandPreview(input.command, workdir);
+    return command ? { command } : {};
+  }
+  const keys = INPUT_PATH_KEYS[name];
+  if (!keys) return {};
+  const paths = [
+    ...new Set(
+      keys
+        .map((key) => workerPath(workdir, input[key]))
+        .filter((path): path is string => path !== undefined),
+    ),
+  ].slice(0, MAX_PATHS);
+  return paths.length ? { paths } : {};
 }
 
 export function projectDelegatedToolActivity(

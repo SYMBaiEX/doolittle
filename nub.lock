@@ -163,6 +163,9 @@ importers:
       '@elizaos/plugin-calendar':
         specifier: workspace:2.0.5
         version: link:vendor/elizaos/packages/plugin-calendar
+      '@elizaos/plugin-codex-cli':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@elizaos/core@vendor+elizaos+packages+core)(zod@4.6.7)
       '@elizaos/plugin-sql':
         specifier: workspace:2.0.5
         version: link:vendor/elizaos/packages/plugin-sql

@@ -355,6 +355,7 @@
     "@elizaos/core": "workspace:2.0.5",
     "@elizaos/plugin-sql": "workspace:2.0.5",
     "@elizaos/plugin-agent-orchestrator": "workspace:2.0.5",
+    "@elizaos/plugin-codex-cli": "2.0.3-beta.7",
     "@elizaos/agent": "workspace:2.0.5",
     "@elizaos/ui": "2.0.11-beta.7",
     "@elizaos/plugin-calendar": "workspace:2.0.5",
