@@ -289,8 +289,9 @@ it("routes a custom OpenAI-compatible endpoint key through the vault and pool, n
     ]);
     const settingsCall = calls.find(([path]) => path === "/settings");
     expect(settingsCall).toBeTruthy();
+    if (!settingsCall) throw new Error("settings call missing");
     const changes = (
-      settingsCall?.[2] as unknown as {
+      settingsCall[2] as unknown as {
         changes: Array<{ path: string; value: unknown }>;
       }
     ).changes;
