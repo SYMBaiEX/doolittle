@@ -307,6 +307,76 @@ it("narrates live run activity from receipt events without fabricating details",
   }
 });
 
+it("keeps the active-run elapsed clock moving while the window is hidden", () => {
+  vi.useFakeTimers();
+  const visibility = vi
+    .spyOn(document, "visibilityState", "get")
+    .mockReturnValue("hidden");
+  const view = composer();
+  const harnessApi: ReceiptHarnessApi = {};
+  const startedAt = new Date(Date.now() - 250).toISOString();
+  const update: DesktopRunUpdate = {
+    type: "thinking",
+    sessionId: "chat-1",
+    run: {
+      runId: "run-1",
+      sessionId: "chat-1",
+      roomId: "chat-1",
+      source: "desktop",
+      message: "",
+      runDepth: "standard",
+      configuredMaxIterations: 4,
+      observedActionCount: 0,
+      progressMode: "all",
+      status: "thinking",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+  const elapsed = () =>
+    view.query<HTMLElement>(".chat-live-activity-elapsed")?.textContent;
+  try {
+    view.renderElement(
+      <ChatWorkspaceProvider>
+        <LiveReceiptHarness
+          composerProps={{ ...view.defaults, activeRequest: "run-1" }}
+          harnessApi={harnessApi}
+        />
+      </ChatWorkspaceProvider>,
+    );
+    if (!harnessApi.write) throw new Error("Receipt harness did not mount.");
+    act(() =>
+      harnessApi.write?.({
+        "run-1": { latest: update, events: [update] },
+      }),
+    );
+    expect(elapsed()).toBe("250 ms");
+
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(elapsed()).toBe("1s");
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(elapsed()).toBe("2s");
+
+    const receiptNow = new Date(Date.parse(startedAt) + 4_500).toISOString();
+    const laterReceipt: DesktopRunUpdate = {
+      ...update,
+      run: { ...update.run, updatedAt: receiptNow },
+    };
+    act(() =>
+      harnessApi.write?.({
+        "run-1": { latest: laterReceipt, events: [update, laterReceipt] },
+      }),
+    );
+    expect(elapsed()).toBe("4s");
+  } finally {
+    view.dispose();
+    visibility.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
 it("exposes command completions through combobox semantics", () => {
   const view = composer();
   try {

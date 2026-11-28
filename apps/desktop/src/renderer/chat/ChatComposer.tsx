@@ -300,7 +300,13 @@ export function ChatComposer({
   useLayoutEffect(() => {
     if (activeRunId) setClock(Date.now());
   }, [activeRunId]);
-  useVisibleInterval(() => setClock(Date.now()), 1_000, Boolean(activeRunId));
+  // Elapsed run time is receipt-derived state, not polling. Keep the single
+  // composer clock alive while hidden, matching the transcript receipt row.
+  useEffect(() => {
+    if (!activeRunId) return;
+    const interval = window.setInterval(() => setClock(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [activeRunId]);
   const liveActivity = useMemo(() => {
     if (
       !activeReceipt ||
@@ -308,7 +314,11 @@ export function ChatComposer({
       activeReceipt.latest.run.sessionId !== selectedId
     )
       return null;
-    return liveRunActivity(activeReceipt, clock);
+    const receiptNow = Date.parse(activeReceipt.latest.run.updatedAt);
+    return liveRunActivity(
+      activeReceipt,
+      Number.isFinite(receiptNow) ? Math.max(clock, receiptNow) : clock,
+    );
   }, [activeReceipt, clock, selectedId]);
   const formRef = useRef<HTMLFormElement>(null);
   const [approvalHeightBudget, setApprovalHeightBudget] = useState<
