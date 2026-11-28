@@ -139,6 +139,9 @@ export const REVIEW_PATCH_CANVAS_CLASS =
 export const REVIEW_PATCH_PARTIAL_CLASS =
   "review-patch-partial border-b border-[color-mix(in_srgb,var(--warn)_34%,var(--canvas-border))] bg-[color-mix(in_srgb,var(--warn)_8%,var(--canvas-bg))] px-3 py-1.5 text-[length:var(--text-meta)] text-[var(--warn)]";
 
+export const REVIEW_PATCH_ERROR_CLASS =
+  "review-patch-error border-b border-[color-mix(in_srgb,var(--bad)_34%,var(--canvas-border))] bg-[color-mix(in_srgb,var(--bad)_8%,var(--canvas-bg))] px-3 py-1.5 text-[length:var(--text-meta)] leading-[1.45] text-[var(--bad)]";
+
 export const REVIEW_PATCH_FILE_CLASS =
   "review-patch-file grid gap-0 border-b border-[var(--canvas-border)] pb-1.5 last:border-b-0";
 
@@ -157,7 +160,13 @@ export const REVIEW_PATCH_METADATA_CLASS =
 export const REVIEW_PATCH_HUNK_CLASS = "review-patch-hunk grid gap-0 py-1";
 
 export const REVIEW_PATCH_HUNK_HEADER_CLASS =
-  "review-patch-hunk-header flex min-h-7 items-center border-y border-[color-mix(in_srgb,var(--accent)_22%,var(--canvas-border))] bg-[color-mix(in_srgb,var(--accent)_16%,var(--canvas-bg))] px-3 py-0.75 text-[length:var(--text-meta)] text-[var(--canvas-text)] [&>h4]:m-0 [&>h4]:text-inherit [&>h4]:font-normal";
+  "review-patch-hunk-header flex min-h-7 items-center justify-between gap-3 border-y border-[color-mix(in_srgb,var(--accent)_22%,var(--canvas-border))] bg-[color-mix(in_srgb,var(--accent)_16%,var(--canvas-bg))] px-3 py-0.75 text-[length:var(--text-meta)] text-[var(--canvas-text)] [&>h4]:m-0 [&>h4]:min-w-0 [&>h4]:text-inherit [&>h4]:font-normal";
+
+export const REVIEW_PATCH_HUNK_ACTIONS_CLASS =
+  "review-patch-hunk-actions flex shrink-0 items-center gap-1.25 [&>button]:rounded-[var(--radius-xs)] [&>button]:border [&>button]:border-[color-mix(in_srgb,var(--accent)_28%,var(--canvas-border))] [&>button]:bg-[color-mix(in_srgb,var(--canvas-bg)_72%,transparent)] [&>button]:px-1.5 [&>button]:py-0.25 [&>button]:text-[length:var(--text-meta)] [&>button]:text-[var(--canvas-text)] [&>button:hover]:border-[color-mix(in_srgb,var(--accent)_52%,var(--canvas-border))] [&>button:hover]:bg-[color-mix(in_srgb,var(--accent)_13%,var(--canvas-bg))] [&>button:focus-visible]:outline [&>button:focus-visible]:outline-1 [&>button:focus-visible]:outline-offset-1 [&>button:focus-visible]:outline-[var(--focus-ring)] [&>button:disabled]:cursor-not-allowed [&>button:disabled]:opacity-45 [&>button.danger]:border-[color-mix(in_srgb,var(--bad)_28%,var(--canvas-border))] [&>button.danger:hover]:border-[color-mix(in_srgb,var(--bad)_52%,var(--canvas-border))] [&>button.danger:hover]:bg-[color-mix(in_srgb,var(--bad)_10%,var(--canvas-bg))] [&>button.danger:hover]:text-[var(--bad)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--canvas-text-soft)]";
+
+export const REVIEW_PATCH_HUNK_NOTE_CLASS =
+  "review-patch-hunk-note shrink-0 text-[length:var(--text-meta)] font-normal text-[var(--canvas-text-soft)]";
 
 export const REVIEW_DETAIL_TOOLBAR_CLASS =
   "review-detail-toolbar flex min-h-10.5 items-center justify-between gap-4 border-[var(--border)] border-b bg-[var(--surface-raised)] px-3 py-1.75 [&>span]:truncate [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>div]:flex [&>div]:shrink-0 [&>div]:items-center [&>div]:gap-1.5 [&>div_button]:min-h-6.75 [&>div_button]:px-2 [&>div_button]:py-1.25 [&>div_button]:text-[length:var(--text-meta)]";

@@ -31,6 +31,7 @@ import {
   Notice,
   useApiResource,
 } from "./lib";
+import { mutationNotice, requestLabel } from "./repository-control";
 import {
   controlChanges,
   records,
@@ -54,6 +55,7 @@ import {
 import { ReviewDetail } from "./review/ReviewDetail";
 import { ReviewEvidence } from "./review/ReviewEvidence";
 import { ReviewOverview } from "./review/ReviewOverview";
+import type { ReviewPatchMutation } from "./review/ReviewPatch";
 import { ReviewQueue } from "./review/ReviewQueue";
 import {
   compileReviewFeedback,
@@ -135,6 +137,12 @@ export function ReviewPage({
   const [selectedId, setSelectedId] = useState("");
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
+  const [patchMutationBusy, setPatchMutationBusy] = useState(false);
+  const [patchMutationFailure, setPatchMutationFailure] = useState<{
+    selectedId: string;
+    sourcePatch: string;
+    message: string;
+  } | null>(null);
   const [comments, setComments] = useState<ReviewComment[]>([]);
   const commentsRef = useRef<ReviewComment[]>([]);
   const reviewRecordMutationQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -231,6 +239,13 @@ export function ReviewPage({
     selected?.status === "staged",
     repositoryOrigin,
   );
+  const patchText = patch.data?.patch?.patch ?? "";
+  const patchMutationError =
+    patchMutationFailure &&
+    patchMutationFailure.selectedId === (selected?.id ?? "") &&
+    patchMutationFailure.sourcePatch === patchText
+      ? patchMutationFailure.message
+      : "";
   const pendingCount = items.filter(
     (item) => item.kind === "approvals" && item.status === "pending",
   ).length;
@@ -396,6 +411,50 @@ export function ReviewPage({
     window.doolittle.mutateRepository(
       workspaceMutationRequest(request, repositoryOrigin),
     );
+
+  const mutatePatchHunk = async (mutation: ReviewPatchMutation) => {
+    if (!active || !repositoryOrigin || patchMutationBusy) return;
+    const request = {
+      type: mutation.type,
+      patch: mutation.patch,
+    } as RepositoryMutationRequest;
+    setPatchMutationBusy(true);
+    setPatchMutationFailure(null);
+    setFeedback({ tone: "neutral", message: requestLabel(request) });
+    try {
+      const response = await mutateRepository(request);
+      if (response.status === "cancelled") {
+        setFeedback({ tone: "neutral", message: "Git operation cancelled." });
+        return;
+      }
+      if (response.result.ok) {
+        setFeedback(mutationNotice(response.result));
+        await refreshWorkspaceResources(repositoryOrigin);
+        return;
+      }
+      const detail =
+        response.result.error ||
+        response.result.stderr ||
+        response.result.summary ||
+        "Git could not apply the selected hunk.";
+      setFeedback(null);
+      setPatchMutationFailure({
+        selectedId: selected?.id ?? "",
+        sourcePatch: patchText,
+        message: `${mutation.label} did not apply cleanly. ${detail}`,
+      });
+    } catch (error) {
+      setFeedback(null);
+      setPatchMutationFailure({
+        selectedId: selected?.id ?? "",
+        sourcePatch: patchText,
+        message: `${mutation.label} could not be submitted. ${errorMessage(error)}`,
+      });
+    } finally {
+      setPatchMutationBusy(false);
+    }
+  };
+
   const persistComments = (nextComments: ReviewComment[]) => {
     replaceComments(nextComments);
     return saveReviewComments(
@@ -912,6 +971,7 @@ export function ReviewPage({
                 onOpenWorkspaceFile?.(selected.path, repositoryOrigin);
               }
             }}
+            onPatchMutation={(mutation) => void mutatePatchHunk(mutation)}
             onSaveComment={() => void saveComment()}
             onSendFeedback={() => void sendReviewFeedback()}
             onStartComment={startComment}
@@ -920,6 +980,8 @@ export function ReviewPage({
             }
             openCommentCount={openCommentCount}
             patch={patch}
+            patchMutationBusy={patchMutationBusy}
+            patchMutationError={patchMutationError}
             platform={window.doolittle.platform}
             review={review}
             selected={selected}
