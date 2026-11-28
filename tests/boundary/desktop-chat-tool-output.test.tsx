@@ -542,6 +542,60 @@ it("shows result text and file paths for non-shell actions", () => {
   );
 });
 
+it("renders an error block for failed actions carrying a text blob", () => {
+  const failure: ToolActivity = {
+    id: "failed",
+    name: "WRITE_FILE",
+    status: "error",
+    error: "Write failed.",
+    output: {
+      success: false,
+      text: "Error: permission denied\n  at writeFile (fs.ts:12)",
+    },
+  };
+  const details = toolActivityDetails(failure);
+  expect(details.status).toBe("error");
+  expect(details.error).toContain("permission denied");
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[failure]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Writing file details").click());
+  expect(host.textContent).toContain("Write failed.");
+  expect(
+    host.querySelector('section[aria-label="Error"]')?.textContent,
+  ).toContain("permission denied");
+});
+
+it("renders an explicit tool diff without modifying the captured patch", async () => {
+  const diff = "--- a/index.ts\n+++ b/index.ts\n@@ -1 +1 @@\n-before\n+after\n";
+  const edit: ToolActivity = {
+    id: "patch",
+    name: "PATCH_FILE",
+    status: "completed",
+    input: { path: "index.ts" },
+    output: { data: { diff, durationMs: 2_120 } },
+  };
+  expect(toolActivityDetails(edit)).toMatchObject({
+    target: "index.ts",
+    duration: "2.1 s",
+    diff,
+  });
+  act(() => root.render(<ToolActivityGroup pending={true} tools={[edit]} />));
+  const disclosure = button("Tool activity");
+  expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+  act(() => disclosure.click());
+  act(() => button("Show Editing file details").click());
+  expect(host.querySelector('[data-diff-line="removed"]')?.textContent).toBe(
+    "-before\n",
+  );
+  expect(host.querySelector('[data-diff-line="added"]')?.textContent).toBe(
+    "+after\n",
+  );
+  await act(async () => button("Copy diff").click());
+  expect(writeText).toHaveBeenCalledExactlyOnceWith(diff);
+});
+
 it("prefers the explicitly user-authored text over machine payload text", () => {
   const payload = JSON.stringify({
     results: [
@@ -598,58 +652,4 @@ it("keeps diagnostic text in the error block when a failure authors user-facing 
   expect(details.error).toContain("permission denied");
   expect(details.error).not.toContain("I couldn't write the file");
   expect(details.output).toBeUndefined();
-});
-
-it("renders an error block for failed actions carrying a text blob", () => {
-  const failure: ToolActivity = {
-    id: "failed",
-    name: "WRITE_FILE",
-    status: "error",
-    error: "Write failed.",
-    output: {
-      success: false,
-      text: "Error: permission denied\n  at writeFile (fs.ts:12)",
-    },
-  };
-  const details = toolActivityDetails(failure);
-  expect(details.status).toBe("error");
-  expect(details.error).toContain("permission denied");
-  act(() =>
-    root.render(<ToolActivityGroup pending={false} tools={[failure]} />),
-  );
-  act(() => button("Tool activity").click());
-  act(() => button("Show Writing file details").click());
-  expect(host.textContent).toContain("Write failed.");
-  expect(
-    host.querySelector('section[aria-label="Error"]')?.textContent,
-  ).toContain("permission denied");
-});
-
-it("renders an explicit tool diff without modifying the captured patch", async () => {
-  const diff = "--- a/index.ts\n+++ b/index.ts\n@@ -1 +1 @@\n-before\n+after\n";
-  const edit: ToolActivity = {
-    id: "patch",
-    name: "PATCH_FILE",
-    status: "completed",
-    input: { path: "index.ts" },
-    output: { data: { diff, durationMs: 2_120 } },
-  };
-  expect(toolActivityDetails(edit)).toMatchObject({
-    target: "index.ts",
-    duration: "2.1 s",
-    diff,
-  });
-  act(() => root.render(<ToolActivityGroup pending={true} tools={[edit]} />));
-  const disclosure = button("Tool activity");
-  expect(disclosure.getAttribute("aria-expanded")).toBe("false");
-  act(() => disclosure.click());
-  act(() => button("Show Editing file details").click());
-  expect(host.querySelector('[data-diff-line="removed"]')?.textContent).toBe(
-    "-before\n",
-  );
-  expect(host.querySelector('[data-diff-line="added"]')?.textContent).toBe(
-    "+after\n",
-  );
-  await act(async () => button("Copy diff").click());
-  expect(writeText).toHaveBeenCalledExactlyOnceWith(diff);
 });
