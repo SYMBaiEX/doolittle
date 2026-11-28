@@ -1,16 +1,7 @@
 import { Activity, ChevronRight } from "lucide-react";
-import { type ComponentProps, memo, useMemo, useState } from "react";
-import {
-  Streamdown,
-  type StreamdownProps,
-  type UrlTransform,
-} from "streamdown";
-import { MessageMarkdownCode } from "./MessageCodeBlock";
-import {
-  type ParsedAgentMessage,
-  parseAgentMessage,
-  safeHttpMessageUrl,
-} from "./message-output";
+import { memo, useMemo } from "react";
+import { MessageMarkdown } from "./message-markdown";
+import { type ParsedAgentMessage, parseAgentMessage } from "./message-output";
 import { ToolActivityGroup } from "./ToolActivityGroup";
 import { UiIcon } from "./UiIcon";
 import "./message-content.css";
@@ -21,52 +12,7 @@ interface MessageContentProps {
   separateAgentEvents?: boolean;
 }
 
-export const safeMessageUrl: UrlTransform = (url, key) =>
-  key === "src"
-    ? safeHttpMessageUrl(url)
-    : /^(?:#|https?:|mailto:)/iu.test(url.trim())
-      ? url
-      : null;
-
-function MessageImage({
-  alt,
-  src,
-  title,
-  width,
-  height,
-}: ComponentProps<"img"> & { node?: unknown }) {
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const safeSrc = typeof src === "string" ? safeHttpMessageUrl(src) : null;
-  if (!safeSrc || failedSrc === safeSrc) {
-    return (
-      <span data-message-image-unavailable="true">
-        {alt?.trim() || "Image unavailable"}
-      </span>
-    );
-  }
-  return (
-    <img
-      alt={alt ?? ""}
-      height={height}
-      loading="lazy"
-      onError={() => setFailedSrc(safeSrc)}
-      referrerPolicy="no-referrer"
-      src={safeSrc}
-      title={title}
-      width={width}
-    />
-  );
-}
-
-const MARKDOWN_COMPONENTS: StreamdownProps["components"] = {
-  code: MessageMarkdownCode,
-  img: MessageImage,
-};
-const MARKDOWN_CONTROLS: StreamdownProps["controls"] = {
-  code: false,
-  table: { copy: true, download: false, fullscreen: false },
-};
-const MARKDOWN_LINK_SAFETY = { enabled: true };
+export { safeMessageUrl } from "./message-markdown";
 
 function AgentSteps({
   continued,
@@ -134,21 +80,7 @@ export const MessageContent = memo(function MessageContent({
   return (
     <div className="min-w-0" data-message-content="true">
       {parsed.text ? (
-        <Streamdown
-          animated={false}
-          caret="circle"
-          className="chat-message-prose"
-          components={MARKDOWN_COMPONENTS}
-          controls={MARKDOWN_CONTROLS}
-          dir="auto"
-          isAnimating={pending}
-          linkSafety={MARKDOWN_LINK_SAFETY}
-          mode={pending ? "streaming" : "static"}
-          normalizeHtmlIndentation
-          urlTransform={safeMessageUrl}
-        >
-          {parsed.text}
-        </Streamdown>
+        <MessageMarkdown pending={pending} text={parsed.text} />
       ) : !hasActivity ? (
         <p data-message-content-state="empty">
           <span className="thinking">

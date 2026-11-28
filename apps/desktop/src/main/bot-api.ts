@@ -64,6 +64,7 @@ export async function handleBotApiRequest(
   confirmSensitiveAction?: (
     request: SensitiveActionConfirmationRequest,
   ) => Promise<boolean>,
+  signal?: AbortSignal,
 ): Promise<AgentTransportResponse | null> {
   const path = parseApiPath(request.path, request.method);
   if (!isBotApiPath(request.path, request.method)) {
@@ -387,6 +388,7 @@ export async function handleBotApiRequest(
               error: "Explicit project consent is required.",
             });
           const selected = await registry.readLeadProject(projectId);
+          signal?.throwIfAborted();
           const requestedAccess = projectAccessScope(bot, selected);
           const reusable = registry.projectAccess.has(requestedAccess);
           const confirmed =
@@ -398,6 +400,7 @@ export async function handleBotApiRequest(
               detail: `Workspace: ${selected.workspacePath}. File changes: ${bot.permissions.allowMutation ? "allowed, subject to tool approvals" : "not allowed"}. Delegation: ${bot.permissions.allowDelegation ? "allowed within the approved project" : "not allowed"}. Remembered for future chats with this bot in this project and folder. A changed folder or changed permissions needs approval again. Other bots do not receive this access; each chat keeps its own project.`,
               confirmLabel: "Allow project access",
             }));
+          signal?.throwIfAborted();
           if (confirmed !== true)
             return jsonResponse(403, {
               error: "Project access was not confirmed.",
@@ -417,6 +420,10 @@ export async function handleBotApiRequest(
             (reusable && !registry.projectAccess.has(currentAccess))
           )
             throw new Error("Bot or project changed during confirmation.");
+          // A renderer cancellation must not turn a late approval into
+          // orphaned writes. After this check, cancellation cannot interleave
+          // with the synchronous grant and chat writes.
+          signal?.throwIfAborted();
           // The native dialog approves bot/project access independently of a
           // chat. Persist that authority before publishing a scoped chat.
           if (!reusable)

@@ -9,6 +9,29 @@ const SHELL_ACTIONS = new Set([
   "TERMINAL_SHELL",
 ]);
 
+/**
+ * Actions whose result text is authored as user-facing markdown prose, verified
+ * against their implementations rather than guessed from payload content:
+ *
+ * - WEB_SEARCH: the Doolittle plugin fallback composes markdown source rows
+ *   (`### Web results for …` with `[title](url)` links), and provider
+ *   synthesis returns markdown prose.
+ * - DOOLITTLE_RESEARCH: the action returns a cited markdown report.
+ * - DOOLITTLE_CONSULT_BOT: the result is a consulted bot's user-facing reply —
+ *   the same prose surface as a chat message.
+ * - DOOLITTLE_SESSION_SEARCH: results are formatted as a markdown bullet list.
+ *
+ * Shell transcripts, file contents, diffs and fetched response bodies are
+ * literal preformatted text and must never enter this list: rendering them as
+ * markdown would corrupt them. Unknown actions default to preformatted text.
+ */
+const PROSE_ACTIONS = new Set([
+  "WEB_SEARCH",
+  "DOOLITTLE_RESEARCH",
+  "DOOLITTLE_CONSULT_BOT",
+  "DOOLITTLE_SESSION_SEARCH",
+]);
+
 // ActionResult text blobs can carry megabytes of stream output; keep only the
 // newest tail for streams and a bounded head for result/error text.
 const MAX_STREAM_CHARACTERS = 8_192;
@@ -163,6 +186,23 @@ function parseShellResultText(text: string): ShellResultText | undefined {
   return matched ? parsed : undefined;
 }
 
+/**
+ * Structured payloads are machine data, never prose, however the action is
+ * classified: a web-search result text that is itself the raw JSON provider
+ * payload is carried by the sources list and the raw payload disclosure.
+ * This is a structural data-format check, not a markdown-content guess.
+ */
+function isJsonPayloadText(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface ToolDetails {
   label: string;
   target?: string;
@@ -171,6 +211,8 @@ export interface ToolDetails {
   stderr?: string;
   diff?: string;
   output?: string;
+  /** Output text is authored user-facing markdown and may render as prose. */
+  outputMarkdown: boolean;
   error?: string;
   exitCode?: number;
   duration?: string;
@@ -199,6 +241,11 @@ export function toolActivityDetails(activity: ToolActivity): ToolDetails {
     output?.value,
     activity.output,
   );
+  // ActionResult.userFacingText is the upstream field explicitly authored for
+  // user display (the same contract the run projector already trusts for
+  // failure prose). The web-search plugin, for example, keeps the raw provider
+  // JSON in `text` while authoring markdown source rows in `userFacingText`.
+  const userFacingText = firstText(output?.userFacingText);
 
   // SDK shell actions often report an ActionResult text blob instead of
   // structured commandResult fields; recover the sections it carries.
@@ -277,8 +324,12 @@ export function toolActivityDetails(activity: ToolActivity): ToolDetails {
     output?.success === false ||
     Boolean(activity.error);
   const hasStreams = stdout !== undefined || stderr !== undefined;
+  // Successful results prefer the explicitly user-authored field; failures
+  // keep diagnostic text in the detail surface because the authored failure
+  // prose is already carried by the summary and error fields.
+  const successText = userFacingText ?? resultText;
   const outputText = boundHead(
-    !failed && !hasStreams && resultText !== diff ? resultText : undefined,
+    !failed && !hasStreams && successText !== diff ? successText : undefined,
     MAX_TEXT_CHARACTERS,
   );
   const errorText = boundTail(
@@ -301,6 +352,10 @@ export function toolActivityDetails(activity: ToolActivity): ToolDetails {
     stderr,
     diff,
     output: outputText.text,
+    outputMarkdown:
+      outputText.text !== undefined &&
+      PROSE_ACTIONS.has(name) &&
+      !isJsonPayloadText(outputText.text),
     error:
       errorText.text &&
       errorText.text !== activity.error &&

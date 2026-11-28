@@ -37,6 +37,10 @@ import {
   toChanges,
 } from "./repository-resource-models";
 import { reviewRequests } from "./resource-request-policy";
+import {
+  approveWithPersistentApprovalRule,
+  exactApprovalRuleInputFromApproval,
+} from "./review/approval-rule";
 import { REVIEW_PAGE_CLASS, REVIEW_WORKSPACE_CLASS } from "./review/layout";
 import {
   type ApprovalResponse,
@@ -653,6 +657,56 @@ export function ReviewPage({
     }
   };
 
+  const approveAlways = async () => {
+    if (
+      !active ||
+      selected?.kind !== "approvals" ||
+      selected.status !== "pending"
+    )
+      return;
+    const approvalId = asString(selected.raw.id);
+    const ruleInput = exactApprovalRuleInputFromApproval(selected.raw);
+    if (!approvalId || !ruleInput) return;
+    setBusy("always");
+    setFeedback(null);
+    try {
+      const result = await approveWithPersistentApprovalRule({
+        approvalId,
+        ruleInput,
+        request: (path, method, body) =>
+          desktopRequest(
+            path,
+            method,
+            body,
+            undefined,
+            undefined,
+            computerOrigin?.botId,
+            computerOrigin,
+          ),
+      });
+      if (result.status === "approved") {
+        setFeedback({
+          tone: "good",
+          message:
+            "Approval granted. Future exact matches in this stable approval scope are allowed.",
+        });
+      } else if (result.status === "approval-unconfirmed") {
+        setFeedback({
+          tone: "warn",
+          message: `The persistent rule was saved, but this request could not be confirmed as approved: ${errorMessage(result.error)}`,
+        });
+      } else {
+        setFeedback({
+          tone: "bad",
+          message: `The persistent rule could not be confirmed, so this request was not approved: ${errorMessage(result.error)}`,
+        });
+      }
+    } finally {
+      approvals.reload();
+      setBusy("");
+    }
+  };
+
   const decideSelectedApprovalFromKeyboard = (
     event: ReactKeyboardEvent<HTMLDivElement>,
   ) => {
@@ -844,6 +898,12 @@ export function ReviewPage({
               });
             }}
             onCancelComment={cancelComment}
+            onAlwaysAllow={
+              selected?.kind === "approvals" &&
+              exactApprovalRuleInputFromApproval(selected.raw)
+                ? () => void approveAlways()
+                : undefined
+            }
             onDecision={(decision) => void decideApproval(decision)}
             onDelete={(commentId) => void deleteComment(commentId)}
             onDraftChange={setCommentDraft}

@@ -271,6 +271,11 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
           "expired",
         ]),
     },
+    { exact: "/execution/approval-rules" },
+    {
+      predicate: (pathname) =>
+        matchesResourcePath(pathname, "/execution/approval-rules"),
+    },
     {
       exact: "/execution/input-requests",
       allowedQueries: ["status", "roomId"],
@@ -670,6 +675,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
           "deny",
         ]),
     },
+    { exact: "/execution/approval-rules" },
     {
       predicate: (pathname) =>
         matchesResourceActionPath(pathname, "/execution/input-requests", [
@@ -752,6 +758,10 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         matchesResourcePath(pathname, "/review-record/comments"),
     },
     {
+      predicate: (pathname) =>
+        matchesResourcePath(pathname, "/execution/approval-rules"),
+    },
+    {
       predicate(pathname): boolean {
         const segments = pathname.split("/");
         return (
@@ -773,6 +783,10 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     {
       predicate: (pathname) =>
         matchesResourcePath(pathname, "/review-record/comments"),
+    },
+    {
+      predicate: (pathname) =>
+        matchesResourcePath(pathname, "/execution/approval-rules"),
     },
     {
       predicate(pathname): boolean {

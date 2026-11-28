@@ -244,10 +244,12 @@ function boundedInteger(
   fallback: number,
   maximum: number,
 ): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isFinite(parsed)) {
+  const raw = value?.trim() ?? "";
+  if (!/^[+-]?\d+$/.test(raw)) {
     return fallback;
   }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed)) return fallback;
   return Math.min(maximum, Math.max(1, parsed));
 }
 

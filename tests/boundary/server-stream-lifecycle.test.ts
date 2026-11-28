@@ -3,12 +3,35 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setImmediate } from "node:timers/promises";
+import {
+  RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS,
+  type RunUpdateEvent,
+} from "@doolittle/contracts/run";
 import { expect, it, vi } from "vitest";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap/index";
 import { streamSse } from "../../packages/agent/src/server/responses";
 import { handleChatRunEventsRoute } from "../../packages/agent/src/server/routes/conversation/chat";
 import { RunControllerStore } from "../../packages/agent/src/services/run-controller/store";
 import { RunControllerService } from "../../packages/agent/src/services/run-controller-service/index";
+
+const INACTIVITY_THRESHOLD_MS = RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS;
+
+function startLifecycleRun(
+  runs: RunControllerService,
+  sessionId = "session",
+  runId = "run",
+) {
+  return runs.startTurn({
+    sessionId,
+    runId,
+    roomId: "room",
+    source: "desktop",
+    message: "Continue this task",
+    runDepth: "standard",
+    configuredMaxIterations: 15,
+    progressMode: "new",
+  });
+}
 
 it("waits for a reader and releases a blocked producer on cancel", async () => {
   const frames: number[] = [];
@@ -497,5 +520,172 @@ it("cancels pending acceptance before model admission and preserves event order"
   } finally {
     runs.dispose();
     await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+it("surfaces post-admission inactivity without terminalizing or aborting the run", () => {
+  vi.useFakeTimers();
+  const runs = new RunControllerService();
+  const events: RunUpdateEvent[] = [];
+  runs.onUpdate((event) => events.push(event));
+  const controller = new AbortController();
+  runs.registerAbortController("run", controller);
+  try {
+    const started = startLifecycleRun(runs);
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS - 1);
+    expect(events.some((event) => event.type === "degraded")).toBe(false);
+
+    vi.advanceTimersByTime(1);
+    const degraded = events.filter((event) => event.type === "degraded");
+    expect(degraded).toHaveLength(1);
+    expect(degraded[0]?.run.status).toBe("thinking");
+    expect(degraded[0]?.run.endedAt).toBeUndefined();
+    expect(degraded[0]?.run.terminalReason).toBeUndefined();
+    expect(degraded[0]?.run.degraded).toMatchObject({
+      reason: "no-meaningful-activity",
+      since: started.startedAt,
+      thresholdMs: INACTIVITY_THRESHOLD_MS,
+    });
+    const inactivity = degraded[0]?.run.degraded;
+    expect(
+      Date.parse(inactivity?.detectedAt ?? "") -
+        Date.parse(inactivity?.since ?? ""),
+    ).toBe(INACTIVITY_THRESHOLD_MS);
+    expect(runs.getActive("session")?.degraded).toEqual(
+      degraded[0]?.run.degraded,
+    );
+    expect(controller.signal.aborted).toBe(false);
+
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS);
+    expect(events.filter((event) => event.type === "degraded")).toHaveLength(1);
+  } finally {
+    runs.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("does not degrade admission capacity waiting before the model turn starts", async () => {
+  vi.useFakeTimers();
+  const runs = new RunControllerService();
+  try {
+    const identity = {
+      runId: "run",
+      roomId: "room",
+      sessionId: "session",
+      source: "desktop",
+    };
+    expect(runs.claimTaskRun({ ...identity, responseId: "response" })).toEqual({
+      accepted: true,
+    });
+    await runs.acceptQueuedRun({
+      ...identity,
+      runDepth: "standard",
+      configuredMaxIterations: 15,
+      progressMode: "new",
+    });
+
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS * 2);
+    expect(runs.getActive(identity.sessionId)?.degraded).toBeUndefined();
+
+    startLifecycleRun(runs, identity.sessionId, identity.runId);
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS);
+    expect(runs.getActive(identity.sessionId)?.degraded?.reason).toBe(
+      "no-meaningful-activity",
+    );
+  } finally {
+    runs.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("does not let heartbeat liveness reset the meaningful-activity clock", () => {
+  vi.useFakeTimers();
+  const runs = new RunControllerService();
+  try {
+    const started = startLifecycleRun(runs);
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS / 2);
+    runs.noteHeartbeat("thinking", "runtime heartbeat");
+    expect(runs.getActive("session")?.lastHeartbeatAt).toBeDefined();
+
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS / 2 - 1);
+    expect(runs.getActive("session")?.degraded).toBeUndefined();
+    vi.advanceTimersByTime(1);
+    expect(runs.getActive("session")?.degraded).toMatchObject({
+      reason: "no-meaningful-activity",
+      since: started.startedAt,
+    });
+  } finally {
+    runs.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("clears degradation when meaningful activity resumes and starts a new silence window", () => {
+  vi.useFakeTimers();
+  const runs = new RunControllerService();
+  const events: RunUpdateEvent[] = [];
+  runs.onUpdate((event) => events.push(event));
+  try {
+    startLifecycleRun(runs);
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS);
+    expect(events.filter((event) => event.type === "degraded")).toHaveLength(1);
+
+    runs.noteStream("session", "assistant", "partial answer");
+    const recovery = events.at(-1);
+    expect(recovery?.type).toBe("stream");
+    expect(recovery?.run.degraded).toBeUndefined();
+    expect(runs.getActive("session")?.degraded).toBeUndefined();
+
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS - 1);
+    expect(events.filter((event) => event.type === "degraded")).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    const degraded = events.filter((event) => event.type === "degraded");
+    expect(degraded).toHaveLength(2);
+    expect(degraded[1]?.run.degraded?.since).toBe(
+      recovery?.run.lastMeaningfulActivityAt,
+    );
+  } finally {
+    runs.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("does not degrade while an approval wait is operator-owned", () => {
+  vi.useFakeTimers();
+  const runs = new RunControllerService();
+  try {
+    startLifecycleRun(runs);
+    runs.setPendingApprovals("session", 1);
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS * 2);
+    expect(runs.getActive("session")?.degraded).toBeUndefined();
+
+    runs.setPendingApprovals("session", 0);
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS - 1);
+    expect(runs.getActive("session")?.degraded).toBeUndefined();
+    vi.advanceTimersByTime(1);
+    expect(runs.getActive("session")?.degraded?.reason).toBe(
+      "no-meaningful-activity",
+    );
+  } finally {
+    runs.dispose();
+    vi.useRealTimers();
+  }
+});
+
+it("stops inactivity observation when the run reaches a terminal receipt", () => {
+  vi.useFakeTimers();
+  const runs = new RunControllerService();
+  const events: RunUpdateEvent[] = [];
+  runs.onUpdate((event) => events.push(event));
+  try {
+    startLifecycleRun(runs);
+    vi.advanceTimersByTime(1_000);
+    runs.finishTurn("session", "complete");
+
+    vi.advanceTimersByTime(INACTIVITY_THRESHOLD_MS * 2);
+    expect(events.some((event) => event.type === "degraded")).toBe(false);
+  } finally {
+    runs.dispose();
+    vi.useRealTimers();
   }
 });

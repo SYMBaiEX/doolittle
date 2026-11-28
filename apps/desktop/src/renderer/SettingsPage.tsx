@@ -61,6 +61,7 @@ import {
   settingsPanels,
 } from "./settings/lazy-panels";
 import { SettingsAppearancePanel } from "./settings/SettingsAppearancePanel";
+import { SettingsApprovalRulesPanel } from "./settings/SettingsApprovalRulesPanel";
 import { SettingsExecutionStatusPanel } from "./settings/SettingsExecutionStatusPanel";
 import {
   type FlatSetting,
@@ -501,7 +502,9 @@ export function SettingsPage({
           preferenceFeedback.kind === "error" ? (
             <ErrorBlock error={preferenceFeedback.message} />
           ) : (
-            <Notice announce="status">{preferenceFeedback.message}</Notice>
+            <span className="sr-only">
+              <Notice announce="status">{preferenceFeedback.message}</Notice>
+            </span>
           )
         ) : null}
         {runtimeCategoryOffline ? (
@@ -585,6 +588,12 @@ export function SettingsPage({
               runtime={runtime ?? null}
             />
           </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "execution" ? (
+          <SettingsApprovalRulesPanel
+            active={active}
+            readOnly={!writesAllowed}
+          />
         ) : null}
         {resourcePolicy.settings && !settings.loading && !settings.error ? (
           <WorkbenchSection

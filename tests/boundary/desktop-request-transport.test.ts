@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import { desktopRequest } from "../../apps/desktop/src/renderer/eliza-client";
+import {
+  DESKTOP_REQUEST_TIMEOUT_MS,
+  desktopRequestTimeoutMs,
+} from "../../apps/desktop/src/shared/contracts/transport";
 
 const reply = (body: string, status = 200) => ({
   body,
@@ -60,6 +64,18 @@ it("preserves host error codes and never retries failed mutations", async () => 
   });
   expect(request).toHaveBeenCalledOnce();
 });
+it("does not impose a synthetic timeout on human project approval", () => {
+  expect(
+    desktopRequestTimeoutMs("/bots/bot-a/conversations", "POST"),
+  ).toBeNull();
+  expect(desktopRequestTimeoutMs("/bots/bot-a/conversations", "GET")).toBe(
+    DESKTOP_REQUEST_TIMEOUT_MS,
+  );
+  expect(desktopRequestTimeoutMs("/runtime/status", "POST")).toBe(
+    DESKTOP_REQUEST_TIMEOUT_MS,
+  );
+});
+
 it("cancels IPC on caller abort and on timeout even with a caller signal", async () => {
   const request = vi.fn(() => new Promise(() => {}));
   const cancel = bridge(request);

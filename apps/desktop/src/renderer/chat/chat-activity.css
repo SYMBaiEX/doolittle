@@ -309,6 +309,24 @@ button.chat-activity-row:hover strong {
   color: color-mix(in srgb, var(--bad, var(--danger)) 76%, var(--text-soft));
 }
 
+/*
+ * Authored markdown results (web search, research) render through the same
+ * prose pipeline as assistant messages. The bounded scroll region mirrors the
+ * console payload so long results never flood the transcript.
+ */
+.chat-activity-prose-output {
+  max-block-size: min(17rem, 36vh);
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+  margin: 0;
+  padding: 2px 0 2px 8px;
+  color: var(--text);
+  font-size: var(--text-body, 14px);
+  text-align: left;
+}
+
 .chat-activity-console [data-diff-line="added"] {
   color: color-mix(in srgb, var(--good, var(--success)) 72%, var(--text));
   background: color-mix(in srgb, var(--good, var(--success)) 9%, transparent);

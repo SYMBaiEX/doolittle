@@ -115,7 +115,7 @@ export async function desktopRequest<T>(
   method: HttpMethod = "GET",
   body?: unknown,
   signal?: AbortSignal,
-  timeoutMs = desktopRequestTimeoutMs(path),
+  timeoutMs = desktopRequestTimeoutMs(path, method),
   botId?: string,
   origin?: ComputerOrigin,
 ): Promise<T> {
@@ -125,12 +125,16 @@ export async function desktopRequest<T>(
   const request = createFetch({
     fetch: (url, init) => transport.request(String(url), init ?? {}),
   });
+  const timeoutSignal =
+    timeoutMs == null ? undefined : AbortSignal.timeout(timeoutMs);
+  const requestSignal =
+    signal && timeoutSignal
+      ? AbortSignal.any([signal, timeoutSignal])
+      : (timeoutSignal ?? signal);
   try {
     return await request<T>(path, {
       method,
-      signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-        : AbortSignal.timeout(timeoutMs),
+      signal: requestSignal,
       retry: 0,
       parseResponse: JSON.parse,
       headers: { "Content-Type": "application/json" },
