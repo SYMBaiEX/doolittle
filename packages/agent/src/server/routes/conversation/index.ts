@@ -11,6 +11,7 @@ import {
   handleChatSubmitRoute,
 } from "./chat";
 import { handleResponsesRoute } from "./responses";
+import { handleChatRunSteerRoute } from "./steer";
 
 function runIdFromPath(encoded: string | undefined): string | null {
   if (!encoded || !/^(?:[a-zA-Z0-9:_-]|%3A){1,130}$/iu.test(encoded))
@@ -60,6 +61,12 @@ export async function handleConversationRoutes(
   }
 
   if (request.method === "POST") {
+    const steer = url.pathname.match(/^\/chat\/runs\/([^/]+)\/steer$/u);
+    const steerRunId = runIdFromPath(steer?.[1]);
+    if (steerRunId) {
+      return handleChatRunSteerRoute(context, request, steerRunId);
+    }
+
     const cancellation = url.pathname.match(/^\/chat\/runs\/([^/]+)\/cancel$/u);
     const cancelRunId = runIdFromPath(cancellation?.[1]);
     if (cancelRunId) {

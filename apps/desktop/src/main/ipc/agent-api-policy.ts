@@ -707,7 +707,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/codegen/generate" },
     {
       predicate: (pathname) =>
-        matchesResourceActionPath(pathname, "/chat/runs", ["cancel"]),
+        matchesResourceActionPath(pathname, "/chat/runs", ["cancel", "steer"]),
     },
     { exact: "/codegen/research" },
     { exact: "/codegen/prd" },

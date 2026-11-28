@@ -1,9 +1,14 @@
+import type {
+  ChatRunSteerRejectionCode,
+  ChatRunSteerSubmissionResult,
+} from "@doolittle/contracts/steer";
 import {
   ConversationFrame,
   useLiquidLayout,
   useSurfacePresence,
 } from "@doolittle/ui";
 import { useMediaQuery } from "@doolittle/ui/environment";
+import { isApiError } from "@elizaos/ui/api/client-types";
 import { ArrowDown, LockKeyhole } from "lucide-react";
 import {
   type FormEvent,
@@ -67,6 +72,12 @@ import {
 } from "./chat/models";
 import { queueHeadStatus } from "./chat/queue-status";
 import { queuedMessageRemovalTargets } from "./chat/queued-message-removal";
+import {
+  canOfferRunSteerDraft,
+  insertSteeredUserMessage,
+  isChatRunSteerRejectionCode,
+  runSteerRejectionDisposition,
+} from "./chat/steer";
 import { useChatAttachments } from "./chat/useChatAttachments";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
@@ -541,6 +552,13 @@ export function ChatSessionPanel({
   );
   const attachedFiles = draftAttachments;
   const [forkingMessageId, setForkingMessageId] = useState("");
+  const steerPendingRef = useRef(new Set<string>());
+  const [steerPendingRuns, setSteerPendingRuns] = useState<
+    Record<string, true>
+  >({});
+  const [steerFeedback, setSteerFeedback] = useState<Record<string, string>>(
+    {},
+  );
   const [promotionFeedback, setPromotionFeedback] = useWorkspaceState<
     Record<string, { busy: boolean; error?: string; message: string }>
   >("knowledge.promotion-feedback", {});
@@ -1340,25 +1358,25 @@ export function ChatSessionPanel({
     runHydration === "ready" &&
     !workspaceBindingBlocked &&
     (!scopeForSession || queueScope?.kind === "confirmed");
-  const queueCurrentDraft = () => {
-    if (!queueScopeReady) return;
+  const queueCurrentDraft = (announcement?: string): boolean => {
+    if (!queueScopeReady) return false;
     if (attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before queueing this message.",
       );
-      return;
+      return false;
     }
     const visibleContent = chatSubmissionContent(draft, attachedFiles.length);
     const content = composeChatContextMessage(
       visibleContent,
       chatContextCapsule,
     );
-    if (!content || !selectedId) return;
+    if (!content || !selectedId) return false;
     if (isCommandMessage(content) && attachedFiles.length > 0) {
       setAttachmentValidationError(
         "Remove message attachments before queueing a command.",
       );
-      return;
+      return false;
     }
     setQueuedMessages((current) => [
       ...current,
@@ -1388,12 +1406,121 @@ export function ChatSessionPanel({
     ]);
     if (queuedMessages.length === 0) setQueuePaused(false);
     setQueueAnnouncement(
-      queuePaused && queuedMessages.length > 0
-        ? "Message added. The queue is still paused."
-        : "Message added to the queue.",
+      announcement ??
+        (queuePaused && queuedMessages.length > 0
+          ? "Message added. The queue is still paused."
+          : "Message added to the queue."),
     );
     clearDraftForDispatch(selectedId);
     composerRef.current?.focus();
+    return true;
+  };
+
+  const steerCurrentDraft = async () => {
+    const runId = activeRequest;
+    const sessionId = selectedId;
+    if (!runId || !sessionId || steerPendingRef.current.has(runId)) return;
+    const text = draft.trim();
+    if (!text) return;
+    const draftRevision = getDraftRevision(sessionId);
+    const botId = resolveSessionBot(sessionId);
+    steerPendingRef.current.add(runId);
+    setSteerPendingRuns((current) => ({ ...current, [runId]: true }));
+    setSteerFeedback((current) => {
+      if (!(sessionId in current)) return current;
+      const { [sessionId]: _cleared, ...remaining } = current;
+      return remaining;
+    });
+    setDispatchFeedback((current) => ({ ...current, [sessionId]: "" }));
+
+    const rejectWithoutQueue = (detail: string) => {
+      const feedback = `${detail} Your draft was kept.`;
+      setDispatchFeedback((current) => ({
+        ...current,
+        [sessionId]: feedback,
+      }));
+      setQueueAnnouncement(feedback);
+    };
+    const handleRejection = (
+      code: ChatRunSteerRejectionCode,
+      detail: string,
+    ) => {
+      const disposition = runSteerRejectionDisposition({
+        code,
+        detail,
+        draftChanged: getDraftRevision(sessionId) !== draftRevision,
+      });
+      if (disposition.action === "retain") {
+        rejectWithoutQueue(disposition.detail);
+        return;
+      }
+      if (!queueCurrentDraft(disposition.detail)) {
+        rejectWithoutQueue(
+          "The run did not accept steering, and the message could not be queued.",
+        );
+        return;
+      }
+      setSteerFeedback((current) => ({
+        ...current,
+        [sessionId]: disposition.detail,
+      }));
+    };
+
+    try {
+      const result = await desktopRequest<ChatRunSteerSubmissionResult>(
+        `/chat/runs/${encodeURIComponent(runId)}/steer`,
+        "POST",
+        { message: text, userId: "desktop-user" },
+        undefined,
+        undefined,
+        botId || undefined,
+      );
+      if (!result.accepted) {
+        handleRejection(result.code, result.message);
+        return;
+      }
+
+      const createdAt = new Date().toISOString();
+      if (!coordinator && sessionId === selectedId) {
+        forceTranscriptFollowRef.current = true;
+      }
+      setMessages((current) => {
+        const entries = current[sessionId] ?? [];
+        const steeredMessage: DisplayMessage = {
+          id: result.messageId,
+          runId,
+          role: "user",
+          content: text,
+          createdAt,
+        };
+        const next = insertSteeredUserMessage(entries, runId, steeredMessage);
+        return next === entries ? current : { ...current, [sessionId]: next };
+      });
+      if (getDraftRevision(sessionId) === draftRevision) {
+        clearDraftForDispatch(sessionId);
+      }
+      const feedback =
+        "Steered into the active run. It can take effect at the next continuation pass.";
+      setSteerFeedback((current) => ({ ...current, [sessionId]: feedback }));
+      setQueueAnnouncement(feedback);
+      if (sessionId === selectedId) composerRef.current?.focus();
+    } catch (error) {
+      const code = isApiError(error) ? error.code : undefined;
+      if (isChatRunSteerRejectionCode(code)) {
+        handleRejection(code, errorMessage(error));
+      } else {
+        rejectWithoutQueue(
+          `Steering could not be offered: ${errorMessage(error)}.`,
+        );
+      }
+    } finally {
+      steerPendingRef.current.delete(runId);
+      setSteerPendingRuns((current) => {
+        if (!current[runId]) return current;
+        const { [runId]: _cleared, ...remaining } = current;
+        return remaining;
+      });
+    }
   };
 
   const resumeQueuedMessages = () => {
@@ -1423,6 +1550,11 @@ export function ChatSessionPanel({
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
+    setSteerFeedback((current) => {
+      if (!(selectedId in current)) return current;
+      const { [selectedId]: _cleared, ...remaining } = current;
+      return remaining;
+    });
     if (attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before sending.",
@@ -1430,7 +1562,8 @@ export function ChatSessionPanel({
       return;
     }
     if (activeRequest) {
-      queueCurrentDraft();
+      if (steerOffer) await steerCurrentDraft();
+      else if (canQueue) queueCurrentDraft();
       return;
     }
     await sendMessage({
@@ -1585,6 +1718,18 @@ export function ChatSessionPanel({
     ) &&
     !attachmentImportPending &&
     !composerValidationError;
+  const steerOffer = Boolean(
+    activeRequest &&
+      selectedId &&
+      !readOnlyChat &&
+      !attachmentImportPending &&
+      !composerValidationError &&
+      canOfferRunSteerDraft({
+        text: draft,
+        attachmentCount: attachedFiles.length,
+        hasContextCapsule: Boolean(chatContextCapsule),
+      }),
+  );
   const isNewConversation =
     selectedMessages.length === 0 &&
     (selectedSession?.messageCount ?? 0) === 0 &&
@@ -1616,6 +1761,7 @@ export function ChatSessionPanel({
       };
   const hasDispatchNotice =
     Boolean(activeRequest && runConnection) ||
+    Boolean(steerFeedback[selectedId]) ||
     Boolean(dispatchFeedback[selectedId]) ||
     dispatchPending[selectedId] ||
     runHydration !== "ready" ||
@@ -1792,6 +1938,9 @@ export function ChatSessionPanel({
                         : "Response stream disconnected. The run may still be active."}
                     </ChatNotice>
                   ) : null}
+                  {steerFeedback[selectedId] ? (
+                    <ChatNotice>{steerFeedback[selectedId]}</ChatNotice>
+                  ) : null}
                   {dispatchFeedback[selectedId] ? (
                     <ChatNotice tone="error">
                       {dispatchFeedback[selectedId]}
@@ -1897,6 +2046,10 @@ export function ChatSessionPanel({
             onCancelRequest={(requestId) => void cancelRequest(requestId)}
             canSubmit={canSubmit}
             canQueue={canQueue}
+            steerOffer={steerOffer}
+            steerPending={Boolean(
+              activeRequest && steerPendingRuns[activeRequest],
+            )}
             canDraft={canDraft}
             draft={draft}
             setDraft={setDraft}

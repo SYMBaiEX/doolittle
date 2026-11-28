@@ -189,6 +189,59 @@ it("keeps queue submission separate from stopping the active run", () => {
   }
 });
 
+it("presents steer as an honest offer with queue fallback, never a promise", () => {
+  const view = composer();
+  try {
+    view.render({
+      activeRequest: "run-1",
+      canSubmit: false,
+      canQueue: true,
+      steerOffer: true,
+    });
+    expect(view.button("Steer or queue message")?.type).toBe("submit");
+    expect(view.button("Steer or queue message")?.disabled).toBe(false);
+    expect(view.query<HTMLElement>(".chat-send-behavior")?.textContent).toBe(
+      "Enter offers to steer this run. If steering is unavailable, the message queues.",
+    );
+    expect(
+      view.query<HTMLElement>("#chat-composer-hint-chat-1")?.textContent,
+    ).toBe(
+      "Enter to offer steering. Escape to stop. Shift Enter for a new line.",
+    );
+    expect(view.key("Enter")).toBe(true);
+    expect(view.onSubmit).toHaveBeenCalledOnce();
+
+    view.render({
+      activeRequest: "run-1",
+      canSubmit: false,
+      canQueue: false,
+      steerOffer: true,
+    });
+    expect(view.button("Steer message")?.disabled).toBe(false);
+    expect(view.query<HTMLElement>(".chat-send-behavior")?.textContent).toBe(
+      "Enter offers to steer this run. If steering is unavailable, the draft stays here.",
+    );
+    expect(view.key("Enter")).toBe(true);
+    expect(view.onSubmit).toHaveBeenCalledTimes(2);
+
+    view.render({
+      activeRequest: "run-1",
+      canSubmit: false,
+      canQueue: true,
+      steerOffer: true,
+      steerPending: true,
+    });
+    expect(view.button("Steer or queue message")?.disabled).toBe(true);
+    expect(view.query<HTMLElement>(".chat-send-behavior")?.textContent).toBe(
+      "Offering the message to the active run…",
+    );
+    expect(view.key("Enter")).toBe(true);
+    expect(view.onSubmit).toHaveBeenCalledTimes(2);
+  } finally {
+    view.dispose();
+  }
+});
+
 it("shows a disabled queue control when an active-run draft cannot queue", () => {
   const view = composer();
   try {
