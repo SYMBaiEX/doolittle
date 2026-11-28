@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/solana-layouts",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Strict unsigned Solana layouts using maintained byte converters, with the legacy layout API required by wallet SDKs.",
   "license": "MIT",

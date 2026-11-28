@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/evals",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "evaluatorVersion": "0.2.21",
   "private": true,
   "type": "module",

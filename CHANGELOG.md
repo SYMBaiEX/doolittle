@@ -6,6 +6,95 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-29
+
+Four rounds of harness reliability, run observability, and review depth —
+the release that answers the failures users actually hit: silent runs,
+opaque deaths, raw markdown dumps, sign-in friction, and settings that
+jumped. First release delivered through the in-app updater.
+
+### Chat run feedback
+
+- The composer narrates live: "Thinking", "Running shell command",
+  "Reading file" with elapsed time and quiet target detail, replacing the
+  static "working" label. Priority states (approvals, cancellation) still
+  preempt; honest fallback when no granular evidence exists.
+- Stalled runs surface honestly: after three minutes without meaningful
+  activity, composer and transcript show "Still running" with minute-level
+  copy — never aborted, never misrepresented, clearing when activity
+  resumes.
+- Run failures carry their real finalized detail instead of the generic
+  "The response could not be completed".
+- Queued runs journal their waiting periods, so late subscribers can see
+  why a run is waiting.
+- The composer elapsed clock no longer freezes in hidden windows.
+
+### Tool output
+
+- Authored-prose tool results (web search, research, consult,
+  session search) render as formatted markdown — headings, links, tables —
+  through a shared safe configuration. Shell output, file contents, diffs,
+  errors, and machine payloads remain preformatted; `javascript:` URLs
+  render as inert text.
+- Successful tool results prefer authored `userFacingText` over machine
+  JSON where the plugin provides both.
+- Tool activity carries honest detail: workspace-confined file targets and
+  collapsed shell previews, failing closed on ambiguity or secrets.
+
+### Steer
+
+- You can steer an active continuation run: plain-text input offered to
+  the run takes effect at the next continuation pass, clearly labeled as
+  user-authored. The composer always says which thing happened — steered,
+  queued, or retained — and never claims the model obeyed.
+- Steer is durable before admission, drains only at whole-pass
+  boundaries, and unconsumed steer is honestly reported.
+
+### Continuation supervision
+
+- Supervisor notices no longer impersonate the agent: the agent's own
+  words remain the reply; supervision context travels through status
+  channels.
+- Inverted-completion false positives fixed — "No work remains" no longer
+  triggers continuation loops.
+- Exact repeated no-progress passes (same failing evidence twice in a
+  row) stop the loop instead of burning tokens to the pass cap.
+
+### Review
+
+- Per-hunk accept/reject on structured patches: stage, discard (with
+  destructive confirmation), or unstage individual hunks — regression-
+  proven against real Git for non-contiguous application, atomic failure
+  on overlapping hunks, and correct handling of renames, binary files,
+  and partial patches.
+
+### Approvals
+
+- Approval rules are manageable end-to-end: settings CRUD UI, "Always
+  allow" in review with exact-match rules and fail-closed sequencing, and
+  the desktop main-process policy that had blocked the endpoints entirely.
+- Strict validation for operations log-limit input.
+
+### Providers and sign-in
+
+- Codex in-app sign-in repaired: the OAuth flow executes on the host
+  correctly; Claude Code readiness no longer tied to legacy credential
+  shape; provider-specific paste validation no longer leaks across
+  providers.
+- Custom endpoint routing on the Models page: free-text model ID, custom
+  base URL, write-only API key held in vault/pool rather than persisted
+  settings.
+
+### Reliability fixes
+
+- New-chat creation no longer fails against a 15-second synthetic timeout
+  racing native dialogs — cancellation propagates atomically instead of
+  orphaning conversations.
+- Settings pages no longer jump on theme change: status announcements
+  leave the layout flow entirely while remaining audible to screen
+  readers.
+
+
 ## [0.1.2] - 2026-11-27
 
 Six rounds of design, architecture, and benchmark-gap closure across the
