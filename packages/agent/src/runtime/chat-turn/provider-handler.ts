@@ -1,3 +1,4 @@
+import type { ChatRunSteerMessage } from "@doolittle/contracts/steer";
 import {
   type ActionResult,
   bindIncomingMessagePersistence,
@@ -52,6 +53,12 @@ import {
   managedDelegationFailure,
 } from "./provider-receipts";
 import type { StreamingOutputModel } from "./provider-streaming";
+import type { TurnState } from "./state";
+import {
+  closeRunSteerChannel,
+  openRunSteerChannel,
+  type RunSteerChannel,
+} from "./steer";
 import {
   isUnsynthesizedToolResponse,
   synthesizeToolResultResponse,
@@ -107,6 +114,9 @@ export type ProviderMessageExecutionResult = {
 type ProviderMessageExecutionInput = {
   context: AgentExecutionContext;
   memory: Memory;
+  turn?: TurnState;
+  userId?: string;
+  continuationBudget?: TurnContinuationBudget;
   sessionId?: string;
   runId?: string;
   streamState: StreamingOutputModel;
@@ -205,6 +215,7 @@ export async function executeProviderMessageTurn(
   const settledActionResults: ActionResult[] = [];
   let responseMessages: Memory[] = [];
   const continuationBudget =
+    input.continuationBudget ??
     getScopedTurnContinuationBudget(input.context.runtime) ??
     new TurnContinuationBudget(
       input.messagePolicy.maxIterations,
@@ -266,6 +277,8 @@ export async function executeProviderMessageTurn(
       // turn it into a requested managed-app handoff.
       const { verificationRequest } = serverStartPolicy(prompt);
       const noOpRequirements = workspaceNoopRequirements(verificationRequest);
+      let steerChannel: RunSteerChannel | undefined;
+      let pendingSteerConsumption: ChatRunSteerMessage[] = [];
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
@@ -344,6 +357,14 @@ export async function executeProviderMessageTurn(
         );
         if (mutationObligation) {
           markScopedTurnMutationObligation(input.context.runtime);
+          if (input.turn && input.userId) {
+            steerChannel = openRunSteerChannel({
+              context: input.context,
+              turn: input.turn,
+              userId: input.userId,
+              continuationBudget,
+            });
+          }
         }
         let messageMemory = input.memory;
         let messageResult:
@@ -362,6 +383,9 @@ export async function executeProviderMessageTurn(
           throwIfTurnAborted(input.abortSignal);
           const settledCountBeforeAttempt = settledActionResults.length;
           continuationBudget.beginPass();
+          // Once a new SDK pass starts, its prompt is the consumption point
+          // for any steer batch carried by that prompt.
+          pendingSteerConsumption = [];
           messageResult = await messageService.handleMessage(
             input.context.runtime,
             messageMemory,
@@ -543,7 +567,11 @@ export async function executeProviderMessageTurn(
           if (correctedAfterAdmission) admittedIncomplete = undefined;
           const explicitlyIncomplete =
             responseExplicitlyIncomplete || admittedIncomplete !== undefined;
-          if (repeatedNoProgress) {
+          const steerBatch = steerChannel
+            ? await steerChannel.drainAtPassBoundary(input.abortSignal)
+            : [];
+          if (steerBatch.length > 0) pendingSteerConsumption = steerBatch;
+          if (repeatedNoProgress && steerBatch.length === 0) {
             stoppedForRepeatedNoProgress = true;
             recordEvaluationTraceEvent(input.context, {
               category: "model",
@@ -602,7 +630,7 @@ export async function executeProviderMessageTurn(
               !verifiedWorkspaceCompletion &&
               !hasVerifiedWorkspaceMutation(actionResults))
           ) {
-            break;
+            if (steerBatch.length === 0 || continuationBudget.exhausted) break;
           }
 
           // Observe only continuing passes, after the existing clearance gate.
@@ -698,6 +726,7 @@ export async function executeProviderMessageTurn(
             actionResults,
             response,
             currentRequirements,
+            steerBatch,
           );
           // Continuation instructions are prompt-only. Keep the SDK's durable
           // ingress identity bound to the original message and its exact bytes.
@@ -1207,6 +1236,34 @@ export async function executeProviderMessageTurn(
         runFailureMessage = failureMessage;
         input.streamState.setResponse(response);
       } finally {
+        if (steerChannel) {
+          const closedSteer = closeRunSteerChannel(input.context, steerChannel);
+          const unconsumedReady = [
+            ...pendingSteerConsumption,
+            ...closedSteer.unconsumed,
+          ];
+          const unconsumedCount =
+            unconsumedReady.length + closedSteer.persistenceInFlight;
+          if (unconsumedCount > 0) {
+            const message = `${unconsumedCount} steer message${unconsumedCount === 1 ? " was" : "s were"} persisted as user input but not considered because the run ended before a continuation pass.`;
+            recordEvaluationTraceEvent(input.context, {
+              category: "turn",
+              event: "turn.steer_unconsumed",
+              sessionId,
+              runId: input.runId,
+              roomId: input.roomId,
+              source: input.connectionSource,
+              provider: input.settingsDuring.model.provider,
+              model: input.settingsDuring.model.model,
+              text: `[turn:steer-unconsumed] ${message}`,
+              metadata: {
+                unconsumed: unconsumedReady,
+                persistenceInFlight: closedSteer.persistenceInFlight,
+              },
+            });
+            await emitSupervisorNotice(message);
+          }
+        }
         const elapsedMs = elapsedMsSince(startedAt);
         recordEvaluationTraceEvent(input.context, {
           category: "model",

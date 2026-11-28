@@ -165,6 +165,9 @@ export async function runProviderModelTurn(
   // another chat or the planner's rewritten child-task description.
   runtimeSettings.set("DOOLITTLE_CODING_REQUEST_TEXT", input.effectiveMessage);
 
+  const continuationBudget = new TurnContinuationBudget(
+    input.messagePolicy.maxIterations,
+  );
   return runWithTurnRuntimeScope(
     input.context.runtime,
     {
@@ -176,9 +179,7 @@ export async function runProviderModelTurn(
         runLocalShellCommand: input.options?.runLocalShellCommand,
       },
       settledActionResults: [],
-      continuationBudget: new TurnContinuationBudget(
-        input.messagePolicy.maxIterations,
-      ),
+      continuationBudget,
     },
     async () => {
       let response = "";
@@ -196,6 +197,9 @@ export async function runProviderModelTurn(
       const messageExecutionResult = await executeProviderMessageTurn({
         context: input.context,
         memory,
+        turn: input.turn,
+        userId: input.userId,
+        continuationBudget,
         sessionId: input.turn.sessionId,
         runId: input.turn.runId,
         streamState,

@@ -41,6 +41,7 @@ export function getScopedTurnRunId(): string | undefined {
 /** Bounds client receipt-continuation passes; ElizaOS owns tool/token limits. */
 export class TurnContinuationBudget {
   private remaining: number;
+  private reserved = 0;
 
   constructor(maxPasses: number, ceiling = 12) {
     this.remaining = Number.isFinite(maxPasses)
@@ -52,9 +53,30 @@ export class TurnContinuationBudget {
     return this.remaining <= 0;
   }
 
+  /**
+   * Passes not already promised to an admitted steer batch. Normal continuation
+   * accounting is unchanged; reservations only make a later boundary explicit.
+   */
+  get available(): number {
+    return Math.max(0, this.remaining - this.reserved);
+  }
+
+  /** Reserve one future pass for a batch of user steer messages. */
+  tryReservePass(): boolean {
+    if (this.available <= 0) return false;
+    this.reserved += 1;
+    return true;
+  }
+
+  /** Release a steer reservation whose messages will not be presented. */
+  releaseReservedPass(): void {
+    this.reserved = Math.max(0, this.reserved - 1);
+  }
+
   beginPass(): void {
     if (this.exhausted) throw new Error("Turn continuation limit reached.");
     this.remaining -= 1;
+    if (this.reserved > 0) this.reserved -= 1;
   }
 }
 

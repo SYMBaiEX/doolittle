@@ -18,7 +18,8 @@
     "./worker-host": "./src/worker-host.ts",
     "./run": "./src/run.ts",
     "./execution": "./src/execution.ts",
-    "./identifiers": "./src/identifiers.ts"
+    "./identifiers": "./src/identifiers.ts",
+    "./steer": "./src/steer.ts"
   },
   "dependencies": {
     "@elizaos/core": "workspace:2.0.5",
