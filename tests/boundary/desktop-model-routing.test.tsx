@@ -199,3 +199,115 @@ it("keeps a removed saved provider visible but unavailable until another route i
     container.remove();
   }
 });
+
+it("routes a custom OpenAI-compatible endpoint key through the vault and pool, not settings", async () => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settings = {
+    settings: {
+      model: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+        baseUrl: "https://proxy.example.com/v1",
+        temperature: 0.4,
+        maxTokens: 1200,
+      },
+    },
+  };
+  const models = {
+    providers: [
+      {
+        id: "openai",
+        label: "OpenAI",
+        baseUrl: "https://api.openai.com/v1",
+        models: [{ id: "gpt-4o-mini", label: "gpt-4o-mini" }],
+      },
+    ],
+    capabilities: [],
+  };
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/settings", [true])],
+    settings,
+  );
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/runtime/models?refresh=false", [true, false])],
+    models,
+  );
+  vi.mocked(desktopRequest).mockResolvedValue(settings);
+
+  const type = (input: HTMLInputElement, value: string) => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
+  try {
+    await act(async () =>
+      root.render(
+        <ModelsPage active runtime={null} refreshRuntime={() => {}} />,
+      ),
+    );
+    // The openai route exposes a free-text model input for custom endpoints.
+    const modelInput = container.querySelector<HTMLInputElement>(
+      "input[list]:not([type])",
+    );
+    expect(modelInput).not.toBeNull();
+    expect(container.querySelector('input[type="password"]')).not.toBeNull();
+    await act(async () => {
+      type(modelInput as HTMLInputElement, "my-custom-model");
+      type(
+        container.querySelector('input[type="password"]') as HTMLInputElement,
+        "sk-custom-secret",
+      );
+    });
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.click(),
+    );
+    const calls = vi.mocked(desktopRequest).mock.calls;
+    expect(calls).toContainEqual([
+      "/secrets/set",
+      "POST",
+      { key: "OPENAI_API_KEY", value: "sk-custom-secret" },
+    ]);
+    expect(calls).toContainEqual([
+      "/runtime/account-pool/openai-api/import",
+      "POST",
+      {
+        accountId: "custom-openai-endpoint",
+        label: "Custom OpenAI-compatible endpoint",
+        secretKeyName: "OPENAI_API_KEY",
+      },
+    ]);
+    const settingsCall = calls.find(([path]) => path === "/settings");
+    expect(settingsCall).toBeTruthy();
+    const changes = (
+      settingsCall?.[2] as unknown as {
+        changes: Array<{ path: string; value: unknown }>;
+      }
+    ).changes;
+    expect(changes).toContainEqual({
+      path: "model.model",
+      value: "my-custom-model",
+    });
+    expect(changes).toContainEqual({
+      path: "model.baseUrl",
+      value: "https://proxy.example.com/v1",
+    });
+    // The secret value must never be written into persisted settings.
+    expect(JSON.stringify(changes)).not.toContain("sk-custom-secret");
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    desktopQueryClient.clear();
+    vi.mocked(desktopRequest).mockReset();
+  }
+});
