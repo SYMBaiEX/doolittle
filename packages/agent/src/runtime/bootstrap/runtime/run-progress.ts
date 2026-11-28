@@ -27,6 +27,10 @@ import {
   CodingVerificationReceiptTracker,
   type CodingVerificationRunIdentity,
 } from "./coding-verification-receipts";
+import {
+  installNativeToolExecutionObserver,
+  nativeToolActivityProjector,
+} from "./native-tool-activity";
 
 export type RuntimePayload = unknown;
 export interface RuntimeEventPayload {
@@ -307,6 +311,7 @@ function recordActionTrajectory(input: {
 }
 
 export function createRunProgressEvents(services: AppServices): PluginEvents {
+  const toolActivity = nativeToolActivityProjector(services);
   const codingVerificationTracker =
     process.env.DOOLITTLE_EVAL_CODING_VERIFICATION === "true"
       ? new CodingVerificationReceiptTracker()
@@ -386,10 +391,11 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
           if (
             shouldProjectNativeToolProgress(run.progressMode, "action-started")
           ) {
-            services.runController.noteRuntimeActionStarted(roomId, action, {
+            services.runController.noteRuntimeActionStarted(
+              roomId,
               action,
-              phase: "running",
-            });
+              toolActivity.actionStarted(run, action),
+            );
           }
           recordActionTrajectory({
             services,
@@ -434,13 +440,17 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
             services.runController.noteRuntimeActionCompleted(
               roomId,
               action,
-              projectActionActivity(
-                action ?? "action",
-                // Some SDK-originated events have only a room identity. Keep
-                // their lifecycle status, but attach private evidence only
-                // to an event tied to this exact parent turn.
-                eventRunId(payload) === run.runId ? actionResult : undefined,
-                status,
+              toolActivity.actionCompleted(
+                run,
+                action,
+                projectActionActivity(
+                  action ?? "action",
+                  // Some SDK-originated events have only a room identity. Keep
+                  // their lifecycle status, but attach private evidence only
+                  // to an event tied to this exact parent turn.
+                  eventRunId(payload) === run.runId ? actionResult : undefined,
+                  status,
+                ),
               ),
             );
           }
@@ -500,6 +510,7 @@ export function createRunProgressRuntimeService(
 
     private unsubscribeEvents?: () => void;
     private unsubscribeHeartbeat?: () => void;
+    private ownerToolObserver?: IAgentRuntime["ownerToolExecutionObserver"];
 
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
@@ -540,6 +551,10 @@ export function createRunProgressRuntimeService(
           event.indicatorType,
         );
       });
+      this.ownerToolObserver = installNativeToolExecutionObserver(
+        this.runtime,
+        services,
+      );
       services.runController.markRuntimeBridgeAttached(true);
       services.runController.markAgentEventBridgeAttached(true);
     }
@@ -549,6 +564,13 @@ export function createRunProgressRuntimeService(
       this.unsubscribeHeartbeat?.();
       this.unsubscribeEvents = undefined;
       this.unsubscribeHeartbeat = undefined;
+      if (
+        this.ownerToolObserver &&
+        this.runtime.ownerToolExecutionObserver === this.ownerToolObserver
+      ) {
+        this.runtime.ownerToolExecutionObserver = undefined;
+      }
+      this.ownerToolObserver = undefined;
       services.runController.markRuntimeBridgeAttached(false);
       services.runController.markAgentEventBridgeAttached(false);
     }
