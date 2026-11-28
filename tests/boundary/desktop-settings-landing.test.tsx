@@ -206,4 +206,3 @@ it("preserves a command's destination focus but still restores the palette trigg
   });
   expect(document.activeElement).toBe(trigger);
 });
-

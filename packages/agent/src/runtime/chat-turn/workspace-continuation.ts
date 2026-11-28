@@ -330,6 +330,18 @@ export function incompleteAdmittedWorkspaceFailure(
   ].join(" ");
 }
 
+export function repeatedNoProgressContinuationFailure(
+  actionResults: readonly ActionResult[],
+): string {
+  return [
+    "Doolittle stopped this run before completion: the agent repeated the same unsuccessful action outcome in consecutive continuation passes without new workspace evidence.",
+    hasVerifiedWorkspaceMutation(actionResults)
+      ? "Partial file changes are preserved."
+      : "No verified file changes were recorded.",
+    "Inspect the workspace, adjust the approach, then retry the remaining step.",
+  ].join(" ");
+}
+
 const CHECK_SCRIPT = /^(?:check|lint|typecheck|type-check|validate|verify)$/u;
 
 function requestedCheckScripts(userRequest: string): {
