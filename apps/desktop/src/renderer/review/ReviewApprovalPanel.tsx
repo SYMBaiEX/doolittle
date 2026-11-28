@@ -21,6 +21,7 @@ export interface ReviewApprovalPanelProps {
   selected: ReviewItem;
   busy: string;
   onDecision: (decision: "approve" | "deny") => void;
+  onAlwaysAllow?: () => void;
 }
 
 export function ReviewApprovalPanel({ selected }: ReviewApprovalPanelProps) {
@@ -89,7 +90,8 @@ export function ReviewApprovalPanel({ selected }: ReviewApprovalPanelProps) {
 export function ReviewApprovalActions({
   busy,
   onDecision,
-}: Pick<ReviewApprovalPanelProps, "busy" | "onDecision">) {
+  onAlwaysAllow,
+}: Pick<ReviewApprovalPanelProps, "busy" | "onDecision" | "onAlwaysAllow">) {
   return (
     <div className={REVIEW_ACTIONS_CLASS}>
       <WorkbenchAction
@@ -102,6 +104,17 @@ export function ReviewApprovalActions({
       >
         {busy === "approve" ? "Approving…" : "Approve"}
       </WorkbenchAction>
+      {onAlwaysAllow ? (
+        <WorkbenchAction
+          emphasis="secondary"
+          icon={ShieldCheck}
+          disabled={Boolean(busy)}
+          onClick={onAlwaysAllow}
+          type="button"
+        >
+          {busy === "always" ? "Saving rule…" : "Always allow"}
+        </WorkbenchAction>
+      ) : null}
       <WorkbenchAction
         aria-keyshortcuts={approvalShortcutAriaKey("deny")}
         emphasis="danger"
@@ -113,7 +126,9 @@ export function ReviewApprovalActions({
         {busy === "deny" ? "Denying…" : "Deny"}
       </WorkbenchAction>
       <small>
-        Approval permits the agent to run the matching command. Keyboard:{" "}
+        Approval permits the agent to run the matching command. Always allow
+        first saves an exact rule for this command in the approval's stable
+        scope, then approves this request. Keyboard:{" "}
         {approvalShortcutLabel("approve")} approve ·{" "}
         {approvalShortcutLabel("deny")} deny.
       </small>
@@ -121,5 +136,5 @@ export function ReviewApprovalActions({
   );
 }
 
-import { Check, X } from "lucide-react";
+import { Check, ShieldCheck, X } from "lucide-react";
 import { WorkbenchAction } from "../components/workbench/Workbench";
