@@ -476,3 +476,118 @@ it("streams active tool receipts into the pending transcript row", () => {
     environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
   }
 });
+
+it("shows degraded receipt inactivity and clears it when meaningful activity resumes", () => {
+  const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const startedAt = new Date(Date.now() - 200_000).toISOString();
+  const update = (
+    type: DesktopRunUpdate["type"],
+    runFields: Partial<DesktopRunUpdate["run"]> = {},
+  ): DesktopRunUpdate => ({
+    type,
+    sessionId: "conversation-a",
+    run: {
+      runId: "run",
+      sessionId: "conversation-a",
+      roomId: "conversation-a",
+      source: "desktop",
+      message: "",
+      runDepth: "standard",
+      configuredMaxIterations: 4,
+      observedActionCount: 0,
+      progressMode: "all",
+      status: "thinking",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt,
+      lastMeaningfulActivityAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...runFields,
+    },
+  });
+  const pendingMessage: DisplayMessage = {
+    ...response,
+    id: "assistant:run",
+    runId: "run",
+    content: "",
+    pending: true,
+  };
+  const noop = () => {};
+  const render = (receipt: {
+    latest: DesktopRunUpdate;
+    events: DesktopRunUpdate[];
+  }) => {
+    act(() => {
+      root.render(
+        <ChatTranscript
+          sessionId="conversation-a"
+          backendReady
+          activeRequest="run"
+          loading={false}
+          historyError=""
+          messages={[pendingMessage]}
+          runReceipts={{ run: receipt }}
+          progress=""
+          endRef={createRef<HTMLDivElement>()}
+          forkingMessageId=""
+          copyStates={{}}
+          speakingMessageId=""
+          speechSupported={false}
+          onBranch={noop}
+          onCopy={noop}
+          onRead={noop}
+          onRetryHistory={noop}
+          onStopReading={noop}
+          onSelectPrompt={noop}
+        />,
+      );
+    });
+  };
+  const receiptElement = () =>
+    container.querySelector<HTMLElement>('section[aria-label="Run receipt"]');
+  const receiptLabel = () =>
+    receiptElement()?.querySelector("button")?.getAttribute("aria-label");
+
+  try {
+    const started = update("started");
+    render({ latest: started, events: [started] });
+    expect(receiptLabel()).toBe("Planning");
+    expect(receiptElement()?.getAttribute("data-degraded")).toBeNull();
+    expect(container.textContent).not.toContain("No meaningful activity");
+
+    const inactiveSince = new Date(Date.now() - 190_000).toISOString();
+    const degraded = update("degraded", {
+      lastMeaningfulActivityAt: inactiveSince,
+      degraded: {
+        reason: "no-meaningful-activity",
+        since: inactiveSince,
+        detectedAt: new Date().toISOString(),
+        thresholdMs: 180_000,
+      },
+    });
+    render({ latest: degraded, events: [started, degraded] });
+    expect(receiptLabel()).toBe("Still running");
+    expect(receiptElement()?.getAttribute("data-degraded")).toBe("true");
+    expect(container.textContent).toContain(
+      "No meaningful activity for 3 minutes",
+    );
+
+    const clearing = update("thinking");
+    render({
+      latest: clearing,
+      events: [started, degraded, clearing],
+    });
+    expect(receiptLabel()).toBe("Planning");
+    expect(receiptElement()?.getAttribute("data-degraded")).toBeNull();
+    expect(container.textContent).not.toContain("No meaningful activity");
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+  }
+});

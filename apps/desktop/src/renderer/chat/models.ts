@@ -93,6 +93,8 @@ export function runEventKey(update: DesktopRunUpdate): string {
     update.run.lastAction,
     update.run.statusDetail,
     update.run.pendingApprovals,
+    update.run.degraded?.since,
+    update.run.degraded?.detectedAt,
     mutation?.recordedAt,
     update.run.walletActivities?.at(-1)?.id,
     update.activity,
