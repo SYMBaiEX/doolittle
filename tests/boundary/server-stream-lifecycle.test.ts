@@ -416,6 +416,41 @@ it("does not publish a terminal event before its SQLite transaction succeeds", a
   }
 });
 
+it("journals the accepted queue wait for late run subscribers", async () => {
+  const runs = new RunControllerService();
+  const identity = {
+    runId: "queued-run",
+    roomId: "room",
+    sessionId: "session",
+    source: "desktop",
+  };
+  expect(runs.claimTaskRun({ ...identity, responseId: "response" })).toEqual({
+    accepted: true,
+  });
+
+  await runs.acceptQueuedRun({
+    ...identity,
+    runDepth: "standard",
+    configuredMaxIterations: 12,
+    progressMode: "new",
+  });
+
+  const events = runs.getTaskEvents(identity.runId);
+  expect(events.map(({ type }) => type)).toEqual([
+    "response.created",
+    "agent.run",
+  ]);
+  expect(events[1]?.data).toMatchObject({
+    type: "waiting",
+    sessionId: identity.sessionId,
+    run: {
+      runId: identity.runId,
+      status: "waiting",
+      statusDetail: "Waiting for execution capacity",
+    },
+  });
+});
+
 it("cancels pending acceptance before model admission and preserves event order", async () => {
   const dataDir = await mkdtemp(join(tmpdir(), "doolittle-stream-accept-"));
   const runs = new RunControllerService(dataDir);
@@ -448,7 +483,8 @@ it("cancels pending acceptance before model admission and preserves event order"
     const events = runs.getTaskEvents(identity.runId);
     expect(events.map(({ id, type }) => ({ id, type }))).toEqual([
       { id: 1, type: "response.created" },
-      { id: 2, type: "response.cancelled" },
+      { id: 2, type: "agent.run" },
+      { id: 3, type: "response.cancelled" },
     ]);
     runs.dispose();
     const restored = new RunControllerService(dataDir);
