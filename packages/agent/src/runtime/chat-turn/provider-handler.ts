@@ -187,6 +187,16 @@ export async function executeProviderMessageTurn(
   const prompt = memoryText(input.memory);
   const sessionId = input.sessionId ?? String(input.memory.roomId);
   const messageId = String(input.memory.id);
+  const emitSupervisorNotice = async (message: string) => {
+    try {
+      await input.onNotice?.({ kind: "status", message });
+    } catch (noticeError) {
+      input.context.runtime.logger?.warn(
+        { noticeError, runId: input.runId, sessionId, messageId },
+        "Workspace continuation notice callback failed",
+      );
+    }
+  };
   let actionResults: ActionResult[] = [];
   const settledActionResults: ActionResult[] = [];
   let responseMessages: Memory[] = [];
@@ -665,7 +675,7 @@ export async function executeProviderMessageTurn(
           if (admittedIncomplete !== undefined) {
             runFailureMessage =
               incompleteAdmittedWorkspaceFailure(actionResults);
-            response = runFailureMessage;
+            await emitSupervisorNotice(runFailureMessage);
           } else if (completedPass) {
             const appServerSummary =
               completedManagedAppServerSummary(actionResults);
@@ -833,17 +843,8 @@ export async function executeProviderMessageTurn(
           (admittedIncomplete !== undefined ||
             explicitlyReportsIncompleteWork(response))
         ) {
-          runFailureMessage =
-            admittedIncomplete !== undefined
-              ? incompleteAdmittedWorkspaceFailure(actionResults)
-              : [
-                  "The requested workspace task is still incomplete after the agent's continuation attempts.",
-                  hasVerifiedWorkspaceMutation(actionResults)
-                    ? "Some local files changed, but the final response confirms implementation or verification remains unfinished."
-                    : "No verified local file changes were recorded.",
-                  "Inspect the current workspace before retrying; completed partial changes have been preserved.",
-                ].join(" ");
-          response = runFailureMessage;
+          runFailureMessage = incompleteAdmittedWorkspaceFailure(actionResults);
+          await emitSupervisorNotice(runFailureMessage);
         }
         const pendingFrontendReview = mutationObligation
           ? frontendReviewAttempt(actionResults, noOpRequirements, prompt)
@@ -970,7 +971,7 @@ export async function executeProviderMessageTurn(
           runFailureMessage = incompleteAdmittedWorkspaceFailure(
             committedActionResults,
           );
-          response = runFailureMessage;
+          await emitSupervisorNotice(runFailureMessage);
           input.streamState.setResponse(response);
           return;
         }
