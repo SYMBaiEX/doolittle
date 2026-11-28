@@ -6,6 +6,7 @@ import type { RunReceipt } from "../../apps/desktop/src/renderer/chat/models";
 import { RunReceiptView } from "../../apps/desktop/src/renderer/chat/RunReceiptView";
 import {
   formatRunElapsed,
+  liveRunActivity,
   runActivityItems,
 } from "../../apps/desktop/src/renderer/chat/run-activity";
 import type { ToolActivity } from "../../apps/desktop/src/renderer/components/message-output";
@@ -232,6 +233,67 @@ it("announces queued progress without adding clickable empty rows", () => {
   expect(status?.textContent).toContain("Queued");
   expect(status?.textContent).toContain("Waiting for an execution slot.");
   expect(host.querySelector('[aria-label="Run steps"]')).toBeNull();
+});
+
+it("summarizes current tool activity and elapsed time from live receipt evidence", () => {
+  const startedAtMs = Date.parse(startedAt);
+  const shell = {
+    ...step("action-started", 1, 8_000, { activeAction: "TERMINAL_SHELL" }),
+    activity: {
+      action: "TERMINAL_SHELL",
+      phase: "running" as const,
+      command: "nub run test:scope",
+    },
+  };
+  const read = {
+    ...step("action-started", 2, 12_000, { activeAction: "READ_FILE" }),
+    activity: {
+      action: "READ_FILE",
+      phase: "running" as const,
+      paths: ["/repo/notes.ts"],
+    },
+  };
+
+  expect(
+    liveRunActivity({ latest: shell, events: [shell] }, startedAtMs + 65_000),
+  ).toEqual({
+    label: "Running shell command",
+    detail: "nub run test:scope",
+    elapsedMs: 65_000,
+  });
+  expect(
+    liveRunActivity({ latest: read, events: [read] }, startedAtMs + 12_000),
+  ).toMatchObject({
+    label: "Reading file",
+    detail: "notes.ts",
+  });
+});
+
+it("uses current run facts without inventing granular activity", () => {
+  const startedAtMs = Date.parse(startedAt);
+  const search = step("stream", 1, 20_000, {
+    activeAction: "SEARCH_FILES",
+    activeStream: "action",
+    status: "acting",
+  });
+  const thinking = step("thinking", 0, 2_000, { status: "thinking" });
+  const acting = step("acting", 0, 3_000, { status: "acting" });
+  const complete = step("completed", 1, 30_000, { status: "complete" });
+
+  expect(
+    liveRunActivity({ latest: search, events: [] }, startedAtMs + 20_000),
+  ).toMatchObject({
+    label: "Searching files",
+  });
+  expect(
+    liveRunActivity({ latest: thinking, events: [] }, startedAtMs + 2_000),
+  ).toMatchObject({ label: "Thinking", elapsedMs: 2_000 });
+  expect(
+    liveRunActivity({ latest: acting, events: [] }, startedAtMs + 3_000),
+  ).toEqual({ detail: "", elapsedMs: 3_000 });
+  expect(
+    liveRunActivity({ latest: complete, events: [] }, startedAtMs + 30_000),
+  ).toBeNull();
 });
 
 it("avoids assigning timing to overlapping actions or reporting a missing result as returned", () => {

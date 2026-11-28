@@ -282,6 +282,70 @@ export function runReceiptState(receipt: RunReceipt): {
   return { label: "Working", statusLabel: "working", tone: "neutral" };
 }
 
+const continuousActivityLabels: Record<string, string> = {
+  "Agent action": "Running agent action",
+  "Shell command": "Running shell command",
+  "Worker step": "Running worker step",
+};
+
+function continuousActivityLabel(label: string): string {
+  return continuousActivityLabels[label] ?? label;
+}
+
+export interface LiveRunActivity {
+  /** Specific activity known from runtime evidence; absent means only "working" is honest. */
+  label?: string;
+  /** Safe target recorded with the activity, such as a file name or redacted command preview. */
+  detail: string;
+  elapsedMs?: number;
+}
+
+/** Narrate only the current facts in a live run receipt; never infer or invent work. */
+export function liveRunActivity(
+  receipt: RunReceipt,
+  now: number,
+): LiveRunActivity | null {
+  if (ended(receipt.latest)) return null;
+  const { run } = receipt.latest;
+  const startedAtMs = Date.parse(run.startedAt);
+  const elapsedMs = Number.isFinite(startedAtMs)
+    ? Math.max(0, now - startedAtMs)
+    : undefined;
+  const base = {
+    detail: "",
+    ...(elapsedMs === undefined ? {} : { elapsedMs }),
+  };
+  if (run.pendingApprovals > 0) {
+    return { ...base, label: "Waiting for approval" };
+  }
+  const activeStep = runActivityItems(receipt)
+    .filter((item) => item.status === "running" || item.status === "queued")
+    .at(-1);
+  if (activeStep) {
+    const label = continuousActivityLabel(activeStep.label);
+    return {
+      ...base,
+      label: activeStep.status === "queued" ? `Queued: ${label}` : label,
+      detail: activeStep.detail,
+    };
+  }
+  const activeAction = toolActionLabel(run.activeAction ?? "");
+  if (activeAction) {
+    return { ...base, label: continuousActivityLabel(activeAction) };
+  }
+  if (run.status === "thinking") return { ...base, label: "Thinking" };
+  if (run.status === "waiting") {
+    return {
+      ...base,
+      label:
+        run.statusDetail === "Waiting for execution capacity"
+          ? "Waiting for execution capacity"
+          : "Waiting",
+    };
+  }
+  return base;
+}
+
 export function formatRunElapsed(milliseconds: number): string {
   if (milliseconds < 1_000)
     return `${Math.max(0, Math.round(milliseconds))} ms`;

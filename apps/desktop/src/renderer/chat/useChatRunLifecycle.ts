@@ -37,6 +37,7 @@ import {
   type DisplayMessage,
   historicalRunReceipt,
   isDesktopRunUpdate,
+  RUN_RECEIPTS_STATE_KEY,
   type RunReceipt,
   type RunReceiptStore,
   retainRunEvents,
@@ -247,7 +248,7 @@ export function useChatRunLifecycle({
   >("run.progress", {});
   const progress = progressBySession[selectedId] ?? "";
   const [runReceipts, setRunReceipts] = useWorkspaceState<RunReceiptStore>(
-    "run.receipts",
+    RUN_RECEIPTS_STATE_KEY,
     {},
   );
   const [runConnections, setRunConnections] = useWorkspaceState<

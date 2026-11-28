@@ -56,6 +56,19 @@
   color: var(--warn);
 }
 
+.chat-live-activity-detail {
+  max-width: min(42ch, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-live-activity-elapsed {
+  flex: none;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
 .chat-composer-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

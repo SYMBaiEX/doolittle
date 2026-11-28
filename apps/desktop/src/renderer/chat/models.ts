@@ -56,6 +56,8 @@ export interface RunReceipt {
 
 export type RunReceiptStore = Record<string, RunReceipt>;
 
+export const RUN_RECEIPTS_STATE_KEY = "run.receipts";
+
 export function fileName(value: string): string {
   return value.split(/[/\\]+/u).pop() || "local workspace";
 }
