@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { copyContextText } from "../context-menu-clipboard";
+import { MessageMarkdown } from "./message-markdown";
 import {
   formatToolPayload,
   type ToolActivity,
@@ -40,11 +41,14 @@ export function ToolPayload({
   text,
   copyLabel,
   kind,
+  markdown = false,
 }: {
   label: string;
   text: string;
   copyLabel: string;
   kind?: "command" | "stderr" | "diff";
+  /** Set only for action output verified as authored markdown prose. */
+  markdown?: boolean;
 }) {
   const clipped = text.length > MAX_DISPLAY_CHARACTERS;
   const preview = clipped ? text.slice(0, MAX_DISPLAY_CHARACTERS) : text;
@@ -65,37 +69,48 @@ export function ToolPayload({
           {copyLabel}
         </Button>
       </div>
-      <section
-        aria-label={label}
-        className="chat-activity-console"
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: Output can exceed both axes and must be keyboard-scrollable.
-        tabIndex={0}
-      >
-        <pre>
-          <code>
-            {diffLines && diffLines.length <= 1_200
-              ? diffLines.map((line, index, lines) => (
-                  <span
-                    data-diff-line={
-                      /^(?:\+\+\+|---|diff |index |@@)/u.test(line)
-                        ? "header"
-                        : line.startsWith("+")
-                          ? "added"
-                          : line.startsWith("-")
-                            ? "removed"
-                            : undefined
-                    }
-                    // biome-ignore lint/suspicious/noArrayIndexKey: These are positional lines in a read-only payload.
-                    key={index}
-                  >
-                    {line}
-                    {index < lines.length - 1 ? "\n" : ""}
-                  </span>
-                ))
-              : preview}
-          </code>
-        </pre>
-      </section>
+      {markdown ? (
+        <section
+          aria-label={label}
+          className="chat-activity-prose-output"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: Output can exceed both axes and must be keyboard-scrollable.
+          tabIndex={0}
+        >
+          <MessageMarkdown text={preview} />
+        </section>
+      ) : (
+        <section
+          aria-label={label}
+          className="chat-activity-console"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: Output can exceed both axes and must be keyboard-scrollable.
+          tabIndex={0}
+        >
+          <pre>
+            <code>
+              {diffLines && diffLines.length <= 1_200
+                ? diffLines.map((line, index, lines) => (
+                    <span
+                      data-diff-line={
+                        /^(?:\+\+\+|---|diff |index |@@)/u.test(line)
+                          ? "header"
+                          : line.startsWith("+")
+                            ? "added"
+                            : line.startsWith("-")
+                              ? "removed"
+                              : undefined
+                      }
+                      // biome-ignore lint/suspicious/noArrayIndexKey: These are positional lines in a read-only payload.
+                      key={index}
+                    >
+                      {line}
+                      {index < lines.length - 1 ? "\n" : ""}
+                    </span>
+                  ))
+                : preview}
+            </code>
+          </pre>
+        </section>
+      )}
     </section>
   );
 }
@@ -134,6 +149,7 @@ function ToolActivityDetail({
     stderr,
     diff,
     output: resultText,
+    outputMarkdown,
     error: errorText,
     truncated,
     timedOut,
@@ -203,7 +219,12 @@ function ToolActivityDetail({
         />
       ) : null}
       {resultText ? (
-        <ToolPayload copyLabel="Copy result" label="Result" text={resultText} />
+        <ToolPayload
+          copyLabel="Copy result"
+          label="Result"
+          markdown={outputMarkdown}
+          text={resultText}
+        />
       ) : null}
       <WebSearchSources activity={activity} />
       {rawOutput && hasStructuredOutput ? (
