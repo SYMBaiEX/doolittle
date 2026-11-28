@@ -43,6 +43,13 @@ import { linkedProviderAccess } from "./model-routing";
 import { modelRequests } from "./resource-request-policy";
 import type { SettingsResponse } from "./settings/settings-types";
 
+// Custom OpenAI-compatible endpoints store their key in the secrets vault and
+// authenticate turns through one stable direct-API pool account. Reusing a
+// fixed account id keeps repeat saves idempotent instead of accumulating
+// duplicate pool entries.
+const CUSTOM_OPENAI_SECRET_NAME = "OPENAI_API_KEY";
+const CUSTOM_OPENAI_ACCOUNT_ID = "custom-openai-endpoint";
+
 export function ModelsPage({
   active,
   runtime,
@@ -97,6 +104,12 @@ export function ModelsPage({
       ),
     [models.data?.providers, selectedProviderId],
   );
+  // A saved custom endpoint belongs to the user, so it wins over the catalog
+  // default; the provider default only fills an otherwise blank field.
+  const savedBaseUrl = asString(model?.baseUrl);
+  const baseUrlFallback = savedBaseUrl.trim()
+    ? savedBaseUrl
+    : (selectedProvider?.baseUrl ?? model?.baseUrl);
   const selectedModel = useMemo(
     () =>
       selectedProvider?.models.find((entry) => entry.id === selectedModelId),
@@ -154,19 +167,37 @@ export function ModelsPage({
       });
       return;
     }
+    const apiKeyInput = fieldValue("apiKey", "").trim();
     setSaving(true);
     setFeedback(null);
     try {
+      if (selectedProviderId === "openai" && apiKeyInput) {
+        // Custom OpenAI-compatible endpoints authenticate through the
+        // direct API account pool: the vault secret is imported as a stable
+        // pool account, which materializes OPENAI_API_KEY for the runtime
+        // and hot-registers the OpenAI plugin when needed. The key value
+        // itself is never written into settings or persisted plaintext.
+        await desktopRequest("/secrets/set", "POST", {
+          key: CUSTOM_OPENAI_SECRET_NAME,
+          value: apiKeyInput,
+        });
+        await desktopRequest(
+          "/runtime/account-pool/openai-api/import",
+          "POST",
+          {
+            accountId: CUSTOM_OPENAI_ACCOUNT_ID,
+            label: "Custom OpenAI-compatible endpoint",
+            secretKeyName: CUSTOM_OPENAI_SECRET_NAME,
+          },
+        );
+      }
       await desktopRequest("/settings", "POST", {
         changes: [
           { path: "model.provider", value: selectedProviderId },
           { path: "model.model", value: selectedModelId },
           {
             path: "model.baseUrl",
-            value: fieldValue(
-              "baseUrl",
-              selectedProvider?.baseUrl ?? model?.baseUrl,
-            ),
+            value: fieldValue("baseUrl", baseUrlFallback),
           },
           {
             path: "model.temperature",
@@ -330,33 +361,62 @@ export function ModelsPage({
                     </label>
                     <label htmlFor={`${fieldId}-model`}>
                       <span>Model</span>
-                      <NativeSelect
-                        id={`${fieldId}-model`}
-                        value={selectedModelId}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            model: event.target.value,
-                            reasoningEffort: "",
-                          }))
-                        }
-                      >
-                        {selectedProvider?.models.map((entry) => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.label}
-                            {entry.source === "discovered"
-                              ? " · Discovered"
-                              : ""}
-                          </option>
-                        ))}
-                        {!selectedProvider?.models.some(
-                          (entry) => entry.id === selectedModelId,
-                        ) && selectedModelId ? (
-                          <option value={selectedModelId}>
-                            {selectedModelId}
-                          </option>
-                        ) : null}
-                      </NativeSelect>
+                      {selectedProviderId === "openai" ? (
+                        <>
+                          <Input
+                            id={`${fieldId}-model`}
+                            list={`${fieldId}-model-options`}
+                            value={selectedModelId}
+                            onChange={(event) =>
+                              setDraft((current) => ({
+                                ...current,
+                                model: event.target.value,
+                                reasoningEffort: "",
+                              }))
+                            }
+                            placeholder="gpt-4o-mini"
+                          />
+                          <datalist id={`${fieldId}-model-options`}>
+                            {(selectedProvider?.models ?? []).map((entry) => (
+                              <option key={entry.id} value={entry.id}>
+                                {entry.label}
+                              </option>
+                            ))}
+                          </datalist>
+                          <small>
+                            Type any model id your endpoint serves, or pick a
+                            discovered one.
+                          </small>
+                        </>
+                      ) : (
+                        <NativeSelect
+                          id={`${fieldId}-model`}
+                          value={selectedModelId}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              model: event.target.value,
+                              reasoningEffort: "",
+                            }))
+                          }
+                        >
+                          {selectedProvider?.models.map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.label}
+                              {entry.source === "discovered"
+                                ? " · Discovered"
+                                : ""}
+                            </option>
+                          ))}
+                          {!selectedProvider?.models.some(
+                            (entry) => entry.id === selectedModelId,
+                          ) && selectedModelId ? (
+                            <option value={selectedModelId}>
+                              {selectedModelId}
+                            </option>
+                          ) : null}
+                        </NativeSelect>
+                      )}
                       {models.loading ? (
                         <small>Refreshing model catalog…</small>
                       ) : null}
@@ -410,10 +470,7 @@ export function ModelsPage({
                         <span>Base URL</span>
                         <Input
                           id={`${fieldId}-base-url`}
-                          value={fieldValue(
-                            "baseUrl",
-                            selectedProvider?.baseUrl ?? model?.baseUrl,
-                          )}
+                          value={fieldValue("baseUrl", baseUrlFallback)}
                           onChange={(event) =>
                             setDraft((current) => ({
                               ...current,
@@ -422,7 +479,39 @@ export function ModelsPage({
                           }
                           placeholder="http://127.0.0.1:11434/v1"
                         />
+                        {selectedProviderId === "openai" ? (
+                          <small>
+                            Point this at any OpenAI-compatible endpoint, for
+                            example a local server or proxy.
+                          </small>
+                        ) : null}
                       </label>
+                      {selectedProviderId === "openai" ? (
+                        <label
+                          className="field-span"
+                          htmlFor={`${fieldId}-api-key`}
+                        >
+                          <span>API key</span>
+                          <Input
+                            id={`${fieldId}-api-key`}
+                            type="password"
+                            autoComplete="off"
+                            value={fieldValue("apiKey", "")}
+                            onChange={(event) =>
+                              setDraft((current) => ({
+                                ...current,
+                                apiKey: event.target.value,
+                              }))
+                            }
+                            placeholder="Leave blank to keep the stored key"
+                          />
+                          <small>
+                            Stored in the secrets vault and used through the
+                            direct API account pool. Never written into
+                            settings.
+                          </small>
+                        </label>
+                      ) : null}
                       <label htmlFor={`${fieldId}-temperature`}>
                         <span>Temperature</span>
                         <Input
