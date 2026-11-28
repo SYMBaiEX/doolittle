@@ -90,6 +90,7 @@ const PROJECT_PATH = /^\/projects\/[a-zA-Z0-9:_-]{1,128}$/u;
 // encodeURIComponent for consult:<id>, so both literal and %3A are valid.
 const RUN_PATH = /^\/chat\/runs\/(?:[a-zA-Z0-9:_-]|%3A){1,130}(?:\/events)?$/iu;
 const CANCEL_PATH = /^\/chat\/runs\/(?:[a-zA-Z0-9:_-]|%3A){1,130}\/cancel$/iu;
+const STEER_PATH = /^\/chat\/runs\/(?:[a-zA-Z0-9:_-]|%3A){1,130}\/steer$/iu;
 const APPROVAL_DECISION_PATH =
   /^\/execution\/approvals\/[a-zA-Z0-9:_-]{1,256}\/(?:approve|deny)$/u;
 
@@ -114,6 +115,7 @@ export function isWorkerApiRouteAllowed(
           CHECKPOINT_RESTORE_PATH.test(pathname))) ||
       POSTABLE_PATHS.has(pathname) ||
       CANCEL_PATH.test(pathname) ||
+      STEER_PATH.test(pathname) ||
       APPROVAL_DECISION_PATH.test(pathname) ||
       PROJECT_RESOURCE_PATH.test(pathname)
     );

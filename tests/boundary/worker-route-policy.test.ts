@@ -10,7 +10,13 @@ it("keeps named worker reads and run control within their API families", () => {
     isWorkerApiRouteAllowed("POST", "/chat/runs/consult%3Arun/cancel"),
   ).toBe(true);
   expect(
+    isWorkerApiRouteAllowed("POST", "/chat/runs/consult%3Arun/steer"),
+  ).toBe(true);
+  expect(
     isWorkerApiRouteAllowed("GET", "/chat/runs/consult%2Frun/events"),
+  ).toBe(false);
+  expect(
+    isWorkerApiRouteAllowed("POST", "/chat/runs/consult%2Frun/steer"),
   ).toBe(false);
   expect(isWorkerApiRouteAllowed("GET", "/migrate/history", true)).toBe(false);
 });
