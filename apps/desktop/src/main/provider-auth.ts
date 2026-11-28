@@ -166,6 +166,16 @@ function isAnthropicCode(value: string): boolean {
   return separator > 0 && separator < value.length - 1;
 }
 
+/**
+ * Codex accepts every format its own sign-in parser understands: the full
+ * loopback callback URL, a `code#state` pair, a `code=...` query string, or a
+ * bare authorization code. None of them reliably contain `#`, so the
+ * Anthropic shape check must not gate Codex pastes.
+ */
+function isCodexCode(value: string): boolean {
+  return Boolean(value) && value.length <= MAX_AUTH_CODE_LENGTH;
+}
+
 export class ProviderAuthController {
   private readonly openExternal: (url: string) => Promise<unknown>;
   private readonly readClipboardText: () => string | Promise<string>;
@@ -272,13 +282,19 @@ export class ProviderAuthController {
         });
       }
       return this.getState(provider);
-    } catch {
+    } catch (error) {
       if (this.getState(provider).phase === "cancelled") {
         return this.getState(provider);
       }
+      // Startup fails before any credential exists, so the underlying cause
+      // (a occupied loopback port, unreadable account storage, a missing
+      // auth module) is safe and necessary to surface for diagnosis.
+      const detail = error instanceof Error ? error.message.trim() : "";
       return this.finish(provider, {
         phase: "failed",
-        message: `${PROVIDERS[provider].label} sign in could not be started.`,
+        message: detail
+          ? `${PROVIDERS[provider].label} sign in could not be started: ${detail.slice(0, 240)}`
+          : `${PROVIDERS[provider].label} sign in could not be started.`,
       });
     } finally {
       this.starting.delete(provider);
@@ -304,13 +320,20 @@ export class ProviderAuthController {
         `${PROVIDERS[provider].label} is not waiting for an authorization code.`,
       );
     }
-    if (!isAnthropicCode(code)) {
+    if (provider === "claude-code" && !isAnthropicCode(code)) {
       throw new Error(
         "Copy the complete Claude authorization value in code#state format, then try again.",
       );
     }
+    if (provider === "codex" && !isCodexCode(code)) {
+      throw new Error(
+        "Copy the complete Codex authorization value or callback URL, then try again.",
+      );
+    }
     if (!current.flows.submitCode(current.sessionId, code)) {
-      throw new Error("The Claude authorization flow is no longer active.");
+      throw new Error(
+        `The ${PROVIDERS[provider].label} authorization flow is no longer active.`,
+      );
     }
     return this.update(provider, {
       phase: "waiting",

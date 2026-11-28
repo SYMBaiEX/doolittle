@@ -1,10 +1,12 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import type { LinkedModelProviderId } from "@doolittle/contracts/model-route";
+import { listProviderAccounts } from "@elizaos/auth/auth/credentials";
 import type { AgentExecutionContext } from "../chat";
 import {
   claudeCodeAccessTokenIsExpiring,
   getLinkedClaudeCodeCredentials,
 } from "../native/account-auth";
+import { getOfficialAccountStoragePolicy } from "../native/account-auth/store";
 import { resolveCloudApiBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 
@@ -29,12 +31,40 @@ function resolveOpenAiReasoningEffort(
 interface ProviderRuntimeSettingsDependencies {
   claudeCodeAccessTokenIsExpiring: typeof claudeCodeAccessTokenIsExpiring;
   getLinkedClaudeCodeCredentials: typeof getLinkedClaudeCodeCredentials;
+  hasReadyOfficialClaudeAccount: () => boolean;
+}
+
+/**
+ * The official Anthropic plugin resolves OAuth execution through the account
+ * pool bridge, so any usable subscription account — including one saved by an
+ * in-app sign-in under its own id — is enough for native execution. The
+ * linked-credential lookup only covers the legacy record and CLI artifacts,
+ * which an in-app sign-in never writes.
+ */
+export function hasReadyOfficialClaudeAccount(
+  listAccounts: typeof listProviderAccounts = listProviderAccounts,
+  storagePolicy: typeof getOfficialAccountStoragePolicy = getOfficialAccountStoragePolicy,
+): boolean {
+  let accounts: ReturnType<typeof listProviderAccounts>;
+  try {
+    accounts = listAccounts("anthropic-subscription", storagePolicy());
+  } catch {
+    return false;
+  }
+  const now = Date.now();
+  return accounts.some((account) => {
+    if (!account.credentials.access.trim()) return false;
+    return (
+      account.credentials.expires > now || Boolean(account.credentials.refresh)
+    );
+  });
 }
 
 const providerRuntimeSettingsDependencies: ProviderRuntimeSettingsDependencies =
   {
     claudeCodeAccessTokenIsExpiring,
     getLinkedClaudeCodeCredentials,
+    hasReadyOfficialClaudeAccount,
   };
 
 export type ProviderRuntimeSettingsContext = Pick<
@@ -139,13 +169,16 @@ export function buildProviderRuntimeSettings(
       provider === "claude-code"
         ? dependencies.getLinkedClaudeCodeCredentials()
         : undefined;
-    const linkedClaudeReady = Boolean(
-      linkedClaude?.accessToken?.trim() &&
-        (!linkedClaude.expiresAt ||
-          !dependencies.claudeCodeAccessTokenIsExpiring(
-            linkedClaude.expiresAt,
-          )),
-    );
+    const linkedClaudeReady =
+      Boolean(
+        linkedClaude?.accessToken?.trim() &&
+          (!linkedClaude.expiresAt ||
+            !dependencies.claudeCodeAccessTokenIsExpiring(
+              linkedClaude.expiresAt,
+            )),
+      ) ||
+      (provider === "claude-code" &&
+        dependencies.hasReadyOfficialClaudeAccount());
     runtimeSettings.set("ANTHROPIC_SMALL_MODEL", model);
     runtimeSettings.set("ANTHROPIC_LARGE_MODEL", model);
     runtimeSettings.set("ANTHROPIC_BASE_URL", baseUrl);

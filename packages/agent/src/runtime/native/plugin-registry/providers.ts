@@ -7,6 +7,10 @@ import { requireConversationWorkspace } from "../../workspace-scope";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
 import {
+  loadOfficialCodexAccountAuth,
+  refreshOfficialCodexAccountAuth,
+} from "./codex-account-auth";
+import {
   createCodexReasoningBackend,
   createDoolittleCodexReasoningPlugin,
 } from "./codex-reasoning";
@@ -121,7 +125,21 @@ export async function loadProviderPlugins(
                 },
               }),
           }
-        : {}),
+        : workerBot
+          ? {}
+          : {
+              // Host runtimes serve the default chat. In-app OAuth sign-in
+              // lands in the official Eliza account store, which the upstream
+              // CLI-file loader cannot see; bridge it here so a successful
+              // sign-in can actually execute. CLI-store credentials keep
+              // precedence, matching the account probe chain.
+              createBackend: (runtime: IAgentRuntime) =>
+                createCodexReasoningBackend(runtime, {
+                  loadAuth: (path) => loadOfficialCodexAccountAuth(path),
+                  refreshAuth: (currentAuth, path) =>
+                    refreshOfficialCodexAccountAuth(currentAuth, path),
+                }),
+            }),
       observeUsage: recordEvalCodexModelCall,
       observeContext: observeEvalModelInputUsage,
     }),
