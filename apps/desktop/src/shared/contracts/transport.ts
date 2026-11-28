@@ -17,9 +17,29 @@ export const DESKTOP_BROWSER_CAPTURE_TIMEOUT_MS = 45_000;
 export const DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS = 180_000;
 export const DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS = 120_000;
 
-/** Returns the bounded desktop budget for an API operation. */
-export function desktopRequestTimeoutMs(path: string): number {
+/**
+ * Returns the bounded desktop budget for a machine-controlled API operation.
+ * Null deliberately leaves a human-owned native confirmation without a synthetic
+ * time limit; cancellation still applies when the renderer or caller aborts.
+ */
+export function desktopRequestTimeoutMs(path: string): number;
+export function desktopRequestTimeoutMs(
+  path: string,
+  method: HttpMethod,
+): number | null;
+export function desktopRequestTimeoutMs(
+  path: string,
+  method: HttpMethod = "GET",
+): number | null {
   const pathname = path.split("?", 1)[0];
+  if (
+    method === "POST" &&
+    /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}\/conversations$/u.test(pathname)
+  ) {
+    // Creating a project-scoped conversation can remain parked behind the
+    // native access dialog. That dialog, not a clock, owns the wait.
+    return null;
+  }
   if (pathname === "/acp/session/prompt") {
     return DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS;
   }
