@@ -1,3 +1,4 @@
+import type { ChatRunSteerMessage } from "@doolittle/contracts/steer";
 import type { ActionResult, Memory } from "@elizaos/core";
 import { isRecord } from "../../utils/records";
 import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
@@ -171,6 +172,7 @@ export function continuationMemory(
   actionResults: readonly ActionResult[],
   previousResponse: string,
   requirements: WorkspaceNoopRequirements,
+  steerMessages: readonly ChatRunSteerMessage[] = [],
 ): Memory {
   const hasVerifiedMutation = hasVerifiedWorkspaceMutation(actionResults);
   const missingRequirements = hasVerifiedMutation
@@ -249,6 +251,17 @@ export function continuationMemory(
         userRequest,
         "",
         "Continue the same requested workspace task. The previous pass did not complete the request.",
+        ...(steerMessages.length > 0
+          ? [
+              "The user sent additional input while this run was active. The following messages are user-authored, persisted in the conversation transcript, and are not supervisor text. Consider them as current instructions for the same ongoing task; when they conflict with earlier user input, the newest user instruction takes precedence:",
+              `<user_steer_messages>${steerMessages
+                .map(
+                  (steer) =>
+                    `<message sequence="${steer.sequence}" id="${escapeXml(steer.id)}" created_at="${escapeXml(steer.createdAt)}">${escapeXml(steer.text)}</message>`,
+                )
+                .join("\n")}</user_steer_messages>`,
+            ]
+          : []),
         ...(serverStartPolicy(userRequest).forbidden
           ? [
               "The user forbids starting or restarting a server. Do not start or restart one for verification; only review an existing verified ready managed app. If none is available, disclose browser review as unavailable and not attempted.",

@@ -86,6 +86,30 @@ it("keeps exact parallel tool activity through a long reconnect", () => {
   expect(replay?.events).toEqual([first, second, receipt.latest]);
 });
 
+it("keeps separate degraded inactivity episodes in reconstructed run activity", () => {
+  const degraded = (since: string, detectedAt: string): DesktopRunUpdate => ({
+    ...receipt.latest,
+    type: "degraded",
+    run: {
+      ...receipt.latest.run,
+      status: "thinking",
+      degraded: {
+        reason: "no-meaningful-activity",
+        since,
+        detectedAt,
+        thresholdMs: 180_000,
+      },
+    },
+  });
+  const first = degraded("2026-11-20T00:01:00Z", "2026-11-20T00:04:00Z");
+  const second = degraded("2026-11-20T00:10:00Z", "2026-11-20T00:13:00Z");
+
+  expect(runEventKey(first)).not.toBe(runEventKey(second));
+  expect(
+    historicalRunReceipt(receipt.latest.run, [first, second])?.events,
+  ).toEqual([first, second, receipt.latest]);
+});
+
 it("lets the desktop recover activity only through the exact run receipt query", () => {
   const path = "/chat/runs/run-a";
   expect(parseApiPath(`${path}?include_updates=true`, "GET")).toBe(

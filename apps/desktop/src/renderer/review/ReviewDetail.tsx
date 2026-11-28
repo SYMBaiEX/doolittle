@@ -29,6 +29,7 @@ import {
 import { ReviewChangesPanel } from "./ReviewChangesPanel";
 import { ReviewCiPanel } from "./ReviewCiPanel";
 import type { ReviewCommentTarget } from "./ReviewCommentsPanel";
+import type { ReviewPatchMutation } from "./ReviewPatch";
 
 export interface ReviewDetailProps {
   contextScope?: string;
@@ -44,6 +45,9 @@ export interface ReviewDetailProps {
   openCommentCount: number;
   busy: string;
   platform: string;
+  patchMutationBusy?: boolean;
+  patchMutationError?: string;
+  onPatchMutation?: (mutation: ReviewPatchMutation) => void;
   onDecision: (decision: "approve" | "deny") => void;
   onAlwaysAllow?: () => void;
   onOpenWorkspace: () => void;
@@ -75,6 +79,9 @@ export function ReviewDetail({
   openCommentCount,
   busy,
   platform,
+  patchMutationBusy = false,
+  patchMutationError = "",
+  onPatchMutation,
   onDecision,
   onAlwaysAllow,
   onOpenWorkspace,
@@ -188,12 +195,15 @@ export function ReviewDetail({
                   onDelete={onDelete}
                   onDraftChange={onDraftChange}
                   onOpenWorkspace={onOpenWorkspace}
+                  onPatchMutation={onPatchMutation}
                   onSave={onSaveComment}
                   onSendFeedback={onSendFeedback}
                   onStartComment={onStartComment}
                   onToggleResolved={onToggleResolved}
                   openCommentCount={openCommentCount}
                   patch={patch}
+                  patchMutationBusy={patchMutationBusy}
+                  patchMutationError={patchMutationError}
                   platform={platform}
                   selected={selected}
                   selectedPathComments={selectedPathComments}

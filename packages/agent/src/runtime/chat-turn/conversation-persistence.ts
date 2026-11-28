@@ -881,6 +881,8 @@ export async function persistUserTurnMemory(input: {
   attachments?: StoredMessageAttachment[];
   nativeOwner?: NativeUserMemoryOwner;
   signal?: AbortSignal;
+  /** Trusted runtime provenance. Fixed authorship fields below always win. */
+  doolittleMetadata?: Record<string, unknown>;
 }): Promise<void> {
   input.signal?.throwIfAborted();
   await hydrateNativeRoomFromProjection(
@@ -903,6 +905,7 @@ export async function persistUserTurnMemory(input: {
       sessionId: input.turn.sessionId,
       sessionKey: continuityKey(input.context, input.turn.sessionId),
       doolittle: {
+        ...(input.doolittleMetadata ?? {}),
         role: "user",
         userId: input.userId,
         source: input.turn.connectionSource,

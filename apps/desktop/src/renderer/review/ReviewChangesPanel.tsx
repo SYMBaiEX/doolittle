@@ -11,7 +11,7 @@ import {
   ReviewCommentsPanel,
   type ReviewCommentTarget,
 } from "./ReviewCommentsPanel";
-import { ReviewPatch } from "./ReviewPatch";
+import { ReviewPatch, type ReviewPatchMutation } from "./ReviewPatch";
 
 export interface ReviewChangesPanelProps {
   contextScope?: string;
@@ -25,6 +25,9 @@ export interface ReviewChangesPanelProps {
   commentEditorRef: RefObject<HTMLTextAreaElement | null>;
   openCommentCount: number;
   platform: string;
+  patchMutationBusy?: boolean;
+  patchMutationError?: string;
+  onPatchMutation?: (mutation: ReviewPatchMutation) => void;
   onOpenWorkspace: () => void;
   onAskDoolittle: () => void;
   onStartComment: (
@@ -52,6 +55,9 @@ export function ReviewChangesPanel({
   commentEditorRef,
   openCommentCount,
   platform,
+  patchMutationBusy = false,
+  patchMutationError = "",
+  onPatchMutation,
   onOpenWorkspace,
   onAskDoolittle,
   onStartComment,
@@ -110,10 +116,14 @@ export function ReviewChangesPanel({
         <ErrorBlock error={patch.error} retry={patch.reload} />
       ) : patch.data?.patch?.patch ? (
         <ReviewPatch
+          mutationBusy={patchMutationBusy}
+          mutationError={patchMutationError}
+          onPatchMutation={onPatchMutation}
           onStartComment={onStartComment}
           patch={patch.data.patch.patch}
           path={path}
           selectedPathComments={selectedPathComments}
+          staged={patch.data.patch.staged}
           truncated={patch.data.patch.truncated}
         />
       ) : (
