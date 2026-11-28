@@ -26,6 +26,7 @@ import {
   hasWorkspaceMutationObligation,
   recentMutationHistory,
 } from "../workspace-mutation-intent";
+import { continuationPassEvidence } from "./continuation-progress";
 import {
   CONSTRAINED_FRONTEND_REVIEW_FAILURE,
   frontendRequirements,
@@ -72,6 +73,7 @@ import {
   incompleteVerificationScopes,
   incompleteWorkspaceVerificationFailure,
   isUserDirectedQuestion,
+  repeatedNoProgressContinuationFailure,
   verifiedWorkspaceNoopResponse,
 } from "./workspace-continuation";
 import {
@@ -135,6 +137,8 @@ function memoryText(memory: Memory): string {
 const MAX_MUTATION_CONTINUATION_PASSES = 12;
 
 const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
+
+const MAX_CONSECUTIVE_REPEATED_NO_PROGRESS_PASSES = 2;
 
 function hasPendingApproval(context: AgentExecutionContext, sessionId: string) {
   try {
@@ -347,6 +351,9 @@ export async function executeProviderMessageTurn(
           | undefined;
         const allResponseMessages: Memory[] = [];
         let consecutiveNoActionPasses = 0;
+        let repeatedNoProgressPasses = 0;
+        let previousNoProgressFingerprint: string | undefined;
+        let stoppedForRepeatedNoProgress = false;
 
         // The SDK owns each complete planner pass and its native limits.
         // Doolittle only bounds receipt-continuation passes on the same room
@@ -418,6 +425,21 @@ export async function executeProviderMessageTurn(
             attemptActionResults.length === 0
               ? consecutiveNoActionPasses + 1
               : 0;
+          const passEvidence = continuationPassEvidence(attemptActionResults);
+          if (passEvidence.noProgressFingerprint) {
+            repeatedNoProgressPasses =
+              passEvidence.noProgressFingerprint ===
+              previousNoProgressFingerprint
+                ? repeatedNoProgressPasses + 1
+                : 1;
+            previousNoProgressFingerprint = passEvidence.noProgressFingerprint;
+          } else {
+            repeatedNoProgressPasses = 0;
+            previousNoProgressFingerprint = undefined;
+          }
+          const repeatedNoProgress =
+            repeatedNoProgressPasses >=
+            MAX_CONSECUTIVE_REPEATED_NO_PROGRESS_PASSES;
           // Receipt-backed visual edits need the completion gate even when a
           // short user request did not match the workspace-intent heuristic.
           mutationObligation ||= frontendReviewRequired(actionResults, prompt);
@@ -521,6 +543,36 @@ export async function executeProviderMessageTurn(
           if (correctedAfterAdmission) admittedIncomplete = undefined;
           const explicitlyIncomplete =
             responseExplicitlyIncomplete || admittedIncomplete !== undefined;
+          if (repeatedNoProgress) {
+            stoppedForRepeatedNoProgress = true;
+            recordEvaluationTraceEvent(input.context, {
+              category: "model",
+              event: "model.continuation.stop",
+              sessionId,
+              runId: input.runId,
+              roomId: input.roomId,
+              source: input.connectionSource,
+              provider: input.settingsDuring.model.provider,
+              model: input.settingsDuring.model.model,
+              text: "[model:continuation-stop] repeated non-progress action outcome",
+              metadata: {
+                reason: "repeated-no-progress",
+                attempt: attempt + 1,
+                passActionCount: passEvidence.actionCount,
+                mutationEvidenceCount: passEvidence.mutationEvidenceCount,
+                workspaceOperationEvidenceCount:
+                  passEvidence.workspaceOperationEvidenceCount,
+                actionNames: Array.from(
+                  new Set(
+                    attemptActionResults
+                      .map(actionResultActionName)
+                      .filter((name): name is string => Boolean(name)),
+                  ),
+                ),
+              },
+            });
+            break;
+          }
           if (
             managedDelegationFailure(actionResults) ||
             pendingUserInputRequest(input.context, sessionId) !== undefined ||
@@ -623,6 +675,13 @@ export async function executeProviderMessageTurn(
                 retainedUnmetCategories,
                 verifiedWorkspaceCompletion,
                 frontendReviewComplete,
+                passEvidence: {
+                  actionCount: passEvidence.actionCount,
+                  mutationEvidenceCount: passEvidence.mutationEvidenceCount,
+                  workspaceOperationEvidenceCount:
+                    passEvidence.workspaceOperationEvidenceCount,
+                  repeatedNoProgressPasses,
+                },
               },
               actionNames: Array.from(
                 new Set(
@@ -705,6 +764,14 @@ export async function executeProviderMessageTurn(
             runFailureMessage = providerFailure;
             response = providerFailure;
           }
+        }
+        if (!runFailureMessage && stoppedForRepeatedNoProgress) {
+          runFailureMessage =
+            repeatedNoProgressContinuationFailure(actionResults);
+          // Round-27 continuation UX boundary: Doolittle's stop reason is a
+          // status/run-failure notice only. The agent's own final text remains
+          // the chat response and is never replaced by supervisor copy.
+          await emitSupervisorNotice(runFailureMessage);
         }
         const verifiedNoopCompletion = mutationObligation
           ? verifyWorkspaceNoopCompletion(actionResults, noOpRequirements)
