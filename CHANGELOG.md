@@ -6,6 +6,74 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-27
+
+Six rounds of design, architecture, and benchmark-gap closure across the
+desktop and terminal surfaces — plus the updater revival that makes this
+the first release whose installs can update themselves.
+
+### Updating
+
+- The updater is live: the desktop client actually checks for updates now.
+  **v0.1.1 installs never self-update** — this release must be installed
+  manually once; every release after it updates in place.
+
+### Desktop
+
+- Session attention indicators: rows show at a glance which agent needs
+  input (accent+halo) versus which is working (muted) — derived passively
+  with zero new polling.
+- Per-turn aggregate labels in chat: quiet `N tool calls · N files · Ns`
+  summaries on settled turns.
+- Chat markdown repaired: list bullets render again at every nesting depth
+  (a Tailwind scanning gap meant the marker styles were never generated),
+  blockquotes carry a quiet left accent, headings differentiate on a
+  consistent modular scale.
+- Structured review patches: per-file sections, hunk headers, and dual
+  old/new line numbers replace flat diff text.
+- Approval UX: ⌥A/⌥D keyboard accelerators with discoverable hints, and
+  waiting-time visibility with a quiet stale-warning edge.
+- Empty states canonicalized across every surface (~29 in one contract)
+  with honest activational actions — New automation/plan/task offered only
+  when creation is genuinely available.
+- Status colors follow the design constitution: failures read danger,
+  pending reads warning, ordinary success stays neutral.
+- Composer honesty: sending during an active run visibly queues instead of
+  implying steer the runtime does not yet support.
+- Editor file integrity: save conflicts resolve through explicit
+  overwrite/reload instead of a dead end; reads are capped and binary-safe;
+  deleted-file saves can be recreated deliberately.
+- Project icons render real glyphs; settings and orchestration chrome
+  polish throughout.
+
+### Terminal (CLI and setup wizard)
+
+- Measured contrast failures fixed: cockpit header and selection surfaces
+  (invisible 1.04:1 ivory selection), wizard selection rows, and a
+  black-on-black sidebar in five of twelve themes.
+- Terminal color policy central: NO_COLOR/FORCE_COLOR precedence,
+  light-terminal detection, ASCII glyph fallbacks in non-UTF-8 locales —
+  byte-identical output in UTF-8 environments.
+- Blessed-tag injection closed: session titles, job prompts, and
+  supervision details can no longer smuggle markup into chrome.
+- Transcript semantics: tool actions persist in the transcript and export
+  instead of vanishing; errors carry explicit tone and authorship; long
+  output folds with an expansion affordance.
+- Wizard overlays no longer render gray — a transparent frame was
+  blend-corrupting every overlay; chrome derives from the live theme.
+- Cockpit geometry: scanable rail with progressive disclosure, grouped
+  command discovery, width-aware control deck.
+
+### Architecture
+
+- Terminal capabilities canonical in `@doolittle/agent`; CLI and bootstrap
+  consume one implementation.
+- Persistent approval-rules backend: exact/prefix command patterns with
+  scoped narrowing — "always allow this" foundations for a future UI.
+- Settings writes validated server-side with atomic rejection; execution
+  imports canonicalized; validators centralized.
+
+
 ## [0.1.1] - 2026-11-26
 
 Twenty evidence-driven hardening rounds across every terminal surface, each

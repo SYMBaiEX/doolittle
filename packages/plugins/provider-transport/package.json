@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/provider-transport",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared ElizaOS model-input adapter for prompt-only provider transports.",
   "license": "MIT",
   "type": "module",
