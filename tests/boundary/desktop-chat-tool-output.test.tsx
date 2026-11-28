@@ -530,6 +530,7 @@ it("shows result text and file paths for non-shell actions", () => {
   expect(toolActivityDetails(read)).toMatchObject({
     target: "src/index.ts",
     output: "export const value = 1;\n",
+    outputMarkdown: false,
   });
   expect(toolActivityDetails(write)).toMatchObject({
     target: "src/created.ts",
@@ -540,6 +541,141 @@ it("shows result text and file paths for non-shell actions", () => {
   expect(host.querySelector('section[aria-label="Result"]')?.textContent).toBe(
     "export const value = 1;\n",
   );
+});
+
+it("renders authored markdown web-search results as formatted prose", async () => {
+  const markdown = [
+    "### Web results for “doolittle”",
+    "",
+    "1. [Doolittle docs](https://example.com/docs)",
+    "   The client handbook.",
+    "",
+    "| Feature | Status |",
+    "| --- | --- |",
+    "| Search | Ready |",
+  ].join("\n");
+  const search: ToolActivity = {
+    id: "search",
+    name: "WEB_SEARCH",
+    status: "completed",
+    input: { query: "doolittle" },
+    output: { success: true, text: markdown },
+  };
+  expect(toolActivityDetails(search)).toMatchObject({
+    output: markdown,
+    outputMarkdown: true,
+  });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[search]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Web search details").click());
+  const result = host.querySelector('section[aria-label="Result"]');
+  expect(result?.querySelector("pre")).toBeNull();
+  expect(result?.querySelector("h3")?.textContent).toBe(
+    "Web results for “doolittle”",
+  );
+  // The shared markdown pipeline renders links as safe link controls, never
+  // raw anchors carrying an unchecked href.
+  const links = Array.from(
+    result?.querySelectorAll('[data-streamdown="link"]') ?? [],
+  );
+  expect(links.map((link) => link.textContent)).toEqual(["Doolittle docs"]);
+  expect(result?.querySelector("table")).not.toBeNull();
+  expect(result?.textContent).not.toContain("###");
+  expect(result?.textContent).not.toContain("[Doolittle docs]");
+  await act(async () => button("Copy result").click());
+  expect(writeText).toHaveBeenCalledExactlyOnceWith(markdown);
+});
+
+it("never renders unsafe links inside markdown tool output", () => {
+  const search: ToolActivity = {
+    id: "search-unsafe",
+    name: "WEB_SEARCH",
+    status: "completed",
+    output: {
+      success: true,
+      text: [
+        "### Results",
+        "",
+        "[safe](https://example.com) [injected](javascript:alert(1))",
+      ].join("\n"),
+    },
+  };
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[search]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Web search details").click());
+  const result = host.querySelector('section[aria-label="Result"]');
+  const links = Array.from(
+    result?.querySelectorAll('[data-streamdown="link"]') ?? [],
+  );
+  expect(links.map((link) => link.textContent)).toEqual(["safe"]);
+  expect(result?.querySelector('a[href^="javascript:"]')).toBeNull();
+  expect(result?.innerHTML ?? "").not.toContain("javascript:");
+  expect(result?.textContent).toContain("injected");
+});
+
+it("keeps structured JSON search payloads preformatted and carries the sources list", () => {
+  const payload = JSON.stringify({
+    results: [
+      {
+        title: "Example",
+        url: "https://example.com",
+        excerpts: ["A result excerpt."],
+      },
+    ],
+  });
+  const search: ToolActivity = {
+    id: "search-json",
+    name: "WEB_SEARCH",
+    status: "completed",
+    input: { query: "example" },
+    output: { success: true, text: payload },
+  };
+  expect(toolActivityDetails(search)).toMatchObject({
+    output: payload,
+    outputMarkdown: false,
+  });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[search]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Web search details").click());
+  const result = host.querySelector('section[aria-label="Result"]');
+  expect(result?.querySelector("pre")?.textContent).toBe(payload);
+  const sources = host.querySelector('section[aria-label="Sources"]');
+  expect(
+    sources?.querySelector<HTMLAnchorElement>('a[href="https://example.com"]')
+      ?.textContent,
+  ).toContain("Example");
+});
+
+it("keeps markdown-shaped file and shell output preformatted", () => {
+  const literal = "# heading\n\n- not a list\n| not | a | table |\n";
+  const read: ToolActivity = {
+    id: "read-md",
+    name: "READ_FILE",
+    status: "completed",
+    input: { path: "notes.md" },
+    output: { success: true, text: literal },
+  };
+  const research: ToolActivity = {
+    id: "research",
+    name: "DOOLITTLE_RESEARCH",
+    status: "completed",
+    output: { success: true, text: literal },
+  };
+  expect(toolActivityDetails(read).outputMarkdown).toBe(false);
+  expect(toolActivityDetails(research).outputMarkdown).toBe(true);
+  act(() => root.render(<ToolActivityGroup pending={false} tools={[read]} />));
+  act(() => button("Tool activity").click());
+  act(() => button("Show Reading file details").click());
+  const result = host.querySelector('section[aria-label="Result"]');
+  expect(result?.querySelector("pre")?.textContent).toBe(literal);
+  expect(result?.querySelector("h1")).toBeNull();
+  expect(result?.querySelector("table")).toBeNull();
 });
 
 it("renders an error block for failed actions carrying a text blob", () => {
@@ -594,4 +730,66 @@ it("renders an explicit tool diff without modifying the captured patch", async (
   );
   await act(async () => button("Copy diff").click());
   expect(writeText).toHaveBeenCalledExactlyOnceWith(diff);
+});
+
+it("prefers the explicitly user-authored text over machine payload text", () => {
+  const payload = JSON.stringify({
+    results: [
+      {
+        title: "Example",
+        url: "https://example.com",
+        excerpts: ["A result excerpt."],
+      },
+    ],
+  });
+  const authored =
+    "### Web results for “example”\n\n1. [Example](https://example.com)\n   A result excerpt.";
+  const search: ToolActivity = {
+    id: "search-user-facing",
+    name: "WEB_SEARCH",
+    status: "completed",
+    input: { query: "example" },
+    output: { success: true, text: payload, userFacingText: authored },
+  };
+  expect(toolActivityDetails(search)).toMatchObject({ output: authored });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[search]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Web search details").click());
+  // The displayed result carries the authored prose, never the machine JSON.
+  // (Whether the prose renders as markdown or preformatted text belongs to
+  // the markdown-pipeline coverage; both presentations satisfy this.)
+  const result = host.querySelector('section[aria-label="Result"]');
+  expect(result?.textContent).toContain("Web results for “example”");
+  expect(result?.textContent).not.toContain('"results"');
+  expect(result?.textContent).not.toContain("excerpts");
+  // The machine payload stays available as structured evidence: the sources
+  // list is still recovered from the JSON text, and the full envelope remains
+  // under the raw disclosure.
+  expect(
+    host
+      .querySelector('section[aria-label="Sources"]')
+      ?.querySelector<HTMLAnchorElement>('a[href="https://example.com"]')
+      ?.textContent,
+  ).toContain("Example");
+  expect(host.textContent).toContain("Full result");
+});
+
+it("keeps diagnostic text in the error block when a failure authors user-facing prose", () => {
+  const failure: ToolActivity = {
+    id: "failed-prose",
+    name: "WRITE_FILE",
+    status: "error",
+    error: "Write failed.",
+    output: {
+      success: false,
+      text: "Error: permission denied\n  at writeFile (fs.ts:12)",
+      userFacingText: "I couldn't write the file because access was denied.",
+    },
+  };
+  const details = toolActivityDetails(failure);
+  expect(details.error).toContain("permission denied");
+  expect(details.error).not.toContain("I couldn't write the file");
+  expect(details.output).toBeUndefined();
 });
