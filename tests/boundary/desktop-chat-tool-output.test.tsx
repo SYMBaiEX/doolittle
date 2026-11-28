@@ -731,3 +731,65 @@ it("renders an explicit tool diff without modifying the captured patch", async (
   await act(async () => button("Copy diff").click());
   expect(writeText).toHaveBeenCalledExactlyOnceWith(diff);
 });
+
+it("prefers the explicitly user-authored text over machine payload text", () => {
+  const payload = JSON.stringify({
+    results: [
+      {
+        title: "Example",
+        url: "https://example.com",
+        excerpts: ["A result excerpt."],
+      },
+    ],
+  });
+  const authored =
+    "### Web results for “example”\n\n1. [Example](https://example.com)\n   A result excerpt.";
+  const search: ToolActivity = {
+    id: "search-user-facing",
+    name: "WEB_SEARCH",
+    status: "completed",
+    input: { query: "example" },
+    output: { success: true, text: payload, userFacingText: authored },
+  };
+  expect(toolActivityDetails(search)).toMatchObject({ output: authored });
+  act(() =>
+    root.render(<ToolActivityGroup pending={false} tools={[search]} />),
+  );
+  act(() => button("Tool activity").click());
+  act(() => button("Show Web search details").click());
+  // The displayed result carries the authored prose, never the machine JSON.
+  // (Whether the prose renders as markdown or preformatted text belongs to
+  // the markdown-pipeline coverage; both presentations satisfy this.)
+  const result = host.querySelector('section[aria-label="Result"]');
+  expect(result?.textContent).toContain("Web results for “example”");
+  expect(result?.textContent).not.toContain('"results"');
+  expect(result?.textContent).not.toContain("excerpts");
+  // The machine payload stays available as structured evidence: the sources
+  // list is still recovered from the JSON text, and the full envelope remains
+  // under the raw disclosure.
+  expect(
+    host
+      .querySelector('section[aria-label="Sources"]')
+      ?.querySelector<HTMLAnchorElement>('a[href="https://example.com"]')
+      ?.textContent,
+  ).toContain("Example");
+  expect(host.textContent).toContain("Full result");
+});
+
+it("keeps diagnostic text in the error block when a failure authors user-facing prose", () => {
+  const failure: ToolActivity = {
+    id: "failed-prose",
+    name: "WRITE_FILE",
+    status: "error",
+    error: "Write failed.",
+    output: {
+      success: false,
+      text: "Error: permission denied\n  at writeFile (fs.ts:12)",
+      userFacingText: "I couldn't write the file because access was denied.",
+    },
+  };
+  const details = toolActivityDetails(failure);
+  expect(details.error).toContain("permission denied");
+  expect(details.error).not.toContain("I couldn't write the file");
+  expect(details.output).toBeUndefined();
+});
