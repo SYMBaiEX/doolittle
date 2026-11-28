@@ -116,13 +116,18 @@ export function summarizeChatRun(
   };
 }
 
-function failedTurnMessage(
+function finalizedFailureMessage(
   context: AppContext,
   runId: string,
+  finalResponse: string,
 ): string | undefined {
-  return context.services.runController.getByRunId(runId)?.status === "error"
-    ? TURN_FAILURE_MESSAGE
-    : undefined;
+  if (context.services.runController.getByRunId(runId)?.status !== "error") {
+    return undefined;
+  }
+  // A resolved turn has already been through provider failure conversion and
+  // post-provider finalization. Its final response is the user-facing failure
+  // explanation; rejected turns still use the static diagnostic-safe fallback.
+  return finalResponse.trim() || TURN_FAILURE_MESSAGE;
 }
 
 function resolveRunId(value: unknown): string {
@@ -533,7 +538,11 @@ async function startServerOwnedChatRun(
           { id: responseId, run_id: runId, room_id: roomId },
         );
       } else {
-        const failureMessage = failedTurnMessage(context, runId);
+        const failureMessage = finalizedFailureMessage(
+          context,
+          runId,
+          response,
+        );
         if (failureMessage) {
           recordTerminalBoundary("error");
           await context.services.runController.finishTaskEvent(
@@ -544,6 +553,7 @@ async function startServerOwnedChatRun(
               run_id: runId,
               room_id: roomId,
               message: failureMessage,
+              userFacing: true,
             },
           );
         } else {
@@ -768,10 +778,15 @@ export async function handleChatRoute(
   if (terminal.type === "response.cancelled") {
     return json({ error: "run cancelled", code: "run_cancelled" }, 409);
   }
-  const failureCode =
+  const failureData =
     terminal.data !== null && typeof terminal.data === "object"
-      ? (terminal.data as { code?: unknown }).code
+      ? (terminal.data as {
+          code?: unknown;
+          message?: unknown;
+          userFacing?: unknown;
+        })
       : undefined;
+  const failureCode = failureData?.code;
   switch (failureCode) {
     case "total_limit":
     case "automatic_acp_limit":
@@ -791,5 +806,11 @@ export async function handleChatRoute(
         429,
       );
   }
-  return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
+  const terminalMessage =
+    failureData?.userFacing === true &&
+    typeof failureData.message === "string" &&
+    failureData.message.trim()
+      ? failureData.message
+      : TURN_FAILURE_MESSAGE;
+  return json({ error: terminalMessage, code: "turn_failed" }, 500);
 }
