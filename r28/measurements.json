@@ -1,0 +1,115 @@
+{
+  "capturedAt": "2026-11-28T08:35:43.259Z",
+  "cdp": "http://127.0.0.1:9223",
+  "frames": {
+    "pr406-approval-rules-empty.png": {
+      "waitMs": 3000
+    },
+    "pr406-approval-rules-create-form.png": {
+      "waitMs": 3000
+    },
+    "pr406-approval-rules-populated.png": {
+      "waitMs": 3000
+    },
+    "pr407-review-always-allow.png": {
+      "waitMs": 3000
+    },
+    "pr403-appearance-before-theme-change.png": {
+      "waitMs": 3000
+    },
+    "pr403-appearance-after-theme-change.png": {
+      "waitMs": 3000
+    },
+    "pr410-pr411-tool-output-markdown.png": {
+      "waitMs": 3000
+    },
+    "pr410-pr411-tool-output-markdown-context.png": {
+      "waitMs": 3000
+    },
+    "pr410-shell-output-preformatted.png": {
+      "waitMs": 3000
+    }
+  },
+  "approvalRulesEmpty": {
+    "emptyVisible": true,
+    "sectionY": 176.2890625,
+    "width": 829.734375
+  },
+  "approvalRuleCreateForm": {
+    "formVisible": true,
+    "pattern": "git status --short",
+    "platform": "api",
+    "scoped": {
+      "userId": "audit-operator",
+      "roomId": "audit-room"
+    }
+  },
+  "approvalRulesPopulated": {
+    "rows": [
+      "git status --shortExact commandplatform api \u00b7 user audit-operator \u00b7 room audit-roomNo expiryEnabled"
+    ],
+    "visibleRuleCount": 1,
+    "screenshotScrollTop": 0
+  },
+  "reviewAlwaysAllow": {
+    "actionVisible": true,
+    "actionY": 805.8984375,
+    "command": "git push origin audit-fixture",
+    "detailText": true
+  },
+  "appearanceBefore": {
+    "panelY": 166.6953125,
+    "desktopSettingsY": 174.6953125,
+    "scrollTop": 0,
+    "visibleColorStatusCount": 0,
+    "srOnlyStatusPresent": false
+  },
+  "appearanceAfter": {
+    "panelY": 166.6953125,
+    "desktopSettingsY": 166.6953125,
+    "scrollTop": 0,
+    "visibleColorStatusCount": 0,
+    "srOnlyStatusPresent": true,
+    "visibleColorStatusProbe": "leaf status node is inside .sr-only; no visible status bar painted"
+  },
+  "toolMarkdown": [
+    {
+      "text": "Web results for \u201cDoolittle markdown tool output\u201d\n\nSYMBaiEX/doolittle on GitHub\nDesktop and CLI client for ElizaOS coding assistance.\nElizaOS documentation\nAgent runtime documentation and integration guides.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nEvidenceExpected renderingHeadings and listsFormatted markdownLinksSafe link controls",
+      "x": 445,
+      "y": 491.78125,
+      "width": 749,
+      "height": 251.3828125,
+      "pre": false,
+      "h3": "Web results for \u201cDoolittle markdown tool output\u201d",
+      "links": [
+        "SYMBaiEX/doolittle on GitHub",
+        "ElizaOS documentation"
+      ],
+      "tables": 1
+    },
+    {
+      "text": "{\n  \"success\": true,\n  \"text\": \"{\\n  \\\"results\\\": [\\n    {\\n      \\\"title\\\": \\\"SYMBaiEX/doolittle on GitHub\\\",\\n      \\\"url\\\": \\\"https://github.com/SYMBaiEX/doolittle\\\",\\n      \\\"excerpts\\\": [\\n        \\\"Desktop and CLI client for ElizaOS coding assistance.\\\"\\n      ]\\n    },\\n    {\\n      \\\"title\\\": \\\"ElizaOS documentation\\\",\\n      \\\"url\\\": \\\"https://eliza.how/docs\\\",\\n      \\\"excerpts\\\": [\\n        \\\"Agent runtime documentation and integration guides.\\\"\\n      ]\\n    }\\n  ]\\n}\",\n  \"userFacingText\": \"### Web results for \u201cDoolittle markdown tool output\u201d\\n\\n1. [SYMBaiEX/doolittle on GitHub](https://github.com/SYMBaiEX/doolittle)\\n   Desktop and CLI client for ElizaOS coding assistance.\\n\\n2. [ElizaOS documentation](https://eliza.how/docs)\\n   Agent runtime documentation and integration guides.\\n\\n| Evidence | Expected rendering |\\n| --- | --- |\\n| Headings and lists | Formatted markdown |\\n| Links | Safe link controls |\"\n}",
+      "x": 445,
+      "y": 944.9453125,
+      "width": 749,
+      "height": 107.59375,
+      "pre": true,
+      "h3": null,
+      "links": [],
+      "tables": 0
+    }
+  ],
+  "toolShell": {
+    "visible": true,
+    "y": 589.5,
+    "preformatted": true,
+    "startsWith": "M apps/desktop/src/renderer/components/ToolActivityGroup.tsx\n?? round-28-captures/\n\n# heading retained as literal shell ",
+    "markdownHeadings": 0,
+    "tables": 0
+  },
+  "appearanceLayoutShift": {
+    "desktopSettingsYDeltaPx": -8.0,
+    "panelYDeltaPx": 0.0,
+    "note": "residual 8px upward shift caused by the sr-only feedback node becoming the first child and absorbing the first-child margin"
+  }
+}
