@@ -142,6 +142,10 @@ export interface ChatComposerProps {
   onCancelRequest: (requestId: string) => void;
   canSubmit: boolean;
   canQueue: boolean;
+  /** Plain-text draft can be offered to the active run before queue fallback. */
+  steerOffer?: boolean;
+  /** A steer offer is waiting for the backend's acceptance or rejection. */
+  steerPending?: boolean;
   /** Read-only surfaces disable drafting; transient runtime states do not. */
   canDraft?: boolean;
   draft: string;
@@ -217,6 +221,8 @@ export function ChatComposer({
   onCancelRequest,
   canSubmit,
   canQueue,
+  steerOffer = false,
+  steerPending = false,
   canDraft = true,
   draft,
   setDraft,
@@ -439,6 +445,8 @@ export function ChatComposer({
     hasContent: Boolean(
       draft.trim() || attachedFiles.length > 0 || chatContextCapsule,
     ),
+    steerOffer,
+    steerPending,
   });
   const [promptEntries, setPromptEntries] = useState(() =>
     typeof window === "undefined" ? [] : loadPromptLibrary(window.localStorage),
@@ -1048,7 +1056,13 @@ export function ChatComposer({
             }
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              if (activeRequest ? canQueue && !isCancellingActive : canSubmit) {
+              if (
+                activeRequest
+                  ? (canQueue || steerOffer) &&
+                    !isCancellingActive &&
+                    !steerPending
+                  : canSubmit
+              ) {
                 event.currentTarget.form?.requestSubmit();
               }
             }
@@ -1172,19 +1186,23 @@ export function ChatComposer({
               aria-keyshortcuts={
                 sendControl.queueControl === "enabled" ? "Enter" : undefined
               }
-              aria-label="Queue message"
+              aria-label={`${sendControl.dispatchLabel} message`}
               className="chat-composer-queue"
               disabled={sendControl.queueControl === "disabled"}
               title={
                 sendControl.queueControl === "enabled"
-                  ? "Queue message (Enter)"
-                  : "Queueing is unavailable for this draft"
+                  ? `${sendControl.dispatchLabel} message (Enter)`
+                  : steerPending
+                    ? "Offering the message to the active run"
+                    : "Queueing is unavailable for this draft"
               }
               type="submit"
               variant="ghost"
             >
               <UiIcon icon={ListEnd} size="sm" />
-              <span className="chat-composer-action-label">Queue</span>
+              <span className="chat-composer-action-label">
+                {sendControl.dispatchLabel}
+              </span>
             </ElizaButton>
           ) : null}
           <ElizaButton
