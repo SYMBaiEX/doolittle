@@ -45,6 +45,7 @@ export interface ReviewDetailProps {
   busy: string;
   platform: string;
   onDecision: (decision: "approve" | "deny") => void;
+  onAlwaysAllow?: () => void;
   onOpenWorkspace: () => void;
   onAskDoolittle: () => void;
   onStartComment: (
@@ -75,6 +76,7 @@ export function ReviewDetail({
   busy,
   platform,
   onDecision,
+  onAlwaysAllow,
   onOpenWorkspace,
   onAskDoolittle,
   onStartComment,
@@ -208,7 +210,11 @@ export function ReviewDetail({
             className={REVIEW_DETAIL_DOCK_CLASS}
             data-review-actions-dock="true"
           >
-            <ReviewApprovalActions busy={busy} onDecision={onDecision} />
+            <ReviewApprovalActions
+              busy={busy}
+              onAlwaysAllow={onAlwaysAllow}
+              onDecision={onDecision}
+            />
           </div>
         ) : null}
       </section>
