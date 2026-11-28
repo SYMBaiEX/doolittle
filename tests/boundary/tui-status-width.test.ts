@@ -1,7 +1,10 @@
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { describe, expect, it, vi } from "vitest";
 import type { CliState } from "../../apps/cli/src/cli/execution/index";
-import { renderStatusContent } from "../../apps/cli/src/cli/tui-renderers";
+import {
+  renderFooter,
+  renderStatusContent,
+} from "../../apps/cli/src/cli/tui-renderers";
 
 vi.mock("@doolittle/agent/runtime/native/package-audit", () => ({
   getNativePackageAudit: () => ({
@@ -102,6 +105,51 @@ function contextFixture(): AppContext {
 }
 
 describe("status rail width adaptation", () => {
+  it("falls back to ASCII separators in a POSIX locale", () => {
+    const state: CliState = {
+      activeSessionId: "cli:1234567890abcdef",
+      notices: [],
+    };
+    const original = process.env.LC_ALL;
+    try {
+      process.env.LC_ALL = "C";
+      const ascii = renderStatusContent(contextFixture(), state, 80);
+      expect(ascii).not.toContain("·");
+      expect(ascii).toContain(" | ");
+
+      process.env.LC_ALL = "en_US.UTF-8";
+      expect(renderStatusContent(contextFixture(), state, 80)).toContain("·");
+    } finally {
+      if (original === undefined) {
+        delete process.env.LC_ALL;
+      } else {
+        process.env.LC_ALL = original;
+      }
+    }
+  });
+
+  it("falls back to an ASCII busy frame in a POSIX locale", () => {
+    const context = contextFixture();
+    const original = process.env.LC_ALL;
+    try {
+      process.env.LC_ALL = "C";
+      const ascii = renderFooter(context, true, 0, "Esc input", undefined, 140);
+      expect(ascii).toContain("* processing");
+      expect(ascii).not.toContain("•");
+
+      process.env.LC_ALL = "en_US.UTF-8";
+      expect(
+        renderFooter(context, true, 0, "Esc input", undefined, 140),
+      ).toContain("• processing");
+    } finally {
+      if (original === undefined) {
+        delete process.env.LC_ALL;
+      } else {
+        process.env.LC_ALL = original;
+      }
+    }
+  });
+
   it("keeps every row inside a narrow rail content width", () => {
     const state: CliState = {
       activeSessionId: "cli:1234567890abcdef",

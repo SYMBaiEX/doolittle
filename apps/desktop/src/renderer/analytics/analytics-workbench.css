@@ -9,15 +9,6 @@
   margin: var(--document-gap, 12px) var(--document-inset, 12px);
 }
 
-.analytics-empty-landing {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-block: 12px;
-}
-
 .analytics-workbench,
 .analytics-grid {
   display: grid;

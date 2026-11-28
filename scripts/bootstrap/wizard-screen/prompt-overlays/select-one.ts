@@ -4,6 +4,7 @@ import {
   buildSelectOneFooter,
   clampIndex,
 } from "../prompts";
+import { wizardSelectionStyle } from "../render";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
@@ -21,10 +22,11 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
     optionsList: Array<{ value: T; label: string; detail?: string }>,
     defaultValue: T,
     options?: { onHighlight?: (value: T) => void },
-  ): Promise<T> =>
-    showOverlay<T>(
+  ): Promise<T> => {
+    const chrome = deps.getChromeTheme();
+    return showOverlay<T>(
       "Choose One",
-      `${prompt}\n{gray-fg}↑/↓ move · Enter confirm · Esc keep current{/gray-fg}`,
+      `${prompt}\n{${chrome.muted}-fg}↑/↓ move · Enter confirm · Esc keep current{/${chrome.muted}-fg}`,
       (overlay, resolve) => {
         const detailBox = blessed.box({
           parent: overlay,
@@ -35,7 +37,11 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           border: "line",
           label: " Detail ",
           padding: { left: 1, right: 1 },
-          style: { border: { fg: "#4fd17d" }, fg: "white" },
+          style: {
+            border: { fg: chrome.greenGlow },
+            label: { fg: chrome.greenGlow, bold: true },
+            fg: chrome.baseFg,
+          },
         });
         const list = blessed.list({
           parent: overlay,
@@ -52,12 +58,9 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           vi: true,
           mouse: true,
           style: {
-            border: { fg: "#55d6ff" },
-            selected: {
-              bg: deps.widgets.header.style.bg,
-              fg: "black",
-            },
-            item: { fg: "white" },
+            border: { fg: chrome.cyanGlow },
+            selected: wizardSelectionStyle(chrome),
+            item: { fg: chrome.baseFg },
           },
           items: optionsList.map((item) => item.label),
         });
@@ -87,6 +90,10 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
           detailBox.setContent(
             `${current?.label || ""}\n\n${current?.detail || "No extra detail."}`,
           );
+          // Derived at paint time: the theme picker live-previews through
+          // onHighlight above, so a style captured at overlay creation would
+          // paint rows in the previous theme's primary.
+          list.style.selected = wizardSelectionStyle(deps.getChromeTheme());
           syncing = true;
           try {
             list.select(selectedIndex);
@@ -148,4 +155,5 @@ export function createSelectOneHandler(deps: WizardPromptOverlayDependencies) {
         );
       },
     );
+  };
 }

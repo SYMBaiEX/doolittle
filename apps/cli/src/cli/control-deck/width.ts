@@ -1,5 +1,19 @@
+import { escapeBlessed } from "../render-utils";
+import { terminalGlyph } from "../terminal-glyphs";
+
 const CONTROL_DECK_CHROME_WIDTH = 4;
 const MIN_CONTROL_DECK_CONTENT_WIDTH = 8;
+
+function clipToWidth(text: string, target: number): string {
+  if (target === 0) {
+    return "";
+  }
+  const ellipsis = terminalGlyph("…", "...");
+  if (target <= ellipsis.length) {
+    return ellipsis.slice(0, target);
+  }
+  return `${text.slice(0, target - ellipsis.length)}${ellipsis}`;
+}
 
 export function normalizeControlDeckWidth(width = 80): number {
   if (!Number.isFinite(width)) {
@@ -14,13 +28,7 @@ export function clipControlDeckText(text: string, width: number): string {
   if (normalized.length <= target) {
     return normalized;
   }
-  if (target === 0) {
-    return "";
-  }
-  if (target === 1) {
-    return "…";
-  }
-  return `${normalized.slice(0, target - 1)}…`;
+  return clipToWidth(normalized, target);
 }
 
 export function clipControlDeckLine(text: string, width: number): string {
@@ -28,13 +36,7 @@ export function clipControlDeckLine(text: string, width: number): string {
   if (text.length <= target) {
     return text;
   }
-  if (target === 0) {
-    return "";
-  }
-  if (target === 1) {
-    return "…";
-  }
-  return `${text.slice(0, target - 1)}…`;
+  return clipToWidth(text, target);
 }
 
 export function renderControlDeckHeading(
@@ -52,7 +54,7 @@ export function renderControlDeckHeading(
 }
 
 export function escapeControlDeckBlessed(text: string): string {
-  return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
+  return escapeBlessed(text);
 }
 
 function resolveOuterWidth(widgetWidth: unknown, screenWidth: number): number {

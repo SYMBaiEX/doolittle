@@ -2,6 +2,7 @@ import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
 import { getNativePluginCatalog } from "@doolittle/agent/runtime/native/plugin-catalog";
 import { getNativeTransportControlPlane } from "@doolittle/agent/runtime/native/service-bridge/control-planes";
+import { terminalGlyph } from "./terminal-glyphs";
 import {
   currentProjectLabel,
   currentWorkspaceLabel,
@@ -10,11 +11,19 @@ import {
   shortSessionLabel,
 } from "./terminal-labels";
 
+function inlineSeparator(): string {
+  return ` ${terminalGlyph("·", "|")} `;
+}
+
 function truncateInline(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  return `${text.slice(0, Math.max(1, maxLength - 1))}…`;
+  const ellipsis = terminalGlyph("…", "...");
+  if (maxLength <= ellipsis.length) {
+    return ellipsis.slice(0, Math.max(1, maxLength));
+  }
+  return `${text.slice(0, Math.max(1, maxLength - ellipsis.length))}${ellipsis}`;
 }
 
 function summarizeLaggingStartupPhases(
@@ -28,7 +37,8 @@ function summarizeLaggingStartupPhases(
         phase.status !== "deferred",
     )
     .map(([name, phase]) => `${name}:${phase.status}`);
-  return lagging.length > 0 ? ` · ${lagging.join(" · ")}` : "";
+  const separator = inlineSeparator();
+  return lagging.length > 0 ? `${separator}${lagging.join(separator)}` : "";
 }
 
 function summarizeBackgroundStartup(
@@ -113,6 +123,7 @@ export function buildCliOperatorSnapshot(
       ? context.config.elizaCloudSmallModel
       : settings.model.model;
 
+  const separator = inlineSeparator();
   const liveSummary = activeRun
     ? [
         activeRun.status,
@@ -124,13 +135,13 @@ export function buildCliOperatorSnapshot(
             : null,
       ]
         .filter((entry) => Boolean(entry))
-        .join(" · ")
+        .join(separator)
     : "idle";
 
   const startupSummary =
-    `${startup.hotPathReady ? "hot-ready" : "warming"} · background ${summarizeBackgroundStartup(startup)}` +
+    `${startup.hotPathReady ? "hot-ready" : "warming"}${separator}background ${summarizeBackgroundStartup(startup)}` +
     summarizeLaggingStartupPhases(startup);
-  const transportSummary = `live ${transportControl.totals.liveServices} · ready ${transportControl.totals.operationalTransports} · configured ${transportControl.totals.gatewayEnabled}`;
+  const transportSummary = `live ${transportControl.totals.liveServices}${separator}ready ${transportControl.totals.operationalTransports}${separator}configured ${transportControl.totals.gatewayEnabled}`;
   const pluginSummary = [
     `enabled ${enabledPlugins.length}/${plugins.length}`,
     productionPlugins > 0 ? `prod ${productionPlugins}` : null,
@@ -138,7 +149,7 @@ export function buildCliOperatorSnapshot(
     experimentalPlugins > 0 ? `exp ${experimentalPlugins}` : null,
   ]
     .filter((entry) => Boolean(entry))
-    .join(" · ");
+    .join(separator);
 
   const nextHints = buildNextHints({
     activeRun: Boolean(activeRun),

@@ -4,6 +4,7 @@ import {
   shouldRenderRunEvent,
 } from "@doolittle/agent/runtime/run-progress";
 import type { CliState } from "./execution/index";
+import { terminalGlyph } from "./terminal-glyphs";
 import { truncate } from "./text-utils";
 
 interface TuiRuntimeObserverOptions {
@@ -53,12 +54,12 @@ export function installTuiRuntimeObservers(
     context.services.terminal.onUpdate((event) => {
       appendActivity(
         "exec",
-        `${event.detail} → ${event.exitCode}`,
+        `${event.detail} ${terminalGlyph("→", "->")} ${event.exitCode}`,
         event.exitCode === 0 ? "success" : "warning",
       );
       if (isBusy()) {
         pushLiveToolEvent(
-          `shell ${truncate(event.detail, 64)} → ${event.exitCode}`,
+          `shell ${truncate(event.detail, 64)} ${terminalGlyph("→", "->")} ${event.exitCode}`,
         );
       }
       scheduleRefreshPanels();

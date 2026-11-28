@@ -191,6 +191,19 @@ function createFeedHarness(initialDefer: boolean): FeedHarness {
 }
 
 describe("tui activity feed foreign routing", () => {
+  it("keeps one space between tone badges and activity kind badges", () => {
+    const harness = createFeedHarness(false);
+    try {
+      harness.feed.appendActivity("mem", "remembered", "agent");
+      harness.feed.appendActivity("log", "ready", undefined);
+
+      expect(harness.logged[0]).toContain("{cyan-fg}<>{/} {gray-fg}[#]{/}");
+      expect(harness.logged[1]).toContain("{blue-fg}::{/} {gray-fg}[.]{/}");
+    } finally {
+      harness.feed.dispose();
+    }
+  });
+
   it("defers while focused and releases the backlog in order once unfocused", async () => {
     const harness = createFeedHarness(true);
     try {

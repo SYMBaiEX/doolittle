@@ -489,7 +489,22 @@ export function AutomationWorkspace({
               })}
             </WorkList>
           ) : (
-            <WorkbenchEmpty icon={CalendarClock} title="No automations">
+            <WorkbenchEmpty
+              actions={
+                <button
+                  aria-controls="automation-builder"
+                  aria-expanded={builderOpen}
+                  className="secondary-button"
+                  disabled={Boolean(busy)}
+                  onClick={onToggleBuilder}
+                  type="button"
+                >
+                  New automation
+                </button>
+              }
+              icon={CalendarClock}
+              title="No automations"
+            >
               Schedules and webhook runs appear here.
             </WorkbenchEmpty>
           )}

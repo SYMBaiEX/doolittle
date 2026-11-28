@@ -128,21 +128,51 @@ export const REVIEW_ACTIONS_CLASS =
   "review-actions flex items-center gap-2.25 pt-0.75 max-[760px]:items-stretch max-[760px]:flex-col [&_small]:ml-2 [&_small]:max-w-105 [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.45] [&_small]:text-[var(--muted)] max-[760px]:[&_small]:mt-1 max-[760px]:[&_small]:ml-0";
 
 export const REVIEW_PATCH_CLASS =
-  "review-patch mt-3 flex min-h-90 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] [&>.loading-block]:m-auto [&>.loading-block]:text-[var(--canvas-text-soft)] [&>.empty-block]:m-auto [&>.empty-block]:text-[var(--canvas-text)] [&>.empty-block_p]:text-[var(--canvas-text-soft)] [&>.notice]:m-auto [&>pre]:m-0 [&>pre]:flex-1 [&>pre]:overflow-auto [&>pre]:py-3.25 [&>pre]:font-[var(--font-mono)] [&>pre]:text-[length:var(--text-code)] [&>pre]:leading-[1.6] [&>pre]:text-[var(--canvas-text-soft)] [&>pre>code]:block [&>pre>code]:min-w-max";
+  "review-patch mt-3 flex min-h-90 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] [&>.loading-block]:m-auto [&>.loading-block]:text-[var(--canvas-text-soft)] [&>.empty-block]:m-auto [&>.empty-block]:text-[var(--canvas-text)] [&>.empty-block_p]:text-[var(--canvas-text-soft)] [&>.notice]:m-auto";
+
+export const REVIEW_PATCH_SCROLL_CLASS =
+  "review-patch-scroll min-h-0 flex-1 overflow-auto overscroll-contain font-[var(--font-mono)] text-[length:var(--text-code)] leading-[1.6] text-[var(--canvas-text-soft)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]";
+
+export const REVIEW_PATCH_CANVAS_CLASS =
+  "review-patch-canvas grid w-full min-w-max gap-0 py-1.5";
+
+export const REVIEW_PATCH_PARTIAL_CLASS =
+  "review-patch-partial border-b border-[color-mix(in_srgb,var(--warn)_34%,var(--canvas-border))] bg-[color-mix(in_srgb,var(--warn)_8%,var(--canvas-bg))] px-3 py-1.5 text-[length:var(--text-meta)] text-[var(--warn)]";
+
+export const REVIEW_PATCH_FILE_CLASS =
+  "review-patch-file grid gap-0 border-b border-[var(--canvas-border)] pb-1.5 last:border-b-0";
+
+export const REVIEW_PATCH_FILE_HEADER_CLASS =
+  "review-patch-file-header flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-[var(--canvas-border)] bg-[var(--surface-raised)] px-3 py-1.5";
+
+export const REVIEW_PATCH_FILE_TITLE_CLASS =
+  "review-patch-file-title grid min-w-0 gap-0.5 [&>span]:text-[length:var(--text-meta)] [&>span]:font-bold [&>span]:tracking-[0.1em] [&>span]:text-[var(--faint)] [&>span]:uppercase [&>h3]:m-0 [&>h3]:text-[length:var(--text-control)] [&>h3]:font-medium [&>h3]:leading-[1.35] [&>h3]:text-[var(--canvas-text)] [&>h3]:[overflow-wrap:anywhere]";
+
+export const REVIEW_PATCH_FILE_STATS_CLASS =
+  "review-patch-file-stats flex shrink-0 items-center gap-2 text-[length:var(--text-meta)] font-bold tabular-nums";
+
+export const REVIEW_PATCH_METADATA_CLASS =
+  "review-patch-metadata grid gap-0 border-b border-[var(--canvas-border)] px-3 py-1.5 text-[length:var(--text-meta)] leading-[1.55] text-[var(--canvas-text-soft)] [&>div]:whitespace-pre-wrap [&>div]:[overflow-wrap:anywhere]";
+
+export const REVIEW_PATCH_HUNK_CLASS = "review-patch-hunk grid gap-0 py-1";
+
+export const REVIEW_PATCH_HUNK_HEADER_CLASS =
+  "review-patch-hunk-header flex min-h-7 items-center border-y border-[color-mix(in_srgb,var(--accent)_22%,var(--canvas-border))] bg-[color-mix(in_srgb,var(--accent)_16%,var(--canvas-bg))] px-3 py-0.75 text-[length:var(--text-meta)] text-[var(--canvas-text)] [&>h4]:m-0 [&>h4]:text-inherit [&>h4]:font-normal";
 
 export const REVIEW_DETAIL_TOOLBAR_CLASS =
   "review-detail-toolbar flex min-h-10.5 items-center justify-between gap-4 border-[var(--border)] border-b bg-[var(--surface-raised)] px-3 py-1.75 [&>span]:truncate [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>div]:flex [&>div]:shrink-0 [&>div]:items-center [&>div]:gap-1.5 [&>div_button]:min-h-6.75 [&>div_button]:px-2 [&>div_button]:py-1.25 [&>div_button]:text-[length:var(--text-meta)]";
 
 const REVIEW_PATCH_LINE_BASE =
-  "review-patch-line grid min-h-[1.6em] grid-cols-[28px_minmax(max-content,1fr)] pr-4.75 whitespace-pre [&>button]:sticky [&>button]:left-0 [&>button]:grid [&>button]:h-[1.6em] [&>button]:w-5.75 [&>button]:place-items-center [&>button]:border-0 [&>button]:border-r [&>button]:border-r-transparent [&>button]:bg-[color-mix(in_srgb,var(--canvas-bg)_88%,transparent)] [&>button]:p-0 [&>button]:font-[var(--font-mono)] [&>button]:text-[length:var(--text-control)] [&>button]:leading-none [&>button]:font-bold [&>button]:text-[var(--canvas-text)] [&>button]:opacity-16 hover:[&>button]:border-r-[var(--accent-border)] hover:[&>button]:bg-[color-mix(in_srgb,var(--accent)_18%,var(--canvas-bg))] hover:[&>button]:opacity-100 [&>button:focus-visible]:border-r-[var(--accent-border)] [&>button:focus-visible]:bg-[color-mix(in_srgb,var(--accent)_18%,var(--canvas-bg))] [&>button:focus-visible]:opacity-100 [&>button.has-comment]:border-r-[var(--accent-border)] [&>button.has-comment]:bg-[color-mix(in_srgb,var(--accent)_18%,var(--canvas-bg))] [&>button.has-comment]:opacity-100 [&>button.has-comment]:after:absolute [&>button.has-comment]:after:top-0.75 [&>button.has-comment]:after:right-0.75 [&>button.has-comment]:after:size-1 [&>button.has-comment]:after:rounded-full [&>button.has-comment]:after:bg-[var(--accent)] [&>button.has-comment]:after:content-[''] [&>.review-patch-gutter]:sticky [&>.review-patch-gutter]:left-0 [&>.review-patch-gutter]:grid [&>.review-patch-gutter]:h-[1.6em] [&>.review-patch-gutter]:w-5.75 [&>.review-patch-gutter]:place-items-center";
+  "review-patch-line grid min-h-[1.6em] grid-cols-[28px_4.5ch_4.5ch_minmax(max-content,1fr)] pr-4.75 whitespace-pre [&>button]:sticky [&>button]:left-0 [&>button]:grid [&>button]:h-[1.6em] [&>button]:w-5.75 [&>button]:place-items-center [&>button]:border-0 [&>button]:border-r [&>button]:border-r-transparent [&>button]:bg-[color-mix(in_srgb,var(--canvas-bg)_88%,transparent)] [&>button]:p-0 [&>button]:font-[var(--font-mono)] [&>button]:text-[length:var(--text-control)] [&>button]:leading-none [&>button]:font-bold [&>button]:text-[var(--canvas-text)] [&>button]:opacity-16 hover:[&>button]:border-r-[var(--accent-border)] hover:[&>button]:bg-[color-mix(in_srgb,var(--accent)_18%,var(--canvas-bg))] hover:[&>button]:opacity-100 [&>button:focus-visible]:border-r-[var(--accent-border)] [&>button:focus-visible]:bg-[color-mix(in_srgb,var(--accent)_18%,var(--canvas-bg))] [&>button:focus-visible]:opacity-100 [&>button.has-comment]:border-r-[var(--accent-border)] [&>button.has-comment]:bg-[color-mix(in_srgb,var(--accent)_18%,var(--canvas-bg))] [&>button.has-comment]:opacity-100 [&>button.has-comment]:after:absolute [&>button.has-comment]:after:top-0.75 [&>button.has-comment]:after:right-0.75 [&>button.has-comment]:after:size-1 [&>button.has-comment]:after:rounded-full [&>button.has-comment]:after:bg-[var(--accent)] [&>button.has-comment]:after:content-[''] [&>.review-patch-gutter]:sticky [&>.review-patch-gutter]:left-0 [&>.review-patch-gutter]:grid [&>.review-patch-gutter]:h-[1.6em] [&>.review-patch-gutter]:w-5.75 [&>.review-patch-gutter]:place-items-center [&>code]:min-w-0 [&>code]:pl-2.5";
+
+export const REVIEW_PATCH_LINE_NUMBER_CLASS =
+  "review-patch-number select-none pr-1.25 text-right text-[var(--canvas-text-soft)] tabular-nums";
 
 export function reviewPatchLineClass(kind: string): string {
   if (kind === "addition")
     return `${REVIEW_PATCH_LINE_BASE} addition bg-[color-mix(in_srgb,var(--good)_9%,transparent)] text-[var(--canvas-text)]`;
   if (kind === "deletion")
     return `${REVIEW_PATCH_LINE_BASE} deletion bg-[color-mix(in_srgb,var(--bad)_9%,transparent)] text-[var(--canvas-text)]`;
-  if (kind === "hunk")
-    return `${REVIEW_PATCH_LINE_BASE} hunk bg-[color-mix(in_srgb,var(--accent)_16%,var(--canvas-bg))] text-[var(--canvas-text)]`;
   if (kind === "meta")
     return `${REVIEW_PATCH_LINE_BASE} meta text-[var(--canvas-text-soft)]`;
   return `${REVIEW_PATCH_LINE_BASE} text-[var(--canvas-text-soft)]`;

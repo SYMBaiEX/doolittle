@@ -15,6 +15,7 @@ import { runStatusFace } from "./activity-chrome";
 import type { CliState } from "./execution/index";
 import { buildCliOperatorSnapshot } from "./operator-snapshot";
 import { escapeBlessed } from "./render-utils";
+import { terminalGlyph } from "./terminal-glyphs";
 import {
   currentProjectLabel,
   macAwareKeyLabel,
@@ -26,8 +27,14 @@ function clipInline(text: string, width: number): string {
   const normalized = text.replace(/\s+/gu, " ").trim();
   if (footerTextWidth(normalized) <= width) return normalized;
   if (width <= 0) return "";
-  if (width === 1) return "…";
-  return `${takeFooterTextPrefix(normalized, width - 1)}…`;
+  const ellipsis = terminalGlyph("…", "...");
+  const ellipsisWidth = footerTextWidth(ellipsis);
+  if (width <= ellipsisWidth) return takeFooterTextPrefix(ellipsis, width);
+  return `${takeFooterTextPrefix(normalized, width - ellipsisWidth)}${ellipsis}`;
+}
+
+function inlineSeparator(): string {
+  return ` ${terminalGlyph("·", "|")} `;
 }
 
 function resolveStatusContentWidth(width?: number): number {
@@ -48,6 +55,7 @@ export function renderStatusContent(
 ): string {
   const contentWidth = resolveStatusContentWidth(width);
   const compact = contentWidth < 48;
+  const separator = inlineSeparator();
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
   const snapshot = buildCliOperatorSnapshot(context, state);
@@ -74,12 +82,12 @@ export function renderStatusContent(
         `session ${escapeBlessed(clipInline(snapshot.sessionLabel, valueWidth(contentWidth, "session ")))}`,
       ]
     : (() => {
-        const fixedWidth = "workspace  · session ".length;
+        const fixedWidth = `workspace ${separator}session `.length;
         const budget = Math.max(16, contentWidth - fixedWidth);
         const projectWidth = Math.max(8, Math.floor(budget * 0.45));
         const sessionWidth = Math.max(8, budget - projectWidth);
         return [
-          `workspace {cyan-fg}${escapeBlessed(clipInline(projectLabel, projectWidth))}{/} · session ${escapeBlessed(clipInline(snapshot.sessionLabel, sessionWidth))}`,
+          `workspace {cyan-fg}${escapeBlessed(clipInline(projectLabel, projectWidth))}{/}${separator}session ${escapeBlessed(clipInline(snapshot.sessionLabel, sessionWidth))}`,
         ];
       })();
   const modelLines = compact
@@ -88,7 +96,7 @@ export function renderStatusContent(
         `model {cyan-fg}${escapeBlessed(clipInline(settings.model.model, valueWidth(contentWidth, "model ")))}{/}`,
       ]
     : [
-        `{cyan-fg}${escapeBlessed(clipInline(settings.model.provider, Math.max(8, Math.floor((contentWidth - 3) / 2))))}{/} · {cyan-fg}${escapeBlessed(clipInline(settings.model.model, Math.max(8, Math.ceil((contentWidth - 3) / 2))))}{/}`,
+        `{cyan-fg}${escapeBlessed(clipInline(settings.model.provider, Math.max(8, Math.floor((contentWidth - 3) / 2))))}{/}${separator}{cyan-fg}${escapeBlessed(clipInline(settings.model.model, Math.max(8, Math.ceil((contentWidth - 3) / 2))))}{/}`,
       ];
   const connection = autonomousControl.alignment.connection;
   const connectionSummary = clipInline(
@@ -100,20 +108,23 @@ export function renderStatusContent(
     valueWidth(contentWidth, "startup "),
   );
   const runSummary = clipInline(
-    `run ${settings.agent.runDepth} · cap ${settings.agent.maxIterations} · progress ${settings.agent.toolProgressMode}`,
+    `run ${settings.agent.runDepth}${separator}cap ${settings.agent.maxIterations}${separator}progress ${settings.agent.toolProgressMode}`,
     contentWidth,
   );
   const liveLine = activeRun
     ? (() => {
         const elapsed = formatElapsedMs(getRunElapsedMs(activeRun));
-        let line = `live ${activeRun.status} · ${activeRun.observedActionCount} steps`;
-        if (elapsed && line.length + elapsed.length + 3 <= contentWidth) {
-          line += ` · ${elapsed}`;
+        let line = `live ${activeRun.status}${separator}${activeRun.observedActionCount} steps`;
+        if (
+          elapsed &&
+          line.length + elapsed.length + separator.length <= contentWidth
+        ) {
+          line += `${separator}${elapsed}`;
         }
         const detail = activeRun.activeAction || activeRun.statusDetail;
-        const detailWidth = contentWidth - line.length - 3;
+        const detailWidth = contentWidth - line.length - separator.length;
         if (detail && detailWidth >= 8) {
-          line += ` · ${clipInline(detail, detailWidth)}`;
+          line += `${separator}${clipInline(detail, detailWidth)}`;
         }
         return escapeBlessed(line);
       })()
@@ -123,11 +134,11 @@ export function renderStatusContent(
     contentWidth,
   );
   const delegationSummary = clipInline(
-    `delegation ${delegation.running}/${delegation.pending}/${delegation.completed} · workers ${delegation.activeWorkers}`,
+    `delegation ${delegation.running}/${delegation.pending}/${delegation.completed}${separator}workers ${delegation.activeWorkers}`,
     contentWidth,
   );
   const gatewaySummary = clipInline(
-    `gateway sessions ${gatewaySessions.length} · voice ${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
+    `gateway sessions ${gatewaySessions.length}${separator}voice ${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
     contentWidth,
   );
   const focusTarget = active?.title ?? state.activeSessionId;
@@ -343,7 +354,7 @@ export function renderFooter(
   busy: boolean,
   queueDepth: number,
   hint = "Esc input",
-  busyFrame = "•",
+  busyFrame = terminalGlyph("•", "*"),
   width?: number,
 ): string {
   const settings = context.services.settings.get();

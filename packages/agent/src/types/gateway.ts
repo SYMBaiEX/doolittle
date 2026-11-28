@@ -1,19 +1,22 @@
 import type { Media } from "@elizaos/core";
 
-export type PlatformName =
-  | "api"
-  | "cli"
-  | "telegram"
-  | "discord"
-  | "slack"
-  | "whatsapp"
-  | "signal"
-  | "matrix"
-  | "email"
-  | "sms"
-  | "mattermost"
-  | "homeassistant"
-  | "dingtalk";
+export const PLATFORM_NAMES = [
+  "api",
+  "cli",
+  "telegram",
+  "discord",
+  "slack",
+  "whatsapp",
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+  "mattermost",
+  "homeassistant",
+  "dingtalk",
+] as const;
+
+export type PlatformName = (typeof PLATFORM_NAMES)[number];
 
 export interface GatewayPlatformConfig {
   enabled: boolean;

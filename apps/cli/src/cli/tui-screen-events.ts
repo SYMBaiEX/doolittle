@@ -1,4 +1,5 @@
 import blessed from "blessed";
+import { terminalGlyph } from "./terminal-glyphs";
 import { truncate } from "./text-utils";
 
 interface ScreenEventTarget {
@@ -94,7 +95,9 @@ export function installTuiScreenEvents(options: TuiScreenEventsOptions): void {
   const tooSmallContent = (width: number, height: number): string => {
     const current = `Current ${width}x${height}`;
     const restore =
-      width >= 44 ? `${current} · cockpit restores automatically` : current;
+      width >= 44
+        ? `${current} ${terminalGlyph("·", "|")} cockpit restores automatically`
+        : current;
     return `Terminal too small\nResize to at least ${minCols}x${minRows}\n${restore}`;
   };
 
@@ -114,7 +117,7 @@ export function installTuiScreenEvents(options: TuiScreenEventsOptions): void {
     tooSmallWarningEmitted = true;
     appendActivity(
       "warn",
-      `Terminal too small (${width}×${height}). Resize to at least ${minCols}×${minRows}.`,
+      `Terminal too small (${width}${terminalGlyph("×", "x")}${height}). Resize to at least ${minCols}${terminalGlyph("×", "x")}${minRows}.`,
       "warning",
     );
   };

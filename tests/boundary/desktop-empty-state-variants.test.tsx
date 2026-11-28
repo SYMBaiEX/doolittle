@@ -2,6 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
+import { WorkbenchEmpty } from "../../apps/desktop/src/renderer/components/workbench/Workbench";
 import { EmptyBlock } from "../../apps/desktop/src/renderer/lib";
 import { StateSurface } from "../../packages/ui/src/surfaces";
 
@@ -83,4 +84,32 @@ it("exposes the same variants on the shared state surface", () => {
       surface.getAttribute("data-variant"),
     ),
   ).toEqual(["hero", "pane", "inline"]);
+});
+
+it("renders workbench empty states through the canonical pane surface", () => {
+  act(() => {
+    root.render(
+      <WorkbenchEmpty
+        actions={<button type="button">Create</button>}
+        title="No runs yet"
+      >
+        Runs appear once work starts.
+      </WorkbenchEmpty>,
+    );
+  });
+
+  const shell = container.querySelector(".workbench-empty");
+  const surface = shell?.querySelector(".dl-state-surface");
+  expect(surface?.getAttribute("data-kind")).toBe("empty");
+  expect(surface?.getAttribute("data-variant")).toBe("pane");
+  expect(surface?.querySelector(".dl-state-title")?.textContent).toBe(
+    "No runs yet",
+  );
+  expect(surface?.querySelector(".dl-meta")?.textContent).toBe(
+    "Runs appear once work starts.",
+  );
+  expect(
+    surface?.querySelector(".workbench-empty__actions")?.textContent,
+  ).toContain("Create");
+  expect(shell?.querySelector(".workbench-empty__copy")).toBeNull();
 });

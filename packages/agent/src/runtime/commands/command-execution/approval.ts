@@ -92,5 +92,6 @@ export async function resolvePendingExecutionApproval(input: {
     command,
     reason,
   });
+  if (created.status !== "pending") return undefined;
   return { ...created, created: true };
 }

@@ -207,4 +207,26 @@ describe("CLI operator presentation", () => {
     expect(shortModelId(" provider/model ")).toBe("model");
     expect(shortSessionLabel("other-session-id")).toBe("other-sessio");
   });
+
+  it("falls back to ASCII operator-summary separators in a POSIX locale", () => {
+    const { context, state, dependencies } = fixture({ active: true });
+    const original = process.env.LC_ALL;
+    try {
+      process.env.LC_ALL = "C";
+      const ascii = buildCliOperatorSnapshot(context, state, dependencies);
+      expect(ascii.liveSummary).toBe("acting | 3 steps | workspace:search");
+      expect(ascii.transportSummary).toBe("live 2 | ready 0 | configured 0");
+
+      process.env.LC_ALL = "en_US.UTF-8";
+      const unicode = buildCliOperatorSnapshot(context, state, dependencies);
+      expect(unicode.liveSummary).toBe("acting · 3 steps · workspace:search");
+      expect(unicode.transportSummary).toBe("live 2 · ready 0 · configured 0");
+    } finally {
+      if (original === undefined) {
+        delete process.env.LC_ALL;
+      } else {
+        process.env.LC_ALL = original;
+      }
+    }
+  });
 });

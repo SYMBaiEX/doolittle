@@ -3,6 +3,7 @@ import {
   type TuiThemeName,
 } from "@doolittle/agent/runtime/theme-catalog";
 import blessed from "blessed";
+import { supportsTerminalUnicode } from "../core/terminal-capabilities";
 import { createWizardInputLock, installWizardScreenEvents } from "./events";
 import { createWizardOverlay } from "./overlay";
 import { createWizardPromptHandlers } from "./prompt-overlays";
@@ -15,7 +16,6 @@ import {
   appendWizardLogLine,
   cloneWizardSnapshot,
   createWizardSnapshot,
-  WIZARD_SECTION_ORDER,
 } from "./state";
 import { applyWizardTheme, createThemePreviewRenderer } from "./theme";
 import type { CreateWizardScreenOptions, WizardScreenContext } from "./types";
@@ -28,7 +28,7 @@ export function createWizardScreen({
 }: CreateWizardScreenOptions): WizardScreenContext {
   const screen = blessed.screen({
     smartCSR: true,
-    fullUnicode: true,
+    fullUnicode: supportsTerminalUnicode(),
     title: "Doolittle // Awakening",
     dockBorders: true,
     grabKeys: true,
@@ -69,13 +69,7 @@ export function createWizardScreen({
       },
     );
     widgets.header.setContent(model.headerContent);
-    widgets.sidebar.setContent(
-      WIZARD_SECTION_ORDER.map((name) =>
-        name === snapshot.currentSection
-          ? `{bold}{${model.selectedTextColor}-fg}› ${name}{/}{/bold}`
-          : `  ${name}`,
-      ).join("\n"),
-    );
+    widgets.sidebar.setContent(model.sidebarContent);
     widgets.detail.setContent(model.detailContent);
     widgets.logBox.setContent(model.logContent);
     if (!model.tooSmall) {
@@ -127,14 +121,26 @@ export function createWizardScreen({
       resolve: (value: T) => void,
     ) => void,
   ): Promise<T> =>
-    createWizardOverlay(screen, title, body, mount, () => {
-      widgets.footer.setContent(buildWizardBaseFooter(formatKeyLabel));
-      applyWizardTheme(widgets, activeThemeName);
-      render();
-    });
+    // Chrome derives from the theme active when the overlay opens. During
+    // the theme picker's live preview the frame keeps the opening theme
+    // until the next overlay; the selection rows inside still follow the
+    // preview because they derive at paint time.
+    createWizardOverlay(
+      screen,
+      title,
+      body,
+      mount,
+      () => {
+        widgets.footer.setContent(buildWizardBaseFooter(formatKeyLabel));
+        applyWizardTheme(widgets, activeThemeName);
+        render();
+      },
+      getThemeByName(activeThemeName),
+    );
 
   const promptHandlers = createWizardPromptHandlers({
     formatKeyLabel,
+    getChromeTheme: () => getThemeByName(activeThemeName),
     render,
     setFooter,
     showOverlay,

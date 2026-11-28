@@ -10,15 +10,16 @@ export class ExecutionApprovalStore {
     mkdirSync(baseDir, { recursive: true });
     this.filePath = join(baseDir, "execution-approvals.json");
     if (!existsSync(this.filePath)) {
-      this.write({ approvals: [] });
+      this.write({ approvals: [], rules: [] });
     }
   }
 
   read(): ExecutionApprovalStoreData {
     const raw = readFileSync(this.filePath, "utf8");
-    const parsed = JSON.parse(raw) as ExecutionApprovalStoreData;
+    const parsed = JSON.parse(raw) as Partial<ExecutionApprovalStoreData>;
     return {
       approvals: parsed.approvals ?? [],
+      rules: parsed.rules ?? [],
     };
   }
 

@@ -1,5 +1,6 @@
 import blessed from "blessed";
 import { buildYesNoFooter, buildYesNoItems, clampIndex } from "../prompts";
+import { wizardSelectionStyle } from "../render";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createPromptYesNoHandler(
@@ -14,10 +15,11 @@ export function createPromptYesNoHandler(
     ) => void,
   ): Promise<T> => deps.showOverlay(title, body, mount);
 
-  return async (prompt: string, defaultValue: boolean): Promise<boolean> =>
-    showOverlay<boolean>(
+  return async (prompt: string, defaultValue: boolean): Promise<boolean> => {
+    const chrome = deps.getChromeTheme();
+    return showOverlay<boolean>(
       "Confirm",
-      `${prompt}\n{gray-fg}Enter confirms · Esc keeps default{/gray-fg}`,
+      `${prompt}\n{${chrome.muted}-fg}Enter confirms · Esc keeps default{/${chrome.muted}-fg}`,
       (overlay, resolve) => {
         const list = blessed.list({
           parent: overlay,
@@ -34,12 +36,9 @@ export function createPromptYesNoHandler(
           vi: true,
           mouse: true,
           style: {
-            border: { fg: "#55d6ff" },
-            selected: {
-              bg: deps.widgets.header.style.bg,
-              fg: "black",
-            },
-            item: { fg: "white" },
+            border: { fg: chrome.cyanGlow },
+            selected: wizardSelectionStyle(chrome),
+            item: { fg: chrome.baseFg },
           },
           items: buildYesNoItems(defaultValue),
         });
@@ -58,6 +57,7 @@ export function createPromptYesNoHandler(
         let syncing = false;
         const applySelection = (index: number) => {
           selectedIndex = clampIndex(index, 2);
+          list.style.selected = wizardSelectionStyle(deps.getChromeTheme());
           syncing = true;
           try {
             list.select(selectedIndex);
@@ -92,4 +92,5 @@ export function createPromptYesNoHandler(
         list.key("C-c", () => finish(defaultValue));
       },
     );
+  };
 }

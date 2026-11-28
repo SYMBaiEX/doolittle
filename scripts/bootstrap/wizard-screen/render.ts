@@ -20,6 +20,31 @@ export interface WizardChromeTheme {
   panelBg: string;
   cyanGlow: string;
   greenGlow: string;
+  magentaGlow: string;
+  muted: string;
+}
+
+export interface WizardSelectionStyle {
+  bg: string;
+  fg: string;
+}
+
+/**
+ * Contrast-safe foreground/background pair for a selected row. The row is
+ * painted with the theme primary, which spans near-black to near-white
+ * across the catalog, so the foreground must derive through the WCAG ladder
+ * exactly like the header surface instead of hardcoding black or white. The
+ * CLI cockpit applies the same derivation through contrastSelectionStyle in
+ * apps/cli; both sides share the getReadableTextColor primitive from
+ * @doolittle/agent because scripts cannot import app code.
+ */
+export function wizardSelectionStyle(
+  theme: WizardChromeTheme,
+): WizardSelectionStyle {
+  return {
+    bg: theme.primary,
+    fg: getReadableTextColor(theme.primary, theme.baseFg, "black"),
+  };
 }
 
 export interface WizardRenderModel {
@@ -28,7 +53,7 @@ export interface WizardRenderModel {
   detailContent: string;
   logContent: string;
   tooSmall: boolean;
-  selectedTextColor: string;
+  selectionStyle: WizardSelectionStyle;
 }
 
 export function buildWizardRenderModel(
@@ -38,18 +63,23 @@ export function buildWizardRenderModel(
 ): WizardRenderModel {
   const tooSmall =
     viewport.cols < WIZARD_MIN_COLS || viewport.rows < WIZARD_MIN_ROWS;
-  const selectedTextColor = getReadableTextColor(
-    theme.secondary,
-    theme.baseFg,
-    "black",
-  );
+  // The current-section row is a filled selection pill on the theme primary,
+  // the same surface list selections use, so its foreground derives through
+  // the same contrast ladder. Deriving against theme.secondary instead would
+  // measure the wrong surface: secondary is never painted behind this text,
+  // and several catalog secondaries are light enough that the derived
+  // foreground came out black on the black panel — an invisible current
+  // section in the default theme.
+  const selectionStyle = wizardSelectionStyle(theme);
 
   return {
     headerContent:
       `${snapshot.title}\n${snapshot.subtitle}\n` +
       `Theme: ${theme.label} · ${theme.tagline}`,
     sidebarContent: WIZARD_SECTION_ORDER.map((name) =>
-      name === snapshot.currentSection ? `› ${name}` : `  ${name}`,
+      name === snapshot.currentSection
+        ? `{bold}{${selectionStyle.bg}-bg}{${selectionStyle.fg}-fg}› ${name}{/}{/}{/bold}`
+        : `  ${name}`,
     ).join("\n"),
     detailContent: tooSmall
       ? `Terminal Too Small\nResize to at least ${WIZARD_MIN_COLS}×${WIZARD_MIN_ROWS} for the fullscreen ritual. Press Ctrl-C to exit or resize to continue.`
@@ -63,7 +93,7 @@ export function buildWizardRenderModel(
           .join("\n")
       : snapshot.logLines.join("\n"),
     tooSmall,
-    selectedTextColor,
+    selectionStyle,
   };
 }
 

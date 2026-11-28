@@ -22,6 +22,11 @@ import type {
 } from "../../services/user-input/types";
 import { readRouteJsonBody } from "../request-body";
 import { json } from "../responses";
+import {
+  executionApprovalRulePath,
+  validateCreateExecutionApprovalRuleBody,
+  validateUpdateExecutionApprovalRuleBody,
+} from "./execution-approval-rules";
 
 const APPROVAL_STATUSES = new Set([
   "pending",
@@ -190,6 +195,74 @@ export async function handleSettingsExecutionRoutes(
         )
         .slice(0, 100),
     });
+  }
+
+  if (
+    request.method === "GET" &&
+    url.pathname === "/execution/approval-rules"
+  ) {
+    return json({
+      rules: context.services.executionApprovals.listRules(),
+    });
+  }
+
+  if (
+    request.method === "POST" &&
+    url.pathname === "/execution/approval-rules"
+  ) {
+    const parsed = await readRouteJsonBody(request);
+    if ("response" in parsed) return parsed.response;
+    const validated = validateCreateExecutionApprovalRuleBody(parsed.body);
+    if ("error" in validated) return json({ error: validated.error }, 400);
+    try {
+      return json(
+        {
+          rule: context.services.executionApprovals.createRule(validated.value),
+        },
+        201,
+      );
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Execution approval rule could not be created.",
+        },
+        409,
+      );
+    }
+  }
+
+  const approvalRule = executionApprovalRulePath(url.pathname);
+  if (approvalRule) {
+    if (request.method === "GET") {
+      const rule = context.services.executionApprovals.getRule(approvalRule.id);
+      return rule
+        ? json({ rule })
+        : json({ error: "execution approval rule not found" }, 404);
+    }
+    if (request.method === "PATCH") {
+      const parsed = await readRouteJsonBody(request);
+      if ("response" in parsed) return parsed.response;
+      const validated = validateUpdateExecutionApprovalRuleBody(parsed.body);
+      if ("error" in validated) return json({ error: validated.error }, 400);
+      const rule = context.services.executionApprovals.updateRule(
+        approvalRule.id,
+        validated.value,
+      );
+      return rule
+        ? json({ rule })
+        : json({ error: "execution approval rule not found" }, 404);
+    }
+    if (request.method === "DELETE") {
+      const deleted = context.services.executionApprovals.deleteRule(
+        approvalRule.id,
+      );
+      return deleted
+        ? json({ deleted: true })
+        : json({ error: "execution approval rule not found" }, 404);
+    }
   }
 
   if (request.method === "POST") {

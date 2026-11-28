@@ -5,6 +5,7 @@ import {
   clampIndex,
   toggleSelection,
 } from "../prompts";
+import { wizardSelectionStyle } from "../render";
 import type { WizardPromptOverlayDependencies } from "./shared";
 
 export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
@@ -21,10 +22,11 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
     prompt: string,
     optionsList: Array<{ value: T; label: string }>,
     defaults: T[],
-  ): Promise<T[]> =>
-    showOverlay<T[]>(
+  ): Promise<T[]> => {
+    const chrome = deps.getChromeTheme();
+    return showOverlay<T[]>(
       "Choose Many",
-      `${prompt}\n{gray-fg}↑/↓ move · Space toggle · Enter confirm{/gray-fg}`,
+      `${prompt}\n{${chrome.muted}-fg}↑/↓ move · Space toggle · Enter confirm{/${chrome.muted}-fg}`,
       (overlay, resolve) => {
         let active = new Set(defaults);
         let cursorIndex = 0;
@@ -43,12 +45,9 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
           vi: true,
           mouse: true,
           style: {
-            border: { fg: "#55d6ff" },
-            selected: {
-              bg: deps.widgets.header.style.bg,
-              fg: "black",
-            },
-            item: { fg: "white" },
+            border: { fg: chrome.cyanGlow },
+            selected: wizardSelectionStyle(chrome),
+            item: { fg: chrome.baseFg },
           },
           items: [],
         });
@@ -67,6 +66,7 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
         let syncing = false;
         const refresh = () => {
           cursorIndex = clampIndex(cursorIndex, optionsList.length);
+          list.style.selected = wizardSelectionStyle(deps.getChromeTheme());
           syncing = true;
           try {
             list.setItems(
@@ -136,4 +136,5 @@ export function createSelectManyHandler(deps: WizardPromptOverlayDependencies) {
         list.key("C-c", () => finish(defaults));
       },
     );
+  };
 }

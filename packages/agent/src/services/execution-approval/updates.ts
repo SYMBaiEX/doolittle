@@ -3,6 +3,7 @@ import type {
   CreateExecutionApprovalRecordInput,
   ExecutionApprovalMatchInput,
   ExecutionApprovalRecord,
+  ExecutionApprovalRule,
   ExecutionApprovalStoreData,
 } from "./types";
 
@@ -47,6 +48,54 @@ export function matchesApprovalRequest(
     record.runId === input.runId &&
     record.command.trim() === input.command.trim()
   );
+}
+
+function matchesOptionalScope(
+  ruleValue: string | undefined,
+  inputValue: string | undefined,
+): boolean {
+  return ruleValue === undefined || ruleValue === inputValue;
+}
+
+export function matchesExecutionApprovalRule(
+  rule: ExecutionApprovalRule,
+  input: ExecutionApprovalMatchInput,
+  nowMs = Date.now(),
+): boolean {
+  if (!rule.enabled) return false;
+  if (rule.expiresAt) {
+    const expiresAtMs = Date.parse(rule.expiresAt);
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= nowMs) return false;
+  }
+  if (
+    !matchesOptionalScope(rule.platform, input.platform) ||
+    !matchesOptionalScope(rule.userId, input.userId) ||
+    !matchesOptionalScope(rule.roomId, input.roomId) ||
+    !matchesOptionalScope(rule.sessionKey, input.sessionKey) ||
+    !matchesOptionalScope(rule.botId, input.botId) ||
+    !matchesOptionalScope(rule.sessionId, input.sessionId)
+  ) {
+    return false;
+  }
+
+  const pattern = rule.pattern.trim();
+  const command = input.command.trim();
+  if (!pattern) return false;
+  if (rule.patternType === "exact") return command === pattern;
+  if (command === pattern) return true;
+  return (
+    command.startsWith(pattern) && /\s/u.test(command.charAt(pattern.length))
+  );
+}
+
+export function createRuleSatisfiedApprovalRecord(
+  input: CreateExecutionApprovalRecordInput,
+  ruleId: string,
+): ExecutionApprovalRecord {
+  const record = createPendingApprovalRecord(input);
+  record.satisfiedByRuleId = ruleId;
+  markApprovalApproved(record, { useImmediately: true });
+  return record;
 }
 
 export function markApprovalApproved(
