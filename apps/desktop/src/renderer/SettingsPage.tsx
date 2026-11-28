@@ -501,7 +501,9 @@ export function SettingsPage({
           preferenceFeedback.kind === "error" ? (
             <ErrorBlock error={preferenceFeedback.message} />
           ) : (
-            <Notice announce="status">{preferenceFeedback.message}</Notice>
+            <span className="sr-only">
+              <Notice announce="status">{preferenceFeedback.message}</Notice>
+            </span>
           )
         ) : null}
         {runtimeCategoryOffline ? (
