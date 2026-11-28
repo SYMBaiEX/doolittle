@@ -126,6 +126,21 @@ it("lets the desktop recover activity only through the exact run receipt query",
   }
 });
 
+it("allows steer submission only on the exact chat run action path", () => {
+  expect(parseApiPath("/chat/runs/run-a/steer", "POST")).toBe(
+    "/chat/runs/run-a/steer",
+  );
+  expect(parseApiPath("/chat/runs/consult%3Arun/steer", "POST")).toBe(
+    "/chat/runs/consult%3Arun/steer",
+  );
+  expect(() => parseApiPath("/chat/runs/run-a/steer/extra", "POST")).toThrow(
+    "not available",
+  );
+  expect(() =>
+    parseApiPath("/chat/runs/run-a/steer?force=true", "POST"),
+  ).toThrow("Unsupported query");
+});
+
 it("retains a run claim across a duplicate inventory refresh while Stop verifies the receipt", () => {
   const claims = new RunClaims();
   const claim = claims.reserve(runId, sessionId, botId);
