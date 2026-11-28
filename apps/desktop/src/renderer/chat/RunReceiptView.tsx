@@ -24,6 +24,7 @@ import {
   lastMutation,
   type RunActivityItem,
   runActivityItems,
+  runDegradedInactivity,
   runIsStalled,
   runReceiptState,
 } from "./run-activity";
@@ -289,6 +290,7 @@ export function RunReceiptView({
   }, [pending, terminal]);
 
   const stalled = runIsStalled(receipt, clock, pending);
+  const degraded = runDegradedInactivity(receipt, clock);
   const startedAtMs = Date.parse(run.startedAt);
   const endedAtMs = Date.parse(run.endedAt ?? run.updatedAt);
   const elapsedLabel =
@@ -335,7 +337,8 @@ export function RunReceiptView({
       : ""
     : run.pendingApprovals > 0
       ? `${formatCount(run.pendingApprovals, "decision")} pending`
-      : activeTarget ||
+      : degraded?.label ||
+        activeTarget ||
         activeStep?.label ||
         toolActionLabel(run.activeAction ?? "") ||
         liveProgress ||
@@ -350,16 +353,18 @@ export function RunReceiptView({
           ? "complete"
           : state.statusLabel === "queued"
             ? "queued"
-            : state.tone === "warn" || stalled
+            : state.tone === "warn" || stalled || degraded
               ? "waiting"
               : "running";
-  const runLabel = stalled
-    ? "Waiting for an update"
-    : activeStep && state.statusLabel === "working"
-      ? activeStep.label
-      : botName && state.label === "Working"
-        ? `${botName} is working`
-        : state.label;
+  const runLabel = degraded
+    ? "Still running"
+    : stalled
+      ? "Waiting for an update"
+      : activeStep && state.statusLabel === "working"
+        ? activeStep.label
+        : botName && state.label === "Working"
+          ? `${botName} is working`
+          : state.label;
   const displayActivity = currentActivity === runLabel ? "" : currentActivity;
   const showProgress =
     Boolean(liveProgress && liveProgress !== displayActivity) &&
@@ -370,6 +375,7 @@ export function RunReceiptView({
       aria-label="Run receipt"
       className="chat-activity chat-run-receipt"
       data-pending={pending ? "true" : "false"}
+      data-degraded={degraded ? "true" : undefined}
       data-stalled={stalled ? "true" : undefined}
       data-tone={state.tone}
     >
@@ -441,6 +447,12 @@ export function RunReceiptView({
       >
         {expanded ? (
           <>
+            {degraded ? (
+              <p className="chat-activity-note chat-activity-degraded">
+                The run is still active. Long generations can be quiet; this
+                notice clears when meaningful activity resumes.
+              </p>
+            ) : null}
             {showProgress ? (
               <p className="chat-activity-note chat-activity-progress">
                 {liveProgress}

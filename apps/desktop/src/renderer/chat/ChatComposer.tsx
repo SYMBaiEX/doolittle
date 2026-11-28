@@ -648,6 +648,7 @@ export function ChatComposer({
             label={operationalLabel}
             pulse={
               Boolean(activeRequest) &&
+              !liveActivity?.degraded &&
               pendingApprovals === 0 &&
               (!bot ||
                 bot.isDefault ||
@@ -661,13 +662,17 @@ export function ChatComposer({
                   ? "warning"
                   : bot?.state === "stopped" || bot?.state === "archived"
                     ? "muted"
-                    : activeRequest || bot?.state === "busy"
-                      ? "processing"
-                      : backend.phase === "booting"
+                    : activeRequest
+                      ? liveActivity?.degraded
                         ? "warning"
-                        : backend.phase === "degraded"
-                          ? "danger"
-                          : "muted"
+                        : "processing"
+                      : bot?.state === "busy"
+                        ? "processing"
+                        : backend.phase === "booting"
+                          ? "warning"
+                          : backend.phase === "degraded"
+                            ? "danger"
+                            : "muted"
             }
             withDot
           />

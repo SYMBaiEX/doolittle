@@ -307,6 +307,83 @@ it("narrates live run activity from receipt events without fabricating details",
   }
 });
 
+it("surfaces backend run degradation as quiet inactivity and clears it with activity", () => {
+  const view = composer();
+  const harnessApi: ReceiptHarnessApi = {};
+  const startedAt = new Date(Date.now() - 200_000).toISOString();
+  const update = (
+    type: DesktopRunUpdate["type"],
+    runFields: Partial<DesktopRunUpdate["run"]> = {},
+  ): DesktopRunUpdate => ({
+    type,
+    sessionId: "chat-1",
+    run: {
+      runId: "run-1",
+      sessionId: "chat-1",
+      roomId: "chat-1",
+      source: "desktop",
+      message: "",
+      runDepth: "standard",
+      configuredMaxIterations: 4,
+      observedActionCount: 0,
+      progressMode: "all",
+      status: "thinking",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt,
+      updatedAt: new Date().toISOString(),
+      ...runFields,
+    },
+  });
+  try {
+    view.renderElement(
+      <ChatWorkspaceProvider>
+        <LiveReceiptHarness
+          composerProps={{ ...view.defaults, activeRequest: "run-1" }}
+          harnessApi={harnessApi}
+        />
+      </ChatWorkspaceProvider>,
+    );
+    if (!harnessApi.write) throw new Error("Receipt harness did not mount.");
+    const publish = (event: DesktopRunUpdate) => {
+      act(() =>
+        harnessApi.write?.({
+          "run-1": { latest: event, events: [event] },
+        }),
+      );
+    };
+    const badge = () => view.query<HTMLElement>(".chat-status-badge");
+    const detail = () =>
+      view.query<HTMLElement>(".chat-live-activity-detail")?.textContent;
+
+    publish(update("thinking"));
+    expect(badge()?.textContent).toBe("Thinking");
+    expect(badge()?.getAttribute("data-status")).toBe("processing");
+    expect(detail()).toBeUndefined();
+
+    publish(
+      update("degraded", {
+        degraded: {
+          reason: "no-meaningful-activity",
+          since: new Date(Date.now() - 190_000).toISOString(),
+          detectedAt: new Date().toISOString(),
+          thresholdMs: 180_000,
+        },
+      }),
+    );
+    expect(badge()?.textContent).toBe("Still running");
+    expect(badge()?.getAttribute("data-status")).toBe("warning");
+    expect(detail()).toBe("No meaningful activity for 3 minutes");
+
+    publish(update("thinking"));
+    expect(badge()?.textContent).toBe("Thinking");
+    expect(badge()?.getAttribute("data-status")).toBe("processing");
+    expect(detail()).toBeUndefined();
+  } finally {
+    view.dispose();
+  }
+});
+
 it("keeps the active-run elapsed clock moving while the window is hidden", () => {
   vi.useFakeTimers();
   const visibility = vi

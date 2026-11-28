@@ -272,6 +272,13 @@ export function runReceiptState(receipt: RunReceipt): {
       tone: "warn",
     };
   }
+  if (run.degraded) {
+    return {
+      label: "Still running",
+      statusLabel: "quiet",
+      tone: "warn",
+    };
+  }
   if (run.status === "waiting") {
     return run.statusDetail === "Waiting for execution capacity"
       ? { label: "Queued", statusLabel: "queued", tone: "neutral" }
@@ -292,12 +299,19 @@ function continuousActivityLabel(label: string): string {
   return continuousActivityLabels[label] ?? label;
 }
 
+export interface RunInactivityEvidence {
+  elapsedMs: number;
+  label: string;
+}
+
 export interface LiveRunActivity {
   /** Specific activity known from runtime evidence; absent means only "working" is honest. */
   label?: string;
   /** Safe target recorded with the activity, such as a file name or redacted command preview. */
   detail: string;
   elapsedMs?: number;
+  /** Backend-observed inactivity degradation, when present on the latest receipt. */
+  degraded?: RunInactivityEvidence;
 }
 
 /** Narrate only the current facts in a live run receipt; never infer or invent work. */
@@ -317,6 +331,15 @@ export function liveRunActivity(
   };
   if (run.pendingApprovals > 0) {
     return { ...base, label: "Waiting for approval" };
+  }
+  const degraded = runDegradedInactivity(receipt, now);
+  if (degraded) {
+    return {
+      ...base,
+      label: "Still running",
+      detail: degraded.label,
+      degraded,
+    };
   }
   const activeStep = runActivityItems(receipt)
     .filter((item) => item.status === "running" || item.status === "queued")
@@ -353,6 +376,39 @@ export function formatRunElapsed(milliseconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+/**
+ * Project the backend's degradation evidence without escalating it into a
+ * failure state. The threshold is evidence that the silence already crossed
+ * the backend policy even when the local clock is slightly behind `since`.
+ */
+export function runDegradedInactivity(
+  receipt: RunReceipt,
+  now: number,
+): RunInactivityEvidence | null {
+  if (ended(receipt.latest)) return null;
+  const degraded = receipt.latest.run.degraded;
+  if (!degraded) return null;
+  const sinceMs = Date.parse(degraded.since);
+  const observedMs = Number.isFinite(sinceMs) ? Math.max(0, now - sinceMs) : 0;
+  const elapsedMs = Math.max(
+    observedMs,
+    Number.isFinite(degraded.thresholdMs)
+      ? Math.max(0, degraded.thresholdMs)
+      : 0,
+  );
+  const duration =
+    elapsedMs >= 60_000
+      ? formatCount(Math.floor(elapsedMs / 60_000), "minute")
+      : formatRunElapsed(elapsedMs);
+  return {
+    elapsedMs,
+    label:
+      elapsedMs > 0
+        ? `No meaningful activity for ${duration}`
+        : "No meaningful activity detected",
+  };
 }
 
 export const RUN_STALL_THRESHOLD_MS = 12_000;
