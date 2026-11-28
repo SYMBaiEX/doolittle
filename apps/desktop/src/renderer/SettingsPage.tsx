@@ -492,20 +492,19 @@ export function SettingsPage({
           label="Settings subsections"
         />
       ) : null}
+      {showPreferences && preferenceFeedback?.kind === "status" ? (
+        <span className="sr-only">
+          <Notice announce="status">{preferenceFeedback.message}</Notice>
+        </span>
+      ) : null}
       <div
         {...panelAccessibility}
         className="settings-category-panel"
         id={panelId}
         ref={panelRef}
       >
-        {showPreferences && preferenceFeedback ? (
-          preferenceFeedback.kind === "error" ? (
-            <ErrorBlock error={preferenceFeedback.message} />
-          ) : (
-            <span className="sr-only">
-              <Notice announce="status">{preferenceFeedback.message}</Notice>
-            </span>
-          )
+        {showPreferences && preferenceFeedback?.kind === "error" ? (
+          <ErrorBlock error={preferenceFeedback.message} />
         ) : null}
         {runtimeCategoryOffline ? (
           <OfflineRouteState>
