@@ -94,6 +94,76 @@ it("carries the full masked command and a bounded redacted output tail on shell 
   }
 });
 
+it("projects an explicit user-facing failure explanation without diagnostic text", () => {
+  const activity = projectActionActivity(
+    "TODO",
+    {
+      success: false,
+      text: "TODO failed: diagnostic internals must stay out of the tile",
+      error: "TODO_PERSISTENCE_INTERNAL",
+      userFacingText:
+        "I could not add the todo because storage is unavailable.",
+      verifiedUserFacing: true,
+    },
+    "failed",
+  );
+
+  expect(activity).toEqual({
+    action: "TODO",
+    phase: "failed",
+    summary: "I could not add the todo because storage is unavailable.",
+  });
+});
+
+it("omits failure detail when upstream provides only diagnostic text or errors", () => {
+  const activity = projectActionActivity(
+    "TODO",
+    {
+      success: false,
+      text: "raw upstream failure with adapter internals",
+      error: new Error("raw upstream error with adapter internals"),
+    },
+    "failed",
+  );
+
+  expect(activity).toEqual({ action: "TODO", phase: "failed" });
+});
+
+it("redacts secrets and terminal controls from user-facing failure detail", () => {
+  const secret = "failure-detail-secret-value";
+  process.env.DOOLITTLE_TEST_FAILURE_SECRET = secret;
+  try {
+    const activity = projectActionActivity(
+      "TODO",
+      {
+        success: false,
+        userFacingText: `Could not save ${secret}.\n\u001b[31m\u202eTry again.`,
+      },
+      "failed",
+    );
+
+    expect(activity.summary).toBe(
+      "Could not save [REDACTED:DOOLITTLE_TEST_FAILURE_SECRET]. Try again.",
+    );
+  } finally {
+    delete process.env.DOOLITTLE_TEST_FAILURE_SECRET;
+  }
+});
+
+it("does not project user-facing text contradicted by an internal transcript marker", () => {
+  const activity = projectActionActivity(
+    "TODO",
+    {
+      success: false,
+      transcriptVisibility: "internal",
+      userFacingText: "internal diagnostic despite the contradictory field",
+    },
+    "failed",
+  );
+
+  expect(activity.summary).toBeUndefined();
+});
+
 it("replays the default shell outcome and safe test counts without stdout or stderr", async () => {
   const dataDir = await mkdtemp(join(tmpdir(), "doolittle-tool-journal-"));
   let runs = new RunControllerService(dataDir);
