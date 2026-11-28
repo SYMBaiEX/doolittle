@@ -1,3 +1,4 @@
+import { RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS } from "@doolittle/contracts/run";
 import type {
   LocalMutationInput,
   RunSnapshot,
@@ -57,7 +58,36 @@ const meaningfulPatch = (
 ): Partial<RunSnapshot> => ({
   ...patch,
   lastMeaningfulActivityAt: nowIso(),
+  degraded: undefined,
 });
+
+/**
+ * Surface missing run evidence without changing the lifecycle. The run may
+ * still be in legitimate long generation; this is observability, not failure.
+ */
+export const inactivityDegradedTransition = (
+  current: RunSnapshot,
+  thresholdMs = RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS,
+): StartRunTransition => {
+  const detectedAt = nowIso();
+  const lastMeaningful = current.lastMeaningfulActivityAt;
+  const since =
+    lastMeaningful && Number.isFinite(Date.parse(lastMeaningful))
+      ? lastMeaningful
+      : current.startedAt;
+  return createPatchedTransition(
+    current,
+    {
+      degraded: {
+        reason: "no-meaningful-activity",
+        since,
+        detectedAt,
+        thresholdMs,
+      },
+    },
+    "degraded",
+  );
+};
 
 export const actionStartedTransition = (
   current: RunSnapshot,
@@ -260,4 +290,8 @@ export const pendingApprovalsTransition = (
   current: RunSnapshot,
   pendingApprovals: number,
 ): StartRunTransition =>
-  createPatchedTransition(current, { pendingApprovals }, "approvals");
+  createPatchedTransition(
+    current,
+    meaningfulPatch({ pendingApprovals }),
+    "approvals",
+  );

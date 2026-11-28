@@ -397,6 +397,7 @@ export class RunControllerStore {
             terminalReason: "error" as const,
             statusDetail: "Interrupted by runtime restart",
             errorMessage: "Runtime restarted before this run completed.",
+            degraded: undefined,
             updatedAt: restoredAt,
             endedAt: restoredAt,
           };

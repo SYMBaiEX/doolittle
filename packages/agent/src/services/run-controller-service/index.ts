@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import {
+  isTerminalRunStatus,
+  RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS,
+} from "@doolittle/contracts/run";
 import { walletActivityFromAction } from "@doolittle/contracts/wallet-activity";
 import {
   RuntimeCodingVerificationEventBus,
@@ -10,6 +14,7 @@ import {
   actionProgressTransition,
   createPatchedTransition,
   createRunStartTransition,
+  inactivityDegradedTransition,
 } from "../run-controller/transitions";
 import type {
   LocalMutationInput,
@@ -24,7 +29,7 @@ import type {
   TaskRunClaimResult,
   TaskRunEvent,
 } from "../run-controller/types";
-import { cloneRun } from "../run-controller/utils";
+import { cloneRun, nowIso } from "../run-controller/utils";
 import {
   applyRunTransition,
   emitRunUpdate,
@@ -61,6 +66,25 @@ export type {
   TaskRunEvent,
 } from "../run-controller/types";
 
+const EXECUTION_CAPACITY_WAIT_DETAIL = "Waiting for execution capacity";
+
+function parseRunTimestamp(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/**
+ * Heartbeats and watchdog emissions refresh `updatedAt`, so only meaningful
+ * activity (or the start boundary for older receipts) can anchor silence.
+ */
+function meaningfulActivityAnchorMs(run: RunSnapshot): number | undefined {
+  return (
+    parseRunTimestamp(run.lastMeaningfulActivityAt) ??
+    parseRunTimestamp(run.startedAt)
+  );
+}
+
 export class RunControllerService {
   private static readonly SERVER_RUN_FAILURE_MESSAGE =
     "The response could not be completed. Please try again.";
@@ -75,11 +99,19 @@ export class RunControllerService {
   private readonly sessionTasks = new Map<string, string>();
   private readonly queuedRunIds = new Set<string>();
   private readonly pendingAcceptances = new Map<string, Promise<RunSnapshot>>();
+  private readonly inactivityTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly stopInactivityObservation: () => void;
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
 
   constructor(dataDir?: string) {
     this.store = new RunControllerStore(dataDir);
+    this.stopInactivityObservation = this.events.onUpdate((event) => {
+      this.observeRunUpdateForInactivity(event);
+    });
   }
 
   private get dependencies(): RunControllerDependencies {
@@ -87,6 +119,81 @@ export class RunControllerService {
       events: this.events,
       store: this.store,
     };
+  }
+
+  private isAdmissionWaiting(run: RunSnapshot): boolean {
+    return (
+      this.queuedRunIds.has(run.runId) ||
+      (run.status === "waiting" &&
+        run.statusDetail === EXECUTION_CAPACITY_WAIT_DETAIL)
+    );
+  }
+
+  private shouldObserveRunInactivity(run: RunSnapshot): boolean {
+    return (
+      !run.endedAt &&
+      !run.terminalReason &&
+      !isTerminalRunStatus(run.status) &&
+      !run.degraded &&
+      run.pendingApprovals <= 0 &&
+      !this.isAdmissionWaiting(run)
+    );
+  }
+
+  private clearInactivityTimer(runId: string): void {
+    const timer = this.inactivityTimers.get(runId);
+    if (timer) clearTimeout(timer);
+    this.inactivityTimers.delete(runId);
+  }
+
+  private scheduleInactivityCheck(run: RunSnapshot): void {
+    this.clearInactivityTimer(run.runId);
+    if (!this.shouldObserveRunInactivity(run)) return;
+    const anchorMs = meaningfulActivityAnchorMs(run);
+    if (anchorMs === undefined) return;
+    const delay = Math.max(
+      0,
+      anchorMs + RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS - Date.now(),
+    );
+    const timer = setTimeout(() => {
+      this.inactivityTimers.delete(run.runId);
+      this.checkRunInactivity(run.runId);
+    }, delay);
+    timer.unref?.();
+    this.inactivityTimers.set(run.runId, timer);
+  }
+
+  private observeRunUpdateForInactivity(event: RunUpdateEvent): void {
+    // Heartbeats are transport liveness only; degraded emissions are the
+    // watchdog's own output. Neither may reset the meaningful-activity clock.
+    if (event.type === "heartbeat" || event.type === "degraded") return;
+    this.scheduleInactivityCheck(event.run);
+  }
+
+  private checkRunInactivity(runId: string): void {
+    const receipt = this.store.getByRunId(runId);
+    if (!receipt) return;
+    const current = this.store.getInternal(receipt.sessionId);
+    if (
+      !current ||
+      current.runId !== runId ||
+      !this.shouldObserveRunInactivity(current)
+    )
+      return;
+    const anchorMs = meaningfulActivityAnchorMs(current);
+    if (anchorMs === undefined) return;
+    if (
+      anchorMs + RUN_NO_MEANINGFUL_ACTIVITY_DEGRADED_AFTER_MS - Date.now() >
+      0
+    ) {
+      // A clock adjustment can fire a timer before wall-clock evidence reaches
+      // the threshold. Re-arm rather than degrading early.
+      this.scheduleInactivityCheck(current);
+      return;
+    }
+    applyRunTransition(this.dependencies, current.sessionId, (latest) =>
+      inactivityDegradedTransition(latest),
+    );
   }
 
   markRuntimeBridgeAttached(attached = true): void {
@@ -146,7 +253,7 @@ export class RunControllerService {
       message: "",
       observedActionCount: 0,
       status: "waiting",
-      statusDetail: "Waiting for execution capacity",
+      statusDetail: EXECUTION_CAPACITY_WAIT_DETAIL,
       localMutations: [],
       pendingApprovals: 0,
       startedAt: now,
@@ -337,6 +444,9 @@ export class RunControllerService {
 
   /** Flushes the short-tail event journal debounce during an orderly shutdown. */
   dispose(): void {
+    this.stopInactivityObservation();
+    for (const timer of this.inactivityTimers.values()) clearTimeout(timer);
+    this.inactivityTimers.clear();
     this.store.dispose();
   }
 
@@ -509,6 +619,8 @@ export class RunControllerService {
             ...(current.walletActivities ?? []),
             { ...receipt, id: randomUUID() },
           ].slice(-32),
+          lastMeaningfulActivityAt: nowIso(),
+          degraded: undefined,
         },
         "action-completed",
       ),
