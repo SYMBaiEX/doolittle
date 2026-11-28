@@ -300,11 +300,11 @@ export function incompleteAdmittedWorkspaceFailure(
   actionResults: readonly ActionResult[],
 ): string {
   return [
-    "The requested workspace task is still incomplete after the agent's continuation attempts.",
+    "Doolittle stopped this run before completion: the agent acknowledged unfinished implementation or verification and did not verify a correction.",
     hasVerifiedWorkspaceMutation(actionResults)
-      ? "Some local files changed, but a prior response explicitly acknowledged unfinished implementation or verification, and no later verified correction receipt superseded that admission."
-      : "A prior response explicitly acknowledged unfinished implementation or verification, and no later verified correction receipt superseded that admission.",
-    "Inspect the current workspace before retrying; completed partial changes have been preserved.",
+      ? "Partial file changes are preserved."
+      : "No verified file changes were recorded.",
+    "Inspect the workspace, then retry the remaining step.",
   ].join(" ");
 }
 
