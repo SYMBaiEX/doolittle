@@ -662,6 +662,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             bots,
             request,
             confirmSensitiveAction,
+            controller.signal,
           );
           if (catalogResponse) return catalogResponse;
         } else if (botId !== "default") {

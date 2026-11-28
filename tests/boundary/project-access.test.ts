@@ -83,6 +83,7 @@ function fixture() {
     sessionId: string,
     consent = true,
     confirm?: () => Promise<boolean>,
+    signal?: AbortSignal,
   ) =>
     handleBotApiRequest(
       owner,
@@ -94,6 +95,7 @@ function fixture() {
         body: JSON.stringify({ sessionId, projectId: "project-1", consent }),
       },
       confirm,
+      signal,
     );
   return {
     dir,
@@ -230,6 +232,39 @@ describe("native project approval", () => {
     ).toBe(409);
     for (const id of ["no-consent", "cancel", "stale"])
       expect(f.registry.resolveSavedConversationOwner(id)).toBeNull();
+  });
+
+  it("does not publish an orphaned chat when the caller aborts during native approval", async () => {
+    const f = fixture();
+    const controller = new AbortController();
+    const confirm = vi.fn(async () => {
+      controller.abort(new Error("renderer closed"));
+      return true;
+    });
+    expect(
+      (
+        await f.post(
+          f.registry,
+          f.bot.id,
+          "late-approval",
+          true,
+          confirm,
+          controller.signal,
+        )
+      )?.status,
+    ).toBe(409);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(
+      f.registry.resolveSavedConversationOwner("late-approval"),
+    ).toBeNull();
+    expect(
+      f.registry.projectAccess.has(
+        projectAccessScope(f.registry.get(f.bot.id), {
+          id: "project-1",
+          workspacePath: f.root,
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("invalidates reuse when the project root or bot permissions change", async () => {
