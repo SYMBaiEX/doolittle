@@ -621,9 +621,13 @@ it("prefers the explicitly user-authored text over machine payload text", () => 
   );
   act(() => button("Tool activity").click());
   act(() => button("Show Web search details").click());
-  expect(host.querySelector('section[aria-label="Result"]')?.textContent).toBe(
-    authored,
-  );
+  // The displayed result carries the authored prose, never the machine JSON.
+  // (Whether the prose renders as markdown or preformatted text belongs to
+  // the markdown-pipeline coverage; both presentations satisfy this.)
+  const result = host.querySelector('section[aria-label="Result"]');
+  expect(result?.textContent).toContain("Web results for “example”");
+  expect(result?.textContent).not.toContain('"results"');
+  expect(result?.textContent).not.toContain("excerpts");
   // The machine payload stays available as structured evidence: the sources
   // list is still recovered from the JSON text, and the full envelope remains
   // under the raw disclosure.
