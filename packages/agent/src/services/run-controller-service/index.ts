@@ -166,6 +166,14 @@ export class RunControllerService {
           room_id: claim.roomId,
           state: "accepted",
         });
+        // Execution has not subscribed to runtime updates yet. Persist the
+        // admitted queue state explicitly so late subscribers and history see
+        // why the run is waiting instead of a silent gap after creation.
+        this.appendTaskEvent(run.runId, "agent.run", {
+          type: "waiting",
+          sessionId: run.sessionId,
+          run: cloneRun(run),
+        });
         emitRunUpdate(this.dependencies, "waiting", run);
       } catch {
         // A subscriber cannot undo the durable acceptance receipt.
