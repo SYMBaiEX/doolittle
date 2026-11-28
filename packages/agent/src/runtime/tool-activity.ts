@@ -189,6 +189,51 @@ function workerPath(root: string, value: unknown): string | undefined {
     : undefined;
 }
 
+const INPUT_COMMAND_ACTIONS = new Set([
+  "RUN_IN_TERMINAL",
+  "SHELL",
+  "SHELL_COMMAND",
+  "TERMINAL_SHELL",
+]);
+
+const INPUT_PATH_KEYS: Record<string, readonly string[]> = {
+  CREATE_DIRECTORY: ["path", "directory", "folder", "target"],
+  DOOLITTLE_WORKSPACE: ["path"],
+  PATCH_FILE: ["path", "file", "target"],
+  READ_FILE: ["path", "file", "target"],
+  SEARCH_FILES: ["path", "directory"],
+  WRITE_FILE: ["path", "file", "target"],
+};
+
+/**
+ * Project the small target subset of an owner-observed tool invocation. Input
+ * remains untrusted even after the SDK owner-observation redaction pass: only
+ * action-specific path/command keys are read, paths must stay inside the
+ * approved workdir, and commands keep the existing collapsed shell preview.
+ */
+export function projectNativeActionInputTarget(
+  action: string,
+  input: unknown,
+  workdir: string,
+): Pick<RunToolActivity, "command" | "paths"> {
+  if (!isRecord(input)) return {};
+  const name = action.toUpperCase();
+  if (INPUT_COMMAND_ACTIONS.has(name)) {
+    const command = commandPreview(input.command, workdir);
+    return command ? { command } : {};
+  }
+  const keys = INPUT_PATH_KEYS[name];
+  if (!keys) return {};
+  const paths = [
+    ...new Set(
+      keys
+        .map((key) => workerPath(workdir, input[key]))
+        .filter((path): path is string => path !== undefined),
+    ),
+  ].slice(0, MAX_PATHS);
+  return paths.length ? { paths } : {};
+}
+
 export function projectDelegatedToolActivity(
   sessionId: string,
   workdir: string,

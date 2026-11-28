@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { RunUpdateEvent } from "@doolittle/contracts/run";
 import { EventType } from "@elizaos/core";
 import { expect, it } from "vitest";
+import { nativeToolActivityProjector } from "../../packages/agent/src/runtime/bootstrap/runtime/native-tool-activity";
 import { createRunProgressEvents } from "../../packages/agent/src/runtime/bootstrap/runtime/run-progress";
 import { executeManagedDelegation } from "../../packages/agent/src/runtime/native/coding-delegation/execution";
 import type { ManagedAcpService } from "../../packages/agent/src/runtime/native/coding-delegation/types";
@@ -28,12 +29,23 @@ function startSubmit(
   });
 }
 
+const serviceGraphs = new WeakMap<RunControllerService, AppServices>();
+
+function servicesFor(runController: RunControllerService): AppServices {
+  let services = serviceGraphs.get(runController);
+  if (!services) {
+    services = {
+      runController,
+      settings: { get: () => ({ model: {} }) },
+      workspace: { root: () => "/approved" },
+    } as AppServices;
+    serviceGraphs.set(runController, services);
+  }
+  return services;
+}
+
 function bridge(runController: RunControllerService) {
-  const services = {
-    runController,
-    settings: { get: () => ({ model: {} }) },
-  } as AppServices;
-  return createRunProgressEvents(services);
+  return createRunProgressEvents(servicesFor(runController));
 }
 
 it("keeps private path and script arguments out of the durable command preview", () => {
@@ -144,14 +156,17 @@ it("replays the default shell outcome and safe test counts without stdout or std
         type: "agent.run",
         data: expect.objectContaining({
           type: "action-started",
-          activity: { action: "TERMINAL_SHELL", phase: "running" },
+          activity: expect.objectContaining({
+            action: "TERMINAL_SHELL",
+            phase: "running",
+          }),
         }),
       }),
       expect.objectContaining({
         type: "agent.run",
         data: expect.objectContaining({
           type: "action-completed",
-          activity: {
+          activity: expect.objectContaining({
             action: "TERMINAL_SHELL",
             phase: "completed",
             kind: "execute",
@@ -161,7 +176,7 @@ it("replays the default shell outcome and safe test counts without stdout or std
             output: "3 passed · 0 failed",
             exitCode: 0,
             durationMs: 792,
-          },
+          }),
         }),
       }),
       expect.objectContaining({ type: "response.completed" }),
@@ -228,6 +243,206 @@ it("keeps prior runs and secret-bearing arguments out of the current receipt", a
     expect(JSON.stringify(updates)).not.toContain(secret);
   } finally {
     delete process.env.DOOLITTLE_TEST_COMMAND_SECRET;
+    runs.dispose();
+  }
+});
+
+it("enriches a uniquely correlated native action with its workspace target", async () => {
+  const runs = new RunControllerService();
+  try {
+    startSubmit(runs);
+    const updates: RunUpdateEvent[] = [];
+    runs.onUpdate((update) => updates.push(update));
+    const services = servicesFor(runs);
+    const events = bridge(runs);
+    for (const handler of events[EventType.ACTION_STARTED] ?? []) {
+      await handler({
+        roomId: "chat-room",
+        content: { actions: ["READ_FILE"] },
+      } as never);
+    }
+    const started = updates[0]?.activity;
+    expect(started?.id).toEqual(expect.any(String));
+    expect(started).not.toHaveProperty("paths");
+
+    runWithTurnRuntimeScope(
+      { getSetting: () => undefined },
+      { settings: new Map(), runId: "chat-run" },
+      () => {
+        nativeToolActivityProjector(services).observeOwnerExecution({
+          phase: "started",
+          gate: "execution",
+          gateOutcome: "executed",
+          actionName: "READ_FILE",
+          args: { path: "notes.ts", content: "private file contents" },
+          redactedFields: 0,
+          redactedStrings: 0,
+          omittedFields: 0,
+        });
+      },
+    );
+
+    expect(updates[1]).toMatchObject({
+      type: "action-progress",
+      activity: {
+        id: started?.id,
+        action: "READ_FILE",
+        phase: "running",
+        paths: ["notes.ts"],
+      },
+    });
+    expect(JSON.stringify(updates)).not.toContain("private file contents");
+
+    for (const handler of events[EventType.ACTION_COMPLETED] ?? []) {
+      await handler({
+        roomId: "chat-room",
+        runId: "chat-run",
+        content: {
+          actions: ["READ_FILE"],
+          actionStatus: "completed",
+          actionResult: { success: true },
+        },
+      } as never);
+    }
+    expect(updates[2]?.activity).toMatchObject({
+      id: started?.id,
+      action: "READ_FILE",
+      phase: "completed",
+      durationMs: expect.any(Number),
+    });
+
+    for (const handler of events[EventType.ACTION_STARTED] ?? []) {
+      await handler({
+        roomId: "chat-room",
+        content: { actions: ["READ_FILE"] },
+      } as never);
+    }
+    runWithTurnRuntimeScope(
+      { getSetting: () => undefined },
+      { settings: new Map(), runId: "chat-run" },
+      () => {
+        nativeToolActivityProjector(services).observeOwnerExecution({
+          phase: "started",
+          gate: "execution",
+          gateOutcome: "executed",
+          actionName: "READ_FILE",
+          args: { path: "../outside-secret.ts" },
+          redactedFields: 0,
+          redactedStrings: 0,
+          omittedFields: 0,
+        });
+      },
+    );
+    expect(updates).toHaveLength(4);
+    expect(updates[3]?.activity).not.toHaveProperty("paths");
+    expect(JSON.stringify(updates)).not.toContain("outside-secret.ts");
+  } finally {
+    runs.dispose();
+  }
+});
+
+it("projects only the safe shell command preview from observed input", async () => {
+  const runs = new RunControllerService();
+  const secret = "native-input-secret-value";
+  process.env.DOOLITTLE_TEST_NATIVE_INPUT_SECRET = secret;
+  try {
+    startSubmit(runs);
+    const updates: RunUpdateEvent[] = [];
+    runs.onUpdate((update) => updates.push(update));
+    const services = servicesFor(runs);
+    const events = bridge(runs);
+    for (const handler of events[EventType.ACTION_STARTED] ?? []) {
+      await handler({
+        roomId: "chat-room",
+        content: { actions: ["TERMINAL_SHELL"] },
+      } as never);
+    }
+    runWithTurnRuntimeScope(
+      { getSetting: () => undefined },
+      { settings: new Map(), runId: "chat-run" },
+      () => {
+        const projector = nativeToolActivityProjector(services);
+        projector.observeOwnerExecution({
+          phase: "started",
+          gate: "execution",
+          gateOutcome: "executed",
+          actionName: "TERMINAL_SHELL",
+          args: { command: "git status" },
+          redactedFields: 0,
+          redactedStrings: 0,
+          omittedFields: 0,
+        });
+      },
+    );
+    for (const handler of events[EventType.ACTION_STARTED] ?? []) {
+      await handler({
+        roomId: "chat-room",
+        content: { actions: ["TERMINAL_SHELL"] },
+      } as never);
+    }
+    runWithTurnRuntimeScope(
+      { getSetting: () => undefined },
+      { settings: new Map(), runId: "chat-run" },
+      () => {
+        nativeToolActivityProjector(services).observeOwnerExecution({
+          phase: "started",
+          gate: "execution",
+          gateOutcome: "executed",
+          actionName: "TERMINAL_SHELL",
+          args: { command: `curl --data ${secret}` },
+          redactedFields: 0,
+          redactedStrings: 0,
+          omittedFields: 0,
+        });
+      },
+    );
+
+    expect(updates).toHaveLength(3);
+    expect(updates[1]?.activity?.command).toBe("git status");
+    expect(updates[2]?.activity).not.toHaveProperty("command");
+    expect(JSON.stringify(updates)).not.toContain(secret);
+  } finally {
+    delete process.env.DOOLITTLE_TEST_NATIVE_INPUT_SECRET;
+    runs.dispose();
+  }
+});
+
+it("does not guess targets when parallel invocations of one action are ambiguous", async () => {
+  const runs = new RunControllerService();
+  try {
+    startSubmit(runs);
+    const updates: RunUpdateEvent[] = [];
+    runs.onUpdate((update) => updates.push(update));
+    const services = servicesFor(runs);
+    const events = bridge(runs);
+    for (let index = 0; index < 2; index += 1) {
+      for (const handler of events[EventType.ACTION_STARTED] ?? []) {
+        await handler({
+          roomId: "chat-room",
+          content: { actions: ["READ_FILE"] },
+        } as never);
+      }
+    }
+    runWithTurnRuntimeScope(
+      { getSetting: () => undefined },
+      { settings: new Map(), runId: "chat-run" },
+      () => {
+        nativeToolActivityProjector(services).observeOwnerExecution({
+          phase: "started",
+          gate: "execution",
+          gateOutcome: "executed",
+          actionName: "READ_FILE",
+          args: { path: "notes.ts" },
+          redactedFields: 0,
+          redactedStrings: 0,
+          omittedFields: 0,
+        });
+      },
+    );
+
+    expect(updates).toHaveLength(2);
+    expect(JSON.stringify(updates)).not.toContain("notes.ts");
+  } finally {
     runs.dispose();
   }
 });
